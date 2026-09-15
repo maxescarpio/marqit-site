@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marqit — Free Daily Prediction Game</title>
+
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-6H0DPV7MVX"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-6H0DPV7MVX');
+</script>
+<meta name="description" content="A free daily prediction game — call sports, pop culture, and news outcomes. Three calls a day, same three worldwide.">
+
+<!-- Open Graph / social share preview -->
+<meta property="og:title" content="Marqit — Free Daily Prediction Game">
+<meta property="og:description" content="A free daily prediction game — call sports, pop culture, and news outcomes. Three calls a day, same three worldwide.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://playmarqit.com/">
+<meta property="og:image" content="https://playmarqit.com/og-image.png">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Marqit — Free Daily Prediction Game">
+<meta name="twitter:description" content="A free daily prediction game — call sports, pop culture, and news outcomes. Three calls a day, same three worldwide.">
+<meta name="twitter:image" content="https://playmarqit.com/og-image.png">
+
+<link rel="canonical" href="https://playmarqit.com/">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#17191D;
+    --ink-soft:#4B4E55;
+    --paper:#FFFFFF;
+    --panel:#F4F4F1;
+    --line:#E4E3DD;
+    --yes:#1C7A4D;
+    --yes-bg:#E7F3EC;
+    --no:#B23A2E;
+    --no-bg:#FBEAE8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Big Shoulders Display',sans-serif;
+    font-weight:700;
+    letter-spacing:0.01em;
+    line-height:0.95;
+  }
+  a{color:inherit;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 32px;}
+  @media (max-width:640px){.wrap{padding:0 20px;}}
+
+  /* NAV */
+  nav{padding:28px 0;}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;}
+  .word{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:26px;letter-spacing:0.02em;}
+  .navcta{font-size:14px;font-weight:500;padding:9px 18px;border:1px solid var(--ink);border-radius:100px;text-decoration:none;transition:background .15s, color .15s;}
+  .navcta:hover{background:var(--ink);color:var(--paper);}
+  .pagenav{background:var(--ink);position:sticky;top:0;z-index:10;}
+  .pagenav-row{display:flex;gap:2px;}
+  .pagenav-tab{padding:14px 20px;border:none;background:none;color:#9A9CA3;font-family:'Inter',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;transition:color .15s;}
+  .pagenav-tab:hover{color:#D8D9DC;}
+  .pagenav-tab.active{color:var(--paper);border-bottom-color:var(--yes);}
+
+  /* HERO */
+  .hero{padding:56px 0 88px;}
+  @keyframes heroFadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+  .hero h1{animation:heroFadeIn 600ms cubic-bezier(.17,.67,.35,.99) both;}
+  .hero .sub{animation:heroFadeIn 600ms cubic-bezier(.17,.67,.35,.99) 90ms both;}
+  .hero .signup{animation:heroFadeIn 600ms cubic-bezier(.17,.67,.35,.99) 180ms both;}
+  .hero .age-check{animation:heroFadeIn 600ms cubic-bezier(.17,.67,.35,.99) 240ms both;}
+  .hero-grid{display:grid;grid-template-columns:1.1fr 0.9fr;gap:56px;align-items:center;}
+  @media (max-width:860px){.hero-grid{grid-template-columns:1fr;gap:48px;}}
+  .hero h1{font-size:clamp(42px,6.2vw,74px);max-width:11ch;}
+  .hero p.sub{margin-top:22px;font-size:18px;color:var(--ink-soft);max-width:46ch;}
+  .signup{margin-top:32px;display:flex;gap:10px;max-width:440px;flex-wrap:wrap;}
+  .age-check{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink-soft);}
+  .age-check input{width:16px;height:16px;}
+  .signup input[type=email],.signup input[type=text]{
+    flex:1;min-width:150px;padding:14px 16px;border:1.5px solid var(--line);border-radius:10px;
+    font-family:'Inter',sans-serif;font-size:15px;background:var(--panel);color:var(--ink);
+  }
+  .signup input[type=email]:focus,.signup input[type=text]:focus{outline:none;border-color:var(--ink);}
+  .signup button{
+    padding:14px 22px;border:none;border-radius:10px;background:var(--ink);color:var(--paper);
+    font-family:'Inter',sans-serif;font-weight:600;font-size:15px;cursor:pointer;transition:opacity .15s;
+    white-space:nowrap;
+  }
+  .signup button:hover{opacity:0.85;}
+  .signup button:disabled{opacity:0.5;cursor:default;}
+  .form-msg{margin-top:12px;font-size:14px;min-height:20px;}
+  .form-msg.ok{color:var(--yes);}
+  .form-msg.err{color:var(--no);}
+  .count-line{margin-top:6px;font-size:14px;color:var(--ink-soft);}
+  .count-line strong{color:var(--ink);font-weight:600;}
+  .fine-print{margin-top:10px;font-size:12.5px;color:var(--ink-soft);opacity:0.85;}
+
+  /* TICKET CARD */
+  .ticket{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;transition:transform .18s ease, box-shadow .18s ease;}
+  .ticket:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(23,25,29,0.1);}
+  .cat-tabs{display:flex;gap:8px;margin:24px 0 20px;flex-wrap:wrap;}
+  .cat-tab{padding:9px 18px;border-radius:100px;border:1px solid var(--line);background:var(--paper);font-family:'Inter',sans-serif;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:background .15s,color .15s,border-color .15s;display:inline-flex;align-items:center;gap:7px;}
+  .cat-icon{width:15px;height:15px;flex-shrink:0;}
+  .cat-tab:hover{border-color:var(--ink);color:var(--ink);}
+  .cat-tab.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .ticket-q{font-size:15px;font-weight:500;max-width:26ch;}
+  .ticket-meta{margin-top:6px;font-size:13px;color:var(--ink-soft);}
+  .ticket-row{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .opt{border-radius:10px;padding:14px;text-align:center;}
+  .opt.yes{background:var(--yes-bg);}
+  .opt.no{background:var(--no-bg);}
+  .opt-label{font-size:12px;font-weight:600;letter-spacing:0.04em;}
+  .opt.yes .opt-label{color:var(--yes);}
+  .opt.no .opt-label{color:var(--no);}
+  .opt-price{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:30px;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:2px;}
+  .opt-pct{font-size:16px;opacity:0.8;}
+  .token-icon{width:20px;height:20px;flex-shrink:0;}
+  .opt.yes .opt-price{color:var(--yes);}
+  .opt.no .opt-price{color:var(--no);}
+  .predict-card .opt{cursor:pointer;transition:transform .1s ease;}
+  .predict-card .opt:hover{transform:translateY(-1px);}
+  .predict-card .opt.picked{box-shadow:0 0 0 2px currentColor inset;}
+  .ticket-foot{margin-top:16px;font-size:12px;color:var(--ink-soft);display:flex;justify-content:space-between;}
+
+  /* HOW IT WORKS */
+  .section{padding:36px 0;border-top:1px solid var(--line);}
+  .section h2{font-size:clamp(30px,4vw,42px);max-width:14ch;}
+  .steps{margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:36px;}
+  @media (max-width:760px){.steps{grid-template-columns:1fr;gap:32px;}}
+  .step-num{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:15px;color:var(--ink-soft);}
+  .step h3{margin-top:8px;font-size:22px;font-weight:700;}
+  .step p{margin-top:8px;font-size:15px;color:var(--ink-soft);max-width:32ch;}
+
+  /* LEADERBOARDS */
+  .boards{margin-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  @media (max-width:760px){.boards{grid-template-columns:1fr;}}
+  .board{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;transition:transform .18s ease, box-shadow .18s ease;}
+  .board:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(23,25,29,0.08);}
+  .board-title{font-size:13px;font-weight:600;color:var(--ink-soft);text-transform:none;}
+  .board-rows{margin-top:16px;display:flex;flex-direction:column;gap:10px;}
+  .brow{display:flex;justify-content:space-between;font-size:14px;padding:2px 0;}
+  .brow.me{font-weight:600;}
+  .brank{color:var(--ink-soft);min-width:30px;margin-right:6px;display:inline-block;}
+  .result-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;transition:transform .18s ease, box-shadow .18s ease;}
+  .result-row:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(23,25,29,0.08);}
+  .result-q{font-size:14px;font-weight:500;}
+  .result-meta{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .result-badge{flex-shrink:0;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:14px;padding:6px 14px;border-radius:100px;white-space:nowrap;}
+  .result-badge.yes{background:var(--yes-bg);color:var(--yes);}
+  .result-badge.no{background:var(--no-bg);color:var(--no);}
+  .policy-block{margin-bottom:32px;margin-top:28px;}
+  .policy-block h3{font-family:'Big Shoulders Display',sans-serif;font-size:22px;margin-bottom:12px;}
+  .policy-block p{font-size:14px;color:var(--ink-soft);margin-bottom:10px;max-width:60ch;}
+  .policy-block ul{margin:0 0 10px 20px;}
+  .policy-block li{font-size:14px;color:var(--ink-soft);margin-bottom:6px;max-width:58ch;}
+  .policy-note{font-size:12.5px;color:var(--ink-soft);font-style:italic;background:var(--panel);border-radius:10px;padding:12px 14px;margin-top:20px;}
+  .duel-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;}
+  .duel-q{font-size:15px;font-weight:600;margin-bottom:20px;text-align:center;}
+  .duel-row{display:flex;align-items:center;gap:10px;}
+  .duel-side{flex:1;text-align:center;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 10px;}
+  .duel-vs{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:14px;color:var(--ink-soft);flex-shrink:0;}
+  .duel-avatar{width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:15px;margin:0 auto 8px;}
+  .duel-name{font-size:12.5px;font-weight:600;margin-bottom:8px;}
+  .duel-pick{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px;margin-bottom:8px;}
+  .duel-pick.yes{background:var(--yes-bg);color:var(--yes);}
+  .duel-pick.no{background:var(--no-bg);color:var(--no);}
+  .duel-result{font-size:11px;font-weight:700;margin-bottom:6px;letter-spacing:0.03em;}
+  .duel-result.win{color:var(--yes);}
+  .duel-result.loss{color:var(--ink-soft);}
+  .duel-points{font-size:10.5px;color:var(--ink-soft);margin-bottom:6px;line-height:1.5;}
+  .duel-points span{opacity:0.75;}
+  .duel-total{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:20px;color:var(--ink);}
+  .duel-note{font-size:12.5px;color:var(--ink-soft);margin-top:18px;text-align:center;}
+  .ex-title{font-family:'Big Shoulders Display',sans-serif;font-size:22px;font-weight:700;margin-bottom:4px;}
+  .ex-sub{font-size:13px;color:var(--ink-soft);margin-bottom:18px;}
+  .ex-line{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;}
+  .ex-two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .ex-mini-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;}
+  .ex-mini-label{font-size:10.5px;font-weight:700;color:var(--ink-soft);letter-spacing:0.04em;text-transform:uppercase;margin-bottom:6px;}
+  .ex-mini-head{font-family:'Big Shoulders Display',sans-serif;font-size:17px;font-weight:700;margin-bottom:6px;}
+  .ex-mini-body{font-size:12px;color:var(--ink-soft);line-height:1.4;}
+  .streak-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;}
+  .streak-row{display:flex;gap:8px;justify-content:center;margin-bottom:14px;}
+  .streak-day{width:34px;height:34px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--ink-soft);}
+  .streak-day.done{background:var(--yes-bg);color:var(--yes);border-color:transparent;}
+  .streak-day.perfect{background:var(--ink);color:#D9AE3F;border-color:transparent;}
+  .streak-day.frozen{background:#E4F0FB;color:#3E6CC9;border-color:transparent;}
+  .streak-day.today{border:2px solid var(--ink);color:var(--ink);}
+  .streak-caption{font-size:12.5px;color:var(--ink-soft);text-align:center;}
+  .elite-tag{font-size:10.5px;font-weight:700;color:var(--yes);letter-spacing:0.03em;}
+  .tier-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;}
+  .tier-chip{flex-shrink:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px;text-align:center;font-size:13px;font-weight:600;color:var(--ink-soft);min-width:88px;}
+  .tier-chip span{display:block;font-family:'Big Shoulders Display',sans-serif;font-size:11px;font-weight:700;color:var(--ink-soft);opacity:0.7;margin-top:4px;}
+  .tier-chip.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .tier-chip.active span{color:#D9AE3F;opacity:1;}
+  .recap-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;}
+  .recap-head{font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:14px;}
+  .recap-stats{display:flex;gap:18px;margin-bottom:14px;}
+  .recap-stats div{flex:1;text-align:center;}
+  .recap-stats strong{display:block;font-family:'Big Shoulders Display',sans-serif;font-size:26px;font-weight:700;color:var(--ink);}
+  .recap-stats span{font-size:11px;color:var(--ink-soft);}
+  .recap-foot{font-size:12.5px;color:var(--ink-soft);text-align:center;border-top:1px solid var(--line);padding-top:12px;}
+  .share-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;max-width:340px;}
+  .share-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .share-head strong{font-size:15px;}
+  .share-streak{display:flex;align-items:center;gap:4px;font-size:13px;font-weight:700;}
+  .share-row{display:flex;gap:10px;}
+  .share-cell{flex:1;text-align:center;}
+  .share-icon{width:100%;aspect-ratio:1;border-radius:12px;display:flex;align-items:center;justify-content:center;}
+  .share-icon.yes{background:var(--yes);}
+  .share-icon.no{background:var(--no);}
+  .share-icon svg{width:22px;height:22px;stroke:var(--paper);}
+  .share-cell-label{font-size:11px;color:var(--ink-soft);margin-top:6px;font-weight:600;}
+  .share-foot{text-align:center;margin-top:12px;font-size:12px;color:var(--ink-soft);}
+  .predictor-card{display:flex;align-items:center;gap:14px;background:var(--ink);border-radius:16px;padding:18px 20px;}
+  .discover-stack{display:flex;flex-direction:column;gap:10px;}
+  .discover-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font-size:13.5px;font-weight:500;display:flex;flex-direction:column;gap:8px;align-items:flex-start;}
+  .discover-card.surprise{background:#FBF3DC;border-color:#E8D48A;}
+  .surprise-badge{font-size:10.5px;font-weight:700;color:#9C7423;letter-spacing:0.02em;}
+  .discover-card .cat-tag{font-size:10.5px;font-weight:700;color:var(--ink-soft);background:var(--paper);border:1px solid var(--line);border-radius:100px;padding:2px 10px;}
+  .lightning-card{background:var(--ink);border-radius:16px;padding:20px;}
+  .lightning-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:11px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;color:#9A9CA3;}
+  .lightning-count{color:#D9AE3F;}
+  .lightning-q{color:var(--paper);font-size:15px;font-weight:600;margin-bottom:14px;}
+  .lightning-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px;}
+  .lightning-row .opt{border-radius:10px;padding:11px;text-align:center;}
+  .lightning-row .opt.yes{background:rgba(28,122,77,0.25);}
+  .lightning-row .opt.no{background:rgba(178,58,46,0.25);}
+  .lightning-row .opt-label{font-size:11px;font-weight:600;color:#D8D9DC;}
+  .lightning-row .opt.yes .opt-price{color:#4ED18C;}
+  .lightning-row .opt.no .opt-price{color:#F17C6E;}
+  .lightning-foot{color:#D9AE3F;font-size:11.5px;font-weight:600;text-align:center;}
+  .predictor-crown{width:44px;height:44px;border-radius:50%;background:#D9AE3F;color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+  .predictor-name{color:var(--paper);font-family:'Big Shoulders Display',sans-serif;font-size:18px;font-weight:700;}
+  .predictor-sub{color:#B9BBC2;font-size:12.5px;}
+
+  /* FINAL CTA */
+  .cta-band{background:var(--ink);color:var(--paper);padding:80px 0;}
+  .cta-band h2{color:var(--paper);font-size:clamp(32px,5vw,52px);max-width:14ch;}
+  .cta-band p{margin-top:16px;color:#C7C8CC;font-size:17px;max-width:44ch;}
+  .cta-band .signup input[type=email],.cta-band .signup input[type=text]{background:#232529;border-color:#3A3D43;color:var(--paper);}
+  .cta-band .signup input[type=email]::placeholder,.cta-band .signup input[type=text]::placeholder{color:#8B8D93;}
+  .cta-band .signup input[type=email]:focus,.cta-band .signup input[type=text]:focus{border-color:var(--paper);}
+  .cta-band .signup button{background:var(--paper);color:var(--ink);}
+  .cta-band .age-check{color:#A9AAAE;}
+  .cta-band .count-line{color:#A9AAAE;}
+  .cta-band .count-line strong{color:var(--paper);}
+
+  footer{padding:32px 0;}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--ink-soft);flex-wrap:wrap;gap:14px;}
+  .social{display:flex;gap:14px;align-items:center;}
+  .social a{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);color:var(--ink-soft);transition:border-color .15s,color .15s;}
+  .social a:hover{border-color:var(--ink);color:var(--ink);}
+  .social svg{width:15px;height:15px;}
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Marqit",
+  "url": "https://playmarqit.com/",
+  "description": "A free daily prediction game. Call sports, pop culture, and news outcomes — three calls a day, same three worldwide.",
+  "applicationCategory": "GameApplication",
+  "genre": "Prediction Game",
+  "operatingSystem": "Any",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav>
+  <div class="wrap" style="display:flex; align-items:center; justify-content:space-between;">
+    <span class="word">Marqit</span>
+    <div id="nav-badge" style="display:none; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--line); border-radius:100px; padding:5px 12px 5px 8px;">
+      <svg id="nav-badge-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 6.6L21 9l-5 4.6L17.4 20 12 16.4 6.6 20 8 13.6 3 9l6.6-.4z"/></svg>
+      <span id="nav-badge-label" style="font-size:12.5px; font-weight:700;">Rookie</span>
+    </div>
+  </div>
+</nav>
+
+<div class="pagenav">
+  <div class="wrap pagenav-row">
+    <button class="pagenav-tab active" data-page="home">Play</button>
+    <button class="pagenav-tab" data-page="how">How To Play</button>
+  </div>
+</div>
+
+<div id="page-home" class="page">
+<header class="hero">
+  <div class="wrap">
+    <h1>Make Your Prediction, Share it Worldwide.</h1>
+    <p class="sub">Sports. Pop culture. News. Three calls a day — same three, worldwide.</p>
+    <form class="signup" id="join">
+      <input type="text" id="username-input" placeholder="username" autocomplete="username" required maxlength="24">
+      <input type="email" id="email-input" placeholder="you@email.com" autocomplete="email" required>
+      <input type="text" id="state-input" placeholder="state / region" autocomplete="address-level1" maxlength="40">
+      <button type="submit" id="join-btn">Sign up</button>
+    </form>
+    <label class="age-check">
+      <input type="checkbox" id="age-checkbox" required>
+      <span>I'm 18 or older</span>
+    </label>
+    <p class="form-msg" id="form-msg"></p>
+    <button id="sign-out-btn" style="display:none; margin-top:8px; padding:6px 14px; border:1px solid var(--line); border-radius:8px; background:none; color:var(--ink-soft); font-size:13px; cursor:pointer;">Sign out</button>
+    <p class="count-line" id="count-line" style="display:none;"></p>
+    <div id="my-stats" style="display:none; margin-top:20px; max-width:440px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px;">
+      <div style="display:flex; gap:24px; flex-wrap:wrap;">
+        <div><div style="font-size:22px; font-weight:700;" id="stat-streak">0</div><div style="font-size:12px; color:var(--ink-soft);">Day streak</div></div>
+        <div><div style="font-size:22px; font-weight:700;" id="stat-points">0</div><div style="font-size:12px; color:var(--ink-soft);">Points</div></div>
+        <div><div style="font-size:22px; font-weight:700;" id="stat-longest">0</div><div style="font-size:12px; color:var(--ink-soft);">Longest streak</div></div>
+        <div><div style="font-size:22px; font-weight:700;" id="stat-freeze">—</div><div style="font-size:12px; color:var(--ink-soft);">Streak Freeze</div></div>
+      </div>
+      <div id="tier-progress-wrap" style="display:none; margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+        <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--ink-soft); margin-bottom:6px;">
+          <span id="tier-progress-label"></span>
+        </div>
+        <div style="background:var(--line); border-radius:100px; height:6px; overflow:hidden;">
+          <div id="tier-progress-bar" style="background:var(--yes); height:100%; width:0%; border-radius:100px; transition:width 900ms cubic-bezier(.17,.67,.35,.99);"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Make Your Prediction — Three Questions, Three Answers.</h3>
+    <p class="ex-sub">Pick YES or NO to see how everyone else called it. All three lock together at 8:30pm ET.</p>
+
+    <div id="daily-questions-container">
+      <p class="ex-sub">Loading today's calls…</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<div id="page-how" class="page" style="display:none;">
+<section class="section">
+  <div class="wrap">
+    <h2>How To Play</h2>
+    <p style="font-size:15px; margin-top:10px;">Lock in your call. Once a day, that's the game.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Three Questions, Three Answers — Worldwide.</h3>
+    <div class="ex-two-col">
+      <div class="ex-mini-card">
+        <div class="ex-mini-label">The lineup</div>
+        <div class="ex-mini-head">Pick Yes or No</div>
+        <div class="ex-mini-body">Same 3 questions for every player — one sports, one pop culture, one news, always.</div>
+      </div>
+      <div class="ex-mini-card">
+        <div class="ex-mini-label">The lock</div>
+        <div class="ex-mini-head">One deadline</div>
+        <div class="ex-mini-body">All 3 lock together, before tonight's events start. Miss it, come back tomorrow.</div>
+      </div>
+    </div>
+    <p class="ex-sub" style="margin-top:16px;">Every correct call is worth 100 points.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Streaks &amp; the Perfect Day bonus.</h3>
+    <p class="ex-sub">Go 3-for-3 for a bonus. Miss a day and one free Streak Freeze covers it automatically.</p>
+    <div class="streak-card">
+      <div class="streak-row">
+        <div class="streak-day done">M</div>
+        <div class="streak-day done">T</div>
+        <div class="streak-day done">W</div>
+        <div class="streak-day frozen">T</div>
+        <div class="streak-day perfect">F</div>
+        <div class="streak-day today">S</div>
+        <div class="streak-day">S</div>
+      </div>
+      <div class="streak-caption">6-day streak · Thursday covered by a Streak Freeze · Friday was a Perfect Day</div>
+    </div>
+    <p class="ex-sub" style="margin-top:16px;">Badges at 7, 30, and 100 days, plus a streak leaderboard ranked purely on consistency.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Tiers.</h3>
+    <p class="ex-sub">One global badge, pushed up by every correct call.</p>
+    <div class="tier-row" id="tier-row">
+      <div class="tier-chip" data-tier="Rookie">Rookie<span>0</span></div>
+      <div class="tier-chip" data-tier="Analyst">Analyst<span>1,000</span></div>
+      <div class="tier-chip" data-tier="Pro">Pro<span>5,000</span></div>
+      <div class="tier-chip" data-tier="Expert">Expert<span>15,000</span></div>
+      <div class="tier-chip" data-tier="Legend">Legend<span>50,000</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Buddy Bonus &amp; head-to-head.</h3>
+    <p class="ex-sub">Two friends, same question, opposite sides.</p>
+    <div class="duel-card">
+      <div class="duel-q">Will the Cowboys beat the Giants on Sunday Night Football?</div>
+      <div class="duel-row">
+        <div class="duel-side">
+          <div class="duel-avatar">D</div>
+          <div class="duel-name">dmarshall_23</div>
+          <div class="duel-pick yes">Picked YES</div>
+          <div class="duel-result win">Correct</div>
+          <div class="duel-points">+100 <span>call</span> · +25 <span>buddy</span> · +25 <span>rival</span></div>
+          <div class="duel-total">150 pts</div>
+        </div>
+        <div class="duel-vs">VS</div>
+        <div class="duel-side">
+          <div class="duel-avatar">J</div>
+          <div class="duel-name">jmartinez</div>
+          <div class="duel-pick no">Picked NO</div>
+          <div class="duel-result loss">Incorrect</div>
+          <div class="duel-points">+0 <span>call</span> · +25 <span>buddy</span></div>
+          <div class="duel-total">25 pts</div>
+        </div>
+      </div>
+      <div class="duel-note">Both get the Buddy Bonus for pairing up. Opposite sides also means a Rival Bonus for whoever calls it right.</div>
+    </div>
+    <div style="max-width:420px; margin-top:20px;">
+      <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Set your buddy (by username)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="buddy-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px;">
+        <button id="set-buddy-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Set</button>
+      </div>
+      <p class="form-msg" id="buddy-msg" style="font-size:13px; margin-top:8px;"></p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Share it, right after it resolves.</h3>
+    <p class="ex-sub">Built to screenshot and share.</p>
+    <div class="share-card" id="share-card">
+      <div class="share-head">
+        <strong id="share-card-title">Marqit</strong>
+        <div class="share-streak">
+          <span id="share-card-streak">Sign in to see yours</span>
+        </div>
+      </div>
+      <div class="share-row" id="share-card-row">
+        <p class="ex-sub" style="margin:0;">Sign in above and play a resolved day to see your real card here.</p>
+      </div>
+      <div class="share-foot">playmarqit.com</div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Your weekly recap.</h3>
+    <p class="ex-sub">A longer look, once a week.</p>
+    <div class="recap-card" id="recap-card">
+      <div class="recap-head">This week</div>
+      <div class="recap-stats">
+        <div><strong id="recap-accuracy">—</strong><span>Accuracy</span></div>
+        <div><strong id="recap-predictions">—</strong><span>Predictions</span></div>
+        <div><strong id="recap-streak">—</strong><span>Day streak</span></div>
+      </div>
+      <div class="recap-foot" id="recap-foot">Sign in to see your recap.</div>
+    </div>
+    <p class="ex-sub" style="margin-top:16px;" id="top-predictor-line">Top Predictor of the Week: loading…</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title" style="margin-top:0;">Leaderboards that make it personal.</h3>
+    <p class="ex-sub">Start a private group with an invite link — everyone answers the same 3 daily calls, your group gets its own board.</p>
+
+    <div id="group-signed-out" style="max-width:420px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px;">
+      <p style="font-size:13px; color:var(--ink-soft); margin:0;">Sign in above to create or join a group.</p>
+    </div>
+
+    <div id="group-no-group" style="display:none; max-width:420px;">
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="text" id="group-name-input" placeholder="group name (e.g. The Squad)" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px;">
+        <button id="create-group-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Create</button>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="join-group-input" placeholder="paste an invite code" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px;">
+        <button id="join-group-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--panel); border:1.5px solid var(--line); color:var(--ink); font-weight:600; font-size:13.5px; cursor:pointer;">Join</button>
+      </div>
+      <p class="form-msg" id="group-msg" style="font-size:13px; margin-top:8px;"></p>
+    </div>
+
+    <div id="group-in-group" style="display:none;">
+      <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">
+        Invite link: <code id="group-invite-code" style="background:var(--panel); padding:2px 8px; border-radius:6px; font-weight:600;"></code>
+        <button id="copy-invite-btn" style="margin-left:8px; padding:4px 10px; border:1px solid var(--line); border-radius:6px; background:none; font-size:12px; cursor:pointer;">Copy</button>
+        <button id="leave-group-btn" style="margin-left:8px; padding:4px 10px; border:1px solid var(--no); border-radius:6px; background:none; color:var(--no); font-size:12px; cursor:pointer;">Leave group</button>
+      </p>
+      <div class="boards">
+        <div class="board">
+          <div class="board-title" id="group-name-display">Your group</div>
+          <div class="board-rows" id="board-group"><div class="brow"><span>Loading…</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <p class="ex-sub" style="margin-top:20px;">By category — fair, since everyone answers the same 3.</p>
+    <div class="boards">
+      <div class="board">
+        <div class="board-title">Sports</div>
+        <div class="board-rows" id="board-sports"><div class="brow"><span>Loading…</span></div></div>
+      </div>
+      <div class="board">
+        <div class="board-title">Pop culture</div>
+        <div class="board-rows" id="board-pop_culture"><div class="brow"><span>Loading…</span></div></div>
+      </div>
+      <div class="board">
+        <div class="board-title">News &amp; current events</div>
+        <div class="board-rows" id="board-news"><div class="brow"><span>Loading…</span></div></div>
+      </div>
+    </div>
+
+    <p class="ex-sub" style="margin-top:20px;">Plus your state, and the site-wide board.</p>
+    <div class="boards">
+      <div class="board">
+        <div class="board-title" id="state-board-title">Your state</div>
+        <div class="board-rows" id="board-state">
+          <div class="brow"><span>Sign in and set your state above to see this.</span></div>
+        </div>
+      </div>
+      <div class="board">
+        <div class="board-title">Marqit Big Board</div>
+        <div class="board-rows" id="big-board-rows">
+          <div class="brow"><span>Loading…</span></div>
+        </div>
+      </div>
+    </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h2>Privacy &amp; restrictions.</h2>
+
+    <div class="policy-block">
+      <h3>Privacy Policy</h3>
+      <p>We collect your email, a username, your self-reported state, and confirmation that you're 18 or older when you sign up.</p>
+      <p>We use your results on the daily calls to run streaks, leaderboards, and reminders. We don't sell your personal data to third parties.</p>
+      <p>Your username, streak, points, and tier are visible to other users on leaderboards. If you set a buddy or join a group, your results on shared questions become visible to that buddy or group as part of how Buddy Bonus, Rival Bonus, and group leaderboards work.</p>
+      <p>Push notifications require your explicit permission through your browser or device. You can opt out of personalized notifications at any time.</p>
+    </div>
+
+    <div class="policy-block">
+      <h3>Restrictions & Rules</h3>
+      <ul>
+        <li>You must be 18 or older to use Marqit.</li>
+        <li>Marqit is free to play. No purchase is ever necessary to participate or win.</li>
+        <li>Points and in-app tokens have no cash value and cannot be redeemed, transferred, or exchanged for money or prizes.</li>
+        <li>Marqit is not gambling and does not involve wagering for real-world value.</li>
+        <li>One account per person. Availability may vary by state.</li>
+        <li>Group invite links are not access-controlled beyond the code itself — anyone with the code can join. Don't share it publicly if you want to keep your group private.</li>
+        <li>You may belong to one group at a time. Setting a buddy is one-directional and doesn't require their confirmation.</li>
+      </ul>
+    </div>
+
+    <div class="policy-note">This is a working draft reflecting our current plan and hasn't been finalized by a lawyer yet — treat it as a preview, not a final legal document.</div>
+  </div>
+</section>
+</div>
+
+<section class="cta-band">
+  <div class="wrap">
+    <h2>Get in before it opens.</h2>
+    <p>Early sign-ups get first access when Marqit launches, plus a head start on the leaderboard.</p>
+    <form class="signup" id="join2">
+      <input type="text" id="username-input-2" placeholder="username" autocomplete="username" required maxlength="24">
+      <input type="email" id="email-input-2" placeholder="you@email.com" autocomplete="email" required>
+      <input type="text" id="state-input-2" placeholder="state / region" autocomplete="address-level1" maxlength="40">
+      <button type="submit" id="join-btn-2">Sign up</button>
+    </form>
+    <label class="age-check">
+      <input type="checkbox" id="age-checkbox-2" required>
+      <span>I'm 18 or older</span>
+    </label>
+    <p class="form-msg" id="form-msg-2"></p>
+    <p class="count-line" id="count-line-2" style="display:none;"></p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="social">
+      <a href="https://x.com/marqitapp" target="_blank" rel="noopener" aria-label="Marqit on X">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23.3 22H16.9l-5-6.5-5.7 6.5H2.9l8.1-9.3L2 2h6.6l4.5 6 5.8-6Zm-1.1 18h1.7L7.3 3.9H5.5L17.8 20Z"/></svg>
+      </a>
+      <a href="https://instagram.com/marqitapp" target="_blank" rel="noopener" aria-label="Marqit on Instagram">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>
+      </a>
+      <a href="https://tiktok.com/@marqitapp" target="_blank" rel="noopener" aria-label="Marqit on TikTok">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 2h-3v13.5a3 3 0 1 1-2.6-2.97v-3.05a6 6 0 1 0 5.6 5.98V8.9a7.6 7.6 0 0 0 4.5 1.47v-3a4.6 4.6 0 0 1-4.5-4.6V2Z"/></svg>
+      </a>
+    </div>
+    <span>© Marqit</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  function isValidEmail(v){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  }
+  function isValidUsername(v){
+    return /^[a-zA-Z0-9_]{3,24}$/.test(v);
+  }
+
+  var SUPABASE_URL = 'https://ivapcztkasjfetntkzxy.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_S1DZQXDDpffETdJh2xJONQ_QSNjnunn';
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function fireConfetti(anchorEl){
+    var colors = ['#1C7A4D', '#B23A2E', '#D9AE3F', '#17191D', '#FFFFFF'];
+    var rect = anchorEl.getBoundingClientRect();
+    var count = 60;
+
+    for(var i = 0; i < count; i++){
+      var piece = document.createElement('div');
+      var isCircle = Math.random() < 0.35;
+      var w = isCircle ? (4 + Math.random() * 3) : (5 + Math.random() * 6);
+      var h = isCircle ? w : w * (0.35 + Math.random() * 0.3);
+      var color = colors[Math.floor(Math.random() * colors.length)];
+
+      // spread the origin across the button's width, not a single point
+      var originX = rect.left + Math.random() * rect.width;
+      var originY = rect.top + window.scrollY + rect.height / 2;
+
+      piece.style.position = 'absolute';
+      piece.style.left = originX + 'px';
+      piece.style.top = originY + 'px';
+      piece.style.width = w + 'px';
+      piece.style.height = h + 'px';
+      piece.style.background = color;
+      piece.style.borderRadius = isCircle ? '50%' : '1.5px';
+      piece.style.pointerEvents = 'none';
+      piece.style.zIndex = '999';
+      piece.style.willChange = 'transform, opacity';
+      document.body.appendChild(piece);
+
+      var angle = Math.PI + Math.random() * Math.PI; // upward hemisphere
+      var burstDistance = 40 + Math.random() * 70;
+      var burstX = Math.cos(angle) * burstDistance;
+      var burstY = Math.sin(angle) * burstDistance * 0.8;
+      var fallDistance = 120 + Math.random() * 160;
+      var drift = (Math.random() - 0.5) * 90;
+      var spin = (Math.random() - 0.5) * 720;
+      var duration = 1100 + Math.random() * 700;
+      var delay = Math.random() * 90;
+
+      piece.animate([
+        { transform: 'translate(0,0) rotate(0deg) scale(1)', opacity: 1, offset: 0 },
+        { transform: 'translate(' + burstX + 'px,' + burstY + 'px) rotate(' + (spin * 0.3) + 'deg) scale(1)', opacity: 1, offset: 0.28 },
+        { transform: 'translate(' + (burstX + drift * 0.6) + 'px,' + (burstY + fallDistance * 0.55) + 'px) rotate(' + (spin * 0.7) + 'deg) scale(0.9)', opacity: 1, offset: 0.7 },
+        { transform: 'translate(' + (burstX + drift) + 'px,' + (burstY + fallDistance) + 'px) rotate(' + spin + 'deg) scale(0.75)', opacity: 0, offset: 1 }
+      ], { duration: duration, delay: delay, easing: 'cubic-bezier(.17,.67,.35,.99)', fill: 'forwards' });
+
+      (function(el, dur, del){ setTimeout(function(){ el.remove(); }, dur + del + 60); })(piece, duration, delay);
+    }
+  }
+
+  async function handleJoin(usernameInput, emailInput, ageCheckbox, btn, msgEl, stateInput){
+    const username = usernameInput.value.trim();
+    const email = emailInput.value.trim();
+    const state = stateInput ? stateInput.value.trim() : '';
+    msgEl.className = 'form-msg';
+    msgEl.textContent = '';
+
+    if(!isValidUsername(username)){
+      msgEl.classList.add('err');
+      msgEl.textContent = 'Username: 3-24 characters, letters/numbers/underscores only.';
+      return;
+    }
+    if(!isValidEmail(email)){
+      msgEl.classList.add('err');
+      msgEl.textContent = 'Enter a valid email first.';
+      return;
+    }
+    if(!ageCheckbox.checked){
+      msgEl.classList.add('err');
+      msgEl.textContent = 'You must confirm you\'re 18 or older.';
+      return;
+    }
+
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = 'Checking…';
+
+    const { data: existingUsername } = await sb.from('profiles').select('id').eq('username', username).maybeSingle();
+    if(existingUsername){
+      msgEl.classList.add('err');
+      msgEl.textContent = 'That username is taken \u2014 try another.';
+      btn.disabled = false;
+      btn.textContent = originalText;
+      return;
+    }
+
+    btn.textContent = 'Sending…';
+
+    const { error } = await sb.auth.signInWithOtp({
+      email: email,
+      options: {
+        data: { username: username, age_confirmed: true, state: state || null },
+        emailRedirectTo: window.location.href
+      }
+    });
+
+    if(error){
+      msgEl.classList.add('err');
+      msgEl.textContent = error.message.indexOf('rate limit') > -1
+        ? 'Too many tries — wait a minute and try again.'
+        : 'Something went wrong. Try again.';
+      btn.disabled = false;
+      btn.textContent = originalText;
+      return;
+    }
+
+    msgEl.classList.add('ok');
+    msgEl.textContent = 'Check ' + email + ' for a sign-in link.';
+    fireConfetti(btn);
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+
+  document.getElementById('join').addEventListener('submit', function(e){
+    e.preventDefault();
+    handleJoin(
+      document.getElementById('username-input'),
+      document.getElementById('email-input'),
+      document.getElementById('age-checkbox'),
+      document.getElementById('join-btn'),
+      document.getElementById('form-msg'),
+      document.getElementById('state-input')
+    );
+  });
+  document.getElementById('join2').addEventListener('submit', function(e){
+    e.preventDefault();
+    handleJoin(
+      document.getElementById('username-input-2'),
+      document.getElementById('email-input-2'),
+      document.getElementById('age-checkbox-2'),
+      document.getElementById('join-btn-2'),
+      document.getElementById('form-msg-2'),
+      document.getElementById('state-input-2')
+    );
+  });
+
+  // Runs when someone lands back on the site after clicking their magic link,
+  // or if they already have a session from a previous visit.
+  async function ensureProfile(user){
+    const { data: existing } = await sb.from('profiles').select('id, state, username').eq('id', user.id).maybeSingle();
+    if(existing) return existing.username;
+
+    let username = (user.user_metadata && user.user_metadata.username) || ('user_' + user.id.slice(0, 8));
+    const state = (user.user_metadata && user.user_metadata.state) || null;
+
+    let { error: insertErr } = await sb.from('profiles').insert({
+      id: user.id,
+      username: username,
+      state: state,
+      age_confirmed: true
+    });
+
+    if(insertErr && insertErr.code === '23505'){
+      // Rare race condition: someone else grabbed this exact username between our check and now.
+      // Fall back to a guaranteed-unique variant rather than leaving the account half-broken.
+      username = username + '_' + user.id.slice(0, 4);
+      const retry = await sb.from('profiles').insert({
+        id: user.id,
+        username: username,
+        state: state,
+        age_confirmed: true
+      });
+      insertErr = retry.error;
+    }
+
+    if(!insertErr){
+      await sb.from('streaks').insert({ user_id: user.id });
+    }
+    return username;
+  }
+
+  function showSignedIn(username){
+    document.querySelectorAll('.signup, .age-check').forEach(function(el){ el.style.display = 'none'; });
+    document.querySelectorAll('.form-msg').forEach(function(el){
+      el.className = 'form-msg ok';
+      el.textContent = 'You\'re signed in as ' + username + '.';
+    });
+    const signOutBtn = document.getElementById('sign-out-btn');
+    if(signOutBtn) signOutBtn.style.display = 'inline-block';
+    loadMyStats();
+    loadShareCard(username);
+    loadGroupSection();
+    loadStateBoard();
+  }
+
+  document.getElementById('sign-out-btn').addEventListener('click', async function(){
+    await sb.auth.signOut();
+    window.location.reload();
+  });
+
+  const TIERS = [
+    { name: 'Legend', min: 50000 },
+    { name: 'Expert', min: 15000 },
+    { name: 'Pro', min: 5000 },
+    { name: 'Analyst', min: 1000 },
+    { name: 'Rookie', min: 0 }
+  ];
+  function getTier(points){
+    for(let i = 0; i < TIERS.length; i++){
+      if(points >= TIERS[i].min) return TIERS[i].name;
+    }
+    return 'Rookie';
+  }
+  function getNextTier(points){
+    // TIERS is ordered highest-to-lowest; find the lowest threshold still above points
+    let next = null;
+    for(let i = TIERS.length - 1; i >= 0; i--){
+      if(TIERS[i].min > points){ next = TIERS[i]; break; }
+    }
+    return next;
+  }
+  function animateNumber(el, target){
+    if(!el) return;
+    const start = performance.now();
+    const duration = 800 + Math.min(target, 400);
+    function tick(now){
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = Math.round(eased * target).toLocaleString();
+      if(t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  async function loadMyStats(){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session) return;
+    const { data } = await sb.from('streaks').select('*').eq('user_id', session.user.id).maybeSingle();
+    const box = document.getElementById('my-stats');
+    if(!data || !box) return;
+    box.style.display = 'block';
+    animateNumber(document.getElementById('stat-streak'), data.current_streak);
+    animateNumber(document.getElementById('stat-points'), data.total_points);
+    animateNumber(document.getElementById('stat-longest'), data.longest_streak);
+    document.getElementById('stat-freeze').textContent = data.freeze_available ? 'Available' : 'Used this week';
+
+    const badge = document.getElementById('nav-badge');
+    const myTier = getTier(data.total_points);
+    if(badge){
+      badge.style.display = 'flex';
+      document.getElementById('nav-badge-label').textContent = myTier;
+    }
+    const tierRow = document.getElementById('tier-row');
+    if(tierRow){
+      tierRow.querySelectorAll('.tier-chip').forEach(function(chip){
+        chip.classList.toggle('active', chip.getAttribute('data-tier') === myTier);
+      });
+    }
+
+    const progressWrap = document.getElementById('tier-progress-wrap');
+    const next = getNextTier(data.total_points);
+    if(progressWrap && next){
+      const currentTierMin = TIERS.find(function(t){ return t.name === myTier; }).min;
+      const pct = Math.max(0, Math.min(100, ((data.total_points - currentTierMin) / (next.min - currentTierMin)) * 100));
+      progressWrap.style.display = 'block';
+      document.getElementById('tier-progress-label').textContent = (next.min - data.total_points).toLocaleString() + ' pts to ' + next.name;
+      requestAnimationFrame(function(){
+        document.getElementById('tier-progress-bar').style.width = pct + '%';
+      });
+    }else if(progressWrap){
+      progressWrap.style.display = 'block';
+      document.getElementById('tier-progress-label').textContent = 'Top tier reached';
+      requestAnimationFrame(function(){
+        document.getElementById('tier-progress-bar').style.width = '100%';
+      });
+    }
+  }
+
+  document.getElementById('set-buddy-btn').addEventListener('click', async function(){
+    const btn = this;
+    const msg = document.getElementById('buddy-msg');
+    const uname = document.getElementById('buddy-username-input').value.trim();
+    msg.className = 'form-msg';
+    if(!uname){ msg.classList.add('err'); msg.textContent = 'Enter a username.'; return; }
+
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session){ msg.classList.add('err'); msg.textContent = 'Sign in above first.'; return; }
+
+    btn.disabled = true;
+    const { data: buddyProfile, error: lookupErr } = await sb.from('profiles').select('id').eq('username', uname).maybeSingle();
+    if(lookupErr || !buddyProfile){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'No user found with that username.'; return; }
+    if(buddyProfile.id === session.user.id){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'You can\'t buddy with yourself.'; return; }
+
+    const { error } = await sb.from('profiles').update({ buddy_user_id: buddyProfile.id }).eq('id', session.user.id);
+    btn.disabled = false;
+    msg.classList.add(error ? 'err' : 'ok');
+    msg.textContent = error ? ('Error: ' + error.message) : ('Buddy set to ' + uname + '.');
+  });
+
+  async function loadShareCard(username){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session) return;
+
+    const { data: resolvedQ } = await sb
+      .from('daily_questions')
+      .select('question_date')
+      .eq('resolved', true)
+      .order('question_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if(!resolvedQ) return;
+    const date = resolvedQ.question_date;
+
+    const { data: questions } = await sb.from('daily_questions').select('*').eq('question_date', date).order('category');
+    const { data: myPreds } = await sb.from('predictions').select('question_id, choice').eq('user_id', session.user.id);
+    const { data: myStreak } = await sb.from('streaks').select('current_streak').eq('user_id', session.user.id).maybeSingle();
+
+    if(!questions || questions.length === 0) return;
+    const predMap = {};
+    (myPreds || []).forEach(function(p){ predMap[p.question_id] = p.choice; });
+
+    document.getElementById('share-card-title').textContent = 'Marqit · ' + date;
+    document.getElementById('share-card-streak').textContent = (myStreak ? myStreak.current_streak : 0) + '-day streak';
+
+    const row = document.getElementById('share-card-row');
+    row.innerHTML = '';
+    questions.forEach(function(q){
+      const myChoice = predMap[q.id];
+      const correct = myChoice && q.resolved && myChoice === q.correct_answer;
+      const played = !!myChoice && q.resolved;
+      const cell = document.createElement('div');
+      cell.className = 'share-cell';
+      const iconClass = !played ? 'no' : (correct ? 'yes' : 'no');
+      const iconPath = !played
+        ? '<path d="M12 8v4M12 16h.01"/>'
+        : (correct ? '<path d="M5 13l4 4L19 7"/>' : '<path d="M6 6l12 12M18 6L6 18"/>');
+      cell.innerHTML =
+        '<div class="share-icon ' + iconClass + '"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' + iconPath + '</svg></div>' +
+        '<div class="share-cell-label"></div>';
+      cell.querySelector('.share-cell-label').textContent = CATEGORY_LABELS[q.category] || q.category;
+      row.appendChild(cell);
+    });
+  }
+
+  sb.auth.onAuthStateChange(async function(event, session){
+    if(event === 'SIGNED_IN' && session && session.user){
+      const username = await ensureProfile(session.user);
+      showSignedIn(username || 'you');
+    }
+  });
+
+  sb.auth.getSession().then(function(res){
+    const session = res.data.session;
+    if(session && session.user){
+      ensureProfile(session.user).then(function(username){
+        showSignedIn(username || 'you');
+      });
+    }
+  });
+
+  var CATEGORY_LABELS = { sports: 'Sports', pop_culture: 'Pop culture', news: 'News & current events' };
+
+  function buildQuestionCard(q, index, myVote, voteCounts){
+    var yesCount = voteCounts.yes || 0;
+    var noCount = voteCounts.no || 0;
+    var total = yesCount + noCount;
+    var yesPct = total > 0 ? Math.round((yesCount / total) * 100) : 0;
+    var noPct = total > 0 ? 100 - yesPct : 0;
+    var hasVoted = !!myVote;
+
+    var div = document.createElement('div');
+    div.className = 'ticket predict-card';
+    div.style.maxWidth = '480px';
+    div.style.marginBottom = '16px';
+    div.setAttribute('data-question-id', q.id);
+
+    var yesPriceHtml = hasVoted ? (yesPct + '<span class="opt-pct">%</span>') : 'Yes';
+    var noPriceHtml = hasVoted ? (noPct + '<span class="opt-pct">%</span>') : 'No';
+    var yesPickedClass = myVote === 'yes' ? ' picked' : '';
+    var noPickedClass = myVote === 'no' ? ' picked' : '';
+
+    div.innerHTML =
+      '<p class="ticket-q"></p>' +
+      '<p class="ticket-meta">' + (index + 1) + ' of 3 today · ' + (CATEGORY_LABELS[q.category] || q.category) + '</p>' +
+      '<div class="ticket-row">' +
+        '<div class="opt yes' + yesPickedClass + '"><div class="opt-label">YES</div><div class="opt-price">' + yesPriceHtml + '</div></div>' +
+        '<div class="opt no' + noPickedClass + '"><div class="opt-label">NO</div><div class="opt-price">' + noPriceHtml + '</div></div>' +
+      '</div>' +
+      '<div class="ticket-foot"><span>' + total + (total === 1 ? ' voted' : ' voted') + '</span></div>' +
+      '<p class="form-msg" style="margin-top:8px;"></p>';
+    div.querySelector('.ticket-q').textContent = q.question_text;
+    return div;
+  }
+
+  async function getVoteCounts(questionId){
+    const { data } = await sb.from('predictions').select('choice').eq('question_id', questionId);
+    const counts = { yes: 0, no: 0 };
+    (data || []).forEach(function(row){ counts[row.choice]++; });
+    return counts;
+  }
+
+  function sleep(ms){ return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
+
+  async function insertPredictionWithRetry(userId, questionId, choice, attempts){
+    attempts = attempts || 3;
+    let lastError = null;
+    for(let i = 0; i < attempts; i++){
+      const { error } = await sb.from('predictions').insert({
+        user_id: userId,
+        question_id: questionId,
+        choice: choice
+      });
+      if(!error || error.code === '23505'){
+        return { error: null }; // success, or already voted — both fine
+      }
+      lastError = error;
+      if(i < attempts - 1){ await sleep(900 * (i + 1)); } // brief pause before retrying, backing off each time
+    }
+    return { error: lastError };
+  }
+
+  async function castVote(questionId, choice, card){
+    const msg = card.querySelector('.form-msg');
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes.session;
+    if(!session){
+      msg.className = 'form-msg err';
+      msg.textContent = 'Sign in above first to make your call.';
+      return;
+    }
+    msg.className = 'form-msg';
+    msg.textContent = '';
+    card.querySelector('.opt.yes .opt-price').textContent = '···';
+    card.querySelector('.opt.no .opt-price').textContent = '···';
+    const { error } = await insertPredictionWithRetry(session.user.id, questionId, choice);
+    if(error){
+      card.querySelector('.opt.yes .opt-price').textContent = 'Yes';
+      card.querySelector('.opt.no .opt-price').textContent = 'No';
+      msg.className = 'form-msg err';
+      msg.textContent = 'Having trouble reaching the server. Your call may not have saved \u2014 refresh in a minute and check.';
+      return;
+    }
+    const counts = await getVoteCounts(questionId);
+    const total = counts.yes + counts.no;
+    const yesPct = total > 0 ? Math.round((counts.yes / total) * 100) : 0;
+    const noPct = total > 0 ? 100 - yesPct : 0;
+    card.querySelector('.opt.yes .opt-price').innerHTML = yesPct + '<span class="opt-pct">%</span>';
+    card.querySelector('.opt.no .opt-price').innerHTML = noPct + '<span class="opt-pct">%</span>';
+    card.querySelector('.opt.yes').classList.toggle('picked', choice === 'yes');
+    card.querySelector('.opt.no').classList.toggle('picked', choice === 'no');
+    card.querySelector('.ticket-foot span').textContent = total + ' voted';
+  }
+
+  async function loadDailyQuestions(){
+    const container = document.getElementById('daily-questions-container');
+    if(!container) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: questions, error } = await sb.from('daily_questions').select('*').eq('question_date', today).order('category');
+
+    if(error || !questions || questions.length === 0){
+      container.innerHTML = '<p class="ex-sub">Today\'s calls aren\'t posted yet — check back soon.</p>';
+      return;
+    }
+
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+
+    container.innerHTML = '';
+    for(let i = 0; i < questions.length; i++){
+      const q = questions[i];
+      let myVote = null;
+      if(session){
+        const { data: existingVote } = await sb.from('predictions').select('choice').eq('question_id', q.id).eq('user_id', session.user.id).maybeSingle();
+        myVote = existingVote ? existingVote.choice : null;
+      }
+      const counts = await getVoteCounts(q.id);
+      const card = buildQuestionCard(q, i, myVote, counts);
+      container.appendChild(card);
+
+      if(!myVote){
+        let answering = false;
+        card.querySelectorAll('.opt').forEach(function(opt){
+          opt.addEventListener('click', async function(){
+            if(answering) return;
+            answering = true;
+            const choice = opt.classList.contains('yes') ? 'yes' : 'no';
+            await castVote(q.id, choice, card);
+            answering = false;
+          });
+        });
+      }
+    }
+  }
+
+  loadDailyQuestions();
+
+  async function loadBigBoard(){
+    const el = document.getElementById('big-board-rows');
+    if(!el) return;
+    const { data, error } = await sb
+      .from('streaks')
+      .select('total_points, profiles(username)')
+      .order('total_points', { ascending: false })
+      .limit(10);
+
+    if(error || !data || data.length === 0){
+      el.innerHTML = '<div class="brow"><span>No scores yet \u2014 be the first to play.</span></div>';
+      return;
+    }
+
+    el.innerHTML = data.map(function(row, i){
+      const username = (row.profiles && row.profiles.username) || 'player';
+      return '<div class="brow"><span><span class="brank">' + (i + 1) + '</span>' + username + '</span><span>' + row.total_points + ' pts</span></div>';
+    }).join('');
+  }
+
+  loadBigBoard();
+
+  async function loadCategoryBoard(category, elId){
+    const el = document.getElementById(elId);
+    if(!el) return;
+
+    const { data, error } = await sb
+      .from('predictions')
+      .select('user_id, choice, daily_questions!inner(category, correct_answer, resolved)')
+      .eq('daily_questions.category', category)
+      .eq('daily_questions.resolved', true);
+
+    if(error || !data || data.length === 0){
+      el.innerHTML = '<div class="brow"><span>No scores yet.</span></div>';
+      return;
+    }
+
+    const tally = {};
+    data.forEach(function(row){
+      if(row.choice === row.daily_questions.correct_answer){
+        tally[row.user_id] = (tally[row.user_id] || 0) + 100;
+      }
+    });
+
+    const ranked = Object.keys(tally)
+      .map(function(uid){ return { user_id: uid, points: tally[uid] }; })
+      .sort(function(a, b){ return b.points - a.points; })
+      .slice(0, 5);
+
+    if(ranked.length === 0){
+      el.innerHTML = '<div class="brow"><span>No correct calls yet.</span></div>';
+      return;
+    }
+
+    const { data: profiles } = await sb
+      .from('profiles')
+      .select('id, username')
+      .in('id', ranked.map(function(r){ return r.user_id; }));
+
+    const nameMap = {};
+    (profiles || []).forEach(function(p){ nameMap[p.id] = p.username; });
+
+    el.innerHTML = ranked.map(function(r, i){
+      const name = nameMap[r.user_id] || 'player';
+      return '<div class="brow"><span><span class="brank">' + (i + 1) + '</span>' + name + '</span><span>' + r.points + ' pts</span></div>';
+    }).join('');
+  }
+
+  loadCategoryBoard('sports', 'board-sports');
+  loadCategoryBoard('pop_culture', 'board-pop_culture');
+  loadCategoryBoard('news', 'board-news');
+
+  function getWeekStart(){
+    const now = new Date();
+    const day = now.getDay(); // 0 = Sunday
+    const diffToMonday = (day === 0) ? 6 : day - 1;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diffToMonday);
+    return monday.toISOString().slice(0, 10);
+  }
+
+  async function loadWeeklyRecap(){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session) return;
+
+    const weekStart = getWeekStart();
+    const today = new Date().toISOString().slice(0, 10);
+
+    const { data } = await sb
+      .from('predictions')
+      .select('choice, daily_questions!inner(category, correct_answer, resolved, question_date)')
+      .eq('user_id', session.user.id)
+      .gte('daily_questions.question_date', weekStart)
+      .lte('daily_questions.question_date', today)
+      .eq('daily_questions.resolved', true);
+
+    const { data: myStreak } = await sb.from('streaks').select('current_streak').eq('user_id', session.user.id).maybeSingle();
+
+    if(!data || data.length === 0){
+      document.getElementById('recap-foot').textContent = 'No resolved calls yet this week.';
+      document.getElementById('recap-streak').textContent = myStreak ? myStreak.current_streak : 0;
+      return;
+    }
+
+    let correct = 0;
+    const categoryCorrect = {};
+    data.forEach(function(row){
+      const isCorrect = row.choice === row.daily_questions.correct_answer;
+      if(isCorrect){
+        correct++;
+        const cat = row.daily_questions.category;
+        categoryCorrect[cat] = (categoryCorrect[cat] || 0) + 1;
+      }
+    });
+
+    const accuracy = Math.round((correct / data.length) * 100);
+    let topCategory = '—';
+    let topCount = 0;
+    Object.keys(categoryCorrect).forEach(function(cat){
+      if(categoryCorrect[cat] > topCount){ topCount = categoryCorrect[cat]; topCategory = CATEGORY_LABELS[cat] || cat; }
+    });
+
+    document.getElementById('recap-accuracy').textContent = accuracy + '%';
+    document.getElementById('recap-predictions').textContent = data.length;
+    document.getElementById('recap-streak').textContent = myStreak ? myStreak.current_streak : 0;
+    document.getElementById('recap-foot').textContent = topCount > 0 ? ('Top category: ' + topCategory) : 'No correct calls yet this week.';
+  }
+
+  async function loadTopPredictor(){
+    const weekStart = getWeekStart();
+    const today = new Date().toISOString().slice(0, 10);
+    const line = document.getElementById('top-predictor-line');
+
+    const { data } = await sb
+      .from('predictions')
+      .select('user_id, choice, daily_questions!inner(correct_answer, resolved, question_date)')
+      .gte('daily_questions.question_date', weekStart)
+      .lte('daily_questions.question_date', today)
+      .eq('daily_questions.resolved', true);
+
+    if(!data || data.length === 0){
+      line.textContent = 'Top Predictor of the Week: no resolved calls yet this week.';
+      return;
+    }
+
+    const tally = {};
+    data.forEach(function(row){
+      if(!tally[row.user_id]) tally[row.user_id] = { correct: 0, total: 0 };
+      tally[row.user_id].total++;
+      if(row.choice === row.daily_questions.correct_answer){ tally[row.user_id].correct++; }
+    });
+
+    const MIN_PREDICTIONS = 3;
+    let best = null;
+    Object.keys(tally).forEach(function(uid){
+      const t = tally[uid];
+      if(t.total < MIN_PREDICTIONS) return;
+      const acc = t.correct / t.total;
+      if(!best || acc > best.acc || (acc === best.acc && t.correct > best.correct)){
+        best = { user_id: uid, acc: acc, correct: t.correct };
+      }
+    });
+
+    if(!best){
+      line.textContent = 'Top Predictor of the Week: not enough calls yet this week.';
+      return;
+    }
+
+    const { data: profile } = await sb.from('profiles').select('username').eq('id', best.user_id).maybeSingle();
+    const name = profile ? profile.username : 'a player';
+    const pct = Math.round(best.acc * 100);
+    line.textContent = 'Top Predictor of the Week: ' + name + ', ' + pct + '% accuracy \u2014 recognition only, no material prize.';
+  }
+
+  loadWeeklyRecap();
+  loadTopPredictor();
+
+  async function loadStateBoard(){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    const rowsEl = document.getElementById('board-state');
+    const titleEl = document.getElementById('state-board-title');
+    if(!session || !rowsEl) return;
+
+    const { data: myProfile } = await sb.from('profiles').select('state').eq('id', session.user.id).maybeSingle();
+    const myState = myProfile && myProfile.state;
+
+    if(!myState){
+      rowsEl.innerHTML = '<div class="brow"><span>Add your state above and sign in again to see this.</span></div>';
+      return;
+    }
+
+    titleEl.textContent = myState;
+
+    const { data: statePeople } = await sb.from('profiles').select('id, username').eq('state', myState);
+    if(!statePeople || statePeople.length === 0){
+      rowsEl.innerHTML = '<div class="brow"><span>No one else from ' + myState + ' yet.</span></div>';
+      return;
+    }
+
+    const ids = statePeople.map(function(p){ return p.id; });
+    const { data: streaksData } = await sb.from('streaks').select('user_id, total_points').in('user_id', ids);
+
+    const nameMap = {};
+    statePeople.forEach(function(p){ nameMap[p.id] = p.username; });
+
+    const ranked = (streaksData || [])
+      .sort(function(a, b){ return b.total_points - a.total_points; })
+      .slice(0, 5);
+
+    rowsEl.innerHTML = ranked.map(function(r, i){
+      return '<div class="brow"><span><span class="brank">' + (i + 1) + '</span>' + (nameMap[r.user_id] || 'player') + '</span><span>' + r.total_points + ' pts</span></div>';
+    }).join('');
+  }
+
+  loadStateBoard();
+
+  async function loadGroupSection(){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    const outEl = document.getElementById('group-signed-out');
+    const noGroupEl = document.getElementById('group-no-group');
+    const inGroupEl = document.getElementById('group-in-group');
+    if(!outEl) return;
+
+    if(!session){
+      outEl.style.display = 'block';
+      noGroupEl.style.display = 'none';
+      inGroupEl.style.display = 'none';
+      return;
+    }
+    outEl.style.display = 'none';
+
+    const { data: membership } = await sb
+      .from('group_members')
+      .select('group_id, groups(name, invite_code)')
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+
+    if(!membership){
+      noGroupEl.style.display = 'block';
+      inGroupEl.style.display = 'none';
+      return;
+    }
+
+    noGroupEl.style.display = 'none';
+    inGroupEl.style.display = 'block';
+    document.getElementById('group-name-display').textContent = membership.groups.name;
+    document.getElementById('group-invite-code').textContent = membership.groups.invite_code;
+
+    const { data: members } = await sb.from('group_members').select('user_id, profiles(username)').eq('group_id', membership.group_id);
+    if(!members || members.length === 0) return;
+
+    const ids = members.map(function(m){ return m.user_id; });
+    const { data: streaksData } = await sb.from('streaks').select('user_id, total_points').in('user_id', ids);
+    const nameMap = {};
+    members.forEach(function(m){ nameMap[m.user_id] = m.profiles.username; });
+
+    const ranked = (streaksData || []).sort(function(a, b){ return b.total_points - a.total_points; });
+    document.getElementById('board-group').innerHTML = ranked.map(function(r, i){
+      return '<div class="brow"><span><span class="brank">' + (i + 1) + '</span>' + (nameMap[r.user_id] || 'player') + '</span><span>' + r.total_points + ' pts</span></div>';
+    }).join('');
+  }
+
+  document.getElementById('create-group-btn').addEventListener('click', async function(){
+    const btn = this;
+    const msg = document.getElementById('group-msg');
+    const name = document.getElementById('group-name-input').value.trim();
+    msg.className = 'form-msg';
+    if(!name){ msg.classList.add('err'); msg.textContent = 'Enter a group name.'; return; }
+
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session){ msg.classList.add('err'); msg.textContent = 'Sign in above first.'; return; }
+
+    btn.disabled = true;
+    const { data: group, error } = await sb.from('groups').insert({ name: name, created_by: session.user.id }).select().single();
+    if(error){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'Error: ' + error.message; return; }
+
+    const { error: joinErr } = await sb.from('group_members').insert({ group_id: group.id, user_id: session.user.id });
+    btn.disabled = false;
+    if(joinErr){ msg.classList.add('err'); msg.textContent = 'Error: ' + joinErr.message; return; }
+
+    msg.classList.add('ok');
+    msg.textContent = 'Group created!';
+    loadGroupSection();
+  });
+
+  document.getElementById('join-group-btn').addEventListener('click', async function(){
+    const btn = this;
+    const msg = document.getElementById('group-msg');
+    const code = document.getElementById('join-group-input').value.trim();
+    msg.className = 'form-msg';
+    if(!code){ msg.classList.add('err'); msg.textContent = 'Enter an invite code.'; return; }
+
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session){ msg.classList.add('err'); msg.textContent = 'Sign in above first.'; return; }
+
+    btn.disabled = true;
+    const { data: group, error: lookupErr } = await sb.from('groups').select('id').eq('invite_code', code).maybeSingle();
+    if(lookupErr || !group){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'No group found with that code.'; return; }
+
+    const { error: joinErr } = await sb.from('group_members').insert({ group_id: group.id, user_id: session.user.id });
+    btn.disabled = false;
+    if(joinErr){
+      msg.classList.add('err');
+      msg.textContent = joinErr.code === '23505' ? 'You\'re already in a group.' : ('Error: ' + joinErr.message);
+      return;
+    }
+
+    msg.classList.add('ok');
+    msg.textContent = 'Joined!';
+    loadGroupSection();
+  });
+
+  document.getElementById('copy-invite-btn').addEventListener('click', function(){
+    const code = document.getElementById('group-invite-code').textContent;
+    navigator.clipboard.writeText(window.location.origin + '/?group=' + code).then(function(){
+      document.getElementById('copy-invite-btn').textContent = 'Copied!';
+      setTimeout(function(){ document.getElementById('copy-invite-btn').textContent = 'Copy'; }, 1500);
+    });
+  });
+
+  document.getElementById('leave-group-btn').addEventListener('click', async function(){
+    if(!confirm('Leave this group? You can join or create a new one after.')) return;
+    const btn = this;
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session) return;
+    btn.disabled = true;
+    const { error } = await sb.from('group_members').delete().eq('user_id', session.user.id);
+    btn.disabled = false;
+    if(error){ alert('Couldn\'t leave the group. Try again in a moment.'); return; }
+    loadGroupSection();
+  });
+
+  async function autoJoinFromUrl(){
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('group');
+    if(!code) return;
+
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session) return; // they'll need to sign in first, then can paste the code manually
+
+    const { data: group } = await sb.from('groups').select('id').eq('invite_code', code).maybeSingle();
+    if(!group) return;
+
+    await sb.from('group_members').insert({ group_id: group.id, user_id: session.user.id }); // ignore duplicate error silently
+    loadGroupSection();
+  }
+
+  loadGroupSection();
+  autoJoinFromUrl();
+
+  document.querySelectorAll('.pagenav-tab').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('.pagenav-tab').forEach(function(t){ t.classList.remove('active'); });
+      this.classList.add('active');
+      var target = this.getAttribute('data-page');
+      document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
+      document.getElementById('page-' + target).style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+})();
+</script>
+
+</body>
+</html>
