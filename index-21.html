@@ -1,0 +1,2383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marqit — Free Daily Prediction Game</title>
+
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-6H0DPV7MVX"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-6H0DPV7MVX');
+</script>
+<meta name="description" content="A free daily prediction game — call sports, pop culture, and news outcomes. Three calls a day, same three worldwide.">
+
+<!-- Open Graph / social share preview -->
+<meta property="og:title" content="Marqit — Free Daily Prediction Game">
+<meta property="og:description" content="A free daily prediction game — call sports, pop culture, and news outcomes. Three calls a day, same three worldwide.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://playmarqit.com/">
+<meta property="og:image" content="https://playmarqit.com/og-image.png">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Marqit — Free Daily Prediction Game">
+<meta name="twitter:description" content="A free daily prediction game — call sports, pop culture, and news outcomes. Three calls a day, same three worldwide.">
+<meta name="twitter:image" content="https://playmarqit.com/og-image.png">
+
+<link rel="canonical" href="https://playmarqit.com/">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#17191D;
+    --ink-soft:#4B4E55;
+    --paper:#FFFFFF;
+    --panel:#F4F4F1;
+    --line:#E4E3DD;
+    --yes:#1C7A4D;
+    --yes-bg:#E7F3EC;
+    --no:#B23A2E;
+    --no-bg:#FBEAE8;
+  }
+  html[data-theme="dark"]{
+    --ink:#F4F4F1;
+    --ink-soft:#A8ABB3;
+    --paper:#111318;
+    --panel:#1B1E24;
+    --line:#2C2F37;
+    --yes:#3AAE79;
+    --yes-bg:rgba(28,122,77,0.22);
+    --no:#E06A5C;
+    --no-bg:rgba(178,58,46,0.22);
+  }
+  @media (prefers-color-scheme: dark){
+    html:not([data-theme="light"]):not([data-theme="dark"]){
+      --ink:#F4F4F1;
+      --ink-soft:#A8ABB3;
+      --paper:#111318;
+      --panel:#1B1E24;
+      --line:#2C2F37;
+      --yes:#3AAE79;
+      --yes-bg:rgba(28,122,77,0.22);
+      --no:#E06A5C;
+      --no-bg:rgba(178,58,46,0.22);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  input,textarea,select{background:var(--panel);color:var(--ink);}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    transition:background .2s ease, color .2s ease;
+  }
+  h1,h2,h3,.display{
+    font-family:'Big Shoulders Display',sans-serif;
+    font-weight:700;
+    letter-spacing:0.01em;
+    line-height:0.95;
+  }
+  a{color:inherit;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 32px;}
+  @media (max-width:640px){.wrap{padding:0 20px;}}
+
+  /* NAV */
+  nav{padding:28px 0;}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;}
+  .word{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:26px;letter-spacing:0.02em;}
+  .navcta{font-size:14px;font-weight:500;padding:9px 18px;border:1px solid var(--ink);border-radius:100px;text-decoration:none;transition:background .15s, color .15s;}
+  .navcta:hover{background:var(--ink);color:var(--paper);}
+  .pagenav{background:#17191D;position:sticky;top:0;z-index:10;}
+  .pagenav-row{display:flex;gap:2px;overflow-x:auto;}
+  .pagenav-tab{padding:14px 20px;border:none;background:none;color:#9A9CA3;font-family:'Inter',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;transition:color .15s;}
+  .pagenav-tab:hover{color:#D8D9DC;}
+  .pagenav-tab.active{color:#FFFFFF;border-bottom-color:var(--yes);}
+
+  /* HERO */
+  .hero{padding:56px 0 88px;}
+  @keyframes heroFadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+  .hero h1{animation:heroFadeIn 600ms cubic-bezier(.17,.67,.35,.99) both;}
+  .hero .sub{animation:heroFadeIn 600ms cubic-bezier(.17,.67,.35,.99) 90ms both;}
+  .hero .signup{animation:heroFadeIn 600ms cubic-bezier(.17,.67,.35,.99) 180ms both;}
+  .hero .age-check{animation:heroFadeIn 600ms cubic-bezier(.17,.67,.35,.99) 240ms both;}
+  .hero-grid{display:grid;grid-template-columns:1.1fr 0.9fr;gap:56px;align-items:center;}
+  @media (max-width:860px){.hero-grid{grid-template-columns:1fr;gap:48px;}}
+  .hero h1{font-size:clamp(42px,6.2vw,74px);max-width:11ch;}
+  .hero p.sub{margin-top:22px;font-size:18px;color:var(--ink-soft);max-width:46ch;}
+  .signup{margin-top:32px;display:flex;gap:10px;max-width:440px;flex-wrap:wrap;}
+  #auth-panel .signup{margin-top:0;flex-direction:column;max-width:none;}
+  #auth-panel .signup input[type=email],#auth-panel .signup input[type=text]{width:100%;}
+  #auth-panel .age-check{margin-top:2px;}
+  .age-check{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink-soft);}
+  .age-check input{width:16px;height:16px;}
+  .signup input[type=email],.signup input[type=text]{
+    flex:1;min-width:150px;padding:14px 16px;border:1.5px solid var(--line);border-radius:10px;
+    font-family:'Inter',sans-serif;font-size:15px;background:var(--panel);color:var(--ink);
+  }
+  .signup input[type=email]:focus,.signup input[type=text]:focus{outline:none;border-color:var(--ink);}
+  .signup button{
+    padding:14px 22px;border:none;border-radius:10px;background:var(--ink);color:var(--paper);
+    font-family:'Inter',sans-serif;font-weight:600;font-size:15px;cursor:pointer;transition:opacity .15s;
+    white-space:nowrap;
+  }
+  .signup button:hover{opacity:0.85;}
+  .signup button:disabled{opacity:0.5;cursor:default;}
+  .form-msg{margin-top:12px;font-size:14px;min-height:20px;}
+  .form-msg.ok{color:var(--yes);}
+  .form-msg.err{color:var(--no);}
+  .count-line{margin-top:6px;font-size:14px;color:var(--ink-soft);}
+  .count-line strong{color:var(--ink);font-weight:600;}
+  .fine-print{margin-top:10px;font-size:12.5px;color:var(--ink-soft);opacity:0.85;}
+
+  /* TICKET CARD */
+  .ticket{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;transition:transform .18s ease, box-shadow .18s ease;}
+  .trend-svg{width:100%;height:auto;aspect-ratio:320/150;display:block;}
+  .live-dot{width:6px;height:6px;border-radius:50%;background:var(--yes);display:inline-block;animation:livePulse 1.6s ease-in-out infinite;}
+  @keyframes livePulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+  #theme-light-btn:hover,#theme-dark-btn:hover{color:var(--ink);}
+  #theme-light-btn.active,#theme-dark-btn.active{color:var(--ink);border-color:var(--ink);}
+  #hamburger-about-btn:hover{background:var(--panel);}
+  .ticket:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(23,25,29,0.1);}
+  .cat-tabs{display:flex;gap:8px;margin:24px 0 20px;flex-wrap:wrap;}
+  .cat-tab{padding:9px 18px;border-radius:100px;border:1px solid var(--line);background:var(--paper);font-family:'Inter',sans-serif;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:background .15s,color .15s,border-color .15s;display:inline-flex;align-items:center;gap:7px;}
+  .cat-icon{width:15px;height:15px;flex-shrink:0;}
+  .cat-tab:hover{border-color:var(--ink);color:var(--ink);}
+  .cat-tab.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .ticket-q{font-size:15px;font-weight:500;max-width:26ch;}
+  .ticket-meta{margin-top:6px;font-size:13px;color:var(--ink-soft);}
+  .ticket-row{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .opt{border-radius:10px;padding:14px;text-align:center;}
+  .opt.yes{background:var(--yes-bg);}
+  .opt.no{background:var(--no-bg);}
+  .opt-label{font-size:12px;font-weight:600;letter-spacing:0.04em;}
+  .opt.yes .opt-label{color:var(--yes);}
+  .opt.no .opt-label{color:var(--no);}
+  .opt-price{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:30px;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:2px;}
+  .opt-pct{font-size:16px;opacity:0.8;}
+  .token-icon{width:20px;height:20px;flex-shrink:0;}
+  .opt.yes .opt-price{color:var(--yes);}
+  .opt.no .opt-price{color:var(--no);}
+  .predict-card .opt{cursor:pointer;transition:transform .1s ease;}
+  .predict-card .opt:hover{transform:translateY(-1px);}
+  .predict-card .opt.picked{box-shadow:0 0 0 2px currentColor inset;}
+  .ticket-foot{margin-top:16px;font-size:12px;color:var(--ink-soft);display:flex;justify-content:space-between;}
+
+  /* HOW IT WORKS */
+  .section{padding:36px 0;border-top:1px solid var(--line);}
+  .section h2{font-size:clamp(30px,4vw,42px);max-width:14ch;}
+  .steps{margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:36px;}
+  @media (max-width:760px){.steps{grid-template-columns:1fr;gap:32px;}}
+  .step-num{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:15px;color:var(--ink-soft);}
+  .step h3{margin-top:8px;font-size:22px;font-weight:700;}
+  .step p{margin-top:8px;font-size:15px;color:var(--ink-soft);max-width:32ch;}
+
+  /* LEADERBOARDS */
+  .boards{margin-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  @media (max-width:760px){.boards{grid-template-columns:1fr;}}
+  .board{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;transition:transform .18s ease, box-shadow .18s ease;}
+  .board:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(23,25,29,0.08);}
+  .board-title{font-size:13px;font-weight:600;color:var(--ink-soft);text-transform:none;}
+  .board-rows{margin-top:16px;display:flex;flex-direction:column;gap:10px;}
+  .brow{display:flex;justify-content:space-between;font-size:14px;padding:2px 0;}
+  .brow.me{font-weight:600;}
+  .brank{color:var(--ink-soft);min-width:30px;margin-right:6px;display:inline-block;}
+  .result-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;transition:transform .18s ease, box-shadow .18s ease;}
+  .result-row:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(23,25,29,0.08);}
+  .result-q{font-size:14px;font-weight:500;}
+  .result-meta{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .result-badge{flex-shrink:0;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:14px;padding:6px 14px;border-radius:100px;white-space:nowrap;}
+  .result-badge.yes{background:var(--yes-bg);color:var(--yes);}
+  .result-badge.no{background:var(--no-bg);color:var(--no);}
+  .policy-block{margin-bottom:32px;margin-top:28px;}
+  .policy-block h3{font-family:'Big Shoulders Display',sans-serif;font-size:22px;margin-bottom:12px;}
+  .policy-block p{font-size:14px;color:var(--ink-soft);margin-bottom:10px;max-width:60ch;}
+  .policy-block ul{margin:0 0 10px 20px;}
+  .policy-block li{font-size:14px;color:var(--ink-soft);margin-bottom:6px;max-width:58ch;}
+  .policy-note{font-size:12.5px;color:var(--ink-soft);font-style:italic;background:var(--panel);border-radius:10px;padding:12px 14px;margin-top:20px;}
+  .duel-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;}
+  .duel-q{font-size:15px;font-weight:600;margin-bottom:20px;text-align:center;}
+  .duel-row{display:flex;align-items:center;gap:10px;}
+  .duel-side{flex:1;text-align:center;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 10px;}
+  .duel-vs{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:14px;color:var(--ink-soft);flex-shrink:0;}
+  .duel-avatar{width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:15px;margin:0 auto 8px;}
+  .duel-name{font-size:12.5px;font-weight:600;margin-bottom:8px;}
+  .duel-pick{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px;margin-bottom:8px;}
+  .duel-pick.yes{background:var(--yes-bg);color:var(--yes);}
+  .duel-pick.no{background:var(--no-bg);color:var(--no);}
+  .duel-result{font-size:11px;font-weight:700;margin-bottom:6px;letter-spacing:0.03em;}
+  .duel-result.win{color:var(--yes);}
+  .duel-result.loss{color:var(--ink-soft);}
+  .duel-points{font-size:10.5px;color:var(--ink-soft);margin-bottom:6px;line-height:1.5;}
+  .duel-points span{opacity:0.75;}
+  .duel-total{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:20px;color:var(--ink);}
+  .duel-note{font-size:12.5px;color:var(--ink-soft);margin-top:18px;text-align:center;}
+  .ex-title{font-family:'Big Shoulders Display',sans-serif;font-size:22px;font-weight:700;margin-bottom:4px;}
+  .ex-sub{font-size:13px;color:var(--ink-soft);margin-bottom:18px;}
+  .ex-line{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;}
+  .ex-two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:640px){.ex-two-col{grid-template-columns:1fr;}}
+  .ex-mini-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;}
+  .ex-mini-label{font-size:10.5px;font-weight:700;color:var(--ink-soft);letter-spacing:0.04em;text-transform:uppercase;margin-bottom:6px;}
+  .ex-mini-head{font-family:'Big Shoulders Display',sans-serif;font-size:17px;font-weight:700;margin-bottom:6px;}
+  .ex-mini-body{font-size:12px;color:var(--ink-soft);line-height:1.4;}
+  .streak-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;}
+  .streak-row{display:flex;gap:8px;justify-content:center;margin-bottom:14px;}
+  .streak-day{width:34px;height:34px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--ink-soft);}
+  .streak-day.done{background:var(--yes-bg);color:var(--yes);border-color:transparent;}
+  .streak-day.perfect{background:#17191D;color:#D9AE3F;border-color:transparent;}
+  .streak-day.frozen{background:#E4F0FB;color:#3E6CC9;border-color:transparent;}
+  .streak-day.today{border:2px solid var(--ink);color:var(--ink);}
+  .streak-caption{font-size:12.5px;color:var(--ink-soft);text-align:center;}
+  .elite-tag{font-size:10.5px;font-weight:700;color:var(--yes);letter-spacing:0.03em;}
+  .tier-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;}
+  .tier-chip{flex-shrink:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px;text-align:center;font-size:13px;font-weight:600;color:var(--ink-soft);min-width:88px;}
+  .tier-chip span{display:block;font-family:'Big Shoulders Display',sans-serif;font-size:11px;font-weight:700;color:var(--ink-soft);opacity:0.7;margin-top:4px;}
+  .tier-chip.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .tier-chip.active span{color:#D9AE3F;opacity:1;}
+  .recap-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;}
+  .recap-head{font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:14px;}
+  .recap-stats{display:flex;gap:18px;margin-bottom:14px;}
+  .recap-stats div{flex:1;text-align:center;}
+  .recap-stats strong{display:block;font-family:'Big Shoulders Display',sans-serif;font-size:26px;font-weight:700;color:var(--ink);}
+  .recap-stats span{font-size:11px;color:var(--ink-soft);}
+  .recap-foot{font-size:12.5px;color:var(--ink-soft);text-align:center;border-top:1px solid var(--line);padding-top:12px;}
+  .share-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;max-width:340px;}
+  .share-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .share-head strong{font-size:15px;}
+  .share-streak{display:flex;align-items:center;gap:4px;font-size:13px;font-weight:700;}
+  .share-row{display:flex;gap:10px;}
+  .share-cell{flex:1;text-align:center;}
+  .share-icon{width:100%;aspect-ratio:1;border-radius:12px;display:flex;align-items:center;justify-content:center;}
+  .share-icon.yes{background:var(--yes);}
+  .share-icon.no{background:var(--no);}
+  .share-icon svg{width:22px;height:22px;stroke:var(--paper);}
+  .share-cell-label{font-size:11px;color:var(--ink-soft);margin-top:6px;font-weight:600;}
+  .share-foot{text-align:center;margin-top:12px;font-size:12px;color:var(--ink-soft);}
+
+  /* FINAL CTA */
+  .cta-band{background:#17191D;color:#FFFFFF;padding:80px 0;}
+  .cta-band h2{color:#FFFFFF;font-size:clamp(32px,5vw,52px);max-width:14ch;}
+  .cta-band p{margin-top:16px;color:#C7C8CC;font-size:17px;max-width:44ch;}
+  .cta-band .signup input[type=email],.cta-band .signup input[type=text]{background:#232529;border-color:#3A3D43;color:#FFFFFF;}
+  .cta-band .signup input[type=email]::placeholder,.cta-band .signup input[type=text]::placeholder{color:#8B8D93;}
+  .cta-band .signup input[type=email]:focus,.cta-band .signup input[type=text]:focus{border-color:#FFFFFF;}
+  .cta-band .signup button{background:#FFFFFF;color:#17191D;}
+  .cta-band .age-check{color:#A9AAAE;}
+  .cta-band .count-line{color:#A9AAAE;}
+  .cta-band .count-line strong{color:#FFFFFF;}
+
+  footer{padding:32px 0;}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--ink-soft);flex-wrap:wrap;gap:14px;}
+  .social{display:flex;gap:14px;align-items:center;}
+  .social a{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);color:var(--ink-soft);transition:border-color .15s,color .15s;}
+  .social a:hover{border-color:var(--ink);color:var(--ink);}
+  .social svg{width:15px;height:15px;}
+</style>
+<script>
+  // Runs before the page paints so there's no flash of the wrong theme.
+  (function(){
+    try{
+      var saved = localStorage.getItem('marqit-theme');
+      if(saved === 'light' || saved === 'dark'){
+        document.documentElement.setAttribute('data-theme', saved);
+      }
+    }catch(e){ /* localStorage unavailable — falls back to system preference via CSS */ }
+  })();
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Marqit",
+  "url": "https://playmarqit.com/",
+  "description": "A free daily prediction game. Call sports, pop culture, and news outcomes — three calls a day, same three worldwide.",
+  "applicationCategory": "GameApplication",
+  "genre": "Prediction Game",
+  "operatingSystem": "Any",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav style="position:relative;">
+  <div class="wrap" style="display:flex; align-items:center; justify-content:space-between;">
+    <span class="word" id="nav-home-link" style="cursor:pointer;">Marqit</span>
+
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div id="nav-signed-out" style="display:flex; align-items:center; gap:10px;">
+        <button type="button" id="nav-login-btn" style="background:none; border:none; padding:8px 4px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer;">Log in</button>
+        <button type="button" id="nav-signup-btn" style="background:var(--ink); border:none; border-radius:8px; padding:9px 18px; font-size:14px; font-weight:600; color:var(--paper); cursor:pointer;">Sign up</button>
+      </div>
+
+      <div id="nav-signed-in" style="display:none; align-items:center; gap:10px;">
+        <div id="nav-badge" style="display:none; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--line); border-radius:100px; padding:5px 12px 5px 8px;">
+          <svg id="nav-badge-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 6.6L21 9l-5 4.6L17.4 20 12 16.4 6.6 20 8 13.6 3 9l6.6-.4z"/></svg>
+          <span id="nav-badge-label" style="font-size:12.5px; font-weight:700;">Rookie</span>
+        </div>
+        <button type="button" id="profile-circle-btn" title="Your profile" style="width:34px; height:34px; border-radius:50%; border:1px solid var(--line); background:var(--panel); font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">
+          <span id="profile-circle-emoji">🎯</span>
+        </button>
+        <button id="sign-out-btn" style="padding:8px 14px; border:1px solid var(--line); border-radius:8px; background:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer;">Sign out</button>
+      </div>
+
+      <button type="button" id="hamburger-btn" aria-label="Menu" title="Menu" style="background:none; border:1px solid var(--line); border-radius:8px; padding:8px; cursor:pointer; display:flex; align-items:center; color:var(--ink);">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="hamburger-menu" style="display:none; position:absolute; top:100%; right:20px; margin-top:8px; width:190px; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:10px; box-shadow:0 12px 32px rgba(0,0,0,0.12); z-index:60;">
+    <button type="button" id="hamburger-about-btn" style="width:100%; text-align:left; background:none; border:none; padding:10px 10px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; border-radius:8px;">About Us</button>
+    <div style="height:1px; background:var(--line); margin:6px 2px;"></div>
+    <div style="padding:6px 10px 4px; font-size:11.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em;">Theme</div>
+    <div style="display:flex; gap:8px; padding:2px 10px 6px;">
+      <button type="button" id="theme-light-btn" aria-label="Light mode" title="Light mode" style="flex:1; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:9px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--ink-soft);">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12H5M19 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></svg>
+      </button>
+      <button type="button" id="theme-dark-btn" aria-label="Dark mode" title="Dark mode" style="flex:1; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:9px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--ink-soft);">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.5a8.5 8.5 0 1 1-9-13 7 7 0 0 0 9 13Z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="auth-panel" style="display:none; position:absolute; top:100%; right:20px; margin-top:8px; width:320px; max-width:calc(100vw - 40px); background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:20px; box-shadow:0 12px 32px rgba(0,0,0,0.12); z-index:50;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+      <div style="display:flex; gap:16px;">
+        <button type="button" class="mode-btn active" data-mode="signup" data-target="join" style="background:none; border:none; padding:0; font-size:14px; font-weight:700; color:var(--ink); cursor:pointer; border-bottom:2px solid var(--ink);">Sign up</button>
+        <button type="button" class="mode-btn" data-mode="login" data-target="join" style="background:none; border:none; padding:0; font-size:14px; font-weight:700; color:var(--ink-soft); cursor:pointer; border-bottom:2px solid transparent;">Log in</button>
+      </div>
+      <button type="button" id="auth-panel-close" style="background:none; border:none; font-size:18px; color:var(--ink-soft); cursor:pointer; line-height:1;">&times;</button>
+    </div>
+    <form class="signup" id="join" style="flex-direction:column; gap:10px;">
+      <div id="join-signup-fields" style="display:contents;">
+        <input type="text" id="username-input" placeholder="username" autocomplete="username" required maxlength="24">
+        <input type="text" id="state-input" placeholder="state" autocomplete="address-level1" maxlength="40">
+      </div>
+      <input type="email" id="email-input" placeholder="you@email.com" autocomplete="email" required>
+      <label class="age-check" id="join-age-check" style="margin-top:0;">
+        <input type="checkbox" id="age-checkbox" required>
+        <span>I'm 18 or older</span>
+      </label>
+      <button type="submit" id="join-btn" style="width:100%;">Sign up</button>
+    </form>
+    <div id="join-code-step" style="display:none; flex-direction:column; gap:10px;">
+      <p style="font-size:13px; color:var(--ink-soft); margin:0;">We sent a code to <span id="code-step-email" style="font-weight:600; color:var(--ink);"></span>. Enter it below.</p>
+      <input type="text" id="otp-code-input" placeholder="00000000" inputmode="numeric" pattern="[0-9]*" maxlength="10" autocomplete="one-time-code" style="letter-spacing:4px; text-align:center; font-size:18px; font-weight:700; padding:14px 16px; border:1.5px solid var(--line); border-radius:10px; font-family:'Inter',sans-serif; background:var(--panel); color:var(--ink);">
+      <button type="button" id="verify-code-btn" style="width:100%; padding:14px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Verify</button>
+      <button type="button" id="code-step-back-btn" style="background:none; border:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline; padding:4px; align-self:center;">Use a different email</button>
+    </div>
+    <p class="form-msg" id="form-msg"></p>
+  </div>
+</nav>
+
+<div id="profile-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:100; align-items:flex-start; justify-content:center; overflow-y:auto; padding:40px 16px;">
+  <div id="profile-modal" style="background:var(--paper); border:1px solid var(--line); border-radius:18px; max-width:520px; width:100%; padding:28px; margin-top:20px;">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div id="profile-modal-avatar" style="width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; border:1px solid var(--line);"></div>
+        <div>
+          <div id="profile-modal-username" style="font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:22px; line-height:1;"></div>
+          <div id="profile-modal-since" style="font-size:12.5px; color:var(--ink-soft); margin-top:4px;"></div>
+        </div>
+      </div>
+      <button type="button" id="profile-modal-close" style="background:none; border:none; font-size:22px; color:var(--ink-soft); cursor:pointer; line-height:1; padding:4px;">&times;</button>
+    </div>
+
+    <div id="profile-modal-stats" style="display:flex; flex-wrap:wrap; gap:18px; margin-top:22px; padding-top:18px; border-top:1px solid var(--line);"></div>
+    <div id="profile-tier-progress-wrap" style="display:none; margin-top:14px;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--ink-soft); margin-bottom:6px;">
+        <span id="profile-tier-progress-label"></span>
+      </div>
+      <div style="background:var(--line); border-radius:100px; height:6px; overflow:hidden;">
+        <div id="profile-tier-progress-bar" style="background:var(--yes); height:100%; width:0%; border-radius:100px; transition:width 900ms cubic-bezier(.17,.67,.35,.99);"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--line);">
+      <div style="font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:15px; margin-bottom:10px;">Customize your profile</div>
+      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Pick an emoji</div>
+      <div id="avatar-emoji-picker" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;"></div>
+      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Pick a color</div>
+      <div id="avatar-color-picker" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
+      <button type="button" id="save-profile-customization-btn" style="padding:9px 18px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:14px; cursor:pointer;">Save</button>
+      <p class="form-msg" id="profile-customization-msg" style="margin-top:8px;"></p>
+    </div>
+
+    <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--line);">
+      <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer;">
+        <input type="checkbox" id="notify-resolve-checkbox">
+        Email me when each day's results are in
+      </label>
+      <p class="form-msg" id="notify-resolve-msg" style="margin-top:6px;"></p>
+    </div>
+
+    <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--line);">
+      <div style="font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:15px; margin-bottom:10px;">Your picks</div>
+      <div id="profile-picks-list" style="display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+
+<div class="pagenav">
+  <div class="wrap pagenav-row">
+    <button class="pagenav-tab active" data-page="home">Play</button>
+    <button class="pagenav-tab" data-page="how">How To Play</button>
+  </div>
+</div>
+
+<div id="page-home" class="page">
+<header class="hero">
+  <div class="wrap">
+    <h1>Make Your Prediction, Share it Worldwide.</h1>
+    <p class="sub">Sports. Pop culture. News. Three calls a day — same three, worldwide.</p>
+    <p class="form-msg" id="hero-status-msg"></p>
+    <p class="count-line" id="count-line" style="display:none;"></p>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Make Your Prediction — Three Questions, Three Answers.</h3>
+    <p class="ex-sub">Pick YES or NO to see how everyone else called it. All three lock together at 8:30pm ET.</p>
+
+    <div id="daily-questions-container">
+      <p class="ex-sub">Loading today's calls…</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<div id="page-how" class="page" style="display:none;">
+<section class="section">
+  <div class="wrap">
+    <h2>How To Play</h2>
+    <p style="font-size:15px; margin-top:10px;">Lock in your call. Once a day, that's the game.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Three Questions, Three Answers — Worldwide.</h3>
+    <div class="ex-two-col">
+      <div class="ex-mini-card">
+        <div class="ex-mini-label">The lineup</div>
+        <div class="ex-mini-head">Pick Yes or No</div>
+        <div class="ex-mini-body">Same 3 questions for every player — one sports, one pop culture, one news, always.</div>
+      </div>
+      <div class="ex-mini-card">
+        <div class="ex-mini-label">The lock</div>
+        <div class="ex-mini-head">One deadline</div>
+        <div class="ex-mini-body">All 3 lock together, before tonight's events start. Miss it, come back tomorrow.</div>
+      </div>
+    </div>
+    <p class="ex-sub" style="margin-top:16px;">Every correct call is worth 100 points.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Streaks &amp; the Perfect Day bonus.</h3>
+    <p class="ex-sub">Go 3-for-3 for a bonus. Miss a day and one free Streak Freeze covers it automatically.</p>
+    <div class="streak-card">
+      <div class="streak-row">
+        <div class="streak-day done">M</div>
+        <div class="streak-day done">T</div>
+        <div class="streak-day done">W</div>
+        <div class="streak-day frozen">T</div>
+        <div class="streak-day perfect">F</div>
+        <div class="streak-day today">S</div>
+        <div class="streak-day">S</div>
+      </div>
+      <div class="streak-caption">6-day streak · Thursday covered by a Streak Freeze · Friday was a Perfect Day</div>
+    </div>
+    <p class="ex-sub" style="margin-top:16px;">Badges at 7, 30, and 100 days, plus a streak leaderboard ranked purely on consistency.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Tiers.</h3>
+    <p class="ex-sub">One global badge, pushed up by every correct call.</p>
+    <div class="tier-row" id="tier-row">
+      <div class="tier-chip" data-tier="Rookie">Rookie<span>0</span></div>
+      <div class="tier-chip" data-tier="Analyst">Analyst<span>1,000</span></div>
+      <div class="tier-chip" data-tier="Pro">Pro<span>5,000</span></div>
+      <div class="tier-chip" data-tier="Expert">Expert<span>15,000</span></div>
+      <div class="tier-chip" data-tier="Legend">Legend<span>50,000</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Buddy Bonus &amp; head-to-head.</h3>
+    <p class="ex-sub">Two friends, same question, opposite sides.</p>
+    <div class="duel-card">
+      <div class="duel-q">Will the Cowboys beat the Giants on Sunday Night Football?</div>
+      <div class="duel-row">
+        <div class="duel-side">
+          <div class="duel-avatar">D</div>
+          <div class="duel-name">dmarshall_23</div>
+          <div class="duel-pick yes">Picked YES</div>
+          <div class="duel-result win">Correct</div>
+          <div class="duel-points">+100 <span>call</span> · +25 <span>buddy</span> · +25 <span>rival</span></div>
+          <div class="duel-total">150 pts</div>
+        </div>
+        <div class="duel-vs">VS</div>
+        <div class="duel-side">
+          <div class="duel-avatar">J</div>
+          <div class="duel-name">jmartinez</div>
+          <div class="duel-pick no">Picked NO</div>
+          <div class="duel-result loss">Incorrect</div>
+          <div class="duel-points">+0 <span>call</span> · +25 <span>buddy</span></div>
+          <div class="duel-total">25 pts</div>
+        </div>
+      </div>
+      <div class="duel-note">Both get the Buddy Bonus for pairing up. Opposite sides also means a Rival Bonus for whoever calls it right.</div>
+    </div>
+    <div style="max-width:420px; margin-top:20px;">
+      <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Set your buddy (by username)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="buddy-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
+        <button id="set-buddy-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Set</button>
+      </div>
+      <p class="form-msg" id="buddy-msg" style="font-size:13px; margin-top:8px;"></p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Share it, right after it resolves.</h3>
+    <p class="ex-sub">Built to screenshot and share.</p>
+    <div class="share-card" id="share-card">
+      <div class="share-head">
+        <strong id="share-card-title">Marqit</strong>
+        <div class="share-streak">
+          <span id="share-card-streak">Sign in to see yours</span>
+        </div>
+      </div>
+      <div class="share-row" id="share-card-row">
+        <p class="ex-sub" style="margin:0;">Sign in above and play a resolved day to see your real card here.</p>
+      </div>
+      <div class="share-foot">playmarqit.com</div>
+    </div>
+    <button type="button" id="share-results-btn" style="display:none; margin-top:14px; padding:11px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Share your results</button>
+    <p class="form-msg" id="share-results-msg" style="margin-top:6px;"></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title">Your weekly recap.</h3>
+    <p class="ex-sub">A longer look, once a week.</p>
+    <div class="recap-card" id="recap-card">
+      <div class="recap-head">This week</div>
+      <div class="recap-stats">
+        <div><strong id="recap-accuracy">—</strong><span>Accuracy</span></div>
+        <div><strong id="recap-predictions">—</strong><span>Predictions</span></div>
+        <div><strong id="recap-streak">—</strong><span>Day streak</span></div>
+      </div>
+      <div class="recap-foot" id="recap-foot">Sign in to see your recap.</div>
+    </div>
+    <p class="ex-sub" style="margin-top:16px;" id="top-predictor-line">Top Predictor of the Week: loading…</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h3 class="ex-title" style="margin-top:0;">Leaderboards that make it personal.</h3>
+    <p class="ex-sub">Start a private group with an invite link — everyone answers the same 3 daily calls, your group gets its own board.</p>
+
+    <div id="group-signed-out" style="max-width:420px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px;">
+      <p style="font-size:13px; color:var(--ink-soft); margin:0;">Sign in above to create or join a group.</p>
+    </div>
+
+    <div id="group-no-group" style="display:none; max-width:420px;">
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="text" id="group-name-input" placeholder="group name (e.g. The Squad)" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
+        <button id="create-group-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Create</button>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="join-group-input" placeholder="paste an invite code" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
+        <button id="join-group-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--panel); border:1.5px solid var(--line); color:var(--ink); font-weight:600; font-size:13.5px; cursor:pointer;">Join</button>
+      </div>
+      <p class="form-msg" id="group-msg" style="font-size:13px; margin-top:8px;"></p>
+    </div>
+
+    <div id="group-in-group" style="display:none;">
+      <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">
+        Invite link: <code id="group-invite-code" style="background:var(--panel); padding:2px 8px; border-radius:6px; font-weight:600;"></code>
+        <button id="copy-invite-btn" style="margin-left:8px; padding:4px 10px; border:1px solid var(--line); border-radius:6px; background:none; font-size:12px; cursor:pointer;">Copy</button>
+        <button id="leave-group-btn" style="margin-left:8px; padding:4px 10px; border:1px solid var(--no); border-radius:6px; background:none; color:var(--no); font-size:12px; cursor:pointer;">Leave group</button>
+      </p>
+      <div class="boards">
+        <div class="board">
+          <div class="board-title" id="group-name-display">Your group</div>
+          <div class="board-rows" id="board-group"><div class="brow"><span>Loading…</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <p class="ex-sub" style="margin-top:20px;">By category — fair, since everyone answers the same 3.</p>
+    <div class="boards">
+      <div class="board">
+        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.5 5.5c3 3 3 10 0 13M18.5 5.5c-3 3-3 10 0 13"/></svg>Sports</div>
+        <div class="board-rows" id="board-sports"><div class="brow"><span>Loading…</span></div></div>
+      </div>
+      <div class="board">
+        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l1.5-4h4L7 8M9 8l1.5-4h4L13 8M15 8l1.5-4h3.5L19 8"/><rect x="3" y="8" width="18" height="12" rx="1.5"/></svg>Pop culture</div>
+        <div class="board-rows" id="board-pop_culture"><div class="brow"><span>Loading…</span></div></div>
+      </div>
+      <div class="board">
+        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h13a2 2 0 0 1 2 2v13a1 1 0 0 1-1.7.7L4 19V4z"/><path d="M8 8h7M8 12h7M8 16h4"/></svg>News &amp; current events</div>
+        <div class="board-rows" id="board-news"><div class="brow"><span>Loading…</span></div></div>
+      </div>
+    </div>
+
+    <p class="ex-sub" style="margin-top:20px;">Plus your state, and the site-wide board.</p>
+    <div class="boards">
+      <div class="board">
+        <div class="board-title" id="state-board-title">Your state</div>
+        <div class="board-rows" id="board-state">
+          <div class="brow"><span>Sign in and set your state above to see this.</span></div>
+        </div>
+      </div>
+      <div class="board">
+        <div class="board-title">Marqit Big Board</div>
+        <div class="board-rows" id="big-board-rows">
+          <div class="brow"><span>Loading…</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<div id="page-about" class="page" style="display:none;">
+<section class="section">
+  <div class="wrap">
+    <h2>About Marqit.</h2>
+    <p style="font-size:15px; margin-top:10px; max-width:640px;">Marqit is a free daily prediction game. Every day you get three questions — one from sports, one from pop culture, one from the news — and you call each one Yes or No before the day's events play out. Everyone gets the same three questions, at the same time, worldwide. That's the whole idea.</p>
+    <p style="font-size:15px; margin-top:14px; max-width:640px;">We built Marqit because opinions are more fun when they're on the record. Calling something and finding out you were right — or confidently wrong — is a small, satisfying ritual, the same way a daily word puzzle is. We think that applies just as well to the calls you'd make anyway while watching a game or scrolling the news.</p>
+    <p style="font-size:15px; margin-top:14px; max-width:640px;">There's no cost to play and no way to spend real money inside Marqit — no purchases, no wagering, no cash prizes. Points, streaks, and tiers exist purely for bragging rights: something to track, compare with friends, and build over time.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="policy-block">
+      <h3>Privacy Policy</h3>
+      <p>We collect your email, a username, your self-reported state, and confirmation that you're 18 or older when you sign up.</p>
+      <p>We use your results on the daily calls to run streaks, leaderboards, and reminders. We don't sell your personal data to third parties.</p>
+      <p>Your username, streak, points, and tier are visible to other users on leaderboards. If you set a buddy or join a group, your results on shared questions become visible to that buddy or group as part of how Buddy Bonus, Rival Bonus, and group leaderboards work.</p>
+      <p>Push notifications require your explicit permission through your browser or device. You can opt out of personalized notifications at any time.</p>
+    </div>
+
+    <div class="policy-block">
+      <h3>Terms &amp; Conditions</h3>
+      <ul>
+        <li>You must be 18 or older to use Marqit.</li>
+        <li>Marqit is free to play. No purchase is ever necessary to participate or win.</li>
+        <li>Points and in-app tokens have no cash value and cannot be redeemed, transferred, or exchanged for money or prizes.</li>
+        <li>Marqit is not gambling and does not involve wagering for real-world value.</li>
+        <li>One account per person. Availability may vary by state.</li>
+        <li>Group invite links are not access-controlled beyond the code itself — anyone with the code can join. Don't share it publicly if you want to keep your group private.</li>
+        <li>You may belong to one group at a time. Setting a buddy is one-directional and doesn't require their confirmation.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</div>
+
+<section class="cta-band">
+  <div class="wrap">
+    <h2>Make your first call.</h2>
+    <p>Three predictions on real life events. Pick a side, build a streak, climb the board.</p>
+    <button type="button" id="cta-open-signup" style="margin-top:16px; padding:12px 24px; border:none; border-radius:10px; background:#FFFFFF; color:#17191D; font-weight:600; font-size:15px; cursor:pointer;">Sign up free</button>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="justify-content:center;">
+    <span>© Marqit</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  function isValidEmail(v){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  }
+  function isValidUsername(v){
+    return /^[a-zA-Z0-9_]{3,24}$/.test(v);
+  }
+
+  var SUPABASE_URL = 'https://ivapcztkasjfetntkzxy.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_S1DZQXDDpffETdJh2xJONQ_QSNjnunn';
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function fireConfetti(anchorEl){
+    var colors = ['#1C7A4D', '#B23A2E', '#D9AE3F', '#17191D', '#FFFFFF'];
+    var rect = anchorEl.getBoundingClientRect();
+    var count = 60;
+
+    for(var i = 0; i < count; i++){
+      var piece = document.createElement('div');
+      var isCircle = Math.random() < 0.35;
+      var w = isCircle ? (4 + Math.random() * 3) : (5 + Math.random() * 6);
+      var h = isCircle ? w : w * (0.35 + Math.random() * 0.3);
+      var color = colors[Math.floor(Math.random() * colors.length)];
+
+      // spread the origin across the button's width, not a single point
+      var originX = rect.left + Math.random() * rect.width;
+      var originY = rect.top + window.scrollY + rect.height / 2;
+
+      piece.style.position = 'absolute';
+      piece.style.left = originX + 'px';
+      piece.style.top = originY + 'px';
+      piece.style.width = w + 'px';
+      piece.style.height = h + 'px';
+      piece.style.background = color;
+      piece.style.borderRadius = isCircle ? '50%' : '1.5px';
+      piece.style.pointerEvents = 'none';
+      piece.style.zIndex = '999';
+      piece.style.willChange = 'transform, opacity';
+      document.body.appendChild(piece);
+
+      var angle = Math.PI + Math.random() * Math.PI; // upward hemisphere
+      var burstDistance = 40 + Math.random() * 70;
+      var burstX = Math.cos(angle) * burstDistance;
+      var burstY = Math.sin(angle) * burstDistance * 0.8;
+      var fallDistance = 120 + Math.random() * 160;
+      var drift = (Math.random() - 0.5) * 90;
+      var spin = (Math.random() - 0.5) * 720;
+      var duration = 1100 + Math.random() * 700;
+      var delay = Math.random() * 90;
+
+      piece.animate([
+        { transform: 'translate(0,0) rotate(0deg) scale(1)', opacity: 1, offset: 0 },
+        { transform: 'translate(' + burstX + 'px,' + burstY + 'px) rotate(' + (spin * 0.3) + 'deg) scale(1)', opacity: 1, offset: 0.28 },
+        { transform: 'translate(' + (burstX + drift * 0.6) + 'px,' + (burstY + fallDistance * 0.55) + 'px) rotate(' + (spin * 0.7) + 'deg) scale(0.9)', opacity: 1, offset: 0.7 },
+        { transform: 'translate(' + (burstX + drift) + 'px,' + (burstY + fallDistance) + 'px) rotate(' + spin + 'deg) scale(0.75)', opacity: 0, offset: 1 }
+      ], { duration: duration, delay: delay, easing: 'cubic-bezier(.17,.67,.35,.99)', fill: 'forwards' });
+
+      (function(el, dur, del){ setTimeout(function(){ el.remove(); }, dur + del + 60); })(piece, duration, delay);
+    }
+  }
+
+  async function handleJoin(usernameInput, emailInput, ageCheckbox, btn, msgEl, stateInput, mode){
+    const email = emailInput.value.trim();
+    const isSignup = mode !== 'login';
+    const username = isSignup ? usernameInput.value.trim() : '';
+    const state = isSignup && stateInput ? stateInput.value.trim() : '';
+    msgEl.className = 'form-msg';
+    msgEl.textContent = '';
+
+    if(isSignup && !isValidUsername(username)){
+      msgEl.classList.add('err');
+      msgEl.textContent = 'Username: 3-24 characters, letters/numbers/underscores only.';
+      return;
+    }
+    if(!isValidEmail(email)){
+      msgEl.classList.add('err');
+      msgEl.textContent = 'Enter a valid email first.';
+      return;
+    }
+    if(isSignup && !ageCheckbox.checked){
+      msgEl.classList.add('err');
+      msgEl.textContent = 'You must confirm you\'re 18 or older.';
+      return;
+    }
+
+    btn.disabled = true;
+    const originalText = btn.textContent;
+
+    if(isSignup){
+      btn.textContent = 'Checking…';
+      const { data: existingUsername } = await sb.from('profiles').select('id').eq('username', username).maybeSingle();
+      if(existingUsername){
+        msgEl.classList.add('err');
+        msgEl.textContent = 'That username is taken \u2014 try another.';
+        btn.disabled = false;
+        btn.textContent = originalText;
+        return;
+      }
+    }
+
+    btn.textContent = 'Sending…';
+
+    const { error } = await sb.auth.signInWithOtp({
+      email: email,
+      options: isSignup
+        ? { data: { username: username, age_confirmed: true, state: state || null }, emailRedirectTo: window.location.href }
+        : { emailRedirectTo: window.location.href }
+    });
+
+    if(error){
+      msgEl.classList.add('err');
+      msgEl.textContent = error.message.indexOf('rate limit') > -1
+        ? 'Too many tries — wait a minute and try again.'
+        : 'Something went wrong. Try again.';
+      btn.disabled = false;
+      btn.textContent = originalText;
+      return;
+    }
+
+    msgEl.classList.remove('err');
+    fireConfetti(btn);
+    btn.disabled = false;
+    btn.textContent = originalText;
+
+    document.getElementById('join').style.display = 'none';
+    document.getElementById('code-step-email').textContent = email;
+    document.getElementById('join-code-step').style.display = 'flex';
+    const codeInput = document.getElementById('otp-code-input');
+    codeInput.value = '';
+    codeInput.focus();
+  }
+
+  function setupAuthToggle(formId){
+    const fieldsEl = document.getElementById(formId + '-signup-fields');
+    const ageCheckEl = document.getElementById('join-age-check');
+    const submitBtn = document.getElementById('join-btn');
+    const buttons = document.querySelectorAll('.mode-btn[data-target="' + formId + '"]');
+    const usernameEl = document.getElementById('username-input');
+    const ageCheckboxEl = document.getElementById('age-checkbox');
+    let currentMode = 'signup';
+
+    function applyMode(mode){
+      currentMode = mode;
+      buttons.forEach(function(b){
+        const active = b.getAttribute('data-mode') === mode;
+        b.style.color = active ? 'var(--ink)' : 'var(--ink-soft)';
+        b.style.borderBottomColor = active ? 'var(--ink)' : 'transparent';
+      });
+      const isSignup = mode === 'signup';
+      if(fieldsEl) fieldsEl.style.display = isSignup ? 'contents' : 'none';
+      if(ageCheckEl) ageCheckEl.style.display = isSignup ? 'flex' : 'none';
+      if(submitBtn) submitBtn.textContent = isSignup ? 'Sign up' : 'Log in';
+      // Explicitly toggle 'required' too — some Safari versions still block submit
+      // on a required field hidden only via CSS display:none, with no visible error.
+      if(usernameEl) usernameEl.required = isSignup;
+      if(ageCheckboxEl) ageCheckboxEl.required = isSignup;
+    }
+
+    buttons.forEach(function(btn){
+      btn.addEventListener('click', function(){ applyMode(btn.getAttribute('data-mode')); });
+    });
+
+    return { getMode: function(){ return currentMode; }, setMode: applyMode };
+  }
+
+  const joinToggle = setupAuthToggle('join');
+
+  document.getElementById('join').addEventListener('submit', function(e){
+    e.preventDefault();
+    handleJoin(
+      document.getElementById('username-input'),
+      document.getElementById('email-input'),
+      document.getElementById('age-checkbox'),
+      document.getElementById('join-btn'),
+      document.getElementById('form-msg'),
+      document.getElementById('state-input'),
+      joinToggle.getMode()
+    );
+  });
+
+  // Panel open/close
+  const authPanel = document.getElementById('auth-panel');
+  function resetAuthPanelToForm(){
+    document.getElementById('join-code-step').style.display = 'none';
+    document.getElementById('join').style.display = '';
+    document.getElementById('otp-code-input').value = '';
+    document.getElementById('form-msg').textContent = '';
+    document.getElementById('form-msg').className = 'form-msg';
+  }
+  function openAuthPanel(mode){
+    joinToggle.setMode(mode);
+    resetAuthPanelToForm();
+    authPanel.style.display = 'block';
+  }
+  document.getElementById('nav-login-btn').addEventListener('click', function(){ openAuthPanel('login'); });
+  document.getElementById('nav-signup-btn').addEventListener('click', function(){ openAuthPanel('signup'); });
+  document.getElementById('auth-panel-close').addEventListener('click', function(){ authPanel.style.display = 'none'; resetAuthPanelToForm(); });
+  const ctaOpenBtn = document.getElementById('cta-open-signup');
+  if(ctaOpenBtn){
+    ctaOpenBtn.addEventListener('click', function(){
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      openAuthPanel('signup');
+    });
+  }
+  document.addEventListener('click', function(e){
+    if(authPanel.style.display !== 'block') return;
+    const clickedInsidePanel = authPanel.contains(e.target);
+    const clickedNavButton = e.target.id === 'nav-login-btn' || e.target.id === 'nav-signup-btn' || e.target.id === 'cta-open-signup';
+    if(!clickedInsidePanel && !clickedNavButton){ authPanel.style.display = 'none'; }
+  });
+
+  document.getElementById('code-step-back-btn').addEventListener('click', function(){
+    resetAuthPanelToForm();
+  });
+
+  async function verifyCode(){
+    const btn = document.getElementById('verify-code-btn');
+    const msgEl = document.getElementById('form-msg');
+    const email = document.getElementById('email-input').value.trim();
+    const code = document.getElementById('otp-code-input').value.trim();
+    msgEl.className = 'form-msg';
+    msgEl.textContent = '';
+    if(!/^[0-9]{4,10}$/.test(code)){
+      msgEl.classList.add('err');
+      msgEl.textContent = 'Enter the code from your email.';
+      return;
+    }
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = 'Verifying…';
+    const { error } = await sb.auth.verifyOtp({ email: email, token: code, type: 'email' });
+    btn.disabled = false;
+    btn.textContent = originalText;
+    if(error){
+      msgEl.classList.add('err');
+      msgEl.textContent = 'That code didn\u2019t work \u2014 check it and try again, or go back and request a new one.';
+      return;
+    }
+    // Success — onAuthStateChange picks this up and calls showSignedIn, which
+    // already hides the auth panel. Just reset the form underneath for next time.
+    resetAuthPanelToForm();
+  }
+  document.getElementById('verify-code-btn').addEventListener('click', verifyCode);
+  document.getElementById('otp-code-input').addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); verifyCode(); }
+  });
+
+  // Runs when someone lands back on the site after clicking their magic link,
+  // or if they already have a session from a previous visit.
+  //
+  // This gets called from two places on page load (the SIGNED_IN auth event and
+  // the initial getSession() check), which can both fire at nearly the same moment
+  // for a brand-new signee. ensureProfilePromise makes sure the actual work — and
+  // any DB writes — only happen once; the second caller just waits on the same result
+  // instead of racing it and potentially showing a fake, never-saved suffixed username.
+  let ensureProfilePromise = null;
+  function ensureProfile(user){
+    if(ensureProfilePromise) return ensureProfilePromise;
+    ensureProfilePromise = ensureProfileInner(user).catch(function(err){
+      ensureProfilePromise = null; // allow a retry on genuine failure
+      throw err;
+    });
+    return ensureProfilePromise;
+  }
+
+  async function ensureProfileInner(user){
+    const { data: existing } = await sb.from('profiles').select('id, state, username').eq('id', user.id).maybeSingle();
+    if(existing) return existing.username;
+
+    let username = (user.user_metadata && user.user_metadata.username) || ('user_' + user.id.slice(0, 8));
+    const state = (user.user_metadata && user.user_metadata.state) || null;
+
+    let { error: insertErr } = await sb.from('profiles').insert({
+      id: user.id,
+      username: username,
+      state: state,
+      age_confirmed: true
+    });
+
+    if(insertErr && insertErr.code === '23505'){
+      // A 23505 here means EITHER someone else already has this username, OR this
+      // exact profile (same id) was just created a split second ago by a parallel
+      // call. Check which one actually happened before deciding what to do.
+      const { data: raceCheck } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
+      if(raceCheck){
+        // It was us racing ourselves -- a profile now exists for this id, with the
+        // real username. Use that instead of inventing a suffixed one.
+        return raceCheck.username;
+      }
+      // Genuine username collision with a different user -- fall back to a
+      // guaranteed-unique variant rather than leaving the account half-broken.
+      username = username + '_' + user.id.slice(0, 4);
+      const retry = await sb.from('profiles').insert({
+        id: user.id,
+        username: username,
+        state: state,
+        age_confirmed: true
+      });
+      insertErr = retry.error;
+      if(insertErr){
+        // Still failing -- most likely a parallel call finished in between. Check once more.
+        const { data: finalCheck } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
+        if(finalCheck) return finalCheck.username;
+      }
+    }
+
+    if(!insertErr){
+      await sb.from('streaks').insert({ user_id: user.id });
+    }
+    return username;
+  }
+
+  function showSignedIn(username){
+    document.getElementById('nav-signed-out').style.display = 'none';
+    document.getElementById('nav-signed-in').style.display = 'flex';
+    document.getElementById('auth-panel').style.display = 'none';
+    const heroMsg = document.getElementById('hero-status-msg');
+    if(heroMsg){
+      heroMsg.className = 'form-msg ok';
+      heroMsg.textContent = 'You\'re signed in as ' + username + '.';
+    }
+    loadMyStats();
+    loadShareCard(username);
+    loadGroupSection();
+    loadStateBoard();
+  }
+
+  document.getElementById('sign-out-btn').addEventListener('click', async function(){
+    await sb.auth.signOut();
+    window.location.reload();
+  });
+
+  const TIERS = [
+    { name: 'Legend', min: 50000 },
+    { name: 'Expert', min: 15000 },
+    { name: 'Pro', min: 5000 },
+    { name: 'Analyst', min: 1000 },
+    { name: 'Rookie', min: 0 }
+  ];
+  function getTier(points){
+    for(let i = 0; i < TIERS.length; i++){
+      if(points >= TIERS[i].min) return TIERS[i].name;
+    }
+    return 'Rookie';
+  }
+  function getNextTier(points){
+    // TIERS is ordered highest-to-lowest; find the lowest threshold still above points
+    let next = null;
+    for(let i = TIERS.length - 1; i >= 0; i--){
+      if(TIERS[i].min > points){ next = TIERS[i]; break; }
+    }
+    return next;
+  }
+  function animateNumber(el, target){
+    if(!el) return;
+    const start = performance.now();
+    const duration = 800 + Math.min(target, 400);
+    function tick(now){
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = Math.round(eased * target).toLocaleString();
+      if(t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  async function loadMyStats(){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session) return;
+    const { data } = await sb.from('streaks').select('*').eq('user_id', session.user.id).maybeSingle();
+
+    const { data: profileRow } = await sb.from('profiles').select('avatar_emoji, avatar_color').eq('id', session.user.id).maybeSingle();
+    if(profileRow){
+      const circleBtn = document.getElementById('profile-circle-btn');
+      const circleEmoji = document.getElementById('profile-circle-emoji');
+      if(circleEmoji) circleEmoji.textContent = profileRow.avatar_emoji || '🎯';
+      if(circleBtn) circleBtn.style.background = profileRow.avatar_color || 'var(--panel)';
+    }
+
+    if(!data) return;
+
+    const badge = document.getElementById('nav-badge');
+    const myTier = getTier(data.total_points);
+    if(badge){
+      badge.style.display = 'flex';
+      document.getElementById('nav-badge-label').textContent = myTier;
+    }
+    const tierRow = document.getElementById('tier-row');
+    if(tierRow){
+      tierRow.querySelectorAll('.tier-chip').forEach(function(chip){
+        chip.classList.toggle('active', chip.getAttribute('data-tier') === myTier);
+      });
+    }
+  }
+
+  const AVATAR_EMOJIS = ['🎯','🔥','⚡','🎲','🧠','🎬','🏆','⭐','🚀','🎧','📈','🎮','🦉','🐺','🦅','🐢','🍀','☕','🌙','🌊'];
+  const AVATAR_COLORS = ['#17191D','#1C7A4D','#B23A2E','#2D5FA6','#8A4FBF','#C77D2E','#3B8C8C','#6B7280'];
+  let selectedAvatarEmoji = null;
+  let selectedAvatarColor = null;
+
+  function closeProfileModal(){
+    document.getElementById('profile-modal-backdrop').style.display = 'none';
+  }
+
+  async function openProfileModal(){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session) return;
+
+    const { data: profileRow } = await sb.from('profiles').select('username, created_at, avatar_emoji, avatar_color, notify_on_resolve').eq('id', session.user.id).maybeSingle();
+    const { data: streakRow } = await sb.from('streaks').select('*').eq('user_id', session.user.id).maybeSingle();
+    if(!profileRow) return;
+
+    selectedAvatarEmoji = profileRow.avatar_emoji || '🎯';
+    selectedAvatarColor = profileRow.avatar_color || '#17191D';
+
+    document.getElementById('notify-resolve-checkbox').checked = !!profileRow.notify_on_resolve;
+    document.getElementById('notify-resolve-msg').textContent = '';
+
+    document.getElementById('profile-modal-avatar').textContent = selectedAvatarEmoji;
+    document.getElementById('profile-modal-avatar').style.background = selectedAvatarColor;
+    document.getElementById('profile-modal-username').textContent = profileRow.username;
+    if(profileRow.created_at){
+      const since = new Date(profileRow.created_at);
+      document.getElementById('profile-modal-since').textContent = 'Member since ' + since.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    // All-time stats
+    const statsEl = document.getElementById('profile-modal-stats');
+    const myTier = streakRow ? getTier(streakRow.total_points) : 'Rookie';
+    statsEl.innerHTML = '';
+    [
+      { label: 'Points', value: streakRow ? streakRow.total_points.toLocaleString() : '0' },
+      { label: 'Tier', value: myTier },
+      { label: 'Current streak', value: streakRow ? streakRow.current_streak : '0' },
+      { label: 'Longest streak', value: streakRow ? streakRow.longest_streak : '0' }
+    ].forEach(function(stat){
+      const div = document.createElement('div');
+      div.innerHTML = '<div style="font-size:20px; font-weight:700;"></div><div style="font-size:11.5px; color:var(--ink-soft);"></div>';
+      div.firstChild.textContent = stat.value;
+      div.lastChild.textContent = stat.label;
+      statsEl.appendChild(div);
+    });
+
+    const profileProgressWrap = document.getElementById('profile-tier-progress-wrap');
+    const myPoints = streakRow ? streakRow.total_points : 0;
+    const nextTier = getNextTier(myPoints);
+    profileProgressWrap.style.display = 'block';
+    if(nextTier){
+      const currentTierMin = TIERS.find(function(t){ return t.name === myTier; }).min;
+      const pct = Math.max(0, Math.min(100, ((myPoints - currentTierMin) / (nextTier.min - currentTierMin)) * 100));
+      document.getElementById('profile-tier-progress-label').textContent = (nextTier.min - myPoints).toLocaleString() + ' pts to ' + nextTier.name;
+      requestAnimationFrame(function(){
+        document.getElementById('profile-tier-progress-bar').style.width = pct + '%';
+      });
+    }else{
+      document.getElementById('profile-tier-progress-label').textContent = 'Top tier reached';
+      requestAnimationFrame(function(){
+        document.getElementById('profile-tier-progress-bar').style.width = '100%';
+      });
+    }
+
+    // Emoji picker
+    const emojiPicker = document.getElementById('avatar-emoji-picker');
+    emojiPicker.innerHTML = '';
+    AVATAR_EMOJIS.forEach(function(emoji){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = emoji;
+      btn.style.cssText = 'width:36px; height:36px; border-radius:50%; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; border:2px solid ' + (emoji === selectedAvatarEmoji ? 'var(--ink)' : 'var(--line)') + '; background:var(--panel);';
+      btn.addEventListener('click', function(){
+        selectedAvatarEmoji = emoji;
+        document.getElementById('profile-modal-avatar').textContent = emoji;
+        emojiPicker.querySelectorAll('button').forEach(function(b){ b.style.borderColor = (b.textContent === emoji) ? 'var(--ink)' : 'var(--line)'; });
+      });
+      emojiPicker.appendChild(btn);
+    });
+
+    // Color picker
+    const colorPicker = document.getElementById('avatar-color-picker');
+    colorPicker.innerHTML = '';
+    AVATAR_COLORS.forEach(function(color){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.setAttribute('aria-label', 'Color ' + color);
+      btn.style.cssText = 'width:30px; height:30px; border-radius:50%; cursor:pointer; background:' + color + '; border:2px solid ' + (color === selectedAvatarColor ? 'var(--ink)' : 'transparent') + '; outline:1px solid var(--line);';
+      btn.addEventListener('click', function(){
+        selectedAvatarColor = color;
+        document.getElementById('profile-modal-avatar').style.background = color;
+        colorPicker.querySelectorAll('button').forEach(function(b){ b.style.borderColor = (b.style.background === color || b.getAttribute('aria-label') === 'Color ' + color) ? 'var(--ink)' : 'transparent'; });
+      });
+      colorPicker.appendChild(btn);
+    });
+    document.getElementById('profile-customization-msg').textContent = '';
+
+    // Picks history — all-time accuracy computed from the full set, most recent 30 shown
+    const { data: picks } = await sb
+      .from('predictions')
+      .select('choice, created_at, daily_questions!inner(question_text, category, question_date, correct_answer, resolved)')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false });
+
+    const picksList = document.getElementById('profile-picks-list');
+    picksList.innerHTML = '';
+    if(!picks || picks.length === 0){
+      picksList.innerHTML = '<p class="ex-sub">No picks yet — head to Play to make your first call.</p>';
+    }else{
+      picks.slice(0, 30).forEach(function(p){
+        const q = p.daily_questions;
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--panel); border:1px solid var(--line); border-radius:10px;';
+        let resultBadge = '<span style="font-size:11px; color:var(--ink-soft);">Pending</span>';
+        if(q.resolved){
+          const wasCorrect = p.choice === q.correct_answer;
+          resultBadge = '<span style="font-size:11px; font-weight:700; color:' + (wasCorrect ? 'var(--yes)' : 'var(--no)') + ';">' + (wasCorrect ? 'Correct' : 'Missed') + '</span>';
+        }
+        const dateLabel = q.question_date;
+        const catLabel = CATEGORY_LABELS[q.category] || q.category;
+        row.innerHTML =
+          '<div style="flex:1; min-width:0;">' +
+            '<div class="q-text" style="font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>' +
+            '<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">' + dateLabel + ' · ' + catLabel + ' · Called ' + p.choice.toUpperCase() + '</div>' +
+          '</div>' + resultBadge;
+        row.querySelector('.q-text').textContent = q.question_text;
+        picksList.appendChild(row);
+      });
+    }
+
+    document.getElementById('profile-modal-backdrop').style.display = 'flex';
+  }
+
+  const profileCircleBtn = document.getElementById('profile-circle-btn');
+  if(profileCircleBtn) profileCircleBtn.addEventListener('click', openProfileModal);
+
+  const profileModalCloseBtn = document.getElementById('profile-modal-close');
+  if(profileModalCloseBtn) profileModalCloseBtn.addEventListener('click', closeProfileModal);
+
+  const profileModalBackdrop = document.getElementById('profile-modal-backdrop');
+  if(profileModalBackdrop){
+    profileModalBackdrop.addEventListener('click', function(e){
+      if(e.target === profileModalBackdrop) closeProfileModal();
+    });
+  }
+
+  const saveProfileBtn = document.getElementById('save-profile-customization-btn');
+  if(saveProfileBtn){
+    saveProfileBtn.addEventListener('click', async function(){
+      const { data: sessionRes } = await sb.auth.getSession();
+      const session = sessionRes && sessionRes.session;
+      const msg = document.getElementById('profile-customization-msg');
+      if(!session) return;
+      msg.className = 'form-msg';
+      msg.textContent = 'Saving…';
+      const { error } = await sb.from('profiles').update({
+        avatar_emoji: selectedAvatarEmoji,
+        avatar_color: selectedAvatarColor
+      }).eq('id', session.user.id);
+      if(error){
+        msg.className = 'form-msg err';
+        msg.textContent = 'Could not save — try again.';
+        return;
+      }
+      msg.className = 'form-msg ok';
+      msg.textContent = 'Saved!';
+      const circleEmoji = document.getElementById('profile-circle-emoji');
+      const circleBtn = document.getElementById('profile-circle-btn');
+      if(circleEmoji) circleEmoji.textContent = selectedAvatarEmoji;
+      if(circleBtn) circleBtn.style.background = selectedAvatarColor;
+    });
+  }
+
+  const notifyResolveCheckbox = document.getElementById('notify-resolve-checkbox');
+  if(notifyResolveCheckbox){
+    notifyResolveCheckbox.addEventListener('change', async function(){
+      const { data: sessionRes } = await sb.auth.getSession();
+      const session = sessionRes && sessionRes.session;
+      const msg = document.getElementById('notify-resolve-msg');
+      if(!session) return;
+      const { error } = await sb.from('profiles').update({ notify_on_resolve: this.checked }).eq('id', session.user.id);
+      if(error){
+        msg.className = 'form-msg err';
+        msg.textContent = 'Could not save \u2014 try again.';
+        this.checked = !this.checked;
+        return;
+      }
+      msg.className = 'form-msg ok';
+      msg.textContent = this.checked ? 'You\u2019re in \u2014 we\u2019ll email you when results are ready.' : 'Turned off.';
+    });
+  }
+
+  document.getElementById('set-buddy-btn').addEventListener('click', async function(){
+    const btn = this;
+    const msg = document.getElementById('buddy-msg');
+    const uname = document.getElementById('buddy-username-input').value.trim();
+    msg.className = 'form-msg';
+    if(!uname){ msg.classList.add('err'); msg.textContent = 'Enter a username.'; return; }
+
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session){ msg.classList.add('err'); msg.textContent = 'Sign in above first.'; return; }
+
+    btn.disabled = true;
+    const { data: buddyProfile, error: lookupErr } = await sb.from('profiles').select('id').eq('username', uname).maybeSingle();
+    if(lookupErr || !buddyProfile){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'No user found with that username.'; return; }
+    if(buddyProfile.id === session.user.id){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'You can\'t buddy with yourself.'; return; }
+
+    const { error } = await sb.from('profiles').update({ buddy_user_id: buddyProfile.id }).eq('id', session.user.id);
+    btn.disabled = false;
+    msg.classList.add(error ? 'err' : 'ok');
+    msg.textContent = error ? ('Error: ' + error.message) : ('Buddy set to ' + uname + '.');
+  });
+
+  async function loadShareCard(username){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session) return;
+
+    const { data: resolvedQ } = await sb
+      .from('daily_questions')
+      .select('question_date')
+      .eq('resolved', true)
+      .order('question_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if(!resolvedQ) return;
+    const date = resolvedQ.question_date;
+
+    const { data: questions } = await sb.from('daily_questions').select('*').eq('question_date', date).order('category');
+    const { data: myPreds } = await sb.from('predictions').select('question_id, choice').eq('user_id', session.user.id);
+    const { data: myStreak } = await sb.from('streaks').select('current_streak').eq('user_id', session.user.id).maybeSingle();
+
+    if(!questions || questions.length === 0) return;
+    const predMap = {};
+    (myPreds || []).forEach(function(p){ predMap[p.question_id] = p.choice; });
+
+    document.getElementById('share-card-title').textContent = 'Marqit · ' + date;
+    document.getElementById('share-card-streak').textContent = (myStreak ? myStreak.current_streak : 0) + '-day streak';
+
+    const row = document.getElementById('share-card-row');
+    row.innerHTML = '';
+    questions.forEach(function(q){
+      const myChoice = predMap[q.id];
+      const correct = myChoice && q.resolved && myChoice === q.correct_answer;
+      const played = !!myChoice && q.resolved;
+      const cell = document.createElement('div');
+      cell.className = 'share-cell';
+      const iconClass = !played ? 'no' : (correct ? 'yes' : 'no');
+      const iconPath = !played
+        ? '<path d="M12 8v4M12 16h.01"/>'
+        : (correct ? '<path d="M5 13l4 4L19 7"/>' : '<path d="M6 6l12 12M18 6L6 18"/>');
+      cell.innerHTML =
+        '<div class="share-icon ' + iconClass + '"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' + iconPath + '</svg></div>' +
+        '<div class="share-cell-label"></div>';
+      cell.querySelector('.share-cell-label').textContent = CATEGORY_LABELS[q.category] || q.category;
+      row.appendChild(cell);
+    });
+
+    document.getElementById('share-results-btn').style.display = 'inline-flex';
+  }
+
+  document.getElementById('share-results-btn').addEventListener('click', async function(){
+    const title = document.getElementById('share-card-title').textContent;
+    const streak = document.getElementById('share-card-streak').textContent;
+    const cells = document.querySelectorAll('#share-card-row .share-cell');
+    const msgEl = document.getElementById('share-results-msg');
+    if(cells.length === 0) return;
+
+    let correctCount = 0;
+    const parts = [];
+    cells.forEach(function(cell){
+      const isCorrect = cell.querySelector('.share-icon').classList.contains('yes');
+      if(isCorrect) correctCount++;
+      const label = cell.querySelector('.share-cell-label').textContent;
+      parts.push(label + (isCorrect ? ' ✓' : ' ✗'));
+    });
+    const text = title + ' — ' + streak + '. ' + correctCount + '/' + cells.length + ' correct: ' + parts.join(', ') + '. Make your own call at playmarqit.com';
+
+    if(navigator.share){
+      try{
+        await navigator.share({ text: text, url: 'https://playmarqit.com' });
+      }catch(e){ /* person canceled the share sheet — not an error */ }
+      return;
+    }
+    try{
+      await navigator.clipboard.writeText(text);
+      msgEl.className = 'form-msg ok';
+      msgEl.textContent = 'Copied! Paste it anywhere.';
+      setTimeout(function(){ msgEl.textContent = ''; }, 3000);
+    }catch(e){
+      msgEl.className = 'form-msg err';
+      msgEl.textContent = 'Could not copy — select the card and copy manually.';
+    }
+  });
+
+  sb.auth.onAuthStateChange(async function(event, session){
+    if(event === 'SIGNED_IN' && session && session.user){
+      const username = await ensureProfile(session.user);
+      showSignedIn(username || 'you');
+    }
+  });
+
+  sb.auth.getSession().then(function(res){
+    const session = res.data.session;
+    if(session && session.user){
+      ensureProfile(session.user).then(function(username){
+        showSignedIn(username || 'you');
+      });
+    }
+  });
+
+  var CATEGORY_LABELS = { sports: 'Sports', pop_culture: 'Pop culture', news: 'News & current events' };
+  var CATEGORY_ICONS = {
+    sports: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.5 5.5c3 3 3 10 0 13M18.5 5.5c-3 3-3 10 0 13"/></svg>',
+    pop_culture: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l1.5-4h4L7 8M9 8l1.5-4h4L13 8M15 8l1.5-4h3.5L19 8"/><rect x="3" y="8" width="18" height="12" rx="1.5"/></svg>',
+    news: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h13a2 2 0 0 1 2 2v13a1 1 0 0 1-1.7.7L4 19V4z"/><path d="M8 8h7M8 12h7M8 16h4"/></svg>'
+  };
+
+  // Leaderboards insert usernames into innerHTML for performance/simplicity. The signup
+  // form only allows letters/numbers/underscore in usernames, but that's a client-side
+  // check only — since the Supabase key is public, someone could write a malicious
+  // username straight to the database and bypass it. Escaping here means that even if
+  // that ever happens, it renders as inert text instead of executing as HTML/script.
+  function escapeHtml(str){
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Marqit's daily cycle (question_date, lock times) runs on Eastern Time.
+  // new Date().toISOString() gives the UTC date, which rolls over to "tomorrow"
+  // around 7-8pm ET every day (right around the 8:30pm lock), causing
+  // "today's calls aren't posted yet" for real ET users during peak hours.
+  // This computes the actual ET calendar date instead, regardless of the visitor's own timezone.
+  function getETDateInfo(){
+    var parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short'
+    }).formatToParts(new Date());
+    var map = {};
+    parts.forEach(function(p){ map[p.type] = p.value; });
+    return { dateStr: map.year + '-' + map.month + '-' + map.day, weekday: map.weekday };
+  }
+
+  // A plain single-color line showing how the Yes% has moved as votes came in,
+  // built from real vote timestamps already stored in the database. Deliberately
+  // not color-coded to yes/no (uses the page's ink color) so it just reads as
+  // "how sentiment has moved," not another yes/no signal.
+  // A step chart showing how the Yes% has actually moved over time, built from
+  // real vote timestamps. Deliberately single-color (uses the page's ink color,
+  // not yes/no colors) so it reads as "how sentiment moved," not another signal.
+  function buildTrendSVG(points){
+    if(!points || points.length < 2) return '<div class="ticket-meta">Not enough calls yet for a trend line.</div>';
+
+    var W = 320, H = 150;
+    var padL = 34, padR = 10, padT = 10, padB = 22;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+
+    var startT = points[0].time.getTime();
+    var endT = Math.max(points[points.length - 1].time.getTime(), Date.now());
+    var span = endT - startT || 1;
+
+    function xPos(t){ return padL + ((t - startT) / span) * plotW; }
+    function yPos(pct){ return padT + (1 - pct / 100) * plotH; }
+
+    // Step path: the percentage only actually changes the instant a new vote
+    // lands, so it should stay flat in between rather than sloping smoothly.
+    var d = 'M ' + xPos(startT).toFixed(1) + ' ' + yPos(points[0].pct).toFixed(1);
+    for(var i = 1; i < points.length; i++){
+      var xi = xPos(points[i].time.getTime());
+      d += ' L ' + xi.toFixed(1) + ' ' + yPos(points[i - 1].pct).toFixed(1);
+      d += ' L ' + xi.toFixed(1) + ' ' + yPos(points[i].pct).toFixed(1);
+    }
+    var lastPct = points[points.length - 1].pct;
+    var endX = xPos(endT).toFixed(1);
+    d += ' L ' + endX + ' ' + yPos(lastPct).toFixed(1);
+
+    var gridLines = [0, 25, 50, 75, 100].map(function(pct){
+      var y = yPos(pct).toFixed(1);
+      return '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y + '" stroke="var(--line)" stroke-width="1" stroke-dasharray="2,3"/>' +
+        '<text x="' + (padL - 6) + '" y="' + (parseFloat(y) + 3) + '" text-anchor="end" font-size="9" fill="var(--ink-soft)" font-family="Inter,sans-serif">' + pct + '%</text>';
+    }).join('');
+
+    function fmtTime(t){
+      return new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+    var xLabels =
+      '<text x="' + padL + '" y="' + (H - 6) + '" text-anchor="start" font-size="9" fill="var(--ink-soft)" font-family="Inter,sans-serif">' + fmtTime(startT) + '</text>' +
+      '<text x="' + (W - padR) + '" y="' + (H - 6) + '" text-anchor="end" font-size="9" fill="var(--ink-soft)" font-family="Inter,sans-serif">' + fmtTime(endT) + '</text>';
+
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="trend-svg" aria-hidden="true">' +
+      gridLines +
+      '<path d="' + d + '" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<circle cx="' + endX + '" cy="' + yPos(lastPct).toFixed(1) + '" r="3.5" fill="var(--ink)"/>' +
+      xLabels +
+      '</svg>';
+  }
+
+  function buildQuestionCard(q, index, myVote, voteCounts, isLocked, trend, isMostCalled){
+    var yesCount = voteCounts.yes || 0;
+    var noCount = voteCounts.no || 0;
+    var total = yesCount + noCount;
+    var yesPct = total > 0 ? Math.round((yesCount / total) * 100) : 0;
+    var noPct = total > 0 ? 100 - yesPct : 0;
+    var hasVoted = !!myVote;
+
+    var div = document.createElement('div');
+    div.className = 'ticket predict-card';
+    div.style.maxWidth = '480px';
+    div.style.marginBottom = '16px';
+    div.setAttribute('data-question-id', q.id);
+
+    // Once locked, everyone sees percentages (there's nothing left to hide),
+    // but only people who actually voted get a "picked" highlight.
+    var showPct = hasVoted || isLocked;
+    var yesPriceHtml = showPct ? (yesPct + '<span class="opt-pct">%</span>') : 'Yes';
+    var noPriceHtml = showPct ? (noPct + '<span class="opt-pct">%</span>') : 'No';
+    var yesPickedClass = myVote === 'yes' ? ' picked' : '';
+    var noPickedClass = myVote === 'no' ? ' picked' : '';
+    var lockedNote = (isLocked && !hasVoted) ? '<div class="ticket-meta" style="margin-top:4px;">Locked \u2014 here\u2019s how the world called it.</div>' : '';
+    var trendHtml = showPct ? ('<div class="trend-wrap" style="margin-top:8px;">' + buildTrendSVG(trend) + '</div>') : '<div class="trend-wrap"></div>';
+
+    var iconHtml = CATEGORY_ICONS[q.category] || '';
+    var statusHtml = isLocked
+      ? ' · Locked'
+      : ' · <span style="display:inline-flex; align-items:center; gap:4px; color:var(--yes);"><span class="live-dot"></span>Live</span>';
+    var mostCalledBadge = (isMostCalled && total > 0) ? '<div class="ticket-meta" style="margin-top:4px; font-weight:600;">\ud83d\udd25 Most called today</div>' : '';
+    var resolutionHtml = q.resolution_criteria ? '<p class="ticket-meta resolution-text" style="font-style:italic; margin-top:10px; padding-top:10px; border-top:1px solid var(--line);"></p>' : '';
+
+    div.innerHTML =
+      '<p class="ticket-q"></p>' +
+      '<p class="ticket-meta" style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;">' + (index + 1) + ' of 3 today · <span style="display:inline-flex; align-items:center; gap:4px;">' + iconHtml + '<span class="cat-label-text"></span></span>' + statusHtml + '</p>' +
+      mostCalledBadge +
+      '<div class="ticket-row">' +
+        '<div class="opt yes' + yesPickedClass + '"><div class="opt-label">YES</div><div class="opt-price">' + yesPriceHtml + '</div></div>' +
+        '<div class="opt no' + noPickedClass + '"><div class="opt-label">NO</div><div class="opt-price">' + noPriceHtml + '</div></div>' +
+      '</div>' +
+      lockedNote +
+      trendHtml +
+      '<div class="ticket-foot"><span>' + total + (total === 1 ? ' voted' : ' voted') + '</span></div>' +
+      resolutionHtml +
+      '<p class="form-msg" style="margin-top:8px;"></p>';
+    div.querySelector('.ticket-q').textContent = q.question_text;
+    if(q.resolution_criteria) div.querySelector('.resolution-text').textContent = 'Resolves: ' + q.resolution_criteria;
+    div.querySelector('.cat-label-text').textContent = CATEGORY_LABELS[q.category] || q.category;
+    if(isLocked){
+      div.querySelectorAll('.opt').forEach(function(opt){ opt.style.cursor = 'default'; opt.style.opacity = hasVoted ? '1' : '0.85'; });
+    }
+    return div;
+  }
+
+
+  async function getVoteData(questionId){
+    // Ordered by created_at so we can compute how the Yes% has actually moved
+    // over time as votes came in, not just the final snapshot.
+    const { data } = await sb.from('predictions').select('choice, created_at').eq('question_id', questionId).order('created_at', { ascending: true });
+    const rows = data || [];
+    const counts = { yes: 0, no: 0 };
+    const trend = [];
+    rows.forEach(function(row){
+      counts[row.choice]++;
+      const total = counts.yes + counts.no;
+      trend.push({ time: new Date(row.created_at), pct: Math.round((counts.yes / total) * 100) });
+    });
+    return { counts: counts, trend: trend };
+  }
+
+  function sleep(ms){ return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
+
+  async function insertPredictionWithRetry(userId, questionId, choice, attempts){
+    attempts = attempts || 3;
+    let lastError = null;
+    for(let i = 0; i < attempts; i++){
+      const { error } = await sb.from('predictions').insert({
+        user_id: userId,
+        question_id: questionId,
+        choice: choice
+      });
+      if(!error || error.code === '23505'){
+        return { error: null }; // success, or already voted — both fine
+      }
+      lastError = error;
+      if(i < attempts - 1){ await sleep(900 * (i + 1)); } // brief pause before retrying, backing off each time
+    }
+    return { error: lastError };
+  }
+
+  function appendSuggestionBox(container, session){
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'border-top:1px solid var(--line); margin-top:24px; padding-top:24px;';
+
+    const box = document.createElement('div');
+    box.style.cssText = 'max-width:480px; background:var(--paper); border:2px solid var(--yes); border-radius:16px; padding:24px;';
+
+    // Tomorrow's date in ET, used as the earliest date someone can request.
+    const etParts = getETDateInfo().dateStr.split('-').map(Number);
+    const tomorrowUTC = new Date(Date.UTC(etParts[0], etParts[1] - 1, etParts[2]));
+    tomorrowUTC.setUTCDate(tomorrowUTC.getUTCDate() + 1);
+    const minDateStr = tomorrowUTC.toISOString().slice(0, 10);
+
+    box.innerHTML =
+      '<p class="ticket-q" style="max-width:none;">Request a prediction</p>' +
+      '<p class="ticket-meta">Got an idea for a future call? Tell us what, and which day.</p>' +
+      '<select id="suggestion-category" style="padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px; margin-top:12px; margin-bottom:8px;">' +
+        '<option value="sports">Sports</option>' +
+        '<option value="pop_culture">Pop culture</option>' +
+        '<option value="news">News</option>' +
+      '</select>' +
+      '<input type="date" id="suggestion-date" min="' + minDateStr + '" value="' + minDateStr + '" style="display:block; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px; margin-bottom:8px;">' +
+      '<textarea id="suggestion-text" rows="2" maxlength="300" placeholder="Will the underdog actually pull it off?" style="display:block; width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px; resize:vertical;"></textarea>' +
+      '<button type="button" id="suggestion-submit-btn" style="margin-top:10px; padding:11px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Pitch idea \ud83d\udd25</button>' +
+      '<p class="form-msg" id="suggestion-msg" style="margin-top:6px;"></p>';
+    wrap.appendChild(box);
+    container.appendChild(wrap);
+    document.getElementById('suggestion-submit-btn').addEventListener('click', async function(){
+      const btn = this;
+      const category = document.getElementById('suggestion-category').value;
+      const requestedDate = document.getElementById('suggestion-date').value;
+      const text = document.getElementById('suggestion-text').value.trim();
+      const msg = document.getElementById('suggestion-msg');
+      msg.className = 'form-msg';
+      msg.textContent = '';
+      if(!text){
+        msg.className = 'form-msg err';
+        msg.textContent = 'Type your question idea first.';
+        return;
+      }
+      if(!requestedDate){
+        msg.className = 'form-msg err';
+        msg.textContent = 'Pick a date for this idea.';
+        return;
+      }
+      btn.disabled = true;
+      const { error } = await sb.from('question_suggestions').insert({
+        user_id: session.user.id,
+        category: category,
+        suggestion_text: text,
+        requested_date: requestedDate
+      });
+      btn.disabled = false;
+      if(error){
+        msg.className = 'form-msg err';
+        msg.textContent = 'Could not submit \u2014 try again.';
+        return;
+      }
+      msg.className = 'form-msg ok';
+      msg.textContent = 'Sent! Be ready for Marqit predictions tomorrow.';
+      document.getElementById('suggestion-text').value = '';
+    });
+  }
+
+  // Shared timer state for the daily countdown/pending indicator, tracked
+  // outside loadDailyQuestions so repeated calls don't stack up intervals.
+  let dailyCountdownInterval = null;
+  let dailyPollInterval = null;
+  function clearDailyTimers(){
+    if(dailyCountdownInterval){ clearInterval(dailyCountdownInterval); dailyCountdownInterval = null; }
+    if(dailyPollInterval){ clearInterval(dailyPollInterval); dailyPollInterval = null; }
+  }
+  function formatCountdown(ms){
+    if(ms <= 0) return '00:00:00';
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    function pad(n){ return String(n).padStart(2, '0'); }
+    return pad(h) + ':' + pad(m) + ':' + pad(s);
+  }
+
+  async function loadDailyQuestions(){
+    clearDailyTimers();
+    const container = document.getElementById('daily-questions-container');
+    if(!container) return;
+
+    const today = getETDateInfo().dateStr;
+    const { data: questions, error } = await sb.from('daily_questions').select('*').eq('question_date', today).order('category');
+
+    if(error || !questions || questions.length === 0){
+      const { data: sessionRes } = await sb.auth.getSession();
+      const session = sessionRes && sessionRes.session;
+      const signedIn = !!session;
+      const cats = ['sports', 'pop_culture', 'news'];
+      const placeholders = cats.map(function(cat){
+        return '<div class="ticket predict-card" style="max-width:480px; margin-bottom:16px; opacity:0.7;">' +
+          '<p class="ticket-meta">' + (CATEGORY_LABELS[cat] || cat) + '</p>' +
+          '<p class="ticket-q" style="font-style:italic; color:var(--ink-soft); margin-top:6px;">Today\'s call is on its way.</p>' +
+          '</div>';
+      }).join('');
+      const ctaHtml = signedIn ? '' :
+        '<button type="button" id="empty-state-signup-btn" style="margin-top:4px; padding:12px 24px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Sign up so you\'re ready</button>';
+      container.innerHTML =
+        '<p class="ex-sub" style="margin-bottom:16px;">New calls post daily — nothing here yet, check back soon.</p>' +
+        placeholders +
+        ctaHtml;
+      const emptyStateSignupBtn = document.getElementById('empty-state-signup-btn');
+      if(emptyStateSignupBtn) emptyStateSignupBtn.addEventListener('click', function(){ openAuthPanel('signup'); });
+      if(signedIn) appendSuggestionBox(container, session);
+
+      // Keep checking in the background — once today's questions actually
+      // post, refresh automatically instead of making them hit reload.
+      dailyPollInterval = setInterval(async function(){
+        const { data: check } = await sb.from('daily_questions').select('id').eq('question_date', getETDateInfo().dateStr).limit(1);
+        if(check && check.length > 0){
+          clearDailyTimers();
+          loadDailyQuestions();
+        }
+      }, 300000);
+      return;
+    }
+
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+
+    // Fetch everything first so we can figure out which question is most-called
+    // before building any cards — needs the full picture, not a running total.
+    const prepared = [];
+    for(let i = 0; i < questions.length; i++){
+      const q = questions[i];
+      let myVote = null;
+      if(session){
+        const { data: existingVote } = await sb.from('predictions').select('choice').eq('question_id', q.id).eq('user_id', session.user.id).maybeSingle();
+        myVote = existingVote ? existingVote.choice : null;
+      }
+      const voteData = await getVoteData(q.id);
+      const isLocked = new Date() >= new Date(q.lock_time);
+      prepared.push({ q: q, myVote: myVote, voteData: voteData, isLocked: isLocked, total: voteData.counts.yes + voteData.counts.no });
+    }
+
+    // Only badge a strict, unique leader — a tie or an all-zero day shouldn't get one.
+    let mostCalledId = null;
+    const maxTotal = Math.max.apply(null, prepared.map(function(p){ return p.total; }));
+    if(maxTotal > 0){
+      const leaders = prepared.filter(function(p){ return p.total === maxTotal; });
+      if(leaders.length === 1) mostCalledId = leaders[0].q.id;
+    }
+
+    const lockTime = prepared.length > 0 ? new Date(prepared[0].q.lock_time) : null;
+    const allLockedNow = prepared.every(function(p){ return p.isLocked; });
+
+    container.innerHTML = '';
+
+    function startPendingPoll(){
+      dailyPollInterval = setInterval(async function(){
+        const { data: check } = await sb.from('daily_questions').select('id').gt('question_date', today).limit(1);
+        if(check && check.length > 0){
+          clearDailyTimers();
+          loadDailyQuestions();
+        }
+      }, 300000);
+    }
+
+    const timerEl = document.createElement('div');
+    timerEl.id = 'daily-timer';
+    timerEl.style.cssText = 'max-width:480px; margin-bottom:16px; padding:14px 18px; background:var(--panel); border:1px solid var(--line); border-radius:12px; text-align:center;';
+    container.appendChild(timerEl);
+
+    if(allLockedNow || !lockTime){
+      timerEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft); font-weight:600;">Pending new questions — check back soon.</div>';
+      startPendingPoll();
+    }else{
+      timerEl.innerHTML =
+        '<div style="font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; font-weight:700;">Locks in</div>' +
+        '<div id="daily-timer-value" style="font-family:\'Big Shoulders Display\',sans-serif; font-weight:700; font-size:28px; margin-top:2px;">' + formatCountdown(lockTime.getTime() - Date.now()) + '</div>';
+      dailyCountdownInterval = setInterval(function(){
+        const remaining = lockTime.getTime() - Date.now();
+        if(remaining <= 0){
+          clearInterval(dailyCountdownInterval);
+          dailyCountdownInterval = null;
+          timerEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft); font-weight:600;">Pending new questions — check back soon.</div>';
+          startPendingPoll();
+          return;
+        }
+        const valueEl = document.getElementById('daily-timer-value');
+        if(valueEl) valueEl.textContent = formatCountdown(remaining);
+      }, 1000);
+    }
+
+    let allLocked = true;
+    for(let i = 0; i < prepared.length; i++){
+      const q = prepared[i].q;
+      const myVote = prepared[i].myVote;
+      const voteData = prepared[i].voteData;
+      const isLocked = prepared[i].isLocked;
+      if(!isLocked) allLocked = false;
+      const card = buildQuestionCard(q, i, myVote, voteData.counts, isLocked, voteData.trend, q.id === mostCalledId);
+      container.appendChild(card);
+    }
+
+    // One shared Submit for all three, instead of submitting each one alone.
+    // The button only turns on once every unlocked question has a pick.
+    if(session && !allLocked){
+      const selections = {};
+      prepared.forEach(function(p){ if(p.myVote) selections[p.q.id] = p.myVote; });
+      const editableQuestions = prepared.filter(function(p){ return !p.isLocked; });
+      const allAlreadyAnswered = editableQuestions.length > 0 && editableQuestions.every(function(p){ return !!p.myVote; });
+
+      let editing = false;
+      let answering = false;
+
+      const controls = document.createElement('div');
+      controls.style.cssText = 'max-width:480px; margin-top:8px;';
+      controls.innerHTML =
+        '<button type="button" id="submit-all-btn" disabled style="width:100%; padding:14px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; opacity:0.4; display:' + (allAlreadyAnswered ? 'none' : 'block') + ';">Pick all three first</button>' +
+        '<button type="button" id="edit-predictions-btn" style="width:100%; padding:14px 22px; border:1.5px solid var(--line); border-radius:10px; background:none; color:var(--ink); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; display:' + (allAlreadyAnswered ? 'block' : 'none') + ';">Edit predictions</button>' +
+        '<p class="form-msg" id="submit-all-msg" style="margin-top:6px;"></p>';
+      container.appendChild(controls);
+
+      const submitBtn = document.getElementById('submit-all-btn');
+      const editBtn = document.getElementById('edit-predictions-btn');
+      const submitMsg = document.getElementById('submit-all-msg');
+
+      function updateSubmitState(){
+        const allPicked = editableQuestions.every(function(p){ return !!selections[p.q.id]; });
+        submitBtn.disabled = !allPicked;
+        submitBtn.style.opacity = allPicked ? '1' : '0.4';
+        submitBtn.textContent = allPicked ? (editing ? 'Save changes' : 'Submit your calls') : 'Pick all three first';
+      }
+
+      function wireCardClicks(){
+        editableQuestions.forEach(function(p){
+          const card = container.querySelector('[data-question-id="' + p.q.id + '"]');
+          if(!card) return;
+          card.querySelectorAll('.opt').forEach(function(opt){
+            opt.onclick = function(){
+              if(p.myVote && !editing) return; // already answered, not currently editing — ignore
+              const choice = opt.classList.contains('yes') ? 'yes' : 'no';
+              selections[p.q.id] = choice;
+              card.querySelector('.opt.yes').classList.toggle('picked', choice === 'yes');
+              card.querySelector('.opt.no').classList.toggle('picked', choice === 'no');
+              updateSubmitState();
+            };
+          });
+        });
+      }
+      wireCardClicks();
+
+      submitBtn.addEventListener('click', async function(){
+        const allPicked = editableQuestions.every(function(p){ return !!selections[p.q.id]; });
+        if(!allPicked || answering) return;
+        answering = true;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving…';
+        submitMsg.textContent = '';
+
+        let anyError = false;
+        for(const p of editableQuestions){
+          const choice = selections[p.q.id];
+          let saveError;
+          if(p.myVote){
+            const res = await sb.from('predictions').update({ choice: choice }).eq('user_id', session.user.id).eq('question_id', p.q.id);
+            saveError = res.error;
+          }else{
+            const res = await insertPredictionWithRetry(session.user.id, p.q.id, choice);
+            saveError = res.error;
+          }
+          if(saveError){ anyError = true; continue; }
+          p.myVote = choice;
+        }
+
+        if(anyError){
+          submitMsg.className = 'form-msg err';
+          submitMsg.textContent = 'Something didn\u2019t save \u2014 refresh and check before trying again.';
+          submitBtn.disabled = false;
+          submitBtn.textContent = editing ? 'Save changes' : 'Submit your calls';
+          answering = false;
+          return;
+        }
+
+        // Reveal real percentages/graphs now that everything's actually answered.
+        for(const p of editableQuestions){
+          const voteData2 = await getVoteData(p.q.id);
+          const card = container.querySelector('[data-question-id="' + p.q.id + '"]');
+          if(!card) continue;
+          const total2 = voteData2.counts.yes + voteData2.counts.no;
+          const yesPct2 = total2 > 0 ? Math.round((voteData2.counts.yes / total2) * 100) : 0;
+          const noPct2 = total2 > 0 ? 100 - yesPct2 : 0;
+          card.querySelector('.opt.yes .opt-price').innerHTML = yesPct2 + '<span class="opt-pct">%</span>';
+          card.querySelector('.opt.no .opt-price').innerHTML = noPct2 + '<span class="opt-pct">%</span>';
+          card.querySelector('.ticket-foot span').textContent = total2 + ' voted';
+          const trendWrap2 = card.querySelector('.trend-wrap');
+          if(trendWrap2) trendWrap2.innerHTML = buildTrendSVG(voteData2.trend);
+          card.querySelectorAll('.opt').forEach(function(o){ o.style.cursor = 'default'; });
+        }
+
+        editing = false;
+        answering = false;
+        submitBtn.style.display = 'none';
+        editBtn.style.display = 'block';
+        submitMsg.className = 'form-msg ok';
+        submitMsg.textContent = 'Saved!';
+      });
+
+      editBtn.addEventListener('click', function(){
+        editing = true;
+        editBtn.style.display = 'none';
+        submitBtn.style.display = 'block';
+        editableQuestions.forEach(function(p){
+          const card = container.querySelector('[data-question-id="' + p.q.id + '"]');
+          if(card) card.querySelectorAll('.opt').forEach(function(o){ o.style.cursor = 'pointer'; });
+        });
+        wireCardClicks();
+        updateSubmitState();
+        submitMsg.textContent = '';
+      });
+
+      updateSubmitState();
+    }
+
+    if(allLocked){
+      if(!session){
+        const lockedCta = document.createElement('div');
+        lockedCta.style.cssText = 'max-width:480px; margin-top:8px;';
+        lockedCta.innerHTML = '<p class="ex-sub" style="margin-bottom:10px;">Today\'s calls are locked, but tomorrow\'s three are coming.</p>' +
+          '<button type="button" id="locked-state-signup-btn" style="padding:12px 24px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Sign up so you\'re ready</button>';
+        container.appendChild(lockedCta);
+        document.getElementById('locked-state-signup-btn').addEventListener('click', function(){ openAuthPanel('signup'); });
+      }else{
+        appendSuggestionBox(container, session);
+      }
+    }
+  }
+
+  loadDailyQuestions();
+
+  async function loadBigBoard(){
+    const el = document.getElementById('big-board-rows');
+    if(!el) return;
+    const { data, error } = await sb
+      .from('streaks')
+      .select('total_points, profiles(username)')
+      .order('total_points', { ascending: false })
+      .limit(10);
+
+    if(error || !data || data.length === 0){
+      el.innerHTML = '<div class="brow"><span>No scores yet \u2014 be the first to play.</span></div>';
+      return;
+    }
+
+    el.innerHTML = data.map(function(row, i){
+      const username = (row.profiles && row.profiles.username) || 'player';
+      return '<div class="brow"><span><span class="brank">' + (i + 1) + '</span>' + escapeHtml(username) + '</span><span>' + row.total_points + ' pts</span></div>';
+    }).join('');
+  }
+
+  loadBigBoard();
+
+  async function loadCategoryBoard(category, elId){
+    const el = document.getElementById(elId);
+    if(!el) return;
+
+    const { data, error } = await sb
+      .from('predictions')
+      .select('user_id, choice, daily_questions!inner(category, correct_answer, resolved)')
+      .eq('daily_questions.category', category)
+      .eq('daily_questions.resolved', true);
+
+    if(error || !data || data.length === 0){
+      el.innerHTML = '<div class="brow"><span>No scores yet.</span></div>';
+      return;
+    }
+
+    const tally = {};
+    data.forEach(function(row){
+      if(row.choice === row.daily_questions.correct_answer){
+        tally[row.user_id] = (tally[row.user_id] || 0) + 100;
+      }
+    });
+
+    const ranked = Object.keys(tally)
+      .map(function(uid){ return { user_id: uid, points: tally[uid] }; })
+      .sort(function(a, b){ return b.points - a.points; })
+      .slice(0, 5);
+
+    if(ranked.length === 0){
+      el.innerHTML = '<div class="brow"><span>No correct calls yet.</span></div>';
+      return;
+    }
+
+    const { data: profiles } = await sb
+      .from('profiles')
+      .select('id, username')
+      .in('id', ranked.map(function(r){ return r.user_id; }));
+
+    const nameMap = {};
+    (profiles || []).forEach(function(p){ nameMap[p.id] = p.username; });
+
+    el.innerHTML = ranked.map(function(r, i){
+      const name = nameMap[r.user_id] || 'player';
+      return '<div class="brow"><span><span class="brank">' + (i + 1) + '</span>' + escapeHtml(name) + '</span><span>' + r.points + ' pts</span></div>';
+    }).join('');
+  }
+
+  loadCategoryBoard('sports', 'board-sports');
+  loadCategoryBoard('pop_culture', 'board-pop_culture');
+  loadCategoryBoard('news', 'board-news');
+
+  function getWeekStart(){
+    const et = getETDateInfo();
+    const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const day = weekdayMap[et.weekday];
+    const diffToMonday = (day === 0) ? 6 : day - 1;
+    const parts = et.dateStr.split('-').map(Number);
+    const monday = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    monday.setUTCDate(monday.getUTCDate() - diffToMonday);
+    return monday.toISOString().slice(0, 10);
+  }
+
+  async function loadWeeklyRecap(){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session) return;
+
+    const weekStart = getWeekStart();
+    const today = getETDateInfo().dateStr;
+
+    const { data } = await sb
+      .from('predictions')
+      .select('choice, daily_questions!inner(category, correct_answer, resolved, question_date)')
+      .eq('user_id', session.user.id)
+      .gte('daily_questions.question_date', weekStart)
+      .lte('daily_questions.question_date', today)
+      .eq('daily_questions.resolved', true);
+
+    const { data: myStreak } = await sb.from('streaks').select('current_streak').eq('user_id', session.user.id).maybeSingle();
+
+    if(!data || data.length === 0){
+      document.getElementById('recap-foot').textContent = 'No resolved calls yet this week.';
+      document.getElementById('recap-streak').textContent = myStreak ? myStreak.current_streak : 0;
+      return;
+    }
+
+    let correct = 0;
+    const categoryCorrect = {};
+    data.forEach(function(row){
+      const isCorrect = row.choice === row.daily_questions.correct_answer;
+      if(isCorrect){
+        correct++;
+        const cat = row.daily_questions.category;
+        categoryCorrect[cat] = (categoryCorrect[cat] || 0) + 1;
+      }
+    });
+
+    const accuracy = Math.round((correct / data.length) * 100);
+    let topCategory = '—';
+    let topCount = 0;
+    Object.keys(categoryCorrect).forEach(function(cat){
+      if(categoryCorrect[cat] > topCount){ topCount = categoryCorrect[cat]; topCategory = CATEGORY_LABELS[cat] || cat; }
+    });
+
+    document.getElementById('recap-accuracy').textContent = accuracy + '%';
+    document.getElementById('recap-predictions').textContent = data.length;
+    document.getElementById('recap-streak').textContent = myStreak ? myStreak.current_streak : 0;
+    document.getElementById('recap-foot').textContent = topCount > 0 ? ('Top category: ' + topCategory) : 'No correct calls yet this week.';
+  }
+
+  async function loadTopPredictor(){
+    const weekStart = getWeekStart();
+    const today = getETDateInfo().dateStr;
+    const line = document.getElementById('top-predictor-line');
+
+    const { data } = await sb
+      .from('predictions')
+      .select('user_id, choice, daily_questions!inner(correct_answer, resolved, question_date)')
+      .gte('daily_questions.question_date', weekStart)
+      .lte('daily_questions.question_date', today)
+      .eq('daily_questions.resolved', true);
+
+    if(!data || data.length === 0){
+      line.textContent = 'Top Predictor of the Week: no resolved calls yet this week.';
+      return;
+    }
+
+    const tally = {};
+    data.forEach(function(row){
+      if(!tally[row.user_id]) tally[row.user_id] = { correct: 0, total: 0 };
+      tally[row.user_id].total++;
+      if(row.choice === row.daily_questions.correct_answer){ tally[row.user_id].correct++; }
+    });
+
+    const MIN_PREDICTIONS = 3;
+    let best = null;
+    Object.keys(tally).forEach(function(uid){
+      const t = tally[uid];
+      if(t.total < MIN_PREDICTIONS) return;
+      const acc = t.correct / t.total;
+      if(!best || acc > best.acc || (acc === best.acc && t.correct > best.correct)){
+        best = { user_id: uid, acc: acc, correct: t.correct };
+      }
+    });
+
+    if(!best){
+      line.textContent = 'Top Predictor of the Week: not enough calls yet this week.';
+      return;
+    }
+
+    const { data: profile } = await sb.from('profiles').select('username').eq('id', best.user_id).maybeSingle();
+    const name = profile ? profile.username : 'a player';
+    const pct = Math.round(best.acc * 100);
+    line.textContent = 'Top Predictor of the Week: ' + name + ', ' + pct + '% accuracy \u2014 recognition only, no material prize.';
+  }
+
+  loadWeeklyRecap();
+  loadTopPredictor();
+
+  async function loadStateBoard(){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    const rowsEl = document.getElementById('board-state');
+    const titleEl = document.getElementById('state-board-title');
+    if(!session || !rowsEl) return;
+
+    const { data: myProfile } = await sb.from('profiles').select('state').eq('id', session.user.id).maybeSingle();
+    const myState = myProfile && myProfile.state;
+
+    if(!myState){
+      rowsEl.innerHTML = '<div class="brow"><span>Add your state above and sign in again to see this.</span></div>';
+      return;
+    }
+
+    titleEl.textContent = myState;
+
+    const { data: statePeople } = await sb.from('profiles').select('id, username').eq('state', myState);
+    if(!statePeople || statePeople.length === 0){
+      rowsEl.innerHTML = '<div class="brow"><span>No one else from ' + myState + ' yet.</span></div>';
+      return;
+    }
+
+    const ids = statePeople.map(function(p){ return p.id; });
+    const { data: streaksData } = await sb.from('streaks').select('user_id, total_points').in('user_id', ids);
+
+    const nameMap = {};
+    statePeople.forEach(function(p){ nameMap[p.id] = p.username; });
+
+    const ranked = (streaksData || [])
+      .sort(function(a, b){ return b.total_points - a.total_points; })
+      .slice(0, 5);
+
+    rowsEl.innerHTML = ranked.map(function(r, i){
+      return '<div class="brow"><span><span class="brank">' + (i + 1) + '</span>' + escapeHtml(nameMap[r.user_id] || 'player') + '</span><span>' + r.total_points + ' pts</span></div>';
+    }).join('');
+  }
+
+  loadStateBoard();
+
+  async function loadGroupSection(){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    const outEl = document.getElementById('group-signed-out');
+    const noGroupEl = document.getElementById('group-no-group');
+    const inGroupEl = document.getElementById('group-in-group');
+    if(!outEl) return;
+
+    if(!session){
+      outEl.style.display = 'block';
+      noGroupEl.style.display = 'none';
+      inGroupEl.style.display = 'none';
+      return;
+    }
+    outEl.style.display = 'none';
+
+    const { data: membership } = await sb
+      .from('group_members')
+      .select('group_id, groups(name, invite_code)')
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+
+    if(!membership){
+      noGroupEl.style.display = 'block';
+      inGroupEl.style.display = 'none';
+      return;
+    }
+
+    noGroupEl.style.display = 'none';
+    inGroupEl.style.display = 'block';
+    document.getElementById('group-name-display').textContent = membership.groups.name;
+    document.getElementById('group-invite-code').textContent = membership.groups.invite_code;
+
+    const { data: members } = await sb.from('group_members').select('user_id, profiles(username)').eq('group_id', membership.group_id);
+    if(!members || members.length === 0) return;
+
+    const ids = members.map(function(m){ return m.user_id; });
+    const { data: streaksData } = await sb.from('streaks').select('user_id, total_points').in('user_id', ids);
+    const nameMap = {};
+    members.forEach(function(m){ nameMap[m.user_id] = m.profiles.username; });
+
+    const ranked = (streaksData || []).sort(function(a, b){ return b.total_points - a.total_points; });
+    document.getElementById('board-group').innerHTML = ranked.map(function(r, i){
+      return '<div class="brow"><span><span class="brank">' + (i + 1) + '</span>' + escapeHtml(nameMap[r.user_id] || 'player') + '</span><span>' + r.total_points + ' pts</span></div>';
+    }).join('');
+  }
+
+  document.getElementById('create-group-btn').addEventListener('click', async function(){
+    const btn = this;
+    const msg = document.getElementById('group-msg');
+    const name = document.getElementById('group-name-input').value.trim();
+    msg.className = 'form-msg';
+    if(!name){ msg.classList.add('err'); msg.textContent = 'Enter a group name.'; return; }
+
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session){ msg.classList.add('err'); msg.textContent = 'Sign in above first.'; return; }
+
+    btn.disabled = true;
+    const { data: group, error } = await sb.from('groups').insert({ name: name, created_by: session.user.id }).select().single();
+    if(error){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'Error: ' + error.message; return; }
+
+    const { error: joinErr } = await sb.from('group_members').insert({ group_id: group.id, user_id: session.user.id });
+    btn.disabled = false;
+    if(joinErr){ msg.classList.add('err'); msg.textContent = 'Error: ' + joinErr.message; return; }
+
+    msg.classList.add('ok');
+    msg.textContent = 'Group created!';
+    loadGroupSection();
+  });
+
+  document.getElementById('join-group-btn').addEventListener('click', async function(){
+    const btn = this;
+    const msg = document.getElementById('group-msg');
+    const code = document.getElementById('join-group-input').value.trim();
+    msg.className = 'form-msg';
+    if(!code){ msg.classList.add('err'); msg.textContent = 'Enter an invite code.'; return; }
+
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session){ msg.classList.add('err'); msg.textContent = 'Sign in above first.'; return; }
+
+    btn.disabled = true;
+    const { data: group, error: lookupErr } = await sb.from('groups').select('id').eq('invite_code', code).maybeSingle();
+    if(lookupErr || !group){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'No group found with that code.'; return; }
+
+    const { error: joinErr } = await sb.from('group_members').insert({ group_id: group.id, user_id: session.user.id });
+    btn.disabled = false;
+    if(joinErr){
+      msg.classList.add('err');
+      msg.textContent = joinErr.code === '23505' ? 'You\'re already in a group.' : ('Error: ' + joinErr.message);
+      return;
+    }
+
+    msg.classList.add('ok');
+    msg.textContent = 'Joined!';
+    loadGroupSection();
+  });
+
+  document.getElementById('copy-invite-btn').addEventListener('click', function(){
+    const code = document.getElementById('group-invite-code').textContent;
+    navigator.clipboard.writeText(window.location.origin + '/?group=' + code).then(function(){
+      document.getElementById('copy-invite-btn').textContent = 'Copied!';
+      setTimeout(function(){ document.getElementById('copy-invite-btn').textContent = 'Copy'; }, 1500);
+    });
+  });
+
+  document.getElementById('leave-group-btn').addEventListener('click', async function(){
+    if(!confirm('Leave this group? You can join or create a new one after.')) return;
+    const btn = this;
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session) return;
+    btn.disabled = true;
+    const { error } = await sb.from('group_members').delete().eq('user_id', session.user.id);
+    btn.disabled = false;
+    if(error){ alert('Couldn\'t leave the group. Try again in a moment.'); return; }
+    loadGroupSection();
+  });
+
+  async function autoJoinFromUrl(){
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('group');
+    if(!code) return;
+
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session) return; // they'll need to sign in first, then can paste the code manually
+
+    const { data: group } = await sb.from('groups').select('id').eq('invite_code', code).maybeSingle();
+    if(!group) return;
+
+    await sb.from('group_members').insert({ group_id: group.id, user_id: session.user.id }); // ignore duplicate error silently
+    loadGroupSection();
+  }
+
+  loadGroupSection();
+  autoJoinFromUrl();
+
+  document.querySelectorAll('.pagenav-tab').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('.pagenav-tab').forEach(function(t){ t.classList.remove('active'); });
+      this.classList.add('active');
+      var target = this.getAttribute('data-page');
+      document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
+      document.getElementById('page-' + target).style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  const navHomeLink = document.getElementById('nav-home-link');
+  if(navHomeLink){
+    navHomeLink.addEventListener('click', function(){
+      document.querySelectorAll('.pagenav-tab').forEach(function(t){
+        t.classList.toggle('active', t.getAttribute('data-page') === 'home');
+      });
+      document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
+      document.getElementById('page-home').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // Hamburger menu — holds About Us and the theme toggle
+  const hamburgerBtn = document.getElementById('hamburger-btn');
+  const hamburgerMenu = document.getElementById('hamburger-menu');
+  hamburgerBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    hamburgerMenu.style.display = hamburgerMenu.style.display === 'block' ? 'none' : 'block';
+  });
+  document.getElementById('hamburger-about-btn').addEventListener('click', function(){
+    document.querySelectorAll('.pagenav-tab').forEach(function(t){ t.classList.remove('active'); });
+    document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
+    document.getElementById('page-about').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    hamburgerMenu.style.display = 'none';
+  });
+  document.addEventListener('click', function(e){
+    if(hamburgerMenu.style.display === 'block' && !hamburgerMenu.contains(e.target) && e.target !== hamburgerBtn && !hamburgerBtn.contains(e.target)){
+      hamburgerMenu.style.display = 'none';
+    }
+  });
+
+  // Theme toggle — persists the choice; falls back to system preference (via
+  // CSS media query) if the person hasn't picked one explicitly.
+  (function(){
+    var lightBtn = document.getElementById('theme-light-btn');
+    var darkBtn = document.getElementById('theme-dark-btn');
+    function currentTheme(){
+      var attr = document.documentElement.getAttribute('data-theme');
+      if(attr === 'light' || attr === 'dark') return attr;
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    function setTheme(theme){
+      document.documentElement.setAttribute('data-theme', theme);
+      try{ localStorage.setItem('marqit-theme', theme); }catch(e){}
+      updateButtons();
+    }
+    function updateButtons(){
+      var active = currentTheme();
+      if(lightBtn) lightBtn.classList.toggle('active', active === 'light');
+      if(darkBtn) darkBtn.classList.toggle('active', active === 'dark');
+    }
+    if(lightBtn) lightBtn.addEventListener('click', function(){ setTheme('light'); });
+    if(darkBtn) darkBtn.addEventListener('click', function(){ setTheme('dark'); });
+    updateButtons();
+  })();
+
+})();
+</script>
+
+</body>
+</html>
