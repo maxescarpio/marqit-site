@@ -512,8 +512,8 @@
   .status-pill.locked{background:rgba(128,136,150,.16);color:var(--ink-soft);}
   .predict-card .opt{border-radius:14px;}
   .predict-card .opt:active{transform:scale(.97);}
-  .predict-card .opt.picked{animation:pickPop .42s var(--ease);}
-  @keyframes pickPop{40%{transform:scale(1.045);}}
+  .predict-card .opt.picked{animation:pickPop .22s var(--ease);}
+  @keyframes pickPop{40%{transform:scale(1.06);}}
   .crowd-bar{margin-top:12px;height:6px;border-radius:6px;background:var(--no);overflow:hidden;opacity:0;transition:opacity .4s;}
   .crowd-bar.on{opacity:.9;}
   .crowd-bar i{display:block;height:100%;width:0;border-radius:6px;background:var(--yes);transition:width 1.05s var(--ease);}

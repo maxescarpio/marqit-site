@@ -138,7 +138,7 @@
 
     if(isSignup){
       btn.textContent = 'Checking…';
-      const { data: existingUsername } = await sb.from('profiles').select('id').eq('username', username).maybeSingle();
+      const { data: existingUsername } = await sb.from('profiles').select('id').ilike('username', mqEscapeIlike(username)).maybeSingle();
       if(existingUsername){
         msgEl.classList.add('err');
         msgEl.textContent = 'That username is taken \u2014 try another.';
@@ -680,16 +680,22 @@
     const myTier = streakRow ? getTier(streakRow.total_points) : 'Rookie';
     statsEl.innerHTML = '';
     [
-      { label: 'Points', value: streakRow ? streakRow.total_points.toLocaleString() : '0' },
-      { label: 'Golden stars', value: String(streakRow ? streakRow.golden_stars : '5'), star: true },
-      { label: 'Tier', value: myTier },
-      { label: 'Current streak', value: streakRow ? streakRow.current_streak : '0' },
-      { label: 'Longest streak', value: streakRow ? streakRow.longest_streak : '0' }
+      { label: 'Points', value: streakRow ? streakRow.total_points : 0, numeric: true },
+      { label: 'Golden stars', value: streakRow ? streakRow.golden_stars : 5, star: true, numeric: true },
+      { label: 'Tier', value: myTier, numeric: false },
+      { label: 'Current streak', value: streakRow ? streakRow.current_streak : 0, numeric: true },
+      { label: 'Longest streak', value: streakRow ? streakRow.longest_streak : 0, numeric: true }
     ].forEach(function(stat){
       const div = document.createElement('div');
-      div.innerHTML = '<div style="font-size:20px; font-weight:700;"></div><div style="font-size:11.5px; color:var(--ink-soft);"></div>';
-      div.firstChild.textContent = stat.value;
-      if(stat.star) div.firstChild.insertAdjacentHTML('beforeend', ' ' + mqStarGold(18));
+      div.innerHTML = '<div style="font-size:20px; font-weight:700;"><span class="mq-stat-num"></span></div><div style="font-size:11.5px; color:var(--ink-soft);"></div>';
+      const numWrap = div.firstChild;
+      const numEl = numWrap.querySelector('.mq-stat-num');
+      if(stat.numeric){
+        animateNumber(numEl, Number(stat.value) || 0);
+      }else{
+        numEl.textContent = stat.value;
+      }
+      if(stat.star) numWrap.insertAdjacentHTML('beforeend', ' ' + mqStarGold(18));
       div.lastChild.textContent = stat.label;
       statsEl.appendChild(div);
     });
@@ -962,7 +968,7 @@
     if(!session){ msg.classList.add('err'); msg.textContent = 'Sign in above first.'; return; }
 
     btn.disabled = true;
-    const { data: buddyProfile, error: lookupErr } = await sb.from('profiles').select('id').eq('username', uname).maybeSingle();
+    const { data: buddyProfile, error: lookupErr } = await sb.from('profiles').select('id').ilike('username', mqEscapeIlike(uname)).maybeSingle();
     if(lookupErr || !buddyProfile){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'No user found with that username.'; return; }
     if(buddyProfile.id === session.user.id){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'You can\'t buddy with yourself.'; return; }
 
@@ -1046,7 +1052,7 @@
     if(!session){ msg.classList.add('err'); msg.textContent = 'Sign in above first.'; return; }
 
     btn.disabled = true;
-    const { data: rivalProfile, error: lookupErr } = await sb.from('profiles').select('id').eq('username', uname).maybeSingle();
+    const { data: rivalProfile, error: lookupErr } = await sb.from('profiles').select('id').ilike('username', mqEscapeIlike(uname)).maybeSingle();
     if(lookupErr || !rivalProfile){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'No user found with that username.'; return; }
     if(rivalProfile.id === session.user.id){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'You can\'t rival yourself.'; return; }
 
@@ -1230,7 +1236,7 @@
     const { data: membership } = await sb.from('group_members').select('group_id').eq('user_id', session.user.id).maybeSingle();
     if(!membership){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'Join or create a group first.'; return; }
 
-    const { data: targetProfile, error: lookupErr } = await sb.from('profiles').select('id').eq('username', uname).maybeSingle();
+    const { data: targetProfile, error: lookupErr } = await sb.from('profiles').select('id').ilike('username', mqEscapeIlike(uname)).maybeSingle();
     if(lookupErr || !targetProfile){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'No user found with that username.'; return; }
     if(targetProfile.id === session.user.id){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'That\'s you.'; return; }
 
@@ -1462,10 +1468,56 @@
     }, 'image/png');
   });
 
+  // --- Native app push notifications ---------------------------------
+  // This site is loaded as-is inside the Marqit native app shell
+  // (Capacitor, remote-loaded -- see the marqit-app project). Capacitor
+  // injects window.Capacitor into the page automatically in that context,
+  // so the exact same app.js served on the plain website can tell whether
+  // it's running inside the app and skip all of this when it's just a
+  // normal browser tab. No bundler, no separate file needed.
+  function mqIsNativeApp(){
+    return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  }
+
+  async function mqRegisterPushToken(userId){
+    if(!mqIsNativeApp()) return;
+    const Push = window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
+    if(!Push) return; // plugin not installed in this build yet
+
+    try{
+      let perm = await Push.checkPermissions();
+      if(perm.receive !== 'granted'){
+        perm = await Push.requestPermissions();
+      }
+      if(perm.receive !== 'granted') return; // user declined -- respect it, no nagging
+
+      // 'registration' fires async once the OS hands back a device token.
+      Push.addListener('registration', async function(tokenResult){
+        const platform = window.Capacitor.getPlatform(); // 'ios' | 'android'
+        try{
+          await sb.from('push_tokens').upsert({
+            user_id: userId,
+            platform: platform,
+            token: tokenResult.value,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id,platform' });
+        }catch(e){ /* non-fatal -- next app open retries registration */ }
+      });
+
+      Push.addListener('registrationError', function(){
+        // Non-fatal: notifications just won't arrive for this device.
+        // Nothing actionable to show the user here.
+      });
+
+      await Push.register();
+    }catch(e){ /* native push not available on this build/device -- ignore */ }
+  }
+
   sb.auth.onAuthStateChange(async function(event, session){
     if(event === 'SIGNED_IN' && session && session.user){
       const username = await ensureProfile(session.user);
       showSignedIn(username || 'you');
+      mqRegisterPushToken(session.user.id);
     }
     if(event === 'PASSWORD_RECOVERY'){
       // They clicked the reset-password link in their email and landed back
@@ -1536,6 +1588,17 @@
 
   function toTitleCase(str){
     return String(str).trim().toLowerCase().replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  }
+
+  // Username lookups (buddy/rival/group-invite adds, signup uniqueness) are
+  // case-insensitive -- someone typing "Jsmith" should find "jsmith" and
+  // vice versa. Supabase's .ilike() does case-insensitive matching, but it
+  // also treats % and _ as SQL wildcards, and usernames are allowed to
+  // contain underscores. Escaping those (plus a literal backslash) before
+  // the ilike call keeps it an exact, case-insensitive match instead of an
+  // accidental pattern search.
+  function mqEscapeIlike(str){
+    return String(str).replace(/[\\%_]/g, '\\$&');
   }
 
   // Marqit's daily cycle (question_date, lock times) runs on Eastern Time.
@@ -2744,7 +2807,28 @@
     container.innerHTML = mqSkeletonCardsHtml(3);
 
     const today = getETDateInfo().dateStr;
-    const { data: questions, error } = await sb.from('daily_questions').select('*').eq('question_date', today).order('lock_time', { ascending: true });
+    let { data: questions, error } = await sb.from('daily_questions').select('*').eq('question_date', today).order('lock_time', { ascending: true });
+    let effectiveDate = today;
+
+    // Today's set hasn't posted yet -- before falling back to the "on its
+    // way" placeholder, check whether the most recent prior day's questions
+    // are still sitting unresolved. A day isn't actually over until an
+    // admin has resolved it (marked each question right/wrong); the
+    // calendar flipping to a new date doesn't do that on its own. So if
+    // yesterday's questions exist and at least one is still unresolved,
+    // keep showing that set (it'll render locked, since its lock times
+    // have long passed) instead of wiping it at midnight.
+    if(!error && (!questions || questions.length === 0)){
+      const { data: lastDateRow } = await sb.from('daily_questions').select('question_date').lt('question_date', today).order('question_date', { ascending: false }).limit(1);
+      if(lastDateRow && lastDateRow.length){
+        const lastDate = lastDateRow[0].question_date;
+        const { data: lastQuestions } = await sb.from('daily_questions').select('*').eq('question_date', lastDate).order('lock_time', { ascending: true });
+        if(lastQuestions && lastQuestions.length && lastQuestions.some(function(q){ return !q.resolved; })){
+          questions = lastQuestions;
+          effectiveDate = lastDate;
+        }
+      }
+    }
 
     if(error || !questions || questions.length === 0){
       const { data: sessionRes } = await sb.auth.getSession();
@@ -2869,7 +2953,7 @@
 
     function startPendingPoll(){
       dailyPollInterval = setInterval(async function(){
-        const { data: check } = await sb.from('daily_questions').select('id').gt('question_date', today).limit(1);
+        const { data: check } = await sb.from('daily_questions').select('id').gt('question_date', effectiveDate).limit(1);
         if(check && check.length > 0){
           clearDailyTimers();
           loadDailyQuestions();
@@ -2891,6 +2975,22 @@
       }
     }
     mqStartActivityTicker(container, prepared, null);
+
+    // Keep the "X voted" footer count ticking up live, even before you've
+    // submitted your own picks — not just in the post-submit reveal. Only
+    // polls questions that are still open (re-checked each tick, not just
+    // at load), and reuses the same tick-up animation as the reveal so a
+    // change mid-poll looks the same either way.
+    dailyVoteCountPollInterval = setInterval(async function(){
+      for(const p of prepared){
+        if(new Date() >= new Date(p.q.lock_time)) continue;
+        const card = container.querySelector('[data-question-id="' + p.q.id + '"]');
+        if(!card) continue;
+        const voteData = await getVoteData(p.q.id);
+        const total = voteData.counts.yes + voteData.counts.no;
+        mqAnimateFootCount(card.querySelector('.ticket-foot .foot-count'), total);
+      }
+    }, 20000);
 
     // Buddy nudge: if a buddy's already finished all of today's questions
     // and you haven't, a small heads-up -- purely "they're done", never
@@ -2980,7 +3080,7 @@
     // played a day (all 3 locked, all 3 answered) -- instead of making
     // them go dig for the "Share your results" section themselves.
     if(session && allLocked && prepared.every(function(p){ return !!p.myVote; })){
-      var shareKey = 'mq_share_prompt_' + session.user.id + '_' + today;
+      var shareKey = 'mq_share_prompt_' + session.user.id + '_' + effectiveDate;
       if(!localStorage.getItem(shareKey)){
         try{ localStorage.setItem(shareKey, '1'); }catch(e){}
         var banner = document.createElement('div');
@@ -3058,7 +3158,7 @@
 
         btn.disabled = true;
 
-        const { data: targetProfile, error: lookupErr } = await sb.from('profiles').select('id').eq('username', uname).maybeSingle();
+        const { data: targetProfile, error: lookupErr } = await sb.from('profiles').select('id').ilike('username', mqEscapeIlike(uname)).maybeSingle();
         if(lookupErr || !targetProfile){ btn.disabled = false; socialMsg.classList.add('err'); socialMsg.textContent = 'No user found with that username.'; return; }
         if(targetProfile.id === session.user.id){ btn.disabled = false; socialMsg.classList.add('err'); socialMsg.textContent = 'You can\'t ' + kind + ' yourself.'; return; }
 
