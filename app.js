@@ -1,3 +1,4 @@
+/* Copyright (c) 2026 Grand Media Group LLC. All rights reserved. Marqit is a trademark of Grand Media Group LLC. */
 (function(){
   function isValidEmail(v){
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -312,6 +313,61 @@
     }
   });
   let pendingSignupSource = 'organic';
+
+  // --- Referral tracking (Share Card Update spec, Change 7) ---------------
+  // A shared card's link carries ?ref=<sharerUserId>~<cardType>~<trigger>.
+  // Captured here on page load (works for a fresh visit or after the
+  // Google OAuth round trip, same sessionStorage pattern as signup_source
+  // above), then attached to the new account at signup time in
+  // ensureProfileInner. Lets shares AND signups be reported by card type
+  // and by trigger, per the spec's tracking requirement.
+  (function captureReferral(){
+    try{
+      var params = new URLSearchParams(window.location.search);
+      var ref = params.get('ref');
+      if(!ref) return;
+      var parts = ref.split('~');
+      if(parts.length < 2) return; // malformed -- ignore rather than half-attribute
+      // The referrer id lands in a uuid foreign-key column, so anything that
+      // isn't a well-formed UUID must be dropped here -- a bad value would
+      // otherwise make the new user's profile insert fail at signup.
+      var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if(!UUID_RE.test(parts[0])) return;
+      var TAG_RE = /^[a-z_]{1,32}$/;
+      var cardTypeClean = TAG_RE.test(parts[1]) ? parts[1] : null;
+      var triggerClean = (parts[2] && parts[2] !== 'none' && TAG_RE.test(parts[2])) ? parts[2] : null;
+      sessionStorage.setItem('marqit_referral_info', JSON.stringify({
+        referrerUserId: parts[0].toLowerCase(),
+        cardType: cardTypeClean,
+        trigger: triggerClean
+      }));
+    }catch(e){ /* referral is a nice-to-have, never block page load over it */ }
+  })();
+
+  function mqGetReferralInfo(){
+    try{
+      var raw = sessionStorage.getItem('marqit_referral_info');
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+
+  // Builds the ?ref= tag to append to a shared link. userId is the person
+  // doing the sharing (so anyone who signs up via this link gets attributed
+  // back to them); cardType/trigger identify which card and which prompt
+  // produced the share.
+  function mqGetReferralTag(userId, cardType, trigger){
+    return 'ref=' + encodeURIComponent(userId) + '~' + encodeURIComponent(cardType) + '~' + encodeURIComponent(trigger || 'none');
+  }
+
+  // Logs one row per share tap (regardless of whether it leads to a
+  // signup) so "cards shared / days all 3 calls locked" and per-trigger
+  // breakdowns from the spec's Overview are reportable straight from SQL.
+  async function mqLogCardShare(userId, cardType, trigger){
+    if(!userId) return;
+    try{ await sb.from('card_shares').insert({ user_id: userId, card_type: cardType, trigger_name: trigger || null }); }
+    catch(e){ /* logging failure shouldn't block the actual share */ }
+  }
+
   function openAuthPanel(mode, source){
     pendingSignupSource = source || 'organic';
     window.__authOpenedAt = Date.now();
@@ -386,13 +442,35 @@
     try{ storedSignupSource = sessionStorage.getItem('marqit_pending_signup_source'); sessionStorage.removeItem('marqit_pending_signup_source'); }catch(e){}
     const signupSource = (user.user_metadata && user.user_metadata.signup_source) || storedSignupSource || 'organic';
 
-    let { error: insertErr } = await sb.from('profiles').insert({
-      id: user.id,
-      username: username,
-      state: state,
-      age_confirmed: true,
-      signup_source: signupSource
-    });
+    // Referral attribution (Share Card Update spec) -- captured earlier by
+    // captureReferral() from a ?ref= link, if this signup arrived via one.
+    let referralInfo = mqGetReferralInfo();
+    try{ sessionStorage.removeItem('marqit_referral_info'); }catch(e){} // one-time use, same as signup_source above
+    // Nobody gets credit for referring themselves.
+    if(referralInfo && referralInfo.referrerUserId === user.id) referralInfo = null;
+
+    function insertProfile(name, refInfo){
+      return sb.from('profiles').insert({
+        id: user.id,
+        username: name,
+        state: state,
+        age_confirmed: true,
+        signup_source: signupSource,
+        referred_by_user_id: refInfo ? refInfo.referrerUserId : null,
+        referred_by_card_type: refInfo ? refInfo.cardType : null,
+        referred_by_trigger: refInfo ? refInfo.trigger : null
+      });
+    }
+
+    let { error: insertErr } = await insertProfile(username, referralInfo);
+    // Referral is a nice-to-have and must never cost someone their account:
+    // if the referrer id doesn't exist (23503 foreign-key) or isn't a valid
+    // uuid (22P02), drop the attribution and create the profile without it.
+    if(insertErr && referralInfo && (insertErr.code === '23503' || insertErr.code === '22P02')){
+      referralInfo = null;
+      const noRef = await insertProfile(username, null);
+      insertErr = noRef.error;
+    }
 
     if(insertErr && insertErr.code === '23505'){
       // A 23505 here means EITHER someone else already has this username, OR this
@@ -407,13 +485,7 @@
       // Genuine username collision with a different user -- fall back to a
       // guaranteed-unique variant rather than leaving the account half-broken.
       username = username + '_' + user.id.slice(0, 4);
-      const retry = await sb.from('profiles').insert({
-        id: user.id,
-        username: username,
-        state: state,
-        age_confirmed: true,
-        signup_source: signupSource
-      });
+      const retry = await insertProfile(username, referralInfo);
       insertErr = retry.error;
       if(insertErr){
         // Still failing -- most likely a parallel call finished in between. Check once more.
@@ -526,6 +598,64 @@
     { name: 'Analyst', min: 1000 },
     { name: 'Rookie', min: 0 }
   ];
+
+  // Achievement badges -- a small, curated set beyond the streak milestones.
+  // Each is detected live wherever the app already has the relevant data
+  // (see mqAwardAchievement call sites), not backfilled from full history,
+  // same philosophy as the existing streak-milestone celebration.
+  const ACHIEVEMENTS = {
+    perfect_day: { icon: '\ud83c\udfaf', label: 'Perfect Day', desc: 'Went 3-for-3 on a single day\u2019s calls.' },
+    buddy_bonus: { icon: '\ud83e\udd1d', label: 'Buddy Bonus', desc: 'Matched a pick with a buddy.' },
+    rival_win:   { icon: '\ud83c\udfc6', label: 'Showdown Winner', desc: 'Won a Rival Showdown.' }
+  };
+  var __mqEarnedAchievementsCache = {}; // userId -> Set of already-earned keys, avoids a re-check query per hook
+
+  async function mqAwardAchievement(userId, key){
+    if(!userId || !ACHIEVEMENTS[key]) return;
+    if(!__mqEarnedAchievementsCache[userId]) __mqEarnedAchievementsCache[userId] = new Set();
+    if(__mqEarnedAchievementsCache[userId].has(key)) return; // already known-earned this session, skip the round trip
+
+    try{
+      const { data: existing } = await sb.from('user_achievements').select('id').eq('user_id', userId).eq('achievement_key', key).maybeSingle();
+      if(existing){ __mqEarnedAchievementsCache[userId].add(key); return; }
+
+      // The database verifies the badge is genuinely earned before recording it
+      // (award_achievement); direct inserts from the browser are disabled.
+      // Returns true only when the badge was newly awarded.
+      const { data: awarded, error } = await sb.rpc('award_achievement', { p_key: key });
+      if(error) return; // function not created yet -- fail quietly, not user-facing
+      if(!awarded) return; // not earned yet, or already had it (race with another tab)
+      __mqEarnedAchievementsCache[userId].add(key);
+      mqShowAchievementToast(key);
+      // (Share prompts for Perfect Day / Rival Win are NOT fired from here:
+      // a badge is earned once ever, but the prompt should fire on every
+      // Perfect Day and every Showdown win. See loadShareCard and
+      // renderRivalCard.)
+    }catch(e){ /* decoration only -- never block the real action that triggered this */ }
+  }
+
+  // Small non-blocking toast, distinct from the bigger streak-milestone
+  // overlay since these are meant to feel frequent and light, not a huge
+  // interruption every time.
+  function mqShowAchievementToast(key){
+    var meta = ACHIEVEMENTS[key];
+    if(!meta) return;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var toast = document.createElement('div');
+    toast.className = 'mq-achievement-toast';
+    toast.innerHTML =
+      '<span class="mq-ach-icon">' + meta.icon + '</span>' +
+      '<div><div class="mq-ach-title">Achievement unlocked</div><div class="mq-ach-label"></div></div>';
+    toast.querySelector('.mq-ach-label').textContent = meta.label;
+    document.body.appendChild(toast);
+    requestAnimationFrame(function(){ toast.classList.add('on'); });
+    var hide = function(){
+      toast.classList.remove('on');
+      setTimeout(function(){ toast.remove(); }, reduce ? 0 : 300);
+    };
+    setTimeout(hide, 4200);
+  }
+
   function getTier(points){
     for(let i = 0; i < TIERS.length; i++){
       if(points >= TIERS[i].min) return TIERS[i].name;
@@ -608,6 +738,18 @@
       badge.style.display = 'flex';
       document.getElementById('nav-badge-label').textContent = myTier;
     }
+
+    // Change 5 tier-up trigger: points only ever go up in this game, so a
+    // changed tier from what was last seen is always a tier-UP, never down.
+    // Stored per-user so a brand-new visitor's first-ever load (no prior
+    // value) doesn't falsely fire as a "tier up".
+    try{
+      var tierKey = 'mq_last_tier_' + session.user.id;
+      var lastTier = localStorage.getItem(tierKey);
+      if(lastTier && lastTier !== myTier) mqMaybePromptShare(session.user.id, 'tier_up');
+      localStorage.setItem(tierKey, myTier);
+    }catch(e){ /* tier-up prompt is a nice-to-have, never block stats loading over it */ }
+
     const tierRow = document.getElementById('tier-row');
     if(tierRow){
       tierRow.querySelectorAll('.tier-chip').forEach(function(chip){
@@ -655,7 +797,7 @@
     const session = sessionRes && sessionRes.session;
     if(!session) return;
 
-    const { data: profileRow } = await sb.from('profiles').select('username, created_at, avatar_emoji, avatar_color, notify_push, state').eq('id', session.user.id).maybeSingle();
+    const { data: profileRow } = await sb.from('profiles').select('username, created_at, avatar_emoji, avatar_color, notify_push, state, hide_from_leaderboard').eq('id', session.user.id).maybeSingle();
     const { data: streakRow } = await sb.from('streaks').select('*').eq('user_id', session.user.id).maybeSingle();
     if(!profileRow) return;
 
@@ -665,6 +807,31 @@
     const profileStateInput = document.getElementById('profile-state-input');
     if(profileStateInput) profileStateInput.value = profileRow.state || '';
     document.getElementById('profile-state-msg').textContent = '';
+
+    const hideLeaderboardCheckbox = document.getElementById('profile-hide-leaderboard-checkbox');
+    if(hideLeaderboardCheckbox) hideLeaderboardCheckbox.checked = !!profileRow.hide_from_leaderboard;
+    const hideLeaderboardMsg = document.getElementById('profile-hide-leaderboard-msg');
+    if(hideLeaderboardMsg) hideLeaderboardMsg.textContent = '';
+
+    const achievementsGrid = document.getElementById('profile-achievements-grid');
+    if(achievementsGrid){
+      achievementsGrid.innerHTML = '';
+      let earnedKeys = {};
+      try{
+        const { data: earnedRows } = await sb.from('user_achievements').select('achievement_key').eq('user_id', session.user.id);
+        (earnedRows || []).forEach(function(r){ earnedKeys[r.achievement_key] = true; });
+      }catch(e){ /* table may not be migrated yet -- grid just shows everything as locked */ }
+      Object.keys(ACHIEVEMENTS).forEach(function(key){
+        const meta = ACHIEVEMENTS[key];
+        const earned = !!earnedKeys[key];
+        const badge = document.createElement('div');
+        badge.className = 'mq-achievement-badge' + (earned ? ' earned' : '');
+        badge.title = meta.desc + (earned ? '' : ' (not yet earned)');
+        badge.innerHTML = '<span class="mq-ach-badge-icon">' + meta.icon + '</span><span class="mq-ach-badge-label"></span>';
+        badge.querySelector('.mq-ach-badge-label').textContent = meta.label;
+        achievementsGrid.appendChild(badge);
+      });
+    }
 
     document.getElementById('profile-modal-avatar').textContent = selectedAvatarEmoji;
     document.getElementById('profile-modal-avatar').style.background = selectedAvatarColor;
@@ -859,6 +1026,32 @@
       }
       msg.className = 'form-msg ok';
       msg.textContent = 'Saved!';
+    });
+  }
+
+  // Leaderboard privacy toggle: saves immediately on change, same pattern as
+  // the push notification button -- no separate Save button needed since
+  // it's a single checkbox, not a form with multiple fields.
+  const hideLeaderboardCheckbox = document.getElementById('profile-hide-leaderboard-checkbox');
+  if(hideLeaderboardCheckbox){
+    hideLeaderboardCheckbox.addEventListener('change', async function(){
+      const { data: sessionRes } = await sb.auth.getSession();
+      const session = sessionRes && sessionRes.session;
+      const msg = document.getElementById('profile-hide-leaderboard-msg');
+      if(!session) return;
+      const nextVal = this.checked;
+      this.disabled = true;
+      const { error } = await sb.from('profiles').update({ hide_from_leaderboard: nextVal }).eq('id', session.user.id);
+      this.disabled = false;
+      if(error){
+        this.checked = !nextVal; // revert the visual state on failure
+        if(msg){ msg.className = 'form-msg err'; msg.textContent = 'Could not save \u2014 try again.'; }
+        return;
+      }
+      if(msg){
+        msg.className = 'form-msg ok';
+        msg.textContent = nextVal ? 'You\u2019re hidden from public leaderboards.' : 'You\u2019re visible on leaderboards again.';
+      }
     });
   }
 
@@ -1170,6 +1363,8 @@
         lastResultEl.style.display = '';
         if(myCorrect > rivalCorrect){
           setShowdownResult(lastResultEl, 'win', 'Yesterday\u2019s Showdown: you won ' + myCorrect + '-' + rivalCorrect + ' and took a star from ' + rivalName + '.');
+          mqAwardAchievement(session.user.id, 'rival_win');
+          mqMaybePromptShare(session.user.id, 'rival_win', yesterdayET + '_' + rivalId);
         }else if(rivalCorrect > myCorrect){
           setShowdownResult(lastResultEl, 'loss', 'Yesterday\u2019s Showdown: ' + rivalName + ' won ' + rivalCorrect + '-' + myCorrect + ' and took one of your stars.');
         }else{
@@ -1322,6 +1517,82 @@
     });
   }
 
+  // --- Share Card Update spec: standing (streak/tier/rank) + "Called it" ---
+
+  // Change 1: headline stats. Returns { streakDays, tierName, rankLabel }.
+  // rankLabel prefers group rank ("#4 in Sigma Chi League"); falls back to
+  // state rank if the player isn't in a group; null if neither is available
+  // (no state set, not in a group) -- the card just omits that line then.
+  async function mqComputeStanding(session){
+    const { data: myStreak } = await sb.from('streaks').select('current_streak, total_points').eq('user_id', session.user.id).maybeSingle();
+    const streakDays = myStreak ? myStreak.current_streak : 0;
+    const tierName = getTier(myStreak ? myStreak.total_points : 0);
+
+    let rankLabel = null;
+
+    const { data: membership } = await sb.from('group_members').select('group_id, groups(name)').eq('user_id', session.user.id).maybeSingle();
+    if(membership && membership.groups){
+      const { data: memberRows } = await sb.from('group_members').select('user_id').eq('group_id', membership.group_id);
+      const memberIds = (memberRows || []).map(function(m){ return m.user_id; });
+      if(memberIds.length){
+        const { data: memberStreaks } = await sb.from('streaks').select('user_id, total_points').in('user_id', memberIds);
+        const ranked = (memberStreaks || []).slice().sort(function(a, b){ return (b.total_points || 0) - (a.total_points || 0); });
+        const myRank = ranked.findIndex(function(r){ return r.user_id === session.user.id; });
+        if(myRank > -1) rankLabel = '#' + (myRank + 1) + ' in ' + membership.groups.name;
+      }
+    }
+
+    if(!rankLabel){
+      const { data: myProfile } = await sb.from('profiles').select('state').eq('id', session.user.id).maybeSingle();
+      const myState = myProfile && myProfile.state;
+      if(myState){
+        // Ranked in the database (get_my_state_rank) rather than by downloading
+        // every player in the state, which hits request-size and 1,000-row
+        // limits as the site grows. Returns null if you aren't ranked
+        // (hidden from leaderboard, or no streak row) -> the card omits the line.
+        const { data: stateRank, error: stateRankErr } = await sb.rpc('get_my_state_rank');
+        if(!stateRankErr && stateRank) rankLabel = '#' + stateRank + ' in ' + myState;
+      }
+    }
+
+    return { streakDays: streakDays, tierName: tierName, rankLabel: rankLabel };
+  }
+
+  // Change 3: "Called it" badge. Given today's questions + the player's own
+  // picks, finds the correct call with the lowest pick-percentage (i.e. the
+  // one the fewest players got right), provided the player got it right,
+  // at least 30% or fewer of all players picked that answer, and at least
+  // 50 people answered it at all. Returns null if nothing qualifies.
+  async function mqGetCalledItBadge(questions, predMap){
+    const CALLED_IT_MAX_PCT = 30;
+    const CALLED_IT_MIN_PLAYERS = 50;
+    let best = null;
+
+    for(const q of questions){
+      if(!q.resolved || !q.correct_answer) continue;
+      const myChoice = predMap[q.id];
+      if(myChoice !== q.correct_answer) continue; // only counts if the player was actually right
+
+      const voteData = await getVoteData(q.id);
+      const total = voteData.counts.yes + voteData.counts.no;
+      if(total < CALLED_IT_MIN_PLAYERS) continue;
+      const correctCount = q.correct_answer === 'yes' ? voteData.counts.yes : voteData.counts.no;
+      const correctPct = Math.round((correctCount / total) * 100);
+      if(correctPct > CALLED_IT_MAX_PCT) continue;
+
+      if(!best || correctPct < best.pct){
+        best = { question: q, pct: correctPct };
+      }
+    }
+    return best; // { question, pct } or null
+  }
+
+  // Cache of the most recently computed share-card data, keyed by nothing
+  // fancy -- just the last load -- so the button handler doesn't have to
+  // re-derive everything from DOM text (fragile with the new headline
+  // design) or re-run every query a second time.
+  var __mqShareCardData = null;
+
   async function loadShareCard(username){
     const { data: sessionRes } = await sb.auth.getSession();
     const session = sessionRes && sessionRes.session;
@@ -1339,28 +1610,54 @@
     const date = resolvedQ.question_date;
 
     const { data: questions } = await sb.from('daily_questions').select('*').eq('question_date', date).order('category');
-    const { data: myPreds } = await sb.from('predictions').select('question_id, choice').eq('user_id', session.user.id);
-    const { data: myStreak } = await sb.from('streaks').select('current_streak').eq('user_id', session.user.id).maybeSingle();
-
     if(!questions || questions.length === 0) return;
+    // Only this day's picks -- an unfiltered read of a player's whole history
+    // would silently stop at 1,000 rows and could drop the picks we need.
+    const { data: myPreds } = await sb.from('predictions').select('question_id, choice').eq('user_id', session.user.id).in('question_id', questions.map(function(q){ return q.id; }));
     const predMap = {};
     (myPreds || []).forEach(function(p){ predMap[p.question_id] = p.choice; });
 
-    document.getElementById('share-card-title').textContent = 'Marqit · ' + date;
-    document.getElementById('share-card-streak').textContent = (myStreak ? myStreak.current_streak : 0) + '-day streak';
+    const standing = await mqComputeStanding(session);
+    const calledIt = await mqGetCalledItBadge(questions, predMap);
+    // Perfect Day: every question that day resolved and the player got all
+    // of them right. Fires for every Perfect Day (not just the first ever),
+    // once per result date so revisiting the page doesn't re-prompt.
+    const perfectDay = questions.length >= 3 && questions.every(function(q){
+      return q.resolved && predMap[q.id] && predMap[q.id] === q.correct_answer;
+    });
+    if(perfectDay) mqMaybePromptShare(session.user.id, 'perfect_day', date);
+    if(calledIt) mqMaybePromptShare(session.user.id, 'called_it', date);
+
+    __mqShareCardData = { session: session, date: date, questions: questions, predMap: predMap, standing: standing, calledIt: calledIt };
+
+    // Change 1: headline leads with standing, not the date/score.
+    const titleEl = document.getElementById('share-card-title');
+    if(titleEl) titleEl.textContent = standing.tierName + (standing.rankLabel ? ' \u00b7 ' + standing.rankLabel : '');
+    document.getElementById('share-card-streak').textContent = standing.streakDays + '-day streak';
+
+    const calledItEl = document.getElementById('share-card-calledit');
+    if(calledItEl){
+      if(calledIt){
+        calledItEl.style.display = '';
+        calledItEl.textContent = 'Called it: only ' + calledIt.pct + '% saw this one coming.';
+      }else{
+        calledItEl.style.display = 'none';
+      }
+    }
 
     const row = document.getElementById('share-card-row');
     row.innerHTML = '';
     questions.forEach(function(q){
       const myChoice = predMap[q.id];
-      const correct = myChoice && q.resolved && myChoice === q.correct_answer;
-      const played = !!myChoice && q.resolved;
+      // Change 2: no red anywhere. Correct = filled accent marker;
+      // incorrect OR unresolved (can't tell them apart without a
+      // separate "wrong" signal, which the spec explicitly forbids)
+      // both render as the same neutral gray outline marker.
+      const correct = !!myChoice && q.resolved && myChoice === q.correct_answer;
       const cell = document.createElement('div');
       cell.className = 'share-cell';
-      const iconClass = !played ? 'no' : (correct ? 'yes' : 'no');
-      const iconPath = !played
-        ? '<path d="M12 8v4M12 16h.01"/>'
-        : (correct ? '<path d="M5 13l4 4L19 7"/>' : '<path d="M6 6l12 12M18 6L6 18"/>');
+      const iconClass = correct ? 'correct' : 'neutral';
+      const iconPath = correct ? '<path d="M5 13l4 4L19 7"/>' : '<circle cx="12" cy="12" r="7"/>';
       cell.innerHTML =
         '<div class="share-icon ' + iconClass + '"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' + iconPath + '</svg></div>' +
         '<div class="share-cell-label"></div>';
@@ -1369,104 +1666,347 @@
     });
 
     document.getElementById('share-results-btn').style.display = 'inline-flex';
+    const squareBtn = document.getElementById('share-results-square-btn');
+    if(squareBtn) squareBtn.style.display = 'inline-flex';
   }
 
-  document.getElementById('share-results-btn').addEventListener('click', async function(){
-    const title = document.getElementById('share-card-title').textContent;
-    const streak = document.getElementById('share-card-streak').textContent;
-    const cells = document.querySelectorAll('#share-card-row .share-cell');
-    const msgEl = document.getElementById('share-results-msg');
-    if(cells.length === 0) return;
-
-    let correctCount = 0;
-    const parts = [];
-    cells.forEach(function(cell){
-      const isCorrect = cell.querySelector('.share-icon').classList.contains('yes');
-      if(isCorrect) correctCount++;
-      parts.push({ label: cell.querySelector('.share-cell-label').textContent, correct: isCorrect });
-    });
-    const shareText = title + ' — ' + streak + '. ' + correctCount + '/' + cells.length + ' correct. Make your own call at playmarqit.com';
-
-    // Render a small, simple on-brand image client-side so nobody has to
-    // screenshot the page — this becomes an actual attachable image for an
-    // Instagram Story or a tweet, not just a card to photograph.
+  // Draws the daily-results card onto a canvas at the given size (used for
+  // both the 9:16 story export and the 1:1 square export -- same layout,
+  // just different vertical spacing/canvas height). Returns the canvas.
+  function mqDrawResultsCard(width, height, data){
     const canvas = document.createElement('canvas');
-    canvas.width = 1080;
-    canvas.height = 1080;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext('2d');
+    const cx = width / 2;
 
     ctx.fillStyle = '#17191D';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, width, height);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = "700 88px Arial, sans-serif";
-    ctx.fillText('Marqit', canvas.width / 2, 190);
-    ctx.beginPath();
-    ctx.fillStyle = '#2CBE7C';
-    ctx.arc(canvas.width / 2 + 152, 138, 13, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.font = "700 " + Math.round(width * 0.081) + "px Arial, sans-serif";
+    let y = height * 0.135;
+    ctx.fillText('Marqit', cx, y);
 
+    // Change 1: streak, then tier, then rank -- in that order, as the
+    // headline. This is the primary thing the card is about now.
+    y += height * 0.075;
+    ctx.fillStyle = '#F5C336';
+    ctx.font = "800 " + Math.round(width * 0.058) + "px Arial, sans-serif";
+    ctx.fillText(data.standing.streakDays + '-day streak', cx, y);
+
+    y += height * 0.048;
     ctx.fillStyle = '#A8ABB3';
-    ctx.font = "600 38px Arial, sans-serif";
-    ctx.fillText(streak, canvas.width / 2, 260);
+    ctx.font = "600 " + Math.round(width * 0.032) + "px Arial, sans-serif";
+    const tierLine = data.standing.tierName + (data.standing.rankLabel ? '  \u00b7  ' + data.standing.rankLabel : '');
+    ctx.fillText(tierLine, cx, y);
 
-    const startY = 420;
-    const rowHeight = 150;
-    parts.forEach(function(p, i){
-      const y = startY + i * rowHeight;
+    // Change 3: "Called it" badge, if this card earned one.
+    if(data.calledIt){
+      y += height * 0.052;
+      ctx.fillStyle = '#F6C430';
+      ctx.font = "700 " + Math.round(width * 0.027) + "px Arial, sans-serif";
+      ctx.fillText('\u2b50 Called it: only ' + data.calledIt.pct + '% saw this coming', cx, y);
+    }
+
+    // Change 2: each call as a marker row -- filled accent circle+check
+    // when correct, neutral gray outline circle when incorrect or
+    // unresolved. Never red, never an X, never the word "wrong".
+    const rowStart = y + height * 0.085;
+    const rowGap = height * 0.108;
+    data.questions.forEach(function(q, i){
+      const ry = rowStart + i * rowGap;
+      const myChoice = data.predMap[q.id];
+      const correct = !!myChoice && q.resolved && myChoice === q.correct_answer;
+      const markerR = width * 0.028;
+      const markerX = width * 0.155;
+
+      ctx.beginPath();
+      ctx.arc(markerX, ry, markerR, 0, Math.PI * 2);
+      if(correct){
+        ctx.fillStyle = '#2CBE7C';
+        ctx.fill();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = markerR * 0.16;
+        ctx.beginPath();
+        ctx.moveTo(markerX - markerR * 0.45, ry);
+        ctx.lineTo(markerX - markerR * 0.1, ry + markerR * 0.38);
+        ctx.lineTo(markerX + markerR * 0.5, ry - markerR * 0.4);
+        ctx.stroke();
+      }else{
+        ctx.strokeStyle = '#5A5D66';
+        ctx.lineWidth = markerR * 0.16;
+        ctx.stroke();
+      }
+
       ctx.textAlign = 'left';
       ctx.fillStyle = '#F4F4F1';
-      ctx.font = "600 46px Arial, sans-serif";
-      ctx.fillText(p.label, 130, y);
-
-      ctx.textAlign = 'center';
-      ctx.fillStyle = p.correct ? '#2CBE7C' : '#EE5E4E';
-      ctx.font = "700 62px Arial, sans-serif";
-      ctx.fillText(p.correct ? '✓' : '✗', canvas.width - 150, y + 6);
+      ctx.font = "600 " + Math.round(width * 0.038) + "px Arial, sans-serif";
+      ctx.fillText(CATEGORY_LABELS[q.category] || q.category, markerX + markerR * 2, ry + width * 0.013);
     });
 
+    // Change 7: a one-line challenge + the link, on every card.
+    const foot1Y = height - height * 0.11;
+    const foot2Y = height - height * 0.065;
     ctx.textAlign = 'center';
+    ctx.fillStyle = '#F4F4F1';
+    ctx.font = "700 " + Math.round(width * 0.032) + "px Arial, sans-serif";
+    ctx.fillText('Beat my ' + data.standing.streakDays + '-day streak', cx, foot1Y);
+
     ctx.fillStyle = '#7A7D85';
-    ctx.font = "600 32px Arial, sans-serif";
-    ctx.fillText('playmarqit.com', canvas.width / 2, canvas.height - 90);
+    ctx.font = "600 " + Math.round(width * 0.026) + "px Arial, sans-serif";
+    ctx.fillText('playmarqit.com', cx, foot2Y);
 
-    canvas.toBlob(async function(blob){
-      if(!blob){
-        msgEl.className = 'form-msg err';
-        msgEl.textContent = 'Could not generate the image — try again.';
-        return;
-      }
-      const file = new File([blob], 'marqit-results.png', { type: 'image/png' });
+    return canvas;
+  }
 
-      if(navigator.canShare && navigator.canShare({ files: [file] })){
-        try{
-          await navigator.share({ files: [file], text: shareText, url: 'https://playmarqit.com' });
-        }catch(e){ /* person canceled the share sheet — not an error */ }
-        return;
-      }
+  function mqShareCanvasToFileAndCaption(canvas, filename){
+    return new Promise(function(resolve){
+      canvas.toBlob(function(blob){
+        resolve(blob ? { file: new File([blob], filename, { type: 'image/png' }), blob: blob } : null);
+      }, 'image/png');
+    });
+  }
 
-      // No native image-share support (most desktop browsers) — download the
-      // image directly so it's still ready to post, no screenshot needed.
-      const blobUrl = URL.createObjectURL(blob);
+  // The one function behind BOTH the always-available "Share your results"
+  // button and any Change-5 auto-prompt banner -- triggerName is null for a
+  // plain manual tap, or one of 'perfect_day'/'streak_milestone'/'tier_up'/
+  // 'rival_win'/'called_it' when a prompt's own Share button called this.
+  async function mqShareResultsCard(triggerName){
+    const msgEl = document.getElementById('share-results-msg');
+    if(!__mqShareCardData){ if(msgEl){ msgEl.className = 'form-msg err'; msgEl.textContent = 'Nothing to share yet.'; } return; }
+    const data = __mqShareCardData;
+    const session = data.session;
+
+    const correctCount = data.questions.filter(function(q){ return data.predMap[q.id] && q.resolved && data.predMap[q.id] === q.correct_answer; }).length;
+    const refTag = mqGetReferralTag(session.user.id, 'daily_results', triggerName);
+    const shareUrl = 'https://playmarqit.com/?' + refTag;
+    const shareText = 'Beat my ' + data.standing.streakDays + '-day streak. ' + correctCount + '/' + data.questions.length + ' correct today. ' + shareUrl;
+
+    const canvas = mqDrawResultsCard(1080, 1920, data); // story ratio is the default share
+    const packaged = await mqShareCanvasToFileAndCaption(canvas, 'marqit-results.png');
+    if(!packaged){ if(msgEl){ msgEl.className = 'form-msg err'; msgEl.textContent = 'Could not generate the image \u2014 try again.'; } return; }
+
+    mqLogCardShare(session.user.id, 'daily_results', triggerName);
+
+    if(navigator.canShare && navigator.canShare({ files: [packaged.file] })){
+      try{ await navigator.share({ files: [packaged.file], text: shareText, url: shareUrl }); }
+      catch(e){ /* person canceled the share sheet -- not an error */ }
+      return;
+    }
+
+    const blobUrl = URL.createObjectURL(packaged.blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = 'marqit-results.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 1000);
+
+    if(msgEl){
+      msgEl.className = 'form-msg ok';
+      try{ await navigator.clipboard.writeText(shareText); msgEl.textContent = 'Image downloaded and caption copied \u2014 ready to post.'; }
+      catch(e){ msgEl.textContent = 'Image downloaded \u2014 ready to post.'; }
+      setTimeout(function(){ msgEl.textContent = ''; }, 4000);
+    }
+  }
+
+  document.getElementById('share-results-btn').addEventListener('click', function(){ mqShareResultsCard(null); });
+
+  // Acceptance criteria requires both a 9:16 story export (the default,
+  // above) and a 1:1 square export -- this is the square one, downloaded
+  // directly rather than run through the native share sheet (most share
+  // sheets are built around one image at a time; the story version is the
+  // one meant for that).
+  const shareSquareBtn = document.getElementById('share-results-square-btn');
+  if(shareSquareBtn){
+    shareSquareBtn.addEventListener('click', async function(){
+      const msgEl = document.getElementById('share-results-msg');
+      if(!__mqShareCardData){ if(msgEl){ msgEl.className = 'form-msg err'; msgEl.textContent = 'Nothing to share yet.'; } return; }
+      const data = __mqShareCardData;
+      const canvas = mqDrawResultsCard(1080, 1080, data);
+      const packaged = await mqShareCanvasToFileAndCaption(canvas, 'marqit-results-square.png');
+      if(!packaged) return;
+      mqLogCardShare(data.session.user.id, 'daily_results', null);
+      const blobUrl = URL.createObjectURL(packaged.blob);
       const a = document.createElement('a');
       a.href = blobUrl;
-      a.download = 'marqit-results.png';
+      a.download = 'marqit-results-square.png';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 1000);
+      if(msgEl){ msgEl.className = 'form-msg ok'; msgEl.textContent = 'Square image downloaded.'; setTimeout(function(){ msgEl.textContent = ''; }, 3000); }
+    });
+  }
 
-      msgEl.className = 'form-msg ok';
-      try{
-        await navigator.clipboard.writeText(shareText);
-        msgEl.textContent = 'Image downloaded and caption copied — ready to post.';
-      }catch(e){
-        msgEl.textContent = 'Image downloaded — ready to post.';
-      }
-      setTimeout(function(){ msgEl.textContent = ''; }, 4000);
-    }, 'image/png');
-  });
+  // --- Change 4: pre-result picks card ------------------------------------
+  // A card for LOCKED-but-not-yet-resolved picks -- no correct/incorrect
+  // state at all, since the outcome isn't known yet. Built from `prepared`
+  // (set by loadDailyQuestionsInner), so it only ever includes picks that
+  // have actually locked, matching the spec's availability rule exactly.
+  var __mqPreResultData = null;
+
+  function mqDrawPreResultCard(width, height, data){
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    const cx = width / 2;
+
+    ctx.fillStyle = '#17191D';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = "700 " + Math.round(width * 0.081) + "px Arial, sans-serif";
+    let y = height * 0.135;
+    ctx.fillText('Marqit', cx, y);
+
+    y += height * 0.075;
+    ctx.fillStyle = '#F4F4F1';
+    ctx.font = "800 " + Math.round(width * 0.05) + "px Arial, sans-serif";
+    ctx.fillText('My picks today', cx, y);
+
+    const rowStart = y + height * 0.09;
+    const rowGap = height * 0.16;
+    const maxCharsPerLine = Math.round(width / (width * 0.023));
+    data.picks.forEach(function(p, i){
+      const ry = rowStart + i * rowGap;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#A8ABB3';
+      ctx.font = "600 " + Math.round(width * 0.026) + "px Arial, sans-serif";
+      ctx.fillText((CATEGORY_LABELS[p.category] || p.category).toUpperCase(), width * 0.09, ry);
+
+      ctx.fillStyle = '#F4F4F1';
+      ctx.font = "600 " + Math.round(width * 0.033) + "px Arial, sans-serif";
+      const words = p.questionText.split(' ');
+      let line = '', lineY = ry + height * 0.042, maxWidth = width * 0.82;
+      words.forEach(function(w){
+        const test = line ? line + ' ' + w : w;
+        if(ctx.measureText(test).width > maxWidth && line){
+          ctx.fillText(line, width * 0.09, lineY);
+          line = w; lineY += height * 0.038;
+        }else{ line = test; }
+      });
+      if(line) ctx.fillText(line, width * 0.09, lineY);
+
+      ctx.textAlign = 'left';
+      ctx.font = "800 " + Math.round(width * 0.03) + "px Arial, sans-serif";
+      ctx.fillStyle = p.choice === 'yes' ? '#2CBE7C' : '#4C82E0';
+      ctx.fillText(p.choice.toUpperCase(), width * 0.09, lineY + height * 0.05);
+    });
+
+    const foot1Y = height - height * 0.11;
+    const foot2Y = height - height * 0.065;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#F4F4F1';
+    ctx.font = "700 " + Math.round(width * 0.032) + "px Arial, sans-serif";
+    ctx.fillText('Think I\u2019m wrong? Pick yours.', cx, foot1Y);
+    ctx.fillStyle = '#7A7D85';
+    ctx.font = "600 " + Math.round(width * 0.026) + "px Arial, sans-serif";
+    ctx.fillText('playmarqit.com', cx, foot2Y);
+
+    return canvas;
+  }
+
+  async function mqSharePreResultCard(){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session || !__mqPreResultData || !__mqPreResultData.length) return;
+
+    const data = { picks: __mqPreResultData };
+    // Change 4 link rule: sign-up/play page for people without an account,
+    // today's calls for people who have one -- since app.js can't tell
+    // which the viewer is ahead of time, the homepage itself already
+    // branches on session state and shows the right thing either way.
+    const refTag = mqGetReferralTag(session.user.id, 'pre_result', null);
+    const shareUrl = 'https://playmarqit.com/?' + refTag;
+    const shareText = 'My picks today. Think I\u2019m wrong? Pick yours. ' + shareUrl;
+
+    const canvas = mqDrawPreResultCard(1080, 1920, data);
+    const packaged = await mqShareCanvasToFileAndCaption(canvas, 'marqit-picks.png');
+    if(!packaged) return;
+
+    mqLogCardShare(session.user.id, 'pre_result', null);
+
+    if(navigator.canShare && navigator.canShare({ files: [packaged.file] })){
+      try{ await navigator.share({ files: [packaged.file], text: shareText, url: shareUrl }); }
+      catch(e){ /* canceled -- not an error */ }
+      return;
+    }
+    const blobUrl = URL.createObjectURL(packaged.blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = 'marqit-picks.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 1000);
+    try{ await navigator.clipboard.writeText(shareText); }catch(e){}
+  }
+
+  // --- Change 5: when to prompt sharing (post-result) ---------------------
+  // Separate from the Change 4 pre-result banner above. Only ever fires for
+  // the 5 allowed reasons the spec lists, at most once per calendar day,
+  // and never for a miss or a broken streak -- the actual "always
+  // available" Share button on the results screen is unaffected either way.
+  const SHARE_PROMPT_TRIGGER_LABELS = {
+    perfect_day: 'You went 3-for-3.',
+    streak_milestone: 'Streak milestone unlocked.',
+    tier_up: 'You just moved up a tier.',
+    rival_win: 'You won your Rival Showdown.',
+    called_it: 'You called one nobody saw coming.'
+  };
+  // Prompt state lives here (not only in the DOM) because the Play tab's
+  // questions render wipes #daily-questions-container -- a banner inserted
+  // before that render finishes would be erased. loadDailyQuestions() calls
+  // mqRenderSharePrompt() again once it's done, so the banner always lands.
+  let __mqPendingSharePrompt = null;
+  // eventKey (optional) identifies the specific result that caused the
+  // prompt (e.g. the result date), so the same result never prompts twice,
+  // while a NEW Perfect Day / Showdown win prompts again.
+  function mqMaybePromptShare(userId, triggerName, eventKey){
+    if(!userId || !SHARE_PROMPT_TRIGGER_LABELS[triggerName]) return;
+    if(__mqPendingSharePrompt) return; // at most one prompt per day
+    const today = getETDateInfo().dateStr;
+    const dayKey = 'mq_post_result_share_prompt_' + userId + '_' + today;
+    const eventStorageKey = eventKey ? ('mq_share_prompt_event_' + userId + '_' + triggerName + '_' + eventKey) : null;
+    try{
+      if(localStorage.getItem(dayKey)) return;
+      if(eventStorageKey && localStorage.getItem(eventStorageKey)) return;
+    }catch(e){ return; }
+    __mqPendingSharePrompt = { triggerName: triggerName, dayKey: dayKey, eventStorageKey: eventStorageKey };
+    mqRenderSharePrompt();
+  }
+  function mqRenderSharePrompt(){
+    const pending = __mqPendingSharePrompt;
+    if(!pending) return;
+    const container = document.getElementById('daily-questions-container');
+    if(!container) return;
+    const old = document.getElementById('mq-share-prompt-banner');
+    if(old) old.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'mq-share-prompt-banner';
+    banner.className = 'trending-strip';
+    banner.style.cursor = 'pointer';
+    banner.innerHTML = mqIcon('flame') + '<span><strong>' + SHARE_PROMPT_TRIGGER_LABELS[pending.triggerName] + '</strong> Tap to share.</span>';
+    banner.addEventListener('click', function(){
+      __mqPendingSharePrompt = null;
+      banner.remove();
+      mqShareResultsCard(pending.triggerName);
+    });
+    container.insertBefore(banner, container.firstChild);
+    // Only spend the once-a-day / once-per-result flags after the banner is
+    // actually on the page.
+    try{
+      localStorage.setItem(pending.dayKey, '1');
+      if(pending.eventStorageKey) localStorage.setItem(pending.eventStorageKey, '1');
+    }catch(e){}
+  }
 
   // --- Native app push notifications ---------------------------------
   // This site is loaded as-is inside the Marqit native app shell
@@ -2097,6 +2637,7 @@
     if(localStorage.getItem(key)) return;
     try{ localStorage.setItem(key, '1'); }catch(e){}
     mqShowMilestoneCelebration(streakN);
+    mqMaybePromptShare(userId, 'streak_milestone');
   }
   function mqShowMilestoneCelebration(streakN){
     var overlay = document.createElement('div');
@@ -2268,7 +2809,31 @@
         w.classList.remove('open');
         w.querySelector('.reaction-more-btn').setAttribute('aria-expanded', 'false');
       });
-      if(!wasOpen){ wrap.classList.add('open'); moreBtn.setAttribute('aria-expanded', 'true'); }
+      if(!wasOpen){
+        wrap.classList.add('open');
+        moreBtn.setAttribute('aria-expanded', 'true');
+        // The menu can open either right-aligned (default, via CSS) or
+        // left-aligned (.flip-left). Whichever the CSS defaults to, check
+        // the real position after layout and flip if it would still run
+        // off either edge of the viewport -- covers any card width, not
+        // just the one breakpoint the old CSS-only version assumed.
+        requestAnimationFrame(function(){
+          var menu = wrap.querySelector('.reaction-menu');
+          if(!menu) return;
+          var margin = 6;
+          wrap.classList.remove('flip-left');
+          // Default anchors the menu's right edge to the button (extends
+          // leftward). If that still runs off the left edge of the screen,
+          // flip to anchor the left edge instead (extends rightward) --
+          // then double-check that flip didn't just push it off the right.
+          if(menu.getBoundingClientRect().left < margin){
+            wrap.classList.add('flip-left');
+            if(menu.getBoundingClientRect().right > window.innerWidth - margin){
+              wrap.classList.remove('flip-left');
+            }
+          }
+        });
+      }
       return;
     }
     if(!e.target.closest('.reaction-menu')){
@@ -2668,6 +3233,19 @@
   try{ mqInitHowDemo(); }catch(e){ /* demo is decoration only; never block the site */ }
 
   async function getVoteData(questionId){
+    // Counts + trend are computed in the database (get_vote_summary): a plain
+    // select silently stops at 1,000 rows, which would undercount any question
+    // with more votes than that. The trend is thinned server-side above ~200 votes.
+    const { data: summary, error: summaryErr } = await sb.rpc('get_vote_summary', { p_question_id: questionId });
+    if(!summaryErr && summary){
+      return {
+        counts: { yes: Number(summary.yes) || 0, no: Number(summary.no) || 0 },
+        trend: (summary.trend || []).map(function(pt){ return { time: new Date(pt.t), pct: Number(pt.pct) }; })
+      };
+    }
+    return getVoteDataLegacy(questionId); // function not created yet -- exact below 1,000 votes
+  }
+  async function getVoteDataLegacy(questionId){
     // Ordered by created_at so we can compute how the Yes% has actually moved
     // over time as votes came in, not just the final snapshot.
     const { data } = await sb.from('predictions').select('choice, created_at').eq('question_id', questionId).order('created_at', { ascending: true });
@@ -2712,6 +3290,31 @@
       '<p class="form-msg" id="suggestion-msg" style="margin-top:6px;"></p>';
     wrap.appendChild(box);
     container.appendChild(wrap);
+
+    // If someone typed an idea, got sent off to sign up, and came back signed in
+    // (same tab -- e.g. Google sign-in or email+password), put their idea back.
+    // Only applies once they actually have a session; kept until it is sent.
+    if(session){
+      try{
+        const draftRaw = sessionStorage.getItem('marqit_pitch_draft');
+        if(draftRaw){
+          const draft = JSON.parse(draftRaw);
+          if(draft && typeof draft.text === 'string' && draft.text){
+            document.getElementById('suggestion-text').value = draft.text.slice(0, 300);
+            if(['sports', 'pop_culture', 'news'].indexOf(draft.category) !== -1){
+              document.getElementById('suggestion-category').value = draft.category;
+            }
+            if(typeof draft.requestedDate === 'string' && draft.requestedDate >= minDateStr){
+              document.getElementById('suggestion-date').value = draft.requestedDate;
+            }
+            const restoredMsg = document.getElementById('suggestion-msg');
+            restoredMsg.className = 'form-msg ok';
+            restoredMsg.textContent = 'Welcome! Your idea is saved \u2014 tap Pitch idea to send it.';
+          }
+        }
+      }catch(e){ /* a bad draft should never break the box */ }
+    }
+
     document.getElementById('suggestion-submit-btn').addEventListener('click', async function(){
       const btn = this;
       const category = document.getElementById('suggestion-category').value;
@@ -2731,8 +3334,25 @@
         return;
       }
       btn.disabled = true;
+      // Check for a session at click time, not render time: the box now shows to
+      // signed-out visitors too, and someone may have signed in since it drew.
+      let liveSession = null;
+      try{
+        const sessRes = await sb.auth.getSession();
+        liveSession = sessRes && sessRes.data && sessRes.data.session;
+      }catch(e){ liveSession = null; }
+      if(!liveSession){
+        btn.disabled = false;
+        // Keep what they typed so it can be put back after they sign up.
+        try{ sessionStorage.setItem('marqit_pitch_draft', JSON.stringify({ category: category, requestedDate: requestedDate, text: text })); }catch(e){}
+        msg.className = 'form-msg';
+        msg.textContent = 'Create a free account to send your idea.';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        openAuthPanel('signup');
+        return;
+      }
       const { error } = await sb.from('question_suggestions').insert({
-        user_id: session.user.id,
+        user_id: liveSession.user.id,
         category: category,
         suggestion_text: text,
         requested_date: requestedDate
@@ -2746,6 +3366,7 @@
       msg.className = 'form-msg ok';
       msg.textContent = 'Sent! Be ready for Marqit predictions tomorrow.';
       document.getElementById('suggestion-text').value = '';
+      try{ sessionStorage.removeItem('marqit_pitch_draft'); }catch(e){}
     });
   }
 
@@ -2787,6 +3408,7 @@
       await loadDailyQuestionsInner();
     } finally {
       dailyLoading = false;
+      mqRenderSharePrompt(); // re-show any pending share prompt the render just wiped
       if(dailyReloadQueued){ dailyReloadQueued = false; loadDailyQuestions(); }
     }
   }
@@ -2849,7 +3471,7 @@
         ctaHtml;
       const emptyStateSignupBtn = document.getElementById('empty-state-signup-btn');
       if(emptyStateSignupBtn) emptyStateSignupBtn.addEventListener('click', function(){ openAuthPanel('signup'); });
-      if(signedIn) appendSuggestionBox(container, session);
+      appendSuggestionBox(container, session); // everyone sees it; signed-out taps go to sign-up
 
       // Keep checking in the background — once today's questions actually
       // post, refresh automatically instead of making them hit reload.
@@ -3051,6 +3673,22 @@
       container.appendChild(slateEl);
     }
 
+    // Change 4 data + persistent entry point: any locked call with a pick
+    // on it is shareable pre-result, independent of the once-a-day banner
+    // above -- so this also gives players a way back into it any time.
+    __mqPreResultData = prepared
+      .filter(function(p){ return p.isLocked && p.myVote; })
+      .map(function(p){ return { category: p.q.category, questionText: p.q.question_text, choice: p.myVote }; });
+    if(session && __mqPreResultData.length){
+      const preResultBtn = document.createElement('button');
+      preResultBtn.type = 'button';
+      preResultBtn.className = 'cb-btn';
+      preResultBtn.style.cssText = 'margin-bottom:16px; background:var(--panel); color:var(--ink); border:1px solid var(--line);';
+      preResultBtn.textContent = 'Share my picks';
+      preResultBtn.addEventListener('click', function(){ mqSharePreResultCard(); });
+      container.insertBefore(preResultBtn, slateEl || container.firstChild);
+    }
+
     let allLocked = true;
     for(let i = 0; i < prepared.length; i++){
       const q = prepared[i].q;
@@ -3076,9 +3714,23 @@
     mqFillReactions(container, prepared, session);
     mqRenderActivityFeed(prepared, buddyList.concat(rivalList));
 
-    // Auto-prompt the share card once, the first time someone's fully
-    // played a day (all 3 locked, all 3 answered) -- instead of making
-    // them go dig for the "Share your results" section themselves.
+    // Buddy Bonus achievement: fires the first time any buddy's pick on a
+    // visible (voted-on or locked) question matches the player's own pick.
+    // Checked here rather than inside buildQuestionCard since that function
+    // doesn't have direct access to the session/user id.
+    if(session && buddyList.length){
+      var gotBuddyMatch = prepared.some(function(p){
+        if(!p.myVote) return false;
+        return buddyList.some(function(b){ return b.picks && b.picks[p.q.id] === p.myVote; });
+      });
+      if(gotBuddyMatch) mqAwardAchievement(session.user.id, 'buddy_bonus');
+    }
+
+    // Change 4 (pre-result picks card): once the day's picks are all
+    // locked, prompt sharing them before results are in -- this is
+    // deliberately separate from the Change 5 post-result prompt system
+    // below, and keeps its own daily key so the two never compete for
+    // the "one prompt" slot.
     if(session && allLocked && prepared.every(function(p){ return !!p.myVote; })){
       var shareKey = 'mq_share_prompt_' + session.user.id + '_' + effectiveDate;
       if(!localStorage.getItem(shareKey)){
@@ -3086,14 +3738,8 @@
         var banner = document.createElement('div');
         banner.className = 'trending-strip';
         banner.style.cursor = 'pointer';
-        banner.innerHTML = mqIcon('flame') + '<span><strong>Day complete.</strong> Tap to see your share card.</span>';
-        banner.addEventListener('click', function(){
-          document.querySelectorAll('.pagenav-tab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-page') === 'how'); });
-          document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
-          document.getElementById('page-how').style.display = 'block';
-          var target = document.getElementById('share-card');
-          if(target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        });
+        banner.innerHTML = mqIcon('flame') + '<span><strong>Picks are locked.</strong> Tap to share and see who disagrees.</span>';
+        banner.addEventListener('click', function(){ mqSharePreResultCard(); });
         container.insertBefore(banner, container.firstChild);
       }
     }
@@ -3265,6 +3911,13 @@
 
         editableQuestions.forEach(function(p){ p.myVote = selections[p.q.id]; });
 
+        if(buddyList.length){
+          var justGotBuddyMatch = editableQuestions.some(function(p){
+            return buddyList.some(function(b){ return b.picks && b.picks[p.q.id] === p.myVote; });
+          });
+          if(justGotBuddyMatch) mqAwardAchievement(session.user.id, 'buddy_bonus');
+        }
+
         // ---- Celebration: "N of N locked in" banner + a little pop on each just-submitted card ----
         (function(){
           var cele = document.getElementById('submit-cele');
@@ -3390,9 +4043,8 @@
           '<button type="button" id="locked-state-signup-btn" style="padding:12px 24px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Sign up so you\'re ready</button>';
         container.appendChild(lockedCta);
         document.getElementById('locked-state-signup-btn').addEventListener('click', function(){ openAuthPanel('signup'); });
-      }else{
-        appendSuggestionBox(container, session);
       }
+      appendSuggestionBox(container, session); // everyone sees it; signed-out taps go to sign-up
     }
   }
 
@@ -3487,9 +4139,14 @@
   async function loadBigBoard(){
     const el = document.getElementById('big-board-rows');
     if(!el) return;
+    // profiles!inner (not the default left join) is required here -- filtering on
+    // a joined column via .eq('profiles.x', ...) only works against an inner join.
+    // People who've opted out via hide_from_leaderboard are excluded at the query
+    // level, so they never show up in the ranking at all (not just hidden client-side).
     const { data, error } = await sb
       .from('streaks')
-      .select('user_id, total_points, current_streak, profiles(username, avatar_emoji, avatar_color)')
+      .select('user_id, total_points, current_streak, profiles!inner(username, avatar_emoji, avatar_color, hide_from_leaderboard)')
+      .eq('profiles.hide_from_leaderboard', false)
       .order('total_points', { ascending: false })
       .limit(10);
 
@@ -3805,47 +4462,53 @@
     const el = document.getElementById(elId);
     if(!el) return;
 
-    const { data, error } = await sb
-      .from('predictions')
-      .select('user_id, choice, daily_questions!inner(category, correct_answer, resolved)')
-      .eq('daily_questions.category', category)
-      .eq('daily_questions.resolved', true);
+    // Totals are added up in the database (category_top_scorers) -- the old
+    // approach downloaded every resolved pick and silently stopped at 1,000 rows.
+    const { data: topRows, error } = await sb.rpc('category_top_scorers', { p_category: category, p_limit: 30 });
 
-    if(error || !data || data.length === 0){
+    if(error){
+      el.innerHTML = '<div class="brow"><span>Leaderboard unavailable right now.</span></div>';
+      return;
+    }
+    if(!topRows || topRows.length === 0){
       el.innerHTML = '<div class="brow"><span>No scores yet.</span></div>';
       return;
     }
 
-    const tally = {};
-    data.forEach(function(row){
-      if(row.choice === row.daily_questions.correct_answer){
-        tally[row.user_id] = (tally[row.user_id] || 0) + 100;
-      }
-    });
-
-    const ranked = Object.keys(tally)
-      .map(function(uid){ return { user_id: uid, points: tally[uid] }; })
-      .sort(function(a, b){ return b.points - a.points; })
-      .slice(0, 5);
+    const ranked = topRows.map(function(r){ return { user_id: r.user_id, points: Number(r.points) }; });
 
     if(ranked.length === 0){
       el.innerHTML = '<div class="brow"><span>No correct calls yet.</span></div>';
       return;
     }
 
-    const rankedIds = ranked.map(function(r){ return r.user_id; });
+    // Pull a generous buffer of candidates (not just the top 5) so that
+    // filtering out people who've opted out of leaderboards via
+    // hide_from_leaderboard doesn't leave fewer than 5 rows -- someone
+    // ranked #3 who's hidden should just be skipped, not leave a gap.
+    const candidateIds = ranked.slice(0, 30).map(function(r){ return r.user_id; });
     const { data: profiles } = await sb
       .from('profiles')
       .select('id, username, avatar_emoji, avatar_color')
-      .in('id', rankedIds);
-    const { data: streakRows } = await sb.from('streaks').select('user_id, current_streak').in('user_id', rankedIds);
+      .eq('hide_from_leaderboard', false)
+      .in('id', candidateIds);
 
-    const profMap = {}, streakMap = {};
+    const profMap = {};
     (profiles || []).forEach(function(p){ profMap[p.id] = p; });
+    const visibleRanked = ranked.filter(function(r){ return !!profMap[r.user_id]; }).slice(0, 5);
+
+    if(visibleRanked.length === 0){
+      el.innerHTML = '<div class="brow"><span>No correct calls yet.</span></div>';
+      return;
+    }
+
+    const rankedIds = visibleRanked.map(function(r){ return r.user_id; });
+    const { data: streakRows } = await sb.from('streaks').select('user_id, current_streak').in('user_id', rankedIds);
+    const streakMap = {};
     (streakRows || []).forEach(function(x){ streakMap[x.user_id] = x.current_streak; });
 
     const myId = await mqMyId();
-    el.innerHTML = await mqBoardRows(ranked.map(function(r){
+    el.innerHTML = await mqBoardRows(visibleRanked.map(function(r){
       const p = profMap[r.user_id] || {};
       return { user_id: r.user_id, username: p.username, avatar_emoji: p.avatar_emoji, avatar_color: p.avatar_color, points: r.points, streak: streakMap[r.user_id] };
     }), myId);
@@ -3914,11 +4577,11 @@
     cal.innerHTML = days.map(function(d, i){
       var v = byDay[d], cls = 'rc', tip = d;
       if(d > today){ cls += ' future'; }
-      else if(!v){ cls += ' none'; }
+      else if(!v){ cls += ' none'; tip += ': missed'; }
       else{
         played++;
         if(v.resolved === 0){ cls += ' pend'; tip += ': waiting on results'; }
-        else if(v.total >= 3 && v.correct === v.total){ cls += ' perfect'; tip += ': Perfect Day'; }
+        else if(v.total >= 3 && v.correct === v.total){ cls += ' perfect'; tip += ': Perfect Day'; if(session) mqAwardAchievement(session.user.id, 'perfect_day'); }
         else if(v.correct === 0){ cls += ' l0'; tip += ': 0 of ' + v.resolved + ' right'; }
         else if(v.correct === 1){ cls += ' l1'; tip += ': 1 of ' + v.resolved + ' right'; }
         else{ cls += ' l2'; tip += ': ' + v.correct + ' of ' + v.resolved + ' right'; }
@@ -4028,45 +4691,23 @@
     const today = getETDateInfo().dateStr;
     const line = document.getElementById('top-predictor-line');
 
-    const { data } = await sb
-      .from('predictions')
-      .select('user_id, choice, daily_questions!inner(correct_answer, resolved, question_date)')
-      .gte('daily_questions.question_date', weekStart)
-      .lte('daily_questions.question_date', today)
-      .eq('daily_questions.resolved', true);
-
-    if(!data || data.length === 0){
+    // Computed in the database (weekly_top_predictor): needs 3+ resolved calls,
+    // and players who hid themselves from leaderboards are never named.
+    const { data: top, error } = await sb.rpc('weekly_top_predictor', { p_week_start: weekStart, p_today: today });
+    if(error || !top){
+      line.textContent = 'Top Predictor of the Week: not available right now.';
+      return;
+    }
+    if(!top.has_resolved){
       line.textContent = 'Top Predictor of the Week: no resolved calls yet this week.';
       return;
     }
-
-    const tally = {};
-    data.forEach(function(row){
-      if(!tally[row.user_id]) tally[row.user_id] = { correct: 0, total: 0 };
-      tally[row.user_id].total++;
-      if(row.choice === row.daily_questions.correct_answer){ tally[row.user_id].correct++; }
-    });
-
-    const MIN_PREDICTIONS = 3;
-    let best = null;
-    Object.keys(tally).forEach(function(uid){
-      const t = tally[uid];
-      if(t.total < MIN_PREDICTIONS) return;
-      const acc = t.correct / t.total;
-      if(!best || acc > best.acc || (acc === best.acc && t.correct > best.correct)){
-        best = { user_id: uid, acc: acc, correct: t.correct };
-      }
-    });
-
-    if(!best){
+    if(!top.best){
       line.textContent = 'Top Predictor of the Week: not enough calls yet this week.';
       return;
     }
-
-    const { data: profile } = await sb.from('profiles').select('username').eq('id', best.user_id).maybeSingle();
-    const name = profile ? profile.username : 'a player';
-    const pct = Math.round(best.acc * 100);
-    line.textContent = 'Top Predictor of the Week: ' + name + ', ' + pct + '% accuracy.';
+    const pct = Math.round((top.best.correct / top.best.total) * 100);
+    line.textContent = 'Top Predictor of the Week: ' + (top.best.username || 'a player') + ', ' + pct + '% accuracy.';
   }
 
   loadWeeklyRecap();
@@ -4091,29 +4732,195 @@
 
     titleEl.textContent = myState;
 
-    const { data: statePeople } = await sb.from('profiles').select('id, username, avatar_emoji, avatar_color').eq('state', myState);
-    if(!statePeople || statePeople.length === 0){
+    // Top 5 chosen in the database (state_top_players) instead of downloading
+    // everyone in the state and sorting here.
+    const { data: topPlayers, error: stateErr } = await sb.rpc('state_top_players', { p_state: myState, p_limit: 5 });
+    if(stateErr){
+      rowsEl.innerHTML = '<div class="brow"><span>Leaderboard unavailable right now.</span></div>';
+      return;
+    }
+    if(!topPlayers || topPlayers.length === 0){
       rowsEl.innerHTML = '<div class="brow"><span>No one else from ' + myState + ' yet.</span></div>';
       return;
     }
 
-    const ids = statePeople.map(function(p){ return p.id; });
-    const { data: streaksData } = await sb.from('streaks').select('user_id, total_points, current_streak').in('user_id', ids);
-
-    const profMap = {};
-    statePeople.forEach(function(p){ profMap[p.id] = p; });
-
-    const ranked = (streaksData || [])
-      .sort(function(a, b){ return b.total_points - a.total_points; })
-      .slice(0, 5);
-
-    rowsEl.innerHTML = await mqBoardRows(ranked.map(function(r){
-      const p = profMap[r.user_id] || {};
-      return { user_id: r.user_id, username: p.username, avatar_emoji: p.avatar_emoji, avatar_color: p.avatar_color, points: r.total_points, streak: r.current_streak };
+    rowsEl.innerHTML = await mqBoardRows(topPlayers.map(function(r){
+      return { user_id: r.user_id, username: r.username, avatar_emoji: r.avatar_emoji, avatar_color: r.avatar_color, points: Number(r.total_points), streak: r.current_streak };
     }), session.user.id);
   }
 
   loadStateBoard();
+
+  // --- Change 6: weekly group card ----------------------------------------
+  // Computed on demand (when a member taps Share), not on a scheduled job --
+  // functionally the same shareable output the spec describes, just
+  // generated at share time instead of automatically the moment the week
+  // closes. Flagging that simplification since a true auto-generated
+  // version would need a scheduled Supabase Edge Function, out of scope
+  // for a client-side change.
+  // Group weeks close on Monday at 2:00 AM Eastern (not midnight) so Sunday
+  // night's questions have time to be resolved before the week is called.
+  // Returns Monday-start date strings (YYYY-MM-DD, Eastern) for the week
+  // currently in progress under that rule, the one before it, and the next.
+  // Subtracting 2 real hours before reading the Eastern calendar date makes
+  // Mon 12:00-1:59 AM still belong to the previous week; DST-safe because the
+  // shift is absolute time, applied before converting to Eastern.
+  function getGroupWeekWindow(nowMs){
+    const shifted = new Date((typeof nowMs === 'number' ? nowMs : Date.now()) - 2 * 3600 * 1000);
+    const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(shifted);
+    const wk = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' }).format(shifted);
+    const dayNum = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[wk];
+    const diffToMonday = (dayNum === 0) ? 6 : dayNum - 1;
+    const parts = dateStr.split('-').map(Number);
+    const iso = function(d){ return d.toISOString().slice(0, 10); };
+    const current = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] - diffToMonday));
+    return {
+      lastStart: iso(new Date(current.getTime() - 7 * 86400000)),
+      currentStart: iso(current),
+      nextStart: iso(new Date(current.getTime() + 7 * 86400000))
+    };
+  }
+
+  // Shows the most recently CLOSED week (a true weekly recap). A group that
+  // was created during the current, still-open week has no closed week yet,
+  // so it falls back to that week's standings so far.
+  async function mqComputeGroupWeeklyTop3(groupId, groupCreatedAt){
+    const win = getGroupWeekWindow();
+    const useClosedWeek = new Date(groupCreatedAt).getTime() < Date.parse(win.currentStart + 'T00:00:00Z');
+    const weekStartStr = useClosedWeek ? win.lastStart : win.currentStart;
+    const weekEndStr = useClosedWeek ? win.currentStart : win.nextStart; // exclusive
+    const weekStart = new Date(weekStartStr + 'T00:00:00Z');
+    const created = new Date(groupCreatedAt);
+    const createdWeekday = (created.getUTCDay() + 6) % 7; // Monday = 0
+    const createdMonday = new Date(created.getTime() - createdWeekday * 86400000);
+    const weekNumber = Math.max(1, Math.round((weekStart.getTime() - Date.UTC(createdMonday.getUTCFullYear(), createdMonday.getUTCMonth(), createdMonday.getUTCDate())) / 604800000) + 1);
+
+    const { data: members } = await sb.from('group_members').select('user_id, share_as_player, profiles(username, avatar_emoji)').eq('group_id', groupId);
+    if(!members || !members.length) return { weekNumber: weekNumber, memberCount: 0, top3: [] };
+
+    const memberIds = members.map(function(m){ return m.user_id; });
+    const { data: weekPreds } = await sb
+      .from('predictions')
+      .select('user_id, choice, daily_questions!inner(correct_answer, resolved, question_date)')
+      .in('user_id', memberIds)
+      .gte('daily_questions.question_date', weekStartStr)
+      .lt('daily_questions.question_date', weekEndStr);
+
+    const pointsByUser = {};
+    (weekPreds || []).forEach(function(r){
+      if(r.daily_questions.resolved && r.choice === r.daily_questions.correct_answer){
+        pointsByUser[r.user_id] = (pointsByUser[r.user_id] || 0) + 100;
+      }
+    });
+
+    const memberMap = {};
+    members.forEach(function(m){ memberMap[m.user_id] = m; });
+
+    const ranked = memberIds
+      .map(function(uid){ return { user_id: uid, points: pointsByUser[uid] || 0 }; })
+      .sort(function(a, b){ return b.points - a.points; })
+      .slice(0, 3)
+      .map(function(r){
+        const m = memberMap[r.user_id];
+        const prof = (m && m.profiles) || {};
+        const showAsPlayer = !!(m && m.share_as_player);
+        return { username: showAsPlayer ? 'Player' : (prof.username || 'player'), emoji: prof.avatar_emoji || '\ud83c\udfaf', points: r.points };
+      });
+
+    return { weekNumber: weekNumber, memberCount: members.length, top3: ranked };
+  }
+
+  function mqDrawGroupWeeklyCard(width, height, groupName, weekData, referralTag){
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    const cx = width / 2;
+
+    ctx.fillStyle = '#17191D';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = "700 " + Math.round(width * 0.081) + "px Arial, sans-serif";
+    let y = height * 0.135;
+    ctx.fillText('Marqit', cx, y);
+
+    y += height * 0.075;
+    ctx.fillStyle = '#F4F4F1';
+    ctx.font = "800 " + Math.round(width * 0.046) + "px Arial, sans-serif";
+    ctx.fillText(groupName + ', Week ' + weekData.weekNumber, cx, y);
+
+    y += height * 0.04;
+    ctx.fillStyle = '#A8ABB3';
+    ctx.font = "600 " + Math.round(width * 0.026) + "px Arial, sans-serif";
+    ctx.fillText(weekData.memberCount + ' members', cx, y);
+
+    const rowStart = y + height * 0.1;
+    const rowGap = height * 0.11;
+    weekData.top3.forEach(function(m, i){
+      const ry = rowStart + i * rowGap;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = i === 0 ? '#F6C430' : '#F4F4F1';
+      ctx.font = "800 " + Math.round(width * 0.04) + "px Arial, sans-serif";
+      ctx.fillText('#' + (i + 1), width * 0.09, ry);
+
+      ctx.font = "600 " + Math.round(width * 0.036) + "px Arial, sans-serif";
+      ctx.fillText(m.emoji + '  ' + m.username, width * 0.22, ry);
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#F5C336';
+      ctx.font = "700 " + Math.round(width * 0.034) + "px Arial, sans-serif";
+      ctx.fillText(m.points.toLocaleString() + ' pts', width * 0.91, ry);
+    });
+
+    const foot1Y = height - height * 0.11;
+    const foot2Y = height - height * 0.065;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#F4F4F1';
+    ctx.font = "700 " + Math.round(width * 0.032) + "px Arial, sans-serif";
+    ctx.fillText('Join our league', cx, foot1Y);
+    ctx.fillStyle = '#7A7D85';
+    ctx.font = "600 " + Math.round(width * 0.026) + "px Arial, sans-serif";
+    ctx.fillText(referralTag ? 'playmarqit.com/join' : 'playmarqit.com', cx, foot2Y);
+
+    return canvas;
+  }
+
+  async function mqShareGroupWeeklyCard(groupId, group){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    if(!session || !group || !group.card_sharing_enabled) return;
+
+    const weekData = await mqComputeGroupWeeklyTop3(groupId, group.created_at);
+    // Change 6 invite-link rule: only included if the owner turned it on.
+    const includeInvite = !!group.show_invite_on_card;
+    const shareUrl = includeInvite
+      ? 'https://playmarqit.com/?group=' + encodeURIComponent(group.invite_code)
+      : 'https://playmarqit.com/?' + mqGetReferralTag(session.user.id, 'group', null);
+    const shareText = group.name + ', Week ' + weekData.weekNumber + '. Join our league. ' + shareUrl;
+
+    const canvas = mqDrawGroupWeeklyCard(1080, 1920, group.name, weekData, includeInvite);
+    const packaged = await mqShareCanvasToFileAndCaption(canvas, 'marqit-group.png');
+    if(!packaged) return;
+
+    mqLogCardShare(session.user.id, 'group', null);
+
+    if(navigator.canShare && navigator.canShare({ files: [packaged.file] })){
+      try{ await navigator.share({ files: [packaged.file], text: shareText, url: shareUrl }); }
+      catch(e){ /* canceled -- not an error */ }
+      return;
+    }
+    const blobUrl = URL.createObjectURL(packaged.blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = 'marqit-group.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 1000);
+    try{ await navigator.clipboard.writeText(shareText); }catch(e){}
+  }
 
   async function loadGroupSection(){
     const { data: sessionRes } = await sb.auth.getSession();
@@ -4133,7 +4940,7 @@
 
     const { data: membership } = await sb
       .from('group_members')
-      .select('group_id, groups(id, name, invite_code, created_by)')
+      .select('group_id, share_as_player, groups(id, name, invite_code, created_by, created_at, card_sharing_enabled, show_invite_on_card)')
       .eq('user_id', session.user.id)
       .maybeSingle();
 
@@ -4158,6 +4965,47 @@
         const { error } = await sb.from('groups').update({ name: next.trim() }).eq('id', membership.groups.id);
         if(!error) document.getElementById('group-name-display').textContent = next.trim();
       };
+    }
+
+    // Change 6: weekly group card. Owner-only settings (both off by
+    // default, per spec) control whether the card can be shared publicly
+    // at all, and whether it carries the group's invite link.
+    const isOwner = membership.groups.created_by === session.user.id;
+    const ownerSettingsEl = document.getElementById('group-card-owner-settings');
+    const cardSharingCheckbox = document.getElementById('group-card-sharing-checkbox');
+    const showInviteCheckbox = document.getElementById('group-card-invite-checkbox');
+    if(ownerSettingsEl){
+      ownerSettingsEl.style.display = isOwner ? 'block' : 'none';
+      if(isOwner && cardSharingCheckbox && showInviteCheckbox){
+        cardSharingCheckbox.checked = !!membership.groups.card_sharing_enabled;
+        showInviteCheckbox.checked = !!membership.groups.show_invite_on_card;
+        cardSharingCheckbox.onchange = async function(){
+          await sb.from('groups').update({ card_sharing_enabled: this.checked }).eq('id', membership.groups.id);
+          loadGroupSection();
+        };
+        showInviteCheckbox.onchange = async function(){
+          await sb.from('groups').update({ show_invite_on_card: this.checked }).eq('id', membership.groups.id);
+        };
+      }
+    }
+
+    // Any member can choose to appear on a shared group card as "Player"
+    // instead of their real username (Change 6 privacy note).
+    const asPlayerCheckbox = document.getElementById('group-card-share-as-player-checkbox');
+    if(asPlayerCheckbox){
+      asPlayerCheckbox.checked = !!membership.share_as_player;
+      asPlayerCheckbox.onchange = async function(){
+        await sb.from('group_members').update({ share_as_player: this.checked }).eq('user_id', session.user.id).eq('group_id', membership.group_id);
+      };
+    }
+
+    // Share button only works when the owner has actually turned card
+    // sharing on -- "who can share: any group member," but only once the
+    // owner opts the group in at all.
+    const groupShareBtn = document.getElementById('share-group-card-btn');
+    if(groupShareBtn){
+      groupShareBtn.style.display = membership.groups.card_sharing_enabled ? 'inline-flex' : 'none';
+      groupShareBtn.onclick = function(){ mqShareGroupWeeklyCard(membership.group_id, membership.groups); };
     }
 
     const { data: members } = await sb.from('group_members').select('user_id, profiles(username, avatar_emoji, avatar_color)').eq('group_id', membership.group_id);
@@ -4526,115 +5374,5 @@ setTimeout(function(){
 }, 8000);
 
 
-// Live market-style ticker widget (Robinhood-esque): a big price number, a
-// green/red % badge, a blinking LIVE dot, and a bold filled line underneath
-// that keeps climbing over time but takes real crashes along the way.
-// Purely decorative -- not tied to real data -- but genuinely animates
-// forever via requestAnimationFrame, never a static image.
-(function(){
-  var W = 260, H = 96;      // widget's own internal coordinate space
-  var STEPS = 22;           // how many price points are visible at once
-  var svgNS = 'http://www.w3.org/2000/svg';
-
-  function initTicker(container){
-    var wrap = document.createElement('div');
-    wrap.className = 'live-ticker';
-    wrap.innerHTML =
-      '<div class="lt-top">' +
-        '<span class="lt-price">1,000</span>' +
-        '<span class="lt-badge">+0.0%</span>' +
-      '</div>' +
-      '<div class="lt-live"><span class="lt-live-dot"></span>LIVE</div>' +
-      '<svg class="lt-chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
-        '<defs><linearGradient id="ltg" x1="0" y1="0" x2="0" y2="1">' +
-          '<stop offset="0" stop-color="rgb(51,209,139)" stop-opacity=".32"/>' +
-          '<stop offset="1" stop-color="rgb(51,209,139)" stop-opacity="0"/>' +
-        '</linearGradient></defs>' +
-        '<path class="lt-area"/><path class="lt-line"/>' +
-        '<circle class="lt-dot-halo" r="8"/><circle class="lt-dot" r="4"/>' +
-      '</svg>';
-    container.appendChild(wrap);
-
-    var priceEl = wrap.querySelector('.lt-price');
-    var badgeEl = wrap.querySelector('.lt-badge');
-    var areaEl = wrap.querySelector('.lt-area');
-    var lineEl = wrap.querySelector('.lt-line');
-    var dotEl = wrap.querySelector('.lt-dot');
-    var haloEl = wrap.querySelector('.lt-dot-halo');
-
-    var startPrice = 1000;
-    var basePts = [];
-    for(var i = 0; i < STEPS; i++) basePts.push(H * 0.55);
-    var priceVal = startPrice;
-
-    function nextVal(prev){
-      var crash = Math.random() < 0.08;
-      if(crash) return Math.max(H * 0.12, prev + (H * 0.28 + Math.random() * H * 0.18));
-      var bias = -H * 0.018;                      // net upward drift (svg y down = up visually)
-      var jitter = (Math.random() - 0.46) * H * 0.16;
-      var y = prev + bias + jitter;
-      return Math.max(H * 0.08, Math.min(H * 0.92, y));
-    }
-
-    function redraw(){
-      var dx = W / (STEPS - 1);
-      var d = 'M ' + basePts.map(function(y, i){ return (i * dx).toFixed(1) + ' ' + y.toFixed(1); }).join(' L ');
-      lineEl.setAttribute('d', d);
-      areaEl.setAttribute('d', d + ' L ' + W + ' ' + H + ' L 0 ' + H + ' Z');
-    }
-    redraw();
-
-    var offsetPx = 0, dx = W / (STEPS - 1), speed = dx / 2.6; // one new step roughly every 2.6s
-    var last = performance.now();
-    var dotY = basePts[basePts.length - 1];
-    var wasCrashing = false;
-
-    function frame(now){
-      var dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      offsetPx += speed * dt;
-      if(offsetPx >= dx){
-        offsetPx -= dx;
-        var prevY = basePts[basePts.length - 1];
-        var newY = nextVal(prevY);
-        var crashed = newY - prevY > H * 0.15;
-        basePts.shift();
-        basePts.push(newY);
-        redraw();
-
-        // Update the price/badge text off the new step (cosmetic, not real accounting)
-        var deltaY = (H * 0.55) - newY;             // higher on screen = more "up"
-        priceVal = startPrice + deltaY * 9;
-        var pctChange = (deltaY / (H * 0.55)) * 100 * 0.9;
-        priceEl.textContent = Math.max(0, Math.round(priceVal)).toLocaleString();
-        badgeEl.textContent = (pctChange >= 0 ? '+' : '') + pctChange.toFixed(1) + '%';
-        badgeEl.classList.toggle('down', pctChange < 0);
-        if(crashed && !wasCrashing){ wrap.classList.add('lt-crash-flash'); setTimeout(function(){ wrap.classList.remove('lt-crash-flash'); }, 420); }
-        wasCrashing = crashed;
-      }
-
-      var frac = offsetPx / dx;
-      var visLastX = (STEPS - 1 - frac) * dx;
-      wrap.querySelector('.lt-chart').style.setProperty('--shift', (-frac * dx).toFixed(2) + 'px');
-      lineEl.style.transform = 'translateX(' + (-frac * dx).toFixed(2) + 'px)';
-      areaEl.style.transform = 'translateX(' + (-frac * dx).toFixed(2) + 'px)';
-
-      var targetY = basePts[basePts.length - 1];
-      dotY += (targetY - dotY) * 0.08;
-      var dotX = visLastX;
-      dotEl.setAttribute('cx', dotX.toFixed(1)); dotEl.setAttribute('cy', dotY.toFixed(1));
-      haloEl.setAttribute('cx', dotX.toFixed(1)); haloEl.setAttribute('cy', dotY.toFixed(1));
-
-      requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
-  }
-
-  document.querySelectorAll('.hero-lite').forEach(function(el){
-    if(el.closest('#page-leaderboard')) return; // has its own staircase decoration
-    var host = document.createElement('div');
-    host.className = 'chart-live';
-    el.appendChild(host);
-    initTicker(host);
-  });
-})();
+// (Decorative live-price ticker widget removed at the owner's request --
+// it was never tied to real data.)

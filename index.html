@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- Copyright (c) 2026 Grand Media Group LLC. All rights reserved. Marqit is a trademark of Grand Media Group LLC. -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Marqit</title>
 
@@ -205,6 +206,21 @@
         <button type="button" id="save-profile-state-btn" style="padding:10px 16px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:13.5px; cursor:pointer;">Save</button>
       </div>
       <p class="form-msg" id="profile-state-msg" style="margin-top:8px;"></p>
+    </div>
+
+    <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--line);">
+      <div style="font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:15px; margin-bottom:10px;">Leaderboard privacy</div>
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-soft); cursor:pointer;">
+        <input type="checkbox" id="profile-hide-leaderboard-checkbox" style="width:16px; height:16px;">
+        <span>Hide me from Worldwide, Category, and State leaderboards</span>
+      </label>
+      <p style="font-size:11.5px; color:var(--ink-soft); margin-top:6px;">Your Group and Friends boards are unaffected &mdash; those are people you've already connected with.</p>
+      <p class="form-msg" id="profile-hide-leaderboard-msg" style="margin-top:8px;"></p>
+    </div>
+
+    <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--line);">
+      <div style="font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:15px; margin-bottom:10px;">Achievements</div>
+      <div id="profile-achievements-grid" class="mq-achievements-grid"></div>
     </div>
 
     <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--line);">
@@ -433,12 +449,16 @@
           <span id="share-card-streak">Sign in to see yours</span>
         </div>
       </div>
+      <p id="share-card-calledit" style="display:none; font-size:12.5px; font-weight:700; color:#F5C336; margin-top:6px;"></p>
       <div class="share-row" id="share-card-row">
         <p class="ex-sub" style="margin:0;">Play a full day to see your card.</p>
       </div>
       <div class="share-foot">playmarqit.com</div>
     </div>
-    <button type="button" id="share-results-btn" style="display:none; margin-top:14px; padding:11px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Share your results</button>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+      <button type="button" id="share-results-btn" style="display:none; padding:11px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Share your results</button>
+      <button type="button" id="share-results-square-btn" style="display:none; padding:11px 22px; border:1.5px solid var(--line); border-radius:10px; background:none; color:var(--ink); font-family:inherit; font-weight:600; font-size:14px; cursor:pointer;">Download square</button>
+    </div>
     <p class="form-msg" id="share-results-msg" style="margin-top:6px;"></p>
   </div>
 </section>
@@ -497,7 +517,7 @@
       <div class="rec-cal-wrap">
         <div class="rec-dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
         <div class="rec-cal" id="rec-cal"></div>
-        <div class="rec-legend"><span><i style="background:linear-gradient(160deg,#F7D466,#D9A21F)"></i>Perfect Day</span><span><i style="background:rgba(51,209,139,.88)"></i>2 right</span><span><i style="background:rgba(51,209,139,.42)"></i>1 right</span><span><i style="background:rgba(245,100,79,.6)"></i>None right</span><span><i style="background:rgba(120,140,200,.4)"></i>Waiting</span></div>
+        <div class="rec-legend"><span><i style="background:linear-gradient(160deg,#F7D466,#D9A21F)"></i>Perfect Day</span><span><i style="background:rgba(51,209,139,.88)"></i>2 right</span><span><i style="background:rgba(51,209,139,.42)"></i>1 right</span><span><i style="background:rgba(245,100,79,.6)"></i>None right</span><span><i style="background:rgba(128,136,150,.35)"></i>Missed</span></div>
       </div>
       <div class="rec-rings" id="rec-rings"></div>
       <div class="recap-foot" id="rec-foot">Sign in to see your record.</div>
@@ -538,12 +558,32 @@
         <button id="group-invite-username-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--panel); border:1.5px solid var(--line); color:var(--ink); font-weight:600; font-size:13.5px; cursor:pointer; white-space:nowrap;">Invite</button>
       </div>
       <p class="form-msg" id="group-invite-msg" style="font-size:13px; margin-top:-8px; margin-bottom:14px;"></p>
+
+      <div id="group-card-owner-settings" style="display:none; margin-bottom:16px; padding:14px 16px; background:var(--panel); border:1px solid var(--line); border-radius:12px;">
+        <div style="font-size:12.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:10px;">Weekly group card (owner settings)</div>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:8px; cursor:pointer;">
+          <input type="checkbox" id="group-card-sharing-checkbox" style="width:16px; height:16px;">
+          <span>Let members share the weekly group card</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+          <input type="checkbox" id="group-card-invite-checkbox" style="width:16px; height:16px;">
+          <span>Include the invite link on the shared card</span>
+        </label>
+        <p style="font-size:11.5px; color:var(--ink-soft); margin-top:8px;">Both off by default. Group invite codes aren't access-controlled &mdash; anyone with the link can join, so only turn this on if that's okay.</p>
+      </div>
+
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-soft); margin-bottom:16px; cursor:pointer;">
+        <input type="checkbox" id="group-card-share-as-player-checkbox" style="width:16px; height:16px;">
+        <span>On a shared group card, show me as "Player" instead of my username</span>
+      </label>
+
       <div class="boards">
         <div class="board" style="--tint:51,209,139;">
           <div class="board-title" style="display:flex; align-items:center; gap:8px;"><span id="group-name-display">Your group</span><button id="group-rename-btn" style="display:none; background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:12px; text-decoration:underline; padding:0;">Rename</button></div>
           <div class="board-rows" id="board-group"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
         </div>
       </div>
+      <button type="button" id="share-group-card-btn" style="display:none; margin-top:14px; padding:11px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:14px; cursor:pointer;">Share this week's group card</button>
     </div>
 
     <h3 class="ex-title" style="margin-top:30px;">Category</h3>
@@ -728,7 +768,7 @@
 
 <footer>
   <div class="wrap" style="justify-content:center;gap:18px;">
-    <span>© Marqit</span>
+    <span>© 2026 Grand Media Group LLC. All rights reserved. Marqit™</span>
     <a href="/privacy.html" style="color:inherit;text-decoration:none;">Privacy</a>
     <a href="/terms.html" style="color:inherit;text-decoration:none;">Terms</a>
   </div>
