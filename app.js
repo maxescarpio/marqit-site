@@ -641,6 +641,7 @@
     loadNotificationSettings();
     loadPendingRequests();
     loadDailyQuestions();
+    checkDailyDrop();
     loadBigBoard();
     loadCategoryBoard('sports', 'board-sports');
     loadCategoryBoard('pop_culture', 'board-pop_culture');
@@ -3638,6 +3639,67 @@
     }
   }
 
+  // --- Drop bonus banner --------------------------------------------------
+  // Mirrors the daily-drop edge function: once a day, at an unpredictable
+  // time, everyone gets pushed the same notification and has a short
+  // window where a correct pick scores +50 extra (see resolve_day). This
+  // banner is the in-app version of that same window, for anyone who has
+  // the tab open (or opens it) during the window, whether or not push
+  // notifications are on.
+  var dropCountdownInterval = null;
+  var dropPollTimeout = null;
+  function clearDropTimers(){
+    if(dropCountdownInterval){ clearInterval(dropCountdownInterval); dropCountdownInterval = null; }
+    if(dropPollTimeout){ clearTimeout(dropPollTimeout); dropPollTimeout = null; }
+  }
+  async function checkDailyDrop(){
+    clearDropTimers();
+    var banner = document.getElementById('drop-banner');
+    var countdownEl = document.getElementById('drop-banner-countdown');
+    if(!banner || !countdownEl) return;
+
+    var today = getETDateInfo().dateStr;
+    var drop;
+    try{
+      var res = await sb.from('daily_drops').select('drop_time, window_seconds, notified').eq('question_date', today).maybeSingle();
+      drop = res.data;
+    }catch(e){ drop = null; }
+
+    var nextPollMs = 30000; // default: check again in 30s
+    if(drop && drop.notified){
+      var dropEndMs = new Date(drop.drop_time).getTime() + (drop.window_seconds * 1000);
+      var msLeft = dropEndMs - Date.now();
+      if(msLeft > 0){
+        banner.style.display = 'flex';
+        function tick(){
+          var left = dropEndMs - Date.now();
+          if(left <= 0){
+            banner.style.display = 'none';
+            clearDropTimers();
+            return;
+          }
+          var m = Math.floor(left / 60000);
+          var s = Math.floor((left % 60000) / 1000);
+          countdownEl.textContent = m + ':' + (s < 10 ? '0' : '') + s + ' left';
+        }
+        tick();
+        dropCountdownInterval = setInterval(tick, 1000);
+        return; // don't schedule a re-poll while the window is actively ticking down
+      } else {
+        banner.style.display = 'none';
+      }
+    } else {
+      banner.style.display = 'none';
+      if(drop && !drop.notified){
+        // Scheduled but hasn't fired yet -- no way to know exactly when
+        // (that's the point), so just check back periodically.
+        var untilDrop = new Date(drop.drop_time).getTime() - Date.now();
+        if(untilDrop > 0 && untilDrop < 30000) nextPollMs = Math.max(2000, untilDrop);
+      }
+    }
+    dropPollTimeout = setTimeout(checkDailyDrop, nextPollMs);
+  }
+
   // Placeholder cards shown the instant the Play tab opens, before today's
   // questions/vote data have come back — replaced wholesale once real
   // content is ready. Reuses the existing .skel-card/.sk shimmer styles.
@@ -4157,7 +4219,9 @@
             if(card){ card.classList.add('just-submitted'); setTimeout(function(){ card.classList.remove('just-submitted'); }, 900); }
           });
           function settle(){
-            msgEl.textContent = n + ' of ' + n + ' locked in.';
+            var dropBannerEl = document.getElementById('drop-banner');
+            var dropActive = dropBannerEl && dropBannerEl.style.display === 'flex';
+            msgEl.textContent = n + ' of ' + n + ' locked in.' + (dropActive ? ' 🔥 Bonus window — correct calls score extra.' : '');
             sb.auth.getSession().then(function(sr){
               var uid = sr && sr.data && sr.data.session && sr.data.session.user.id;
               if(!uid) return;
@@ -4275,6 +4339,7 @@
   }
 
   loadDailyQuestions();
+  checkDailyDrop();
 
   // ---- Leaderboard rows: medal badges for the top 3, avatar circles, streak flames, and a "You" highlight ----
   async function mqMyId(){
