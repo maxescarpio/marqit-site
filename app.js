@@ -492,7 +492,12 @@
         alert('This account has been suspended.');
         return 'BANNED';
       }
-      return existing.username;
+      // A profile from before this account finished picking a username still
+      // carries the old placeholder value -- treat that the same as "never
+      // set one" so returning users get sent back through the picker instead
+      // of quietly keeping "user_xxxxxxxx" forever.
+      const isPlaceholder = existing.username === ('user_' + user.id.slice(0, 8));
+      return { username: existing.username, needsUsername: isPlaceholder };
     }
 
     const hadNoUsername = !(user.user_metadata && user.user_metadata.username);
@@ -562,13 +567,13 @@
 
     if(!insertErr){
       await sb.from('streaks').insert({ user_id: user.id });
-      // This call just created the profile. If there was no username to draw from
-      // (e.g. a fresh Google sign-in -- OAuth has no username concept), give them
-      // one chance to pick something real instead of living with an auto-generated
-      // "user_xxxxxxxx" forever. Usernames show everywhere on this site.
-      if(hadNoUsername) promptUsernameChoice();
     }
-    return username;
+    // If there was no username to draw from (e.g. a fresh Google sign-in --
+    // OAuth has no username concept), this row only carries the placeholder
+    // "user_xxxxxxxx" because the database column can't be blank. It must
+    // never be shown to the person or left in place -- the caller forces a
+    // real pick via needsUsername/promptUsernameChoice() below.
+    return { username: username, needsUsername: hadNoUsername };
   }
 
   function promptUsernameChoice(){
@@ -581,9 +586,6 @@
     backdrop.style.display = 'flex';
     input.focus();
   }
-  document.getElementById('username-prompt-skip-btn').addEventListener('click', function(){
-    document.getElementById('username-prompt-backdrop').style.display = 'none';
-  });
   document.getElementById('username-prompt-save-btn').addEventListener('click', async function(){
     const input = document.getElementById('username-prompt-input');
     const msg = document.getElementById('username-prompt-msg');
@@ -616,17 +618,20 @@
     }
   });
 
-  function showSignedIn(username){
+  function showSignedIn(username, needsUsername){
     document.getElementById('nav-signed-out').style.display = 'none';
     document.getElementById('nav-signed-in').style.display = 'flex';
     document.getElementById('auth-panel').style.display = 'none';
     const navUsername = document.getElementById('nav-username');
-    if(navUsername) navUsername.textContent = username || '';
+    // Never surface the auto-generated "user_xxxxxxxx" placeholder -- if this
+    // account hasn't picked a real username yet, show nothing until they do.
+    if(navUsername) navUsername.textContent = needsUsername ? '' : (username || '');
     const heroMsg = document.getElementById('hero-status-msg');
     if(heroMsg){
       heroMsg.className = 'form-msg ok';
-      heroMsg.textContent = 'You\'re signed in as ' + username + '.';
+      heroMsg.textContent = needsUsername ? 'Pick a username to finish setting up your account.' : 'You\'re signed in as ' + username + '.';
     }
+    if(needsUsername) promptUsernameChoice();
     loadMyStats();
     loadShareCard(username);
     loadGroupSection();
@@ -2224,9 +2229,9 @@
 
   sb.auth.onAuthStateChange(async function(event, session){
     if(event === 'SIGNED_IN' && session && session.user){
-      const username = await ensureProfile(session.user);
-      if(username === 'BANNED') return;
-      showSignedIn(username || 'you');
+      const profileResult = await ensureProfile(session.user);
+      if(profileResult === 'BANNED') return;
+      showSignedIn(profileResult.username || 'you', profileResult.needsUsername);
       mqRegisterPushToken(session.user.id);
       if(typeof mqApplyGreekVisibility === 'function') mqApplyGreekVisibility();
       if(typeof autoJoinFromUrl === 'function') autoJoinFromUrl(); // picks up a stashed ?group= invite code now that we have a session
@@ -2271,9 +2276,9 @@
   sb.auth.getSession().then(function(res){
     const session = res.data.session;
     if(session && session.user){
-      ensureProfile(session.user).then(function(username){
-        if(username === 'BANNED') return;
-        showSignedIn(username || 'you');
+      ensureProfile(session.user).then(function(profileResult){
+        if(profileResult === 'BANNED') return;
+        showSignedIn(profileResult.username || 'you', profileResult.needsUsername);
       });
     }
   });
