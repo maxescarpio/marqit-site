@@ -2995,6 +2995,38 @@
       });
     }catch(e){ /* decoration only */ }
   }
+  // Keeps every copy of one emoji in a question's reaction row in sync
+  // (the quick buttons, the pinned chip, and the cell in the picker), and
+  // adds/removes the pinned chip for non-default emoji. When the count hits
+  // zero the pinned chip disappears, so someone who added an emoji nobody
+  // else used can take it back out cleanly.
+  function mqApplyReaction(row, emoji, n, mine){
+    if(!row) return;
+    var extraContainer = row.querySelector('.reaction-extra');
+    var chip = null;
+    row.querySelectorAll('.reaction-btn').forEach(function(b){
+      if(b.getAttribute('data-emoji') !== emoji) return;
+      if(extraContainer && b.parentNode === extraContainer){ chip = b; return; }
+      var c = b.querySelector('.reaction-count');
+      if(c) c.textContent = n > 0 ? n : '';
+      b.classList.toggle('mine', !!mine);
+    });
+    if(REACTION_EMOJIS.indexOf(emoji) !== -1 || !extraContainer) return;
+    if(n > 0){
+      if(!chip){
+        chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'reaction-btn';
+        chip.setAttribute('data-emoji', emoji);
+        chip.innerHTML = '<span class="reaction-emoji">' + emoji + '</span><span class="reaction-count"></span>';
+        extraContainer.appendChild(chip);
+      }
+      chip.classList.toggle('mine', !!mine);
+      chip.querySelector('.reaction-count').textContent = n;
+    }else if(chip){
+      chip.remove();
+    }
+  }
   // Mirrors a dropdown-menu emoji's current count/mine state onto a pinned
   // chip in the visible row (creating or removing the chip as needed), so a
   // reaction picked from the "more" menu shows up immediately without
@@ -3112,6 +3144,11 @@
       document.querySelectorAll('.reaction-more-wrap.open').forEach(function(w){ mqCloseReactionMenu(w); });
     }
   });
+  function mqCloseAllReactionMenus(){
+    document.querySelectorAll('.reaction-more-wrap.open').forEach(function(w){ mqCloseReactionMenu(w); });
+  }
+  window.addEventListener('resize', mqCloseAllReactionMenus);
+  window.addEventListener('scroll', mqCloseAllReactionMenus, { passive: true });
   // One delegated listener handles every reaction button on the page,
   // present or future (cards get re-rendered each load) -- both the 4 quick
   // buttons and anything tapped from the "more" dropdown.
@@ -3129,23 +3166,32 @@
     var countEl = btn.querySelector('.reaction-count');
     var wasMine = btn.classList.contains('mine');
     var isMenuBtn = btn.classList.contains('reaction-menu-btn');
-    // Optimistic UI: flip it immediately, reconcile if the write fails.
-    btn.classList.toggle('mine', !wasMine);
     var n = parseInt(countEl.textContent || '0', 10) || 0;
-    n = wasMine ? Math.max(0, n - 1) : n + 1;
-    countEl.textContent = n > 0 ? n : '';
+    var newN = wasMine ? Math.max(0, n - 1) : n + 1;
+    // Ignore a second tap on the same emoji while the first is still saving.
+    row._rxBusy = row._rxBusy || {};
+    if(row._rxBusy[emoji]) return;
+    row._rxBusy[emoji] = true;
+    // Close the picker first (it re-attaches itself to the row), then
+    // optimistically update every copy of this emoji at once.
     if(isMenuBtn){
-      mqSyncExtraChip(row, btn);
       var menuEl = btn.closest('.reaction-menu');
       var wrap = (menuEl && menuEl._wrap) || btn.closest('.reaction-more-wrap');
       mqCloseReactionMenu(wrap);
     }
-    if(wasMine){
-      var { error } = await sb.from('question_reactions').delete().eq('question_id', qid).eq('user_id', session.user.id).eq('emoji', emoji);
-      if(error){ btn.classList.add('mine'); countEl.textContent = (n + 1) > 0 ? (n + 1) : ''; if(isMenuBtn) mqSyncExtraChip(row, btn); }
-    }else{
-      var { error: insErr } = await sb.from('question_reactions').insert({ question_id: qid, user_id: session.user.id, emoji: emoji });
-      if(insErr){ btn.classList.remove('mine'); countEl.textContent = (n - 1) > 0 ? (n - 1) : ''; if(isMenuBtn) mqSyncExtraChip(row, btn); }
+    mqApplyReaction(row, emoji, newN, !wasMine);
+    try{
+      var res;
+      if(wasMine){
+        res = await sb.from('question_reactions').delete().eq('question_id', qid).eq('user_id', session.user.id).eq('emoji', emoji);
+      }else{
+        res = await sb.from('question_reactions').insert({ question_id: qid, user_id: session.user.id, emoji: emoji });
+      }
+      if(res && res.error) mqApplyReaction(row, emoji, n, wasMine); // failed: put it back
+    }catch(err){
+      mqApplyReaction(row, emoji, n, wasMine);
+    }finally{
+      row._rxBusy[emoji] = false;
     }
   });
 
