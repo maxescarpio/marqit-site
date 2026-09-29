@@ -513,7 +513,7 @@
   .lock-label{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-soft);}
   .lock-val{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:30px;line-height:1;font-variant-numeric:tabular-nums;}
   .lock-bar{margin-top:12px;height:4px;border-radius:4px;background:var(--line);overflow:hidden;}
-  .lock-bar i{display:block;height:100%;width:100%;border-radius:4px;background:var(--yes);transition:width 1s linear,background .6s;}
+  .lock-bar i{display:block;height:100%;width:100%;margin-left:auto;border-radius:4px;background:var(--yes);transition:width 1s linear,background .6s;}
   .lock-card.urgent .lock-bar i{background:#E0A03C;}
   .lock-card.urgent .lock-val{color:#E0A03C;}
   .lock-card.critical .lock-bar i{background:var(--no);animation:barPulse 1s ease-in-out infinite;}
