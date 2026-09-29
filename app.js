@@ -3100,6 +3100,12 @@
     // now that it lives under <body> instead.
     menu.style.display = 'grid';
     menu.style.position = 'fixed';
+    // The stylesheet anchors the in-card version with bottom/right. Left in
+    // place on a fixed menu that also gets an explicit top, they squash the
+    // panel to a thin bar with the emojis spilling out of it, so clear them.
+    menu.style.bottom = 'auto';
+    menu.style.right = 'auto';
+    menu.style.height = 'auto';
     // Pin the width up front from the stylesheet's own value instead of
     // trusting whatever size the browser reports below -- right after
     // reparenting into <body> and flipping display:none -> grid, a single
