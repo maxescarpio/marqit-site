@@ -1,0 +1,22 @@
+# Tell browsers and Cloudflare's edge to always revalidate these files with
+# the origin before using a cached copy, instead of trusting a cached copy
+# for some default TTL. Since these are the files that change on every
+# deploy (game logic, styles, markup), stale caches here are what caused
+# "I don't see the update" even right after a push -- this makes every
+# load check back with a fast conditional request (304 if unchanged, fresh
+# copy if it changed) so a new deploy shows up immediately without anyone
+# needing to manually purge Cloudflare's cache.
+/app.js
+  Cache-Control: no-cache
+
+/style.css
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/manifest.json
+  Cache-Control: no-cache
+
+/sw.js
+  Cache-Control: no-cache
