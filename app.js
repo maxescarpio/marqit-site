@@ -4032,8 +4032,8 @@
         const frac = Math.max(0, Math.min(1, rem / (16 * 3600 * 1000)));
         const barI = timerEl.querySelector('.lock-bar i');
         if(barI) barI.style.width = (frac * 100) + '%';
-        timerEl.classList.toggle('urgent', rem < 3600000);
-        timerEl.classList.toggle('critical', rem < 600000);
+        timerEl.classList.toggle('urgent', rem < 2 * 3600000);
+        timerEl.classList.toggle('critical', rem < 30 * 60000);
       };
       paintLockBar();
       dailyCountdownInterval = setInterval(function(){
