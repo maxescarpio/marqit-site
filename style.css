@@ -512,15 +512,16 @@
   .lock-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .lock-label{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-soft);}
   .lock-val{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:30px;line-height:1;font-variant-numeric:tabular-nums;}
-  .lock-card{--lock:var(--yes);--lock-fill:rgba(51,209,139,.34);position:relative;overflow:hidden;padding:18px 20px;border-color:var(--lock);transition:border-color .6s;}
-  .lock-card .lock-top{position:relative;z-index:1;}
+  .lock-card{--lock:var(--yes);border-color:rgba(51,209,139,.35);transition:border-color .6s;}
   .lock-card .lock-label{color:var(--ink);}
   .lock-card .live-dot{background:var(--lock);}
-  .lock-card .lock-val{color:#fff;}
-  .lock-bar{position:absolute;inset:0;margin:0!important;height:auto;border-radius:0;background:transparent;overflow:hidden;z-index:0;}
-  .lock-bar i{display:block;height:100%;width:100%;margin-left:auto;border-radius:0;background:var(--lock-fill);border-left:3px solid var(--lock);box-sizing:border-box;transition:width 1s linear,background .6s,border-color .6s;}
-  .lock-card.urgent{--lock:#E0A03C;--lock-fill:rgba(224,160,60,.36);}
-  .lock-card.critical{--lock:var(--no);--lock-fill:rgba(245,100,79,.40);}
+  .lock-card .lock-val{color:var(--lock);transition:color .6s;}
+  .lock-bar{margin-top:12px;height:6px;border-radius:6px;background:rgba(51,209,139,.16);overflow:hidden;transition:background .6s;}
+  .lock-bar i{display:block;height:100%;width:100%;margin-right:auto;margin-left:0;border-radius:6px;background:var(--lock);transition:width 1s linear,background .6s;}
+  .lock-card.urgent{--lock:#E0A03C;border-color:rgba(224,160,60,.45);}
+  .lock-card.urgent .lock-bar{background:rgba(224,160,60,.18);}
+  .lock-card.critical{--lock:var(--no);border-color:rgba(245,100,79,.5);}
+  .lock-card.critical .lock-bar{background:rgba(245,100,79,.18);}
   .lock-card.critical .lock-bar i{animation:barPulse 1s ease-in-out infinite;}
   @keyframes barPulse{50%{opacity:.5;}}
 
