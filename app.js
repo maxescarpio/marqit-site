@@ -676,29 +676,46 @@
   // (see mqAwardAchievement call sites), not backfilled from full history,
   // same philosophy as the existing streak-milestone celebration.
   const ACHIEVEMENTS = {
-    perfect_day: { icon: '\ud83c\udfaf', label: 'Perfect Day', desc: 'Went 3-for-3 on a single day\u2019s calls.' },
-    buddy_bonus: { icon: '\ud83e\udd1d', label: 'Buddy Bonus', desc: 'Matched a pick with a buddy.' },
-    rival_win:   { icon: '\ud83c\udfc6', label: 'Showdown Winner', desc: 'Won a Rival Showdown.' }
+    perfect_day:   { icon: '\ud83c\udfaf', label: 'Perfect Day',   desc: 'Went 3-for-3 on a single day\u2019s calls.' },
+    buddy_bonus:   { icon: '\ud83e\udd1d', label: 'Buddy Bonus',   desc: 'Matched a pick with a buddy.' },
+    rival_win:     { icon: '\ud83c\udfc6', label: 'Showdown Winner', desc: 'Won a Rival Showdown.' },
+    // Tiered achievements: times_earned isn't a raw count of events, it's the
+    // tier reached (RPC divides the underlying count by the tier size), so
+    // "\u00d73" here really means "3rd tier" -- 30 correct calls, 300
+    // predictions, a 42-day streak, etc. See award_achievement in Supabase.
+    sharp_shooter: { icon: '\ud83c\udff9', label: 'Sharp Shooter', desc: 'Every 10 lifetime correct calls earns another tier.', tiered: true, tierSize: 10, tierUnit: 'correct calls' },
+    century_club:  { icon: '\ud83d\udcaf', label: 'Century Club',  desc: 'Every 100 lifetime predictions earns another tier.', tiered: true, tierSize: 100, tierUnit: 'predictions' },
+    iron_streak:   { icon: '\u26d3\ufe0f', label: 'Iron Streak',   desc: 'Every 14-day streak milestone your best-ever streak passes earns another tier.', tiered: true, tierSize: 14, tierUnit: 'day streak' }
   };
-  var __mqEarnedAchievementsCache = {}; // userId -> Set of already-earned keys, avoids a re-check query per hook
+  var TIERED_ACHIEVEMENT_KEYS = Object.keys(ACHIEVEMENTS).filter(function(k){ return ACHIEVEMENTS[k].tiered; });
+  var __mqEarnedAchievementsCache = {}; // userId -> { key: times_earned }, avoids a re-check query per hook
 
   async function mqAwardAchievement(userId, key){
     if(!userId || !ACHIEVEMENTS[key]) return;
-    if(!__mqEarnedAchievementsCache[userId]) __mqEarnedAchievementsCache[userId] = new Set();
-    if(__mqEarnedAchievementsCache[userId].has(key)) return; // already known-earned this session, skip the round trip
+    if(!__mqEarnedAchievementsCache[userId]) __mqEarnedAchievementsCache[userId] = {};
+    var known = __mqEarnedAchievementsCache[userId][key] || 0;
+
+    // One-time achievements: once we know it's earned, never re-check.
+    // Tiered achievements can always earn another tier, so they always
+    // re-check -- award_achievement is cheap and only writes when the
+    // tier has actually gone up.
+    if(!ACHIEVEMENTS[key].tiered && known > 0) return;
 
     try{
-      const { data: existing } = await sb.from('user_achievements').select('id').eq('user_id', userId).eq('achievement_key', key).maybeSingle();
-      if(existing){ __mqEarnedAchievementsCache[userId].add(key); return; }
+      if(!ACHIEVEMENTS[key].tiered){
+        const { data: existing } = await sb.from('user_achievements').select('id').eq('user_id', userId).eq('achievement_key', key).maybeSingle();
+        if(existing){ __mqEarnedAchievementsCache[userId][key] = 1; return; }
+      }
 
-      // The database verifies the badge is genuinely earned before recording it
-      // (award_achievement); direct inserts from the browser are disabled.
-      // Returns true only when the badge was newly awarded.
-      const { data: awarded, error } = await sb.rpc('award_achievement', { p_key: key });
+      // The database verifies the badge is genuinely earned (and computes
+      // the tier, for tiered ones) before recording it; direct inserts from
+      // the browser are disabled. Returns the new times_earned only when it
+      // just went up; null if nothing changed.
+      const { data: newTimesEarned, error } = await sb.rpc('award_achievement', { p_key: key });
       if(error) return; // function not created yet -- fail quietly, not user-facing
-      if(!awarded) return; // not earned yet, or already had it (race with another tab)
-      __mqEarnedAchievementsCache[userId].add(key);
-      mqShowAchievementToast(key);
+      if(!newTimesEarned || newTimesEarned <= known) return; // no change (or a race with another tab)
+      __mqEarnedAchievementsCache[userId][key] = newTimesEarned;
+      mqShowAchievementToast(key, newTimesEarned);
       // (Share prompts for Perfect Day / Rival Win are NOT fired from here:
       // a badge is earned once ever, but the prompt should fire on every
       // Perfect Day and every Showdown win. See loadShareCard and
@@ -706,19 +723,31 @@
     }catch(e){ /* decoration only -- never block the real action that triggered this */ }
   }
 
+  // Lifetime/tiered achievements aren't tied to one specific action the way
+  // Buddy Bonus or a Showdown win are -- they can tick up from something
+  // that happened elsewhere (an admin resolving a day, a streak update), so
+  // there's no single call site to hook. Call this wherever a good moment
+  // naturally comes up (sign-in, opening the profile) to catch tier-ups.
+  function mqCheckTieredAchievements(userId){
+    if(!userId) return;
+    TIERED_ACHIEVEMENT_KEYS.forEach(function(key){ mqAwardAchievement(userId, key); });
+  }
+
   // Small non-blocking toast, distinct from the bigger streak-milestone
   // overlay since these are meant to feel frequent and light, not a huge
   // interruption every time.
-  function mqShowAchievementToast(key){
+  function mqShowAchievementToast(key, timesEarned){
     var meta = ACHIEVEMENTS[key];
     if(!meta) return;
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var toast = document.createElement('div');
     toast.className = 'mq-achievement-toast';
+    var titleText = (meta.tiered && timesEarned > 1) ? 'Achievement upgraded' : 'Achievement unlocked';
     toast.innerHTML =
       '<span class="mq-ach-icon">' + meta.icon + '</span>' +
-      '<div><div class="mq-ach-title">Achievement unlocked</div><div class="mq-ach-label"></div></div>';
-    toast.querySelector('.mq-ach-label').textContent = meta.label;
+      '<div><div class="mq-ach-title"></div><div class="mq-ach-label"></div></div>';
+    toast.querySelector('.mq-ach-title').textContent = titleText;
+    toast.querySelector('.mq-ach-label').textContent = meta.label + (timesEarned > 1 ? ' ×' + timesEarned : '');
     document.body.appendChild(toast);
     requestAnimationFrame(function(){ toast.classList.add('on'); });
     var hide = function(){
@@ -888,18 +917,21 @@
     const achievementsGrid = document.getElementById('profile-achievements-grid');
     if(achievementsGrid){
       achievementsGrid.innerHTML = '';
-      let earnedKeys = {};
+      mqCheckTieredAchievements(session.user.id); // catch any tier-up since last visit before we render
+      let earnedTimes = {};
       try{
-        const { data: earnedRows } = await sb.from('user_achievements').select('achievement_key').eq('user_id', session.user.id);
-        (earnedRows || []).forEach(function(r){ earnedKeys[r.achievement_key] = true; });
+        const { data: earnedRows } = await sb.from('user_achievements').select('achievement_key, times_earned').eq('user_id', session.user.id);
+        (earnedRows || []).forEach(function(r){ earnedTimes[r.achievement_key] = r.times_earned || 1; });
       }catch(e){ /* table may not be migrated yet -- grid just shows everything as locked */ }
       Object.keys(ACHIEVEMENTS).forEach(function(key){
         const meta = ACHIEVEMENTS[key];
-        const earned = !!earnedKeys[key];
+        const times = earnedTimes[key] || 0;
+        const earned = times > 0;
         const badge = document.createElement('div');
         badge.className = 'mq-achievement-badge' + (earned ? ' earned' : '');
-        badge.title = meta.desc + (earned ? '' : ' (not yet earned)');
-        badge.innerHTML = '<span class="mq-ach-badge-icon">' + meta.icon + '</span><span class="mq-ach-badge-label"></span>';
+        badge.title = meta.desc + (earned ? (meta.tiered ? ' Tier ' + times + ' (' + (times * meta.tierSize) + '+ ' + meta.tierUnit + ').' : '') : ' (not yet earned)');
+        badge.innerHTML = '<span class="mq-ach-badge-icon">' + meta.icon + '</span><span class="mq-ach-badge-label"></span>' +
+          (earned && times > 1 ? '<span class="mq-ach-badge-count">×' + times + '</span>' : '');
         badge.querySelector('.mq-ach-badge-label').textContent = meta.label;
         achievementsGrid.appendChild(badge);
       });

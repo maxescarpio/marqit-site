@@ -763,13 +763,16 @@
 
   /* ---- Achievement badge grid in the profile modal ---- */
   .mq-achievements-grid{display:flex;flex-wrap:wrap;gap:10px;}
-  .mq-achievement-badge{display:flex;flex-direction:column;align-items:center;gap:6px;width:78px;padding:12px 6px;border-radius:14px;
+  .mq-achievement-badge{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;width:78px;padding:12px 6px;border-radius:14px;
     background:var(--panel);border:1px solid var(--line);text-align:center;}
   .mq-achievement-badge .mq-ach-badge-icon{font-size:26px;line-height:1;filter:grayscale(1);opacity:.35;}
   .mq-achievement-badge.earned{border-color:rgba(246,196,48,.5);background:radial-gradient(120% 140% at 50% 0%,rgba(246,196,48,.16),transparent 65%),var(--panel);}
   .mq-achievement-badge.earned .mq-ach-badge-icon{filter:none;opacity:1;}
   .mq-achievement-badge .mq-ach-badge-label{font-size:10px;font-weight:700;color:var(--ink-soft);line-height:1.25;}
   .mq-achievement-badge.earned .mq-ach-badge-label{color:var(--ink);}
+  .mq-ach-badge-count{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;
+    background:#F5C336;color:#1a1200;font-size:10px;font-weight:800;line-height:18px;text-align:center;
+    box-shadow:0 1px 3px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.4);}
   .milestone-confetti{position:absolute;inset:0;pointer-events:none;background:
     radial-gradient(circle, #33D18B 3px, transparent 4px) 10% 20%/40px 40px,
     radial-gradient(circle, #F5C336 3px, transparent 4px) 80% 15%/50px 50px,
