@@ -401,8 +401,17 @@
     const on = await mqIsGreekMode();
     const section = document.getElementById('greek-section');
     const createFields = document.getElementById('greek-create-fields');
+    const optInBtn = document.getElementById('greek-opt-in-btn');
+    const createBtn = document.getElementById('create-group-btn');
+    const nameInput = document.getElementById('group-name-input');
     if(section) section.style.display = on ? 'block' : 'none';
     if(createFields) createFields.style.display = on ? 'block' : 'none';
+    // Everyone else is just making a plain group -- only call it a "chapter"
+    // and show the Greek-specific example once they've actually flagged
+    // themselves as setting one up (or already belong to one).
+    if(optInBtn) optInBtn.style.display = on ? 'none' : '';
+    if(createBtn) createBtn.textContent = on ? 'Create chapter' : 'Create group';
+    if(nameInput) nameInput.placeholder = on ? 'chapter name (e.g. Sigma Chi – UF)' : 'group name (e.g. Roommates, Class of 2027)';
   }
 
   function mqGetReferralInfo(){
@@ -5527,6 +5536,10 @@
       greekOptInBtn.style.display = 'none';
       const fields = document.getElementById('greek-create-fields');
       if(fields) fields.style.display = 'block';
+      const createBtn = document.getElementById('create-group-btn');
+      if(createBtn) createBtn.textContent = 'Create chapter';
+      const nameInput = document.getElementById('group-name-input');
+      if(nameInput) nameInput.placeholder = 'chapter name (e.g. Sigma Chi – UF)';
       if(typeof mqApplyGreekVisibility === 'function') mqApplyGreekVisibility();
     });
   }

@@ -430,7 +430,7 @@
          as a way to peek at someone's pick before making your own. -->
     <div class="sec-head" style="margin-top:32px;"><span class="sec-ico" style="--rc:150,96,214;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L4 14h6l-1 7 9-11h-6z"/></svg></span><h3 class="ex-title">Recent Activity</h3></div>
     <div style="max-width:420px; margin-top:20px;" id="activity-feed-section">
-      <div id="activity-feed-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      <div id="activity-feed-list" style="display:flex; flex-direction:column; gap:8px; max-height:230px; overflow-y:auto; padding-right:2px; mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%); -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);"></div>
       <p class="ticket-meta" id="activity-feed-empty" style="display:none;">Add a buddy or rival to see their picks here.</p>
     </div>
     <template id="rival-duel-card-template">
@@ -551,7 +551,7 @@
 
     <div id="group-no-group" style="display:none; max-width:420px;">
       <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <input type="text" id="group-name-input" placeholder="group name (e.g. Sigma Chi &ndash; UF)" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
+        <input type="text" id="group-name-input" placeholder="group name (e.g. Roommates, Class of 2027)" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
       </div>
       <button type="button" id="greek-opt-in-btn" style="display:block; background:none; border:none; color:var(--ink-soft); font-size:12px; text-decoration:underline; padding:0; margin:-2px 0 10px; cursor:pointer;">Setting up a fraternity or sorority chapter?</button>
       <div id="greek-create-fields" style="display:none;">
@@ -565,7 +565,7 @@
         <p style="font-size:11.5px; color:var(--ink-soft); margin:-4px 0 10px;">School lets your chapter compete against other chapters at your school. National org rolls your chapter into a nationwide total against every other school's chapter of that same org. Letters show up as your badge everywhere on the site.</p>
       </div>
       <div style="display:flex; gap:8px; margin-bottom:10px;">
-        <button id="create-group-btn" style="flex:1; padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Create chapter</button>
+        <button id="create-group-btn" style="flex:1; padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Create group</button>
       </div>
       <div style="display:flex; gap:8px;">
         <input type="text" id="join-group-input" placeholder="invite code" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">

@@ -762,9 +762,9 @@
   @media (prefers-reduced-motion:reduce){.mq-achievement-toast{transition:none;}}
 
   /* ---- Achievement badge grid in the profile modal ---- */
-  .mq-achievements-grid{display:flex;flex-wrap:wrap;gap:8px;}
-  .mq-achievement-badge{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;width:68px;padding:11px 5px 8px;border-radius:13px;
-    background:var(--panel);border:1px solid var(--line);text-align:center;overflow:hidden;
+  .mq-achievements-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-width:420px;}
+  .mq-achievement-badge{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;padding:11px 4px 8px;border-radius:13px;
+    background:var(--panel);border:1px solid var(--line);text-align:center;overflow:hidden;box-sizing:border-box;
     transition:transform .18s var(--ease,ease),box-shadow .18s ease,border-color .18s ease;}
   .mq-achievement-badge .mq-ach-badge-icon{font-size:22px;line-height:1;filter:grayscale(1);opacity:.32;transition:filter .2s,opacity .2s,transform .2s;}
   .mq-achievement-badge.earned{border-color:rgba(246,196,48,.55);
