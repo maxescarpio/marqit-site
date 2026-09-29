@@ -685,7 +685,11 @@
     // predictions, a 42-day streak, etc. See award_achievement in Supabase.
     sharp_shooter: { icon: '\ud83c\udff9', label: 'Sharp Shooter', desc: 'Every 10 lifetime correct calls earns another tier.', tiered: true, tierSize: 10, tierUnit: 'correct calls' },
     century_club:  { icon: '\ud83d\udcaf', label: 'Century Club',  desc: 'Every 100 lifetime predictions earns another tier.', tiered: true, tierSize: 100, tierUnit: 'predictions' },
-    iron_streak:   { icon: '\u26d3\ufe0f', label: 'Iron Streak',   desc: 'Every 14-day streak milestone your best-ever streak passes earns another tier.', tiered: true, tierSize: 14, tierUnit: 'day streak' }
+    iron_streak:   { icon: '\u26d3\ufe0f', label: 'Iron Streak',   desc: 'Every 14-day streak milestone your best-ever streak passes earns another tier.', tiered: true, tierSize: 14, tierUnit: 'day streak' },
+    golden_touch:  { icon: '\u2b50',       label: 'Golden Touch',  desc: 'Every golden star you earn is its own tier.', tiered: true, tierSize: 1, tierUnit: 'golden star' },
+    speed_demon:   { icon: '\u26a1',       label: 'Speed Demon',   desc: 'Every 5 correct calls made during a drop bonus window earns another tier.', tiered: true, tierSize: 5, tierUnit: 'drop-bonus calls' },
+    point_baron:   { icon: '\ud83d\udc51', label: 'Point Baron',   desc: 'Every 1,000 lifetime points earns another tier.', tiered: true, tierSize: 1000, tierUnit: 'points' },
+    regular:       { icon: '\ud83d\udcc5', label: 'Regular',       desc: 'Every 30 days you\u2019ve made a pick earns another tier.', tiered: true, tierSize: 30, tierUnit: 'days played' }
   };
   var TIERED_ACHIEVEMENT_KEYS = Object.keys(ACHIEVEMENTS).filter(function(k){ return ACHIEVEMENTS[k].tiered; });
   var __mqEarnedAchievementsCache = {}; // userId -> { key: times_earned }, avoids a re-check query per hook

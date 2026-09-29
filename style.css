@@ -762,11 +762,11 @@
   @media (prefers-reduced-motion:reduce){.mq-achievement-toast{transition:none;}}
 
   /* ---- Achievement badge grid in the profile modal ---- */
-  .mq-achievements-grid{display:flex;flex-wrap:wrap;gap:12px;}
-  .mq-achievement-badge{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;width:86px;padding:16px 8px 12px;border-radius:16px;
+  .mq-achievements-grid{display:flex;flex-wrap:wrap;gap:8px;}
+  .mq-achievement-badge{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;width:68px;padding:11px 5px 8px;border-radius:13px;
     background:var(--panel);border:1px solid var(--line);text-align:center;overflow:hidden;
     transition:transform .18s var(--ease,ease),box-shadow .18s ease,border-color .18s ease;}
-  .mq-achievement-badge .mq-ach-badge-icon{font-size:30px;line-height:1;filter:grayscale(1);opacity:.32;transition:filter .2s,opacity .2s,transform .2s;}
+  .mq-achievement-badge .mq-ach-badge-icon{font-size:22px;line-height:1;filter:grayscale(1);opacity:.32;transition:filter .2s,opacity .2s,transform .2s;}
   .mq-achievement-badge.earned{border-color:rgba(246,196,48,.55);
     background:radial-gradient(120% 140% at 50% -10%,rgba(246,196,48,.22),transparent 60%),var(--panel);
     box-shadow:0 0 0 1px rgba(246,196,48,.18) inset,0 10px 22px -14px rgba(246,196,48,.65);}
@@ -775,14 +775,14 @@
     transform:translateX(-140%) rotate(8deg);animation:achSheen 4.5s ease-in-out 1.2s infinite;pointer-events:none;}
   .mq-achievement-badge.earned .mq-ach-badge-icon{filter:none;opacity:1;transform:scale(1.05);
     filter:drop-shadow(0 2px 6px rgba(246,196,48,.5));}
-  .mq-achievement-badge .mq-ach-badge-label{font-size:10.5px;font-weight:700;color:var(--ink-soft);line-height:1.25;}
+  .mq-achievement-badge .mq-ach-badge-label{font-size:9px;font-weight:700;color:var(--ink-soft);line-height:1.2;}
   .mq-achievement-badge.earned .mq-ach-badge-label{color:var(--ink);}
   .mq-achievement-badge:hover{transform:translateY(-2px);}
   .mq-achievement-badge.earned:hover{box-shadow:0 0 0 1px rgba(246,196,48,.3) inset,0 14px 28px -14px rgba(246,196,48,.8);}
   @keyframes achSheen{0%,18%{transform:translateX(-140%) rotate(8deg);}38%,100%{transform:translateX(240%) rotate(8deg);}}
   @media (prefers-reduced-motion:reduce){.mq-achievement-badge.earned::before{animation:none;display:none;}}
-  .mq-ach-badge-count{position:absolute;top:8px;right:8px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;
-    background:linear-gradient(135deg,#FFDD7A,#F5C336);color:#3a2600;font-size:10.5px;font-weight:800;line-height:19px;text-align:center;
+  .mq-ach-badge-count{position:absolute;top:5px;right:5px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;
+    background:linear-gradient(135deg,#FFDD7A,#F5C336);color:#3a2600;font-size:9px;font-weight:800;line-height:16px;text-align:center;
     box-shadow:0 2px 5px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.55);z-index:1;}
   .milestone-confetti{position:absolute;inset:0;pointer-events:none;background:
     radial-gradient(circle, #33D18B 3px, transparent 4px) 10% 20%/40px 40px,
