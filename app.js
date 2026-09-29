@@ -4876,11 +4876,18 @@
 
   function getWeekStart(){
     const et = getETDateInfo();
-    const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-    const day = weekdayMap[et.weekday];
-    const diffToMonday = (day === 0) ? 6 : day - 1;
     const parts = et.dateStr.split('-').map(Number);
-    const monday = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    let monday = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    // Some older/odd browsers return unexpected date text, which made this an
+    // invalid date and crashed toISOString(). Fall back to today's UTC date.
+    if(isNaN(monday.getTime())){
+      const now = new Date();
+      monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    }
+    // Work out the weekday from the date itself (0 = Sunday) instead of trusting
+    // the browser's weekday text, so it can't come back undefined.
+    const day = monday.getUTCDay();
+    const diffToMonday = (day === 0) ? 6 : day - 1;
     monday.setUTCDate(monday.getUTCDate() - diffToMonday);
     return monday.toISOString().slice(0, 10);
   }
@@ -5945,8 +5952,10 @@
       document.querySelectorAll('.pagenav-tab').forEach(function(t){ t.classList.remove('active'); });
       this.classList.add('active');
       var target = this.getAttribute('data-page');
+      var targetPage = document.getElementById('page-' + target);
+      if(!targetPage) return; // tab points at a page that doesn't exist -- do nothing instead of crashing
       document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
-      document.getElementById('page-' + target).style.display = 'block';
+      targetPage.style.display = 'block';
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   });
