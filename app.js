@@ -496,6 +496,16 @@
       else localStorage.removeItem('mq_guest_picks');
     }catch(e){}
   }
+  function mqGuestDeviceId(){
+    try{
+      let id = localStorage.getItem('mq_guest_device');
+      if(!id){
+        id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){ var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+        localStorage.setItem('mq_guest_device', id);
+      }
+      return id;
+    }catch(e){ return null; }
+  }
   async function mqGoogleSignIn(msgEl){
     pendingSignupSource = 'organic';
     try{ sessionStorage.setItem('marqit_pending_signup_source', pendingSignupSource); }catch(e){}
@@ -3929,7 +3939,7 @@
               const { data: already } = await sb.from('predictions').select('question_id').eq('user_id', session.user.id).in('question_id', questions.map(function(q){ return q.id; })).limit(1);
               if(!already || already.length === 0){
                 const subRes = await sb.rpc('submit_daily_predictions', { p_answers: open.map(function(q){ return { question_id: q.id, choice: guest.picks[q.id] }; }) });
-                if(subRes && !subRes.error){ mqGuestWelcome = true; mqTrack('guest_picks_saved_after_signup'); }
+                if(subRes && !subRes.error){ mqGuestWelcome = true; mqTrack('guest_picks_saved_after_signup'); try{ const dv = mqGuestDeviceId(); if(dv) await sb.rpc('claim_guest_predictions', { p_device_id: dv }); }catch(e){} }
               }
             }
           }
@@ -4233,10 +4243,17 @@
             });
           });
         });
-        gBtn.addEventListener('click', function(){
+        gBtn.addEventListener('click', async function(){
           if(!guestQs.every(function(p){ return !!guestSel[p.q.id]; })) return;
+          gBtn.disabled = true; gBtn.textContent = 'Saving\u2026';
           mqTrack('guest_submit_picks');
           mqSetGuestPicks(effectiveDate, guestSel);
+          // Count the pick in the crowd. Best effort: if it fails (or the server
+          // side isn't set up yet) the guest still sees their results.
+          try{
+            const dev = mqGuestDeviceId();
+            if(dev) await sb.rpc('submit_guest_predictions', { p_device_id: dev, p_answers: guestQs.map(function(p){ return { question_id: p.q.id, choice: guestSel[p.q.id] }; }) });
+          }catch(e){}
           loadDailyQuestions(); // re-render with the crowd results showing
         });
         updateGuestState();
