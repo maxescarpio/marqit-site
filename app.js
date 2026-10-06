@@ -3924,6 +3924,24 @@
     const { data: sessionRes } = await sb.auth.getSession();
     const session = sessionRes && sessionRes.session;
 
+    // Guest with saved picks: make sure the server has them (idempotent upsert),
+    // so they count in the crowd even if an earlier submit didn't reach it.
+    // Retried on every load until it succeeds; remembered per set of picks.
+    if(!session){
+      try{
+        const gp = mqGetGuestPicks(effectiveDate);
+        const syncable = questions.filter(function(q){ return new Date() < new Date(q.lock_time) && (gp[q.id] === 'yes' || gp[q.id] === 'no'); });
+        const dev = mqGuestDeviceId();
+        if(dev && syncable.length){
+          const sig = 'mq_guest_synced_' + syncable.map(function(q){ return q.id + gp[q.id]; }).join('|');
+          if(!localStorage.getItem(sig)){
+            const { error: gErr } = await sb.rpc('submit_guest_predictions', { p_device_id: dev, p_answers: syncable.map(function(q){ return { question_id: q.id, choice: gp[q.id] }; }) });
+            if(!gErr) localStorage.setItem(sig, '1');
+          }
+        }
+      }catch(e){}
+    }
+
     // Picks a visitor made before signing up: once they have a session, submit
     // them through the same server-side RPC (it still enforces lock times), but
     // only if they haven't already made calls on this set. Cleared either way.
