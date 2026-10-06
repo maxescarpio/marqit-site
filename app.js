@@ -449,7 +449,7 @@
     resetAuthPanelToForm();
     authPanel.style.display = 'block';
   }
-  document.getElementById('nav-login-btn').addEventListener('click', function(){ openAuthPanel('signup'); });
+  document.getElementById('nav-login-btn').addEventListener('click', function(){ openAuthPanel('login'); });
   document.getElementById('nav-signup-btn').addEventListener('click', function(){ openAuthPanel('signup'); });
   document.getElementById('auth-panel-close').addEventListener('click', function(){ authPanel.style.display = 'none'; resetAuthPanelToForm(); });
   const ctaOpenBtn = document.getElementById('cta-open-signup');
