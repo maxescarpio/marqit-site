@@ -1361,6 +1361,8 @@
   });
 
   document.getElementById('buddy-active-list').addEventListener('click', async function(e){
+    const remindBtn = e.target.closest('.remind-btn');
+    if(remindBtn){ mqRemindFriend(remindBtn, document.getElementById('buddy-msg')); return; }
     const btn = e.target.closest('.remove-buddy-btn');
     if(!btn) return;
     await sb.rpc('remove_buddy', { p_buddy_id: btn.getAttribute('data-buddy-id') });
@@ -1389,7 +1391,10 @@
       const name = r.profiles ? escapeHtml(r.profiles.username) : 'them';
       return '<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--yes-bg); border:1px solid var(--yes); border-radius:10px; padding:12px 14px;">' +
         '<span style="font-size:13.5px; color:var(--yes);">Buddy: <strong>' + name + '</strong></span>' +
-        '<button type="button" class="remove-buddy-btn" data-buddy-id="' + r.buddy_id + '" style="padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:none; color:var(--ink-soft); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Remove</button>' +
+        '<span style="display:flex; gap:6px; flex:none;">' +
+          '<button type="button" class="remind-btn" data-user-id="' + r.buddy_id + '" data-username="' + name + '" style="padding:6px 12px; border:1px solid var(--yes); border-radius:8px; background:none; color:var(--yes); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Remind</button>' +
+          '<button type="button" class="remove-buddy-btn" data-buddy-id="' + r.buddy_id + '" style="padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:none; color:var(--ink-soft); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Remove</button>' +
+        '</span>' +
       '</div>';
     }).join('');
 
@@ -1445,6 +1450,14 @@
   // Remove + activate both live inside dynamically-rendered duel cards, so
   // one delegated listener on the list container handles every card.
   document.getElementById('rival-active-list').addEventListener('click', async function(e){
+    const remindBtn = e.target.closest('.remind-btn');
+    if(remindBtn){
+      const rc = remindBtn.closest('.rival-duel-card');
+      remindBtn.setAttribute('data-user-id', rc.getAttribute('data-rival-id'));
+      remindBtn.setAttribute('data-username', rc.querySelector('.rival-active-name').textContent);
+      mqRemindFriend(remindBtn, document.getElementById('rival-msg'));
+      return;
+    }
     const removeBtn = e.target.closest('.remove-rival-btn');
     if(removeBtn){
       const card = removeBtn.closest('.rival-duel-card');
@@ -2326,11 +2339,92 @@
     }catch(e){ /* native push not available on this build/device -- ignore */ }
   }
 
+  // ---- Remind a friend to place their predictions -------------------------
+  // Sender taps "Remind" on a buddy, rival or Friends-board row. The send_nudge
+  // RPC does every check server-side (must be buddy/rival, one per friend per
+  // day, friend hasn't already picked, calls not locked). On "sent" we also ask
+  // the push-nudge function to push it to the friend's devices if they have push
+  // on. Friends without push see an in-app banner next time they open Marqit.
+  async function mqRemindFriend(btn, msgEl){
+    if(btn.disabled) return;
+    var toId = btn.getAttribute('data-user-id');
+    var name = btn.getAttribute('data-username') || 'your friend';
+    var orig = btn.textContent;
+    function say(text, ok){
+      if(!msgEl) return;
+      msgEl.className = 'form-msg ' + (ok ? 'ok' : 'err');
+      msgEl.textContent = text;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    var res = await sb.rpc('send_nudge', { p_to_user_id: toId });
+    if(res.error){
+      btn.disabled = false;
+      btn.textContent = orig;
+      say('Could not send the reminder — try again.', false);
+      return;
+    }
+    var d = res.data || {};
+    if(d.status === 'sent'){
+      btn.textContent = 'Sent ✓';
+      say('Reminder sent to ' + name + '.', true);
+      mqTrack('friend_remind_sent');
+      try{
+        var p = sb.functions.invoke('push-nudge', { body: { nudge_id: d.nudge_id } });
+        if(p && p.catch) p.catch(function(){});
+      }catch(e){ /* push is best-effort; the in-app banner still works */ }
+    }else if(d.status === 'already_sent'){
+      btn.textContent = 'Reminded today';
+      say('You already reminded ' + name + ' today.', false);
+    }else if(d.status === 'already_picked'){
+      btn.textContent = 'Already picked ✓';
+      say(name + ' already made their picks today.', true);
+    }else if(d.status === 'limit'){
+      btn.textContent = 'Reminded today';
+      say(name + ' has had plenty of reminders today.', false);
+    }else{
+      btn.disabled = false;
+      btn.textContent = orig;
+      say('Today’s calls are locked. Try again tomorrow.', false);
+    }
+  }
+
+  // Banner shown to the friend: "<username> is reminding you to place your
+  // predictions on Marqit." Server hides it once they've picked everything.
+  async function mqLoadNudgeBanner(){
+    try{
+      var s = await sb.auth.getSession();
+      if(!(s.data && s.data.session)) return;
+      var res = await sb.rpc('get_my_nudges');
+      var old = document.getElementById('mq-nudge-banner');
+      if(old) old.remove();
+      var rows = res.data || [];
+      if(!rows.length) return;
+      var names = [];
+      rows.forEach(function(r){ if(r.from_username && names.indexOf(r.from_username) < 0) names.push(r.from_username); });
+      if(!names.length) return;
+      var who = names.length === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+      var el = document.createElement('div');
+      el.id = 'mq-nudge-banner';
+      el.setAttribute('role', 'status');
+      el.innerHTML = '<span class="mq-nudge-text"><strong>' + escapeHtml(who) + '</strong> ' + (names.length === 1 ? 'is' : 'are') + ' reminding you to place your predictions on Marqit.</span>' +
+        '<button type="button" class="mq-nudge-go">Make my picks</button>' +
+        '<button type="button" class="mq-nudge-x" aria-label="Dismiss">×</button>';
+      document.body.appendChild(el);
+      var dismiss = function(){ el.remove(); sb.rpc('mark_nudges_seen'); };
+      el.querySelector('.mq-nudge-go').addEventListener('click', function(){ dismiss(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+      el.querySelector('.mq-nudge-x').addEventListener('click', dismiss);
+      mqTrack('friend_remind_banner_shown');
+    }catch(e){ /* never break the page over a banner */ }
+  }
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) mqLoadNudgeBanner(); });
+
   sb.auth.onAuthStateChange(async function(event, session){
     if(event === 'SIGNED_IN' && session && session.user){
       const profileResult = await ensureProfile(session.user);
       if(profileResult === 'BANNED') return;
       showSignedIn(profileResult.username || 'you', profileResult.needsUsername);
+      mqLoadNudgeBanner();
       mqRegisterPushToken(session.user.id);
       if(typeof mqApplyGreekVisibility === 'function') mqApplyGreekVisibility();
       if(typeof autoJoinFromUrl === 'function') autoJoinFromUrl(); // picks up a stashed ?group= invite code now that we have a session
@@ -2378,6 +2472,7 @@
       ensureProfile(session.user).then(function(profileResult){
         if(profileResult === 'BANNED') return;
         showSignedIn(profileResult.username || 'you', profileResult.needsUsername);
+        mqLoadNudgeBanner();
       });
     }
   });
@@ -4708,7 +4803,7 @@
     return '<span class="lb-rankchg ' + (d > 0 ? 'up' : 'down') + '">' + mqIcon(d > 0 ? 'arrowUp' : 'arrowDown') + Math.abs(d) + '</span>';
   }
 
-  async function mqBoardRows(list, myId, showRankChange){
+  async function mqBoardRows(list, myId, showRankChange, remindIds){
     var frameSet = await mqFrameSet();
     var championSet = await mqChampionSet();
     var rankMap = showRankChange ? await mqRankMap() : null;
@@ -4726,6 +4821,7 @@
         '<i class="lb-av' + (framed ? ' has-frame' : '') + (champ ? ' has-champion-frame' : '') + '" style="background:' + color + ';" title="' + (champ ? 'Marqit Champion' : '') + '">' + escapeHtml(face) + (champ ? '<span class="champ-crown" aria-hidden="true">&#128081;</span>' : '') + '</i>' +
         '<span class="lb-name"><span class="lb-name-text">' + escapeHtml(r.username || 'player') + '</span>' + (mine ? '<em class="lb-you">You</em>' : '') + streak + rankChg + '</span>' +
         '<span class="lb-pts"><b>' + Number(r.points || 0).toLocaleString() + '</b><small>pts</small></span>' +
+        ((!mine && remindIds && r.user_id && remindIds.has(r.user_id)) ? '<button type="button" class="remind-btn lb-remind-btn" data-user-id="' + escapeHtml(r.user_id) + '" data-username="' + escapeHtml(r.username || 'your friend') + '">Remind</button>' : '') +
       '</div>';
     }).join('');
   }
@@ -4785,9 +4881,15 @@
     el.innerHTML = await mqBoardRows(ranked.map(function(row){
       const p = row.profiles || {};
       return { user_id: row.user_id, username: p.username, avatar_emoji: p.avatar_emoji, avatar_color: p.avatar_color, points: row.total_points, streak: row.current_streak };
-    }), myId, false);
+    }), myId, false, new Set(ids));
   }
   (function(){
+    // One delegated listener for the "Remind" buttons on the Friends board.
+    var boardEl = document.getElementById('big-board-rows');
+    if(boardEl) boardEl.addEventListener('click', function(e){
+      var b = e.target.closest('.remind-btn');
+      if(b) mqRemindFriend(b, null);
+    });
     var tabs = document.getElementById('lb-scope-tabs');
     if(!tabs) return;
     tabs.addEventListener('click', function(e){
