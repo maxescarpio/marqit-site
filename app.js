@@ -682,6 +682,7 @@
   function showSignedIn(username, needsUsername){
     document.getElementById('nav-signed-out').style.display = 'none';
     document.getElementById('nav-signed-in').style.display = 'flex';
+    const guestNote = document.getElementById('hero-guest-note'); if(guestNote) guestNote.style.display = 'none';
     document.getElementById('auth-panel').style.display = 'none';
     const navUsername = document.getElementById('nav-username');
     // Never surface the auto-generated "user_xxxxxxxx" placeholder -- if this
