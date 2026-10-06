@@ -2482,7 +2482,7 @@
       el.id = 'mq-push-ask';
       el.setAttribute('role', 'dialog');
       el.innerHTML = '<div class="mq-push-text"><strong>' + (afterSubmit ? 'Get your results the minute they’re in' : 'Turn on notifications?') + '</strong>' +
-        '<span>' + (afterSubmit ? 'We’ll let you know when today’s calls are scored, and when a friend reminds you to play.' : 'Get a heads-up when today’s calls are up, and when a friend reminds you to play.') + ' You can turn it off any time in settings.</span></div>' +
+        '<span>' + (afterSubmit ? 'We’ll let you know when today’s calls are scored, and when a friend reminds you to play.' : 'Get notified once today’s calls are available. Stay in touch with buddies and rivals.') + ' You can turn it off any time in settings.</span></div>' +
         '<button type="button" class="mq-push-yes">Turn on notifications</button>' +
         '<button type="button" class="mq-push-no">Not now</button>';
       document.body.appendChild(el);
