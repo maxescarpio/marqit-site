@@ -2419,12 +2419,82 @@
   }
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) mqLoadNudgeBanner(); });
 
+  // ---- Ask for push notifications right after sign-in ----------------------
+  // Browsers never allow a site to switch push on silently: the person has to
+  // tap Allow on the browser's own popup, and that popup only works from a tap.
+  // So "on by default" = we ask once, up front, with a single big "Turn on"
+  // button. They can turn it off any time in settings. Asked once per person per
+  // device (flag in localStorage); "Not now" is respected.
+  async function mqTurnOnPush(userId){
+    const registration = await swRegistrationPromise;
+    if(!registration || typeof Notification === 'undefined' || !Notification.requestPermission) return 'unsupported';
+    let perm;
+    try{ perm = await Notification.requestPermission(); }catch(e){ return 'unsupported'; }
+    if(perm !== 'granted') return 'blocked';
+    let subscription;
+    try{
+      subscription = await registration.pushManager.getSubscription();
+      if(!subscription){
+        subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+      }
+    }catch(e){ return 'error'; }
+    const subJson = subscription.toJSON();
+    const { error: subError } = await sb.from('push_subscriptions').upsert({
+      user_id: userId, endpoint: subJson.endpoint, p256dh: subJson.keys.p256dh, auth: subJson.keys.auth
+    }, { onConflict: 'endpoint' });
+    if(subError) return 'error';
+    const { error } = await sb.from('profiles').update({ notify_push: true }).eq('id', userId);
+    if(error) return 'error';
+    if(typeof setNotifyPushBtn === 'function') setNotifyPushBtn(true);
+    return 'ok';
+  }
+
+  async function mqMaybeAskPush(){
+    try{
+      if(typeof Notification === 'undefined' || Notification.permission === 'denied') return;
+      var s = await sb.auth.getSession();
+      var session = s.data && s.data.session;
+      if(!session) return;
+      var flag = 'mq_push_asked_' + session.user.id;
+      try{ if(localStorage.getItem(flag)) return; }catch(e){}
+      if(document.getElementById('mq-push-ask')) return;
+      var prof = await sb.from('profiles').select('notify_push').eq('id', session.user.id).maybeSingle();
+      if(!prof.data || prof.data.notify_push) return;
+      var el = document.createElement('div');
+      el.id = 'mq-push-ask';
+      el.setAttribute('role', 'dialog');
+      el.innerHTML = '<div class="mq-push-text"><strong>Turn on notifications?</strong><span>Get a heads-up when today’s calls are up, and when a friend reminds you to play. You can turn it off any time in settings.</span></div>' +
+        '<div class="mq-push-btns"><button type="button" class="mq-push-yes">Turn on</button><button type="button" class="mq-push-no">Not now</button></div>';
+      document.body.appendChild(el);
+      var done = function(){ try{ localStorage.setItem(flag, '1'); }catch(e){} el.remove(); };
+      el.querySelector('.mq-push-no').addEventListener('click', function(){ mqTrack('push_ask_declined'); done(); });
+      el.querySelector('.mq-push-yes').addEventListener('click', async function(){
+        this.disabled = true;
+        this.textContent = 'One sec…';
+        var r = await mqTurnOnPush(session.user.id);
+        mqTrack('push_ask_result', { result: r });
+        if(r === 'ok'){
+          el.querySelector('.mq-push-text').innerHTML = '<strong>Notifications are on.</strong><span>You can turn them off any time in settings.</span>';
+          el.querySelector('.mq-push-btns').remove();
+          try{ localStorage.setItem(flag, '1'); }catch(e){}
+          setTimeout(function(){ el.remove(); }, 2500);
+        }else{
+          el.querySelector('.mq-push-text').innerHTML = '<strong>Couldn’t turn them on.</strong><span>' + (r === 'blocked' ? 'Notifications are blocked in your browser settings.' : 'Your browser may not support it. You can try again in settings.') + '</span>';
+          el.querySelector('.mq-push-btns').remove();
+          try{ localStorage.setItem(flag, '1'); }catch(e){}
+          setTimeout(function(){ el.remove(); }, 4500);
+        }
+      });
+    }catch(e){ /* never break the page over a prompt */ }
+  }
+
   sb.auth.onAuthStateChange(async function(event, session){
     if(event === 'SIGNED_IN' && session && session.user){
       const profileResult = await ensureProfile(session.user);
       if(profileResult === 'BANNED') return;
       showSignedIn(profileResult.username || 'you', profileResult.needsUsername);
       mqLoadNudgeBanner();
+      setTimeout(mqMaybeAskPush, 2500);
       mqRegisterPushToken(session.user.id);
       if(typeof mqApplyGreekVisibility === 'function') mqApplyGreekVisibility();
       if(typeof autoJoinFromUrl === 'function') autoJoinFromUrl(); // picks up a stashed ?group= invite code now that we have a session
@@ -2473,6 +2543,7 @@
         if(profileResult === 'BANNED') return;
         showSignedIn(profileResult.username || 'you', profileResult.needsUsername);
         mqLoadNudgeBanner();
+        setTimeout(mqMaybeAskPush, 2500);
       });
     }
   });
