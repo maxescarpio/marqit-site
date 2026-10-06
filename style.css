@@ -245,9 +245,8 @@
   #mq-push-ask{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:9998;width:calc(100% - 32px);max-width:460px;display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:12px;background:var(--panel);color:var(--ink);border:1.5px solid var(--line);box-shadow:0 8px 28px rgba(0,0,0,.28);font-size:13.5px;line-height:1.4;}
   #mq-push-ask .mq-push-text{display:flex;flex-direction:column;gap:3px;}
   #mq-push-ask .mq-push-text span{color:var(--ink-soft);font-size:12.5px;}
-  #mq-push-ask .mq-push-btns{display:flex;gap:8px;}
-  #mq-push-ask .mq-push-yes{flex:1;padding:10px 14px;border:none;border-radius:8px;background:var(--yes);color:#06210f;font-weight:700;font-size:13.5px;cursor:pointer;}
-  #mq-push-ask .mq-push-no{padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:none;color:var(--ink-soft);font-weight:600;font-size:13.5px;cursor:pointer;}
+  #mq-push-ask .mq-push-yes{width:100%;padding:12px 14px;border:none;border-radius:10px;background:var(--yes);color:#06210f;font-weight:700;font-size:14.5px;cursor:pointer;}
+  #mq-push-ask .mq-push-no{align-self:center;padding:2px 8px;border:none;background:none;color:var(--ink-soft);font-weight:500;font-size:12px;text-decoration:underline;cursor:pointer;opacity:.8;}
   #mq-nudge-banner .mq-nudge-x{flex:none;border:none;background:none;color:var(--ink-soft);font-size:20px;line-height:1;cursor:pointer;padding:2px 4px;}
   .brow.lb.mine{box-shadow:inset 0 0 0 1.5px rgba(51,209,139,.6);}
   /* ---- Subject badge strip (Pop culture / News) ---- */

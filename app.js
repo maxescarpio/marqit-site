@@ -2449,41 +2449,58 @@
     return 'ok';
   }
 
-  async function mqMaybeAskPush(){
+  // Ask schedule: the first ask comes at sign-in; every later ask comes right
+  // after they submit their picks (the moment they care most). A "Not now" is
+  // not final -- we ask again on a later day, up to 4 asks total, never twice in
+  // one day. Turning it on (or the browser blocking it) ends the asking.
+  function mqPushAskState(uid){
+    try{ return JSON.parse(localStorage.getItem('mq_push_ask_' + uid) || '{}') || {}; }catch(e){ return {}; }
+  }
+  function mqPushAskSave(uid, st){ try{ localStorage.setItem('mq_push_ask_' + uid, JSON.stringify(st)); }catch(e){} }
+
+  async function mqMaybeAskPush(moment){
     try{
+      moment = moment || 'signin';
       if(typeof Notification === 'undefined' || Notification.permission === 'denied') return;
       var s = await sb.auth.getSession();
       var session = s.data && s.data.session;
       if(!session) return;
-      var flag = 'mq_push_asked_' + session.user.id;
-      try{ if(localStorage.getItem(flag)) return; }catch(e){}
+      var uid = session.user.id;
+      var st = mqPushAskState(uid);
+      var count = st.count || 0;
+      var todayKey = new Date().toISOString().slice(0, 10);
+      if(count >= 4 || st.done || st.day === todayKey) return;
+      if(moment === 'signin' && count > 0) return; // repeat asks only come after submitting picks
       if(document.getElementById('mq-push-ask')) return;
-      var prof = await sb.from('profiles').select('notify_push').eq('id', session.user.id).maybeSingle();
+      var prof = await sb.from('profiles').select('notify_push').eq('id', uid).maybeSingle();
       if(!prof.data || prof.data.notify_push) return;
+      st.count = count + 1; st.day = todayKey;
+      mqPushAskSave(uid, st);
+
+      var afterSubmit = moment === 'after_submit';
       var el = document.createElement('div');
       el.id = 'mq-push-ask';
       el.setAttribute('role', 'dialog');
-      el.innerHTML = '<div class="mq-push-text"><strong>Turn on notifications?</strong><span>Get a heads-up when today’s calls are up, and when a friend reminds you to play. You can turn it off any time in settings.</span></div>' +
-        '<div class="mq-push-btns"><button type="button" class="mq-push-yes">Turn on</button><button type="button" class="mq-push-no">Not now</button></div>';
+      el.innerHTML = '<div class="mq-push-text"><strong>' + (afterSubmit ? 'Get your results the minute they’re in' : 'Turn on notifications?') + '</strong>' +
+        '<span>' + (afterSubmit ? 'We’ll let you know when today’s calls are scored, and when a friend reminds you to play.' : 'Get a heads-up when today’s calls are up, and when a friend reminds you to play.') + ' You can turn it off any time in settings.</span></div>' +
+        '<button type="button" class="mq-push-yes">Turn on notifications</button>' +
+        '<button type="button" class="mq-push-no">Not now</button>';
       document.body.appendChild(el);
-      var done = function(){ try{ localStorage.setItem(flag, '1'); }catch(e){} el.remove(); };
-      el.querySelector('.mq-push-no').addEventListener('click', function(){ mqTrack('push_ask_declined'); done(); });
+      mqTrack('push_ask_shown', { moment: moment, n: st.count });
+      el.querySelector('.mq-push-no').addEventListener('click', function(){ mqTrack('push_ask_declined', { moment: moment }); el.remove(); });
       el.querySelector('.mq-push-yes').addEventListener('click', async function(){
         this.disabled = true;
         this.textContent = 'One sec…';
-        var r = await mqTurnOnPush(session.user.id);
-        mqTrack('push_ask_result', { result: r });
-        if(r === 'ok'){
-          el.querySelector('.mq-push-text').innerHTML = '<strong>Notifications are on.</strong><span>You can turn them off any time in settings.</span>';
-          el.querySelector('.mq-push-btns').remove();
-          try{ localStorage.setItem(flag, '1'); }catch(e){}
-          setTimeout(function(){ el.remove(); }, 2500);
-        }else{
-          el.querySelector('.mq-push-text').innerHTML = '<strong>Couldn’t turn them on.</strong><span>' + (r === 'blocked' ? 'Notifications are blocked in your browser settings.' : 'Your browser may not support it. You can try again in settings.') + '</span>';
-          el.querySelector('.mq-push-btns').remove();
-          try{ localStorage.setItem(flag, '1'); }catch(e){}
-          setTimeout(function(){ el.remove(); }, 4500);
-        }
+        var r = await mqTurnOnPush(uid);
+        mqTrack('push_ask_result', { result: r, moment: moment });
+        st.done = true; mqPushAskSave(uid, st);
+        var msg = r === 'ok'
+          ? '<strong>Notifications are on.</strong><span>You can turn them off any time in settings.</span>'
+          : '<strong>Couldn’t turn them on.</strong><span>' + (r === 'blocked' ? 'Notifications are blocked in your browser settings.' : 'Your browser may not support it. You can try again in settings.') + '</span>';
+        el.querySelector('.mq-push-text').innerHTML = msg;
+        el.querySelector('.mq-push-yes').remove();
+        el.querySelector('.mq-push-no').remove();
+        setTimeout(function(){ el.remove(); }, r === 'ok' ? 2500 : 4500);
       });
     }catch(e){ /* never break the page over a prompt */ }
   }
@@ -2494,7 +2511,7 @@
       if(profileResult === 'BANNED') return;
       showSignedIn(profileResult.username || 'you', profileResult.needsUsername);
       mqLoadNudgeBanner();
-      setTimeout(mqMaybeAskPush, 2500);
+      setTimeout(function(){ mqMaybeAskPush('signin'); }, 2500);
       mqRegisterPushToken(session.user.id);
       if(typeof mqApplyGreekVisibility === 'function') mqApplyGreekVisibility();
       if(typeof autoJoinFromUrl === 'function') autoJoinFromUrl(); // picks up a stashed ?group= invite code now that we have a session
@@ -2543,7 +2560,7 @@
         if(profileResult === 'BANNED') return;
         showSignedIn(profileResult.username || 'you', profileResult.needsUsername);
         mqLoadNudgeBanner();
-        setTimeout(mqMaybeAskPush, 2500);
+        setTimeout(function(){ mqMaybeAskPush('signin'); }, 2500);
       });
     }
   });
@@ -4653,6 +4670,8 @@
           });
           if(justGotBuddyMatch) mqAwardAchievement(session.user.id, 'buddy_bonus');
         }
+
+        setTimeout(function(){ mqMaybeAskPush('after_submit'); }, 2200);
 
         // ---- Celebration: "N of N locked in" banner + a little pop on each just-submitted card ----
         (function(){
