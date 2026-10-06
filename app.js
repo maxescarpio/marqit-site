@@ -474,6 +474,48 @@
     if(!clickedInsidePanel && !clickedNavButton){ authPanel.style.display = 'none'; }
   });
 
+  // Analytics helper: fire a GA4 event if gtag is there, never throw.
+  // Set once a visitor's pre-signup picks have been saved, so the welcome note
+  // survives the second render that sign-in triggers.
+  var mqGuestWelcome = false;
+  function mqTrack(name, params){ try{ if(typeof gtag === 'function') gtag('event', name, params || {}); }catch(e){} }
+
+  // ---- Guest play: no account needed to play, submit and see the crowd. ----
+  // A guest's picks live in localStorage (not the database). If they later
+  // make an account, loadDailyQuestions submits them for real.
+  function mqGetGuestPicks(date){
+    try{
+      const saved = JSON.parse(localStorage.getItem('mq_guest_picks') || 'null');
+      if(saved && saved.date === date && saved.picks) return saved.picks;
+    }catch(e){}
+    return {};
+  }
+  function mqSetGuestPicks(date, picks){
+    try{
+      if(picks && Object.keys(picks).length) localStorage.setItem('mq_guest_picks', JSON.stringify({ date: date, picks: picks }));
+      else localStorage.removeItem('mq_guest_picks');
+    }catch(e){}
+  }
+  async function mqGoogleSignIn(msgEl){
+    pendingSignupSource = 'organic';
+    try{ sessionStorage.setItem('marqit_pending_signup_source', pendingSignupSource); }catch(e){}
+    const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
+    if(error && msgEl){ msgEl.className = 'form-msg err'; msgEl.textContent = 'Could not start Google sign-in \u2014 try again.'; }
+  }
+  // Share before signing up: plain text + link (the picture cards need an account).
+  async function mqShareGuestPicks(summary, msgEl){
+    const lines = summary.map(function(r){ return (r.choice === 'yes' ? 'YES' : 'NO') + ' \u2014 ' + r.text; }).join('\n');
+    const url = 'https://playmarqit.com/';
+    const text = 'My Marqit picks today:\n' + lines + '\nThink I\u2019m wrong? Pick yours.';
+    mqTrack('guest_share_click');
+    if(navigator.share){
+      try{ await navigator.share({ text: text, url: url }); }catch(e){ /* canceled */ }
+      return;
+    }
+    try{ await navigator.clipboard.writeText(text + ' ' + url); msgEl.className = 'form-msg ok'; msgEl.textContent = 'Copied. Paste it anywhere.'; }
+    catch(e){ msgEl.className = 'form-msg err'; msgEl.textContent = 'Could not copy \u2014 try again.'; }
+  }
+
   // Runs when someone lands back on the site after clicking their magic link,
   // or if they already have a session from a previous visit.
   //
@@ -3872,6 +3914,29 @@
     const { data: sessionRes } = await sb.auth.getSession();
     const session = sessionRes && sessionRes.session;
 
+    // Picks a visitor made before signing up: once they have a session, submit
+    // them through the same server-side RPC (it still enforces lock times), but
+    // only if they haven't already made calls on this set. Cleared either way.
+    if(session){
+      try{
+        const rawGuest = localStorage.getItem('mq_guest_picks');
+        if(rawGuest){
+          const guest = JSON.parse(rawGuest);
+          localStorage.removeItem('mq_guest_picks');
+          if(guest && guest.date === effectiveDate && guest.picks){
+            const open = questions.filter(function(q){ return new Date() < new Date(q.lock_time) && (guest.picks[q.id] === 'yes' || guest.picks[q.id] === 'no'); });
+            if(open.length === questions.length){
+              const { data: already } = await sb.from('predictions').select('question_id').eq('user_id', session.user.id).in('question_id', questions.map(function(q){ return q.id; })).limit(1);
+              if(!already || already.length === 0){
+                const subRes = await sb.rpc('submit_daily_predictions', { p_answers: open.map(function(q){ return { question_id: q.id, choice: guest.picks[q.id] }; }) });
+                if(subRes && !subRes.error){ mqGuestWelcome = true; mqTrack('guest_picks_saved_after_signup'); }
+              }
+            }
+          }
+        }
+      }catch(e){ /* best effort: they can still pick manually */ }
+    }
+
     // Fetch every buddy's picks once up front (not per-card) so each card
     // can show a buddy-vs-rival line without hitting the DB repeatedly.
     // buddyList is an array now -- there's no limit on how many buddies
@@ -3909,6 +3974,10 @@
     for(let i = 0; i < questions.length; i++){
       const q = questions[i];
       let myVote = null;
+      if(!session){
+        const gp = mqGetGuestPicks(effectiveDate)[q.id];
+        if(gp === 'yes' || gp === 'no') myVote = gp;
+      }
       if(session){
         const { data: existingVote } = await sb.from('predictions').select('choice').eq('question_id', q.id).eq('user_id', session.user.id).maybeSingle();
         myVote = existingVote ? existingVote.choice : null;
@@ -3956,6 +4025,13 @@
     const allLockedNow = prepared.every(function(p){ return p.isLocked; });
 
     container.innerHTML = '';
+
+    if(mqGuestWelcome && session){
+      const welcome = document.createElement('div');
+      welcome.className = 'trending-strip';
+      welcome.innerHTML = mqIcon('check') + '<span><strong>Welcome to Marqit.</strong> Your 3 calls are locked in.</span>';
+      container.appendChild(welcome);
+    }
 
     function startPendingPoll(){
       dailyPollInterval = setInterval(async function(){
@@ -4084,12 +4160,86 @@
       card.style.setProperty('--delay', (i * 90) + 'ms');
       container.appendChild(card);
       animateTrendLine(card);
-      // Signed-out visitors: tapping Yes/No on an open card opens the signup panel.
-      if(!session && !isLocked){
-        card.querySelectorAll('.opt').forEach(function(o){
-          o.style.cursor = 'pointer';
-          o.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); openAuthPanel('signup'); });
+    }
+
+    // Signed-out visitors can play with no account: pick Yes/No on all three,
+    // submit, and see where the crowd stands right away. An account is only
+    // offered afterwards, to save a streak and reach the leaderboard.
+    if(!session && !allLocked){
+      const guestQs = prepared.filter(function(p){ return !p.isLocked; });
+      const guestDone = guestQs.every(function(p){ return !!p.myVote; });
+      const guestSel = {};
+      guestQs.forEach(function(p){ if(p.myVote) guestSel[p.q.id] = p.myVote; });
+      const gControls = document.createElement('div');
+      gControls.style.cssText = 'max-width:480px; margin-top:8px;';
+
+      if(guestDone){
+        // Submitted: results are already showing on the cards (myVote was set above).
+        const summary = guestQs.map(function(p){ return { category: p.q.category, text: p.q.question_text, choice: p.myVote }; });
+        gControls.innerHTML =
+          '<div style="padding:16px 18px; background:var(--panel); border:1px solid var(--line); border-radius:14px;">' +
+            '<div style="font-family:\'Big Shoulders Display\',sans-serif; font-weight:700; font-size:20px; margin-bottom:4px;">Your calls are in</div>' +
+            '<p style="font-size:13.5px; color:var(--ink-soft); line-height:1.45; margin-bottom:12px;">Come back tomorrow for three new ones. Want to keep your streak, climb the leaderboard, and play with buddies and rivals? Make a free account. Free, no purchases, no wagering.</p>' +
+            '<button type="button" id="guest-signup-btn" style="width:100%; padding:12px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:14.5px; cursor:pointer;">Save my streak: sign up free</button>' +
+            '<button type="button" id="guest-google-btn" style="width:100%; margin-top:8px; padding:11px 16px; border:1.5px solid var(--line); border-radius:10px; background:#FFFFFF; color:#17191D; font-family:inherit; font-weight:600; font-size:14px; cursor:pointer;">Continue with Google</button>' +
+            '<div style="display:flex; flex-wrap:wrap; justify-content:center; gap:4px 16px; margin-top:8px;">' +
+              '<button type="button" id="guest-login-btn" style="padding:6px 8px; border:none; background:none; color:var(--ink-soft); font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer;">Have an account? Log in</button>' +
+              '<button type="button" id="guest-share-btn" style="padding:6px 8px; border:none; background:none; color:var(--ink-soft); font-family:inherit; font-size:12.5px; cursor:pointer; text-decoration:underline;">Share my picks</button>' +
+              '<button type="button" id="guest-change-btn" style="padding:6px 8px; border:none; background:none; color:var(--ink-soft); font-family:inherit; font-size:12.5px; cursor:pointer; text-decoration:underline;">Change my picks</button>' +
+            '</div>' +
+            '<p id="guest-msg" class="form-msg" style="margin-top:2px;"></p>' +
+          '</div>';
+        container.appendChild(gControls);
+        const gMsg = document.getElementById('guest-msg');
+        function toAuth(mode, method){ mqTrack('guest_signup_click', { method: method }); window.scrollTo({ top: 0, behavior: 'smooth' }); openAuthPanel(mode); }
+        document.getElementById('guest-signup-btn').addEventListener('click', function(){ toAuth('signup', 'panel'); });
+        document.getElementById('guest-login-btn').addEventListener('click', function(){ toAuth('login', 'login'); });
+        document.getElementById('guest-google-btn').addEventListener('click', function(){ mqTrack('guest_signup_click', { method: 'google' }); mqGoogleSignIn(gMsg); });
+        document.getElementById('guest-share-btn').addEventListener('click', function(){ mqShareGuestPicks(summary, gMsg); });
+        document.getElementById('guest-change-btn').addEventListener('click', function(){ mqTrack('guest_change_picks'); mqSetGuestPicks(effectiveDate, null); loadDailyQuestions(); });
+      }else{
+        gControls.innerHTML =
+          '<div class="pick-progress" id="pick-progress" style="display:flex;"><span class="pp-dots">' + guestQs.map(function(p){ var v = mqDetectVisual(p.q); return '<i class="pp-slot">' + (v.icon || CATEGORY_ICONS[p.q.category] || '') + '</i>'; }).join('') + '</span><span class="pp-text">0 of ' + guestQs.length + ' picked</span><span class="pp-bonus">All right = +100 bonus</span></div>' +
+          '<button type="button" id="guest-submit-btn" disabled style="width:100%; padding:14px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; opacity:0.4;">Pick all three first</button>' +
+          '<p style="font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:8px;">No account needed to play.</p>';
+        container.appendChild(gControls);
+        const gBtn = document.getElementById('guest-submit-btn');
+        function updateGuestState(){
+          const allPicked = guestQs.every(function(p){ return !!guestSel[p.q.id]; });
+          gBtn.disabled = !allPicked;
+          gBtn.style.opacity = allPicked ? '1' : '0.4';
+          gBtn.textContent = allPicked ? 'Submit your calls' : 'Pick all three first';
+          const pp = document.getElementById('pick-progress');
+          if(pp){
+            const nPicked = guestQs.filter(function(p){ return !!guestSel[p.q.id]; }).length;
+            pp.querySelectorAll('.pp-slot').forEach(function(d, i){ const pick = guestSel[guestQs[i].q.id]; d.classList.toggle('yes', pick === 'yes'); d.classList.toggle('no', pick === 'no'); });
+            pp.querySelector('.pp-text').textContent = nPicked + ' of ' + guestQs.length + ' picked';
+          }
+        }
+        guestQs.forEach(function(p){
+          const card = container.querySelector('[data-question-id="' + p.q.id + '"]');
+          if(!card) return;
+          card.querySelectorAll('.opt').forEach(function(o){
+            o.style.cursor = 'pointer';
+            o.addEventListener('click', function(){
+              if(!Object.keys(guestSel).length) mqTrack('guest_first_pick');
+              guestSel[p.q.id] = o.classList.contains('yes') ? 'yes' : 'no';
+              card.querySelector('.opt.yes').classList.toggle('picked', guestSel[p.q.id] === 'yes');
+              card.querySelector('.opt.no').classList.toggle('picked', guestSel[p.q.id] === 'no');
+              card.classList.remove('awaiting');
+              card.classList.toggle('pick-yes', guestSel[p.q.id] === 'yes');
+              card.classList.toggle('pick-no', guestSel[p.q.id] === 'no');
+              updateGuestState();
+            });
+          });
         });
+        gBtn.addEventListener('click', function(){
+          if(!guestQs.every(function(p){ return !!guestSel[p.q.id]; })) return;
+          mqTrack('guest_submit_picks');
+          mqSetGuestPicks(effectiveDate, guestSel);
+          loadDailyQuestions(); // re-render with the crowd results showing
+        });
+        updateGuestState();
       }
     }
 
