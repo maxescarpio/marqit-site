@@ -347,13 +347,143 @@
   function resetAuthPanelToForm(){
     document.getElementById('reset-password-step').style.display = 'none';
     document.getElementById('join').style.display = 'none';
+    const codeStepEl = document.getElementById('email-code-step');
+    if(codeStepEl) codeStepEl.style.display = 'none';
     document.getElementById('auth-choice').style.display = 'flex';
     document.getElementById('form-msg').textContent = '';
     document.getElementById('form-msg').className = 'form-msg';
   }
-  document.getElementById('show-email-form-btn').addEventListener('click', function(){
+  // ---- Email sign-in code (no password) ----
+  // signInWithOtp emails a 6-digit code (and a link, depending on the Supabase
+  // email template). Existing accounts sign in; unknown emails get a new account
+  // that goes through the same username prompt as Google sign-ups. The password
+  // form stays available for people who already use one.
+  let mqCodeEmail = '';
+  let mqCodeBusy = false;
+  let mqResendTimer = null;
+  function mqCodeMsg(text, kind){
+    const el = document.getElementById('form-msg');
+    el.className = 'form-msg' + (kind ? ' ' + kind : '');
+    el.textContent = text || '';
+  }
+  function mqShowCodeStage(stage){
+    document.getElementById('code-stage-email').style.display = stage === 'email' ? 'flex' : 'none';
+    document.getElementById('code-stage-verify').style.display = stage === 'verify' ? 'flex' : 'none';
+  }
+  function mqOpenCodeStep(){
     document.getElementById('auth-choice').style.display = 'none';
+    document.getElementById('join').style.display = 'none';
+    document.getElementById('reset-password-step').style.display = 'none';
+    document.getElementById('email-code-step').style.display = 'flex';
+    mqShowCodeStage('email');
+    mqCodeMsg('');
+    const input = document.getElementById('code-email-input');
+    if(input) setTimeout(function(){ try{ input.focus(); }catch(e){} }, 50);
+  }
+  function mqStartResendCooldown(seconds){
+    const btn = document.getElementById('resend-code-btn');
+    if(mqResendTimer) clearInterval(mqResendTimer);
+    let left = seconds;
+    btn.disabled = true;
+    btn.textContent = 'Resend code in ' + left + 's';
+    mqResendTimer = setInterval(function(){
+      left -= 1;
+      if(left <= 0){
+        clearInterval(mqResendTimer);
+        mqResendTimer = null;
+        btn.disabled = false;
+        btn.textContent = 'Resend code';
+      }else{
+        btn.textContent = 'Resend code in ' + left + 's';
+      }
+    }, 1000);
+  }
+  async function mqSendCode(email, isResend){
+    if(mqCodeBusy) return;
+    if(!isValidEmail(email)){ mqCodeMsg('Enter a valid email first.', 'err'); return; }
+    mqCodeBusy = true;
+    const sendBtn = document.getElementById('send-code-btn');
+    sendBtn.disabled = true;
+    mqCodeMsg('');
+    try{
+      try{ sessionStorage.setItem('marqit_pending_signup_source', pendingSignupSource || 'organic'); }catch(e){}
+      const { error } = await sb.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: window.location.origin + window.location.pathname,
+          data: { signup_source: pendingSignupSource || 'organic' }
+        }
+      });
+      if(error){
+        const rateLimited = error.status === 429 || /rate|seconds|too many/i.test(error.message || '');
+        mqCodeMsg(rateLimited ? 'Please wait a minute, then try again.' : 'Could not send the code \u2014 check the email and try again.', 'err');
+        return;
+      }
+      mqCodeEmail = email;
+      document.getElementById('code-sent-msg').textContent = 'We sent a code to ' + email + '. Enter it below, or tap the link in the email.';
+      document.getElementById('code-input').value = '';
+      mqShowCodeStage('verify');
+      mqStartResendCooldown(60);
+      mqTrack(isResend ? 'email_code_resend' : 'email_code_sent');
+      setTimeout(function(){ try{ document.getElementById('code-input').focus(); }catch(e){} }, 50);
+    }finally{
+      mqCodeBusy = false;
+      sendBtn.disabled = false;
+    }
+  }
+  async function mqVerifyCode(){
+    if(mqCodeBusy) return;
+    const input = document.getElementById('code-input');
+    const code = (input.value || '').replace(/\D/g, '');
+    if(code.length < 6){ mqCodeMsg('Enter the code from your email.', 'err'); return; }
+    mqCodeBusy = true;
+    const btn = document.getElementById('verify-code-btn');
+    btn.disabled = true;
+    mqCodeMsg('');
+    try{
+      const { error } = await sb.auth.verifyOtp({ email: mqCodeEmail, token: code, type: 'email' });
+      if(error){
+        mqCodeMsg('That code didn\u2019t work. Check it and try again, or request a new one.', 'err');
+        mqTrack('email_code_error');
+        return;
+      }
+      mqTrack('email_code_signin');
+      // Success: onAuthStateChange SIGNED_IN takes it from here (profile, username prompt, guest picks).
+    }finally{
+      mqCodeBusy = false;
+      btn.disabled = false;
+    }
+  }
+  document.getElementById('show-email-form-btn').addEventListener('click', mqOpenCodeStep);
+  document.getElementById('join-use-code-btn').addEventListener('click', mqOpenCodeStep);
+  document.getElementById('code-back-btn').addEventListener('click', resetAuthPanelToForm);
+  document.getElementById('use-password-btn').addEventListener('click', function(){
+    const typed = document.getElementById('code-email-input').value.trim();
+    document.getElementById('email-code-step').style.display = 'none';
     document.getElementById('join').style.display = 'flex';
+    joinToggle.setMode('login');
+    if(typed) document.getElementById('email-input').value = typed;
+    mqCodeMsg('');
+  });
+  document.getElementById('send-code-btn').addEventListener('click', function(){
+    mqSendCode(document.getElementById('code-email-input').value.trim().toLowerCase(), false);
+  });
+  document.getElementById('code-email-input').addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); mqSendCode(this.value.trim().toLowerCase(), false); }
+  });
+  document.getElementById('verify-code-btn').addEventListener('click', mqVerifyCode);
+  document.getElementById('code-input').addEventListener('input', function(){
+    const digits = this.value.replace(/\D/g, '');
+    if(digits.length === 6) mqVerifyCode();
+  });
+  document.getElementById('code-input').addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); mqVerifyCode(); }
+  });
+  document.getElementById('resend-code-btn').addEventListener('click', function(){ mqSendCode(mqCodeEmail, true); });
+  document.getElementById('code-change-email-btn').addEventListener('click', function(){
+    mqShowCodeStage('email');
+    mqCodeMsg('');
   });
   document.getElementById('email-form-back-btn').addEventListener('click', resetAuthPanelToForm);
   document.getElementById('forgot-password-link').addEventListener('click', function(){
