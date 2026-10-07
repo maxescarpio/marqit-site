@@ -969,3 +969,9 @@ html{touch-action:manipulation;}
 a,button,[role=button],label,summary,.tab,.btn{touch-action:manipulation;}
 input,select,textarea{font-size:16px !important;}
 body{overflow-x:hidden;}
+
+/* Record card: rings and summary line sit above the calendar */
+#record-card .rec-rings{border-top:0;padding-top:4px;margin-bottom:10px;}
+#record-card .recap-foot{border-top:0;padding-top:0;margin-bottom:16px;}
+#record-card .rec-cal-wrap{margin-bottom:0;padding-top:14px;border-top:1px solid var(--line);max-width:none;}
+#record-card .rec-cal-wrap>*{max-width:340px;margin-left:auto;margin-right:auto;}
