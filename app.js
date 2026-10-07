@@ -412,7 +412,7 @@
         options: {
           shouldCreateUser: true,
           emailRedirectTo: window.location.origin + window.location.pathname,
-          data: { signup_source: pendingSignupSource || 'organic' }
+          data: { signup_source: pendingSignupSource || 'organic', signup_method: 'code' }
         }
       });
       if(error){
@@ -2853,7 +2853,7 @@
     }catch(e){ /* never break the page over a prompt */ }
   }
 
-  // Google sign-ins have no Marqit password. Offer one so they can also log in with
+  // Google and email-code sign-ins have no Marqit password. Offer one so they can also log in with
   // their username and password. Skipped for accounts that already have one, and
   // snoozed for 3 days if they tap "Not now".
   function mqMaybeAskPassword(user, needsUsername){
@@ -2861,7 +2861,11 @@
       if(!user || needsUsername) return;
       const providers = (user.app_metadata && user.app_metadata.providers) || [];
       const meta = user.user_metadata || {};
-      if(providers.indexOf('google') === -1 || providers.indexOf('email') > -1 || meta.password_set) return;
+      // Eligible: Google-only accounts, and accounts created through an email code.
+      // Anyone who already picked a password (or signed up with one) is skipped.
+      const googleOnly = providers.indexOf('google') > -1 && providers.indexOf('email') === -1;
+      const codeSignup = meta.signup_method === 'code';
+      if((!googleOnly && !codeSignup) || meta.password_set) return;
       const key = 'mq-pw-snooze-' + user.id;
       try { const until = parseInt(localStorage.getItem(key) || '0', 10); if(until > Date.now()) return; } catch(e){}
       const backdrop = document.getElementById('google-password-backdrop');
