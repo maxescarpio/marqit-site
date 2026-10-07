@@ -638,6 +638,14 @@
       }
     }
 
+    if(insertErr && insertErr.code !== '23505'){
+      // Not a duplicate: try once more after a short wait (the session token
+      // can lag a moment behind the sign-in event), then record the failure.
+      await new Promise(function(r){ setTimeout(r, 800); });
+      const again = await insertProfile(username, null);
+      insertErr = again.error && again.error.code === '23505' ? null : again.error;
+      if(insertErr){ try{ mqTrack('profile_insert_failed', { code: insertErr.code || 'unknown' }); }catch(e){} }
+    }
     if(!insertErr){
       await sb.from('streaks').insert({ user_id: user.id });
     }
@@ -675,7 +683,15 @@
     if(!session) return;
     const btn = this;
     btn.disabled = true;
-    const { error } = await sb.from('profiles').update({ username: newUsername }).eq('id', session.user.id);
+    let { data: savedRows, error } = await sb.from('profiles').update({ username: newUsername }).eq('id', session.user.id).select('id');
+    if(!error && (!savedRows || !savedRows.length)){
+      // No profile row exists yet (account was created but the profile never
+      // got written). An UPDATE on a missing row "succeeds" with zero rows, so
+      // create the row here instead of pretending it saved.
+      const ins = await sb.from('profiles').insert({ id: session.user.id, username: newUsername, age_confirmed: true, signup_source: 'organic' });
+      error = ins.error;
+      if(!error){ await sb.from('streaks').insert({ user_id: session.user.id }); }
+    }
     btn.disabled = false;
     if(error){
       msg.className = 'form-msg err';
@@ -686,7 +702,8 @@
     const navUsername = document.getElementById('nav-username');
     if(navUsername) navUsername.textContent = newUsername;
     const heroMsg = document.getElementById('hero-status-msg');
-    if(heroMsg && heroMsg.textContent.indexOf('signed in as') !== -1){
+    if(heroMsg){
+      heroMsg.className = 'form-msg ok';
       heroMsg.textContent = 'You\u2019re signed in as ' + newUsername + '.';
     }
   });
@@ -2517,7 +2534,14 @@
     }catch(e){ /* never break the page over a prompt */ }
   }
 
-  sb.auth.onAuthStateChange(async function(event, session){
+  sb.auth.onAuthStateChange(function(event, session){
+    // supabase-js holds its auth lock while this callback runs, so any
+    // query made from inside it can stall or go out without the user's token
+    // (which makes the profile insert fail RLS). Hand the work to the next
+    // tick so the session is fully settled first.
+    setTimeout(function(){ mqHandleAuthEvent(event, session); }, 0);
+  });
+  async function mqHandleAuthEvent(event, session){
     if(event === 'SIGNED_IN' && session && session.user){
       const profileResult = await ensureProfile(session.user);
       if(profileResult === 'BANNED') return;
@@ -2540,7 +2564,7 @@
       backdrop.style.display = 'flex';
       input.focus();
     }
-  });
+  }
 
   document.getElementById('new-password-save-btn').addEventListener('click', async function(){
     const input = document.getElementById('new-password-input');
