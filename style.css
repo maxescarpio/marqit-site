@@ -962,3 +962,10 @@
     .mq-legal-overlay{padding:0;align-items:flex-end;}
     .mq-legal-panel{max-width:none;height:92vh;border-radius:18px 18px 0 0;}
   }
+
+/* Stop iPhone Safari from auto-zooming the page when a field is focused or a button is tapped.
+   Pinch-zoom by the person still works. */
+html{touch-action:manipulation;}
+a,button,[role=button],label,summary,.tab,.btn{touch-action:manipulation;}
+input,select,textarea{font-size:16px !important;}
+body{overflow-x:hidden;}
