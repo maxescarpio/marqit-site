@@ -2841,8 +2841,69 @@
         mqLoadNudgeBanner();
         setTimeout(function(){ mqMaybeAskPush('signin'); }, 2500);
       });
+    }else{
+      mqInitOneTap();
     }
   });
+
+  // ---- Google One Tap: signed-out visitors who are already logged in to Google
+  // get a small "continue as <name>" card, one tap and they're in (no redirect,
+  // no password). Sign-in goes through the same Supabase session as the normal
+  // Google button, so SIGNED_IN / ensureProfile / guest-picks sync all run as usual.
+  // Everything here is best-effort: any failure just means no One Tap card.
+  var MQ_GOOGLE_CLIENT_ID = '59467705788-nh1ugvbj4cdu3019v3op9075vvfjk4kk.apps.googleusercontent.com';
+  function mqRandomNonce(){
+    var bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return Array.prototype.map.call(bytes, function(b){ return ('0' + b.toString(16)).slice(-2); }).join('');
+  }
+  async function mqSha256Hex(text){
+    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.prototype.map.call(new Uint8Array(buf), function(b){ return ('0' + b.toString(16)).slice(-2); }).join('');
+  }
+  function mqInitOneTap(){
+    try{
+      // Google only authorizes One Tap on the production origin; on preview or
+      // local hosts it would just log errors.
+      if(location.hostname !== 'playmarqit.com' && location.hostname !== 'www.playmarqit.com') return;
+      if(mqInAppBrowser()) return; // Google blocks it in embedded in-app browsers anyway
+      if(!window.crypto || !crypto.subtle || !window.TextEncoder) return;
+      // Don't compete with the OAuth return trip or a password-reset link.
+      if(/access_token|type=recovery|error_description/.test(location.hash) || /[?&]code=/.test(location.search)) return;
+      var s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.async = true;
+      s.defer = true;
+      s.onload = async function(){
+        try{
+          if(!(window.google && google.accounts && google.accounts.id)) return;
+          var rawNonce = mqRandomNonce();
+          var hashedNonce = await mqSha256Hex(rawNonce);
+          google.accounts.id.initialize({
+            client_id: MQ_GOOGLE_CLIENT_ID,
+            nonce: hashedNonce,
+            use_fedcm_for_prompt: true,
+            cancel_on_tap_outside: false,
+            itp_support: true,
+            auto_select: false,
+            callback: async function(resp){
+              try{
+                if(!resp || !resp.credential) return;
+                try{
+                  if(!sessionStorage.getItem('marqit_pending_signup_source')) sessionStorage.setItem('marqit_pending_signup_source', pendingSignupSource || 'organic');
+                }catch(e){}
+                const { error } = await sb.auth.signInWithIdToken({ provider: 'google', token: resp.credential, nonce: rawNonce });
+                if(error){ mqTrack('one_tap_error'); }
+                else{ mqTrack('one_tap_signin'); }
+              }catch(e){}
+            }
+          });
+          google.accounts.id.prompt();
+        }catch(e){}
+      };
+      document.head.appendChild(s);
+    }catch(e){}
+  }
 
   var CATEGORY_LABELS = { sports: 'Sports', pop_culture: 'Pop culture', news: 'News' };
   var CATEGORY_ICONS = {
