@@ -759,6 +759,7 @@
       heroMsg.className = 'form-msg ok';
       heroMsg.textContent = needsUsername ? 'Pick a username to finish setting up your account.' : 'You\'re signed in as ' + username + '.';
     }
+    const playFriends = document.getElementById('play-friends'); if(playFriends) playFriends.style.display = 'block';
     if(needsUsername) promptUsernameChoice();
     loadMyStats();
     loadShareCard(username);
@@ -1959,6 +1960,13 @@
     // Change 1: headline leads with standing, not the date/score.
     const titleEl = document.getElementById('share-card-title');
     if(titleEl) titleEl.textContent = standing.tierName + (standing.rankLabel ? ' \u00b7 ' + standing.rankLabel : '');
+    const dateEl = document.getElementById('share-card-date');
+    if(dateEl){
+      try{ dateEl.textContent = 'Results for ' + new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }catch(e){ dateEl.textContent = ''; }
+    }
+    // The share section lives on the Play tab and stays hidden until there is a card to show.
+    const shareSec = document.getElementById('share-section');
+    if(shareSec) shareSec.style.display = 'block';
     document.getElementById('share-card-streak').textContent = standing.streakDays + '-day streak';
 
     const calledItEl = document.getElementById('share-card-calledit');
