@@ -6773,3 +6773,62 @@ setTimeout(function(){
 
 // (Decorative live-price ticker widget removed at the owner's request --
 // it was never tied to real data.)
+
+
+/* Privacy / Terms open in a pop-up over the page (quick to open, quick to close).
+   The links keep their normal href, so ctrl/cmd-click, middle-click and
+   browsers without JS still open the full page. */
+(function(){
+  var overlay = null, frame = null, titleEl = null, closeBtn = null, lastFocus = null;
+  var TITLES = { 'privacy.html': 'Privacy Policy', 'terms.html': 'Terms of Service' };
+
+  function build(){
+    overlay = document.createElement('div');
+    overlay.className = 'mq-legal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'mq-legal-title');
+    overlay.innerHTML =
+      '<div class="mq-legal-panel">' +
+        '<div class="mq-legal-bar"><span class="mq-legal-title" id="mq-legal-title"></span>' +
+        '<button type="button" class="mq-legal-close" aria-label="Close">\u2715</button></div>' +
+        '<iframe class="mq-legal-frame" title="Policy"></iframe>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    frame = overlay.querySelector('.mq-legal-frame');
+    titleEl = overlay.querySelector('.mq-legal-title');
+    closeBtn = overlay.querySelector('.mq-legal-close');
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function(e){ if(e.target === overlay) close(); });
+    frame.addEventListener('load', function(){
+      // Links inside the policy (e.g. back to the site) open in a new tab, not inside the pop-up.
+      try{ frame.contentDocument.querySelectorAll('a[href]').forEach(function(l){ l.target = '_blank'; l.rel = 'noopener'; }); }catch(e){}
+    });
+  }
+  function open(page){
+    if(!overlay) build();
+    lastFocus = document.activeElement;
+    titleEl.textContent = TITLES[page] || 'Marqit';
+    frame.src = page;
+    overlay.classList.add('on');
+    document.body.style.overflow = 'hidden';
+    closeBtn.focus();
+  }
+  function close(){
+    if(!overlay) return;
+    overlay.classList.remove('on');
+    document.body.style.overflow = '';
+    frame.removeAttribute('src');
+    if(lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  document.addEventListener('click', function(e){
+    if(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var link = e.target.closest && e.target.closest('a[href="/privacy.html"], a[href="/terms.html"]');
+    if(!link) return;
+    e.preventDefault();
+    open(link.getAttribute('href').replace('/', ''));
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && overlay && overlay.classList.contains('on')) close();
+  });
+})();
