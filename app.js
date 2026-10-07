@@ -1163,6 +1163,34 @@
 
     const picksList = document.getElementById('profile-picks-list');
     picksList.innerHTML = '';
+
+    // Accuracy by category: a solo-friendly stat that needs no friends or
+    // groups -- "you're 80% on sports" gives a player something to chase.
+    var catAccEl = document.getElementById('profile-category-acc');
+    if(!catAccEl){
+      catAccEl = document.createElement('div');
+      catAccEl.id = 'profile-category-acc';
+      catAccEl.style.cssText = 'display:flex; gap:8px; margin:0 0 10px;';
+      picksList.parentNode.insertBefore(catAccEl, picksList);
+    }
+    catAccEl.innerHTML = '';
+    var catTotals = {};
+    (picks || []).forEach(function(p){
+      var q = p.daily_questions;
+      if(!q || !q.resolved || !q.correct_answer) return;
+      var t = catTotals[q.category] || (catTotals[q.category] = { right: 0, total: 0 });
+      t.total++;
+      if(p.choice === q.correct_answer) t.right++;
+    });
+    Object.keys(CATEGORY_LABELS).forEach(function(cat){
+      var t = catTotals[cat];
+      var tile = document.createElement('div');
+      tile.style.cssText = 'flex:1; padding:10px 8px; background:var(--panel); border:1px solid var(--line); border-radius:10px; text-align:center;';
+      var pct = t && t.total ? Math.round(100 * t.right / t.total) + '%' : '\u2014';
+      tile.innerHTML = '<div style="font-size:18px; font-weight:700;">' + pct + '</div>' +
+        '<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">' + CATEGORY_LABELS[cat] + (t && t.total ? ' \u00b7 ' + t.right + '/' + t.total : '') + '</div>';
+      catAccEl.appendChild(tile);
+    });
     if(!picks || picks.length === 0){
       picksList.innerHTML = '<p class="ex-sub">No picks yet — head to Play to make your first call.</p>';
     }else{
@@ -1663,6 +1691,45 @@
       const card = await renderRivalCard(session, r.rival_id, name, myStars);
       activeListEl.appendChild(card);
     }
+    // Nobody to duel yet? Everyone still gets a rival: the crowd.
+    if(!(rivalRows || []).length){
+      try{ const crowdCard = await mqRenderCrowdRivalCard(session); if(crowdCard) activeListEl.appendChild(crowdCard); }
+      catch(e){ /* decoration only */ }
+    }
+  }
+
+  // "You vs The Crowd": on the player's most recent fully scored day, compare
+  // their correct calls to how often the majority side was right. Needs no
+  // friends, so a solo player always has someone to beat.
+  async function mqRenderCrowdRivalCard(session){
+    const { data: rows } = await sb.from('predictions')
+      .select('choice, daily_questions!inner(id, question_date, resolved, correct_answer)')
+      .eq('user_id', session.user.id)
+      .eq('daily_questions.resolved', true)
+      .order('created_at', { ascending: false })
+      .limit(12);
+    if(!rows || !rows.length) return null;
+    const day = rows[0].daily_questions.question_date;
+    const dayRows = rows.filter(function(r){ return r.daily_questions.question_date === day && r.daily_questions.correct_answer; });
+    if(!dayRows.length) return null;
+    let mine = 0, crowd = 0, counted = 0;
+    for(const r of dayRows){
+      const vd = await getVoteData(r.daily_questions.id);
+      const yes = vd.counts.yes, no = vd.counts.no;
+      if(yes + no < 3 || yes === no) continue; // too few votes (or a tie) to call a crowd side
+      counted++;
+      const crowdSide = yes > no ? 'yes' : 'no';
+      if(r.choice === r.daily_questions.correct_answer) mine++;
+      if(crowdSide === r.daily_questions.correct_answer) crowd++;
+    }
+    if(!counted) return null;
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px;';
+    const verdict = mine > crowd ? 'You beat the crowd.' : (mine === crowd ? 'You matched the crowd.' : 'The crowd edged you out.');
+    card.innerHTML = '<div style="font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--ink-soft); text-transform:uppercase;">You vs The Crowd \u00b7 ' + escapeHtml(day) + '</div>' +
+      '<div style="font-size:22px; font-weight:700; margin:6px 0 2px;">You ' + mine + ' \u2013 ' + crowd + ' Crowd</div>' +
+      '<div style="font-size:13px; color:var(--ink-soft);">' + verdict + ' Add a friend as a rival to play head to head.</div>';
+    return card;
   }
 
   document.getElementById('group-invite-username-btn').addEventListener('click', async function(){
