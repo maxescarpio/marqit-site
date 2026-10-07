@@ -166,7 +166,14 @@
       msgEl.textContent = 'Username: 3-24 characters, letters/numbers/underscores only.';
       return;
     }
-    if(!isValidEmail(email)){
+    const loginByUsername = !isSignup && email.indexOf('@') === -1;
+    if(loginByUsername){
+      if(!isValidUsername(email)){
+        msgEl.classList.add('err');
+        msgEl.textContent = 'Enter your username or email.';
+        return;
+      }
+    } else if(!isValidEmail(email)){
       msgEl.classList.add('err');
       msgEl.textContent = 'Enter a valid email first.';
       return;
@@ -226,13 +233,47 @@
     }
 
     btn.textContent = 'Logging in…';
-    const { error } = await sb.auth.signInWithPassword({ email: email, password: password });
+    let error = null;
+    if(loginByUsername){
+      // The server looks up the email and signs in; the browser never sees the email.
+      try {
+        const resp = await fetch(SUPABASE_URL + '/functions/v1/username-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+          body: JSON.stringify({ username: email, password: password })
+        });
+        const out = await resp.json().catch(function(){ return {}; });
+        if(resp.ok && out.access_token && out.refresh_token){
+          const setRes = await sb.auth.setSession({ access_token: out.access_token, refresh_token: out.refresh_token });
+          if(setRes.error) error = { message: 'Something went wrong.' };
+        } else if(out.error === 'unconfirmed' && out.email){
+          btn.disabled = false;
+          btn.textContent = originalText;
+          msgEl.classList.add('err');
+          mqShowCodeEntry(out.email, msgEl);
+          msgEl.textContent = 'Confirm your email first \u2014 tap the link in your inbox, or type the code below.';
+          return;
+        } else if(out.error === 'rate_limited'){
+          error = { message: 'Too many tries. Wait a minute and try again.' };
+        } else if(out.error === 'wrong_credentials'){
+          error = { message: 'Invalid login' };
+        } else {
+          error = { message: 'Something went wrong.' };
+        }
+      } catch(e){
+        error = { message: 'Something went wrong.' };
+      }
+    } else {
+      const res = await sb.auth.signInWithPassword({ email: email, password: password });
+      error = res.error;
+    }
     btn.disabled = false;
     btn.textContent = originalText;
     if(error){
       msgEl.classList.add('err');
       msgEl.textContent = error.message.indexOf('Invalid login') > -1
-        ? 'Wrong email or password.'
+        ? (loginByUsername ? 'Wrong username or password. Signed up with Google? Use Continue with Google.' : 'Wrong email or password.')
+        : error.message.indexOf('Too many') > -1 ? error.message
         : (error.message.indexOf('not confirmed') > -1
           ? (mqShowCodeEntry(email, msgEl), 'Confirm your email first \u2014 tap the link in your inbox, or type the code below.')
           : 'Something went wrong. Try again.');
@@ -269,6 +310,14 @@
       if(passwordEl) passwordEl.autocomplete = isSignup ? 'new-password' : 'current-password';
       // Explicitly toggle 'required' too — some Safari versions still block submit
       // on a required field hidden only via CSS display:none, with no visible error.
+      const idEl = document.getElementById('email-input');
+      if(idEl){
+        idEl.type = isSignup ? 'email' : 'text';
+        idEl.placeholder = isSignup ? 'you@email.com' : 'username or email';
+        idEl.autocomplete = isSignup ? 'email' : 'username';
+        idEl.setAttribute('autocapitalize', 'none');
+        idEl.setAttribute('autocorrect', 'off');
+      }
       if(usernameEl) usernameEl.required = isSignup;
       if(ageCheckboxEl) ageCheckboxEl.required = isSignup;
     }
