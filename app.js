@@ -28,6 +28,18 @@
     ? navigator.serviceWorker.register('/sw.js').catch(function(){ return null; })
     : Promise.resolve(null);
 
+  // Plain-language reason push can't be turned on here, so people on iPhones
+  // (where web push only works from the Home Screen) know what to do.
+  function mqPushUnsupportedMsg(){
+    var ua = navigator.userAgent || '';
+    var inApp = /FBAN|FBAV|Instagram|Snapchat|TikTok|musical_ly|Line\/|Twitter/i.test(ua);
+    var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var standalone = (window.navigator.standalone === true) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if(inApp) return 'Open playmarqit.com in Safari or Chrome first, then try again.';
+    if(isIOS && !standalone) return 'On iPhone, notifications need Marqit on your Home Screen. Tap Share, then Add to Home Screen, then open Marqit from there.';
+    return 'Your browser doesn\u2019t support push notifications.';
+  }
+
   function logClientError(payload){
     try {
       sb.from('client_errors').insert(payload).then(function(){}, function(){});
@@ -1238,7 +1250,7 @@
       const registration = await swRegistrationPromise;
       if(!registration){
         msg.className = 'form-msg err';
-        msg.textContent = 'Your browser doesn\u2019t support push notifications.';
+        msg.textContent = mqPushUnsupportedMsg();
         return;
       }
 
@@ -1247,7 +1259,7 @@
         // person denies it (or the browser doesn't support it), don't save it as on.
         if(typeof Notification === 'undefined' || !Notification.requestPermission){
           msg.className = 'form-msg err';
-          msg.textContent = 'Your browser doesn\u2019t support push notifications.';
+          msg.textContent = mqPushUnsupportedMsg();
           return;
         }
         try{
@@ -1259,7 +1271,7 @@
           }
         }catch(e){
           msg.className = 'form-msg err';
-          msg.textContent = 'Your browser doesn\u2019t support push notifications.';
+          msg.textContent = mqPushUnsupportedMsg();
           return;
         }
 
