@@ -807,6 +807,10 @@
     perfect_day:   { icon: '\ud83c\udfaf', label: 'Perfect Day',   desc: 'Went 3-for-3 on a single day\u2019s calls.' },
     buddy_bonus:   { icon: '\ud83e\udd1d', label: 'Buddy Bonus',   desc: 'Matched a pick with a buddy.' },
     rival_win:     { icon: '\ud83c\udfc6', label: 'Showdown Winner', desc: 'Won a Rival Showdown.' },
+    // Starter badges: quick wins in the first days, when people drop off.
+    first_pick:    { icon: '\ud83c\udf31', label: 'First Call',    desc: 'Locked in your first pick.' },
+    first_correct: { icon: '\u2705',       label: 'On the Board',  desc: 'Got your first call right.' },
+    streak_3:      { icon: '\ud83d\udd25', label: 'Three in a Row', desc: 'Played 3 days in a row.' },
     // Tiered achievements: times_earned isn't a raw count of events, it's the
     // tier reached (RPC divides the underlying count by the tier size), so
     // "\u00d73" here really means "3rd tier" -- 30 correct calls, 300
@@ -860,9 +864,15 @@
   // that happened elsewhere (an admin resolving a day, a streak update), so
   // there's no single call site to hook. Call this wherever a good moment
   // naturally comes up (sign-in, opening the profile) to catch tier-ups.
+  var STARTER_ACHIEVEMENT_KEYS = ['first_pick', 'first_correct', 'streak_3'];
+  function mqCheckStarterBadges(userId){
+    if(!userId) return;
+    STARTER_ACHIEVEMENT_KEYS.forEach(function(key){ mqAwardAchievement(userId, key); });
+  }
   function mqCheckTieredAchievements(userId){
     if(!userId) return;
     TIERED_ACHIEVEMENT_KEYS.forEach(function(key){ mqAwardAchievement(userId, key); });
+    mqCheckStarterBadges(userId);
   }
 
   // Small non-blocking toast, distinct from the bigger streak-milestone
@@ -4617,6 +4627,7 @@
         return buddyList.some(function(b){ return b.picks && b.picks[p.q.id] === p.myVote; });
       });
       if(gotBuddyMatch) mqAwardAchievement(session.user.id, 'buddy_bonus');
+      mqCheckStarterBadges(session.user.id);
     }
 
     // Change 4 (pre-result picks card): once the day's picks are all
