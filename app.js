@@ -116,6 +116,42 @@
     }
   }
 
+  // After email signup, let the player type the code from the confirmation
+  // email right here. On an iPhone home-screen app a link opens Safari, not the
+  // app, so the login never reaches the app; typing the code keeps them in it.
+  // (Needs the Supabase "Confirm signup" email template to include {{ .Token }};
+  // if it only has the link, the link still works as before.)
+  function mqShowCodeEntry(email, msgEl){
+    var old = document.getElementById('mq-code-entry'); if(old) old.remove();
+    var box = document.createElement('div');
+    box.id = 'mq-code-entry';
+    box.style.cssText = 'display:flex; flex-direction:column; gap:8px; margin-top:10px;';
+    box.innerHTML =
+      '<input type="text" id="mq-code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Code from the email" style="padding:11px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:16px; letter-spacing:2px; background:var(--panel); color:var(--ink);">' +
+      '<button type="button" id="mq-code-btn" style="padding:11px 16px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-weight:600; font-size:14.5px; cursor:pointer;">Confirm code</button>' +
+      '<button type="button" id="mq-code-resend" style="background:none; border:none; color:var(--ink-soft); font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:underline; padding:0; align-self:flex-start;">Send a new code</button>' +
+      '<div id="mq-code-msg" class="form-msg" style="min-height:0;"></div>';
+    msgEl.insertAdjacentElement('afterend', box);
+    var codeMsg = box.querySelector('#mq-code-msg');
+    box.querySelector('#mq-code-btn').addEventListener('click', async function(){
+      var token = box.querySelector('#mq-code-input').value.replace(/\s+/g, '');
+      if(!token){ codeMsg.className = 'form-msg err'; codeMsg.textContent = 'Enter the code from the email.'; return; }
+      this.disabled = true;
+      var res = await sb.auth.verifyOtp({ email: email, token: token, type: 'signup' });
+      this.disabled = false;
+      if(res.error){ codeMsg.className = 'form-msg err'; codeMsg.textContent = 'That code did not work. Check it or send a new one.'; return; }
+      // Signed in -- onAuthStateChange takes it from here.
+      box.remove();
+    });
+    box.querySelector('#mq-code-resend').addEventListener('click', async function(){
+      this.disabled = true;
+      var res = await sb.auth.resend({ type: 'signup', email: email });
+      this.disabled = false;
+      codeMsg.className = 'form-msg ' + (res.error ? 'err' : 'ok');
+      codeMsg.textContent = res.error ? 'Could not resend. Try again in a minute.' : 'New email sent.';
+    });
+  }
+
   async function handleJoin(usernameInput, emailInput, ageCheckbox, btn, msgEl, stateInput, mode){
     const email = emailInput.value.trim();
     const password = document.getElementById('password-input').value;
@@ -184,7 +220,8 @@
       }
       // Confirmation is required -- no session yet. Tell them to check email.
       msgEl.classList.add('ok');
-      msgEl.textContent = 'Check ' + email + ' for a link to confirm your account, then log in.';
+      msgEl.textContent = 'Check ' + email + ' to confirm your account. Tap the link, or type the code from the email below.';
+      mqShowCodeEntry(email, msgEl);
       return;
     }
 
@@ -197,7 +234,7 @@
       msgEl.textContent = error.message.indexOf('Invalid login') > -1
         ? 'Wrong email or password.'
         : (error.message.indexOf('not confirmed') > -1
-          ? 'Confirm your email first \u2014 check your inbox for the link.'
+          ? (mqShowCodeEntry(email, msgEl), 'Confirm your email first \u2014 tap the link in your inbox, or type the code below.')
           : 'Something went wrong. Try again.');
       return;
     }
@@ -638,6 +675,14 @@
       }
     }
 
+    if(insertErr && insertErr.code !== '23505'){
+      // Not a duplicate: try once more after a short wait (the session token
+      // can lag a moment behind the sign-in event), then record the failure.
+      await new Promise(function(r){ setTimeout(r, 800); });
+      const again = await insertProfile(username, null);
+      insertErr = again.error && again.error.code === '23505' ? null : again.error;
+      if(insertErr){ try{ mqTrack('profile_insert_failed', { code: insertErr.code || 'unknown' }); }catch(e){} }
+    }
     if(!insertErr){
       await sb.from('streaks').insert({ user_id: user.id });
     }
@@ -675,7 +720,15 @@
     if(!session) return;
     const btn = this;
     btn.disabled = true;
-    const { error } = await sb.from('profiles').update({ username: newUsername }).eq('id', session.user.id);
+    let { data: savedRows, error } = await sb.from('profiles').update({ username: newUsername }).eq('id', session.user.id).select('id');
+    if(!error && (!savedRows || !savedRows.length)){
+      // No profile row exists yet (account was created but the profile never
+      // got written). An UPDATE on a missing row "succeeds" with zero rows, so
+      // create the row here instead of pretending it saved.
+      const ins = await sb.from('profiles').insert({ id: session.user.id, username: newUsername, age_confirmed: true, signup_source: 'organic' });
+      error = ins.error;
+      if(!error){ await sb.from('streaks').insert({ user_id: session.user.id }); }
+    }
     btn.disabled = false;
     if(error){
       msg.className = 'form-msg err';
@@ -686,7 +739,8 @@
     const navUsername = document.getElementById('nav-username');
     if(navUsername) navUsername.textContent = newUsername;
     const heroMsg = document.getElementById('hero-status-msg');
-    if(heroMsg && heroMsg.textContent.indexOf('signed in as') !== -1){
+    if(heroMsg){
+      heroMsg.className = 'form-msg ok';
       heroMsg.textContent = 'You\u2019re signed in as ' + newUsername + '.';
     }
   });
@@ -1109,6 +1163,34 @@
 
     const picksList = document.getElementById('profile-picks-list');
     picksList.innerHTML = '';
+
+    // Accuracy by category: a solo-friendly stat that needs no friends or
+    // groups -- "you're 80% on sports" gives a player something to chase.
+    var catAccEl = document.getElementById('profile-category-acc');
+    if(!catAccEl){
+      catAccEl = document.createElement('div');
+      catAccEl.id = 'profile-category-acc';
+      catAccEl.style.cssText = 'display:flex; gap:8px; margin:0 0 10px;';
+      picksList.parentNode.insertBefore(catAccEl, picksList);
+    }
+    catAccEl.innerHTML = '';
+    var catTotals = {};
+    (picks || []).forEach(function(p){
+      var q = p.daily_questions;
+      if(!q || !q.resolved || !q.correct_answer) return;
+      var t = catTotals[q.category] || (catTotals[q.category] = { right: 0, total: 0 });
+      t.total++;
+      if(p.choice === q.correct_answer) t.right++;
+    });
+    Object.keys(CATEGORY_LABELS).forEach(function(cat){
+      var t = catTotals[cat];
+      var tile = document.createElement('div');
+      tile.style.cssText = 'flex:1; padding:10px 8px; background:var(--panel); border:1px solid var(--line); border-radius:10px; text-align:center;';
+      var pct = t && t.total ? Math.round(100 * t.right / t.total) + '%' : '\u2014';
+      tile.innerHTML = '<div style="font-size:18px; font-weight:700;">' + pct + '</div>' +
+        '<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">' + CATEGORY_LABELS[cat] + (t && t.total ? ' \u00b7 ' + t.right + '/' + t.total : '') + '</div>';
+      catAccEl.appendChild(tile);
+    });
     if(!picks || picks.length === 0){
       picksList.innerHTML = '<p class="ex-sub">No picks yet — head to Play to make your first call.</p>';
     }else{
@@ -1609,6 +1691,45 @@
       const card = await renderRivalCard(session, r.rival_id, name, myStars);
       activeListEl.appendChild(card);
     }
+    // Nobody to duel yet? Everyone still gets a rival: the crowd.
+    if(!(rivalRows || []).length){
+      try{ const crowdCard = await mqRenderCrowdRivalCard(session); if(crowdCard) activeListEl.appendChild(crowdCard); }
+      catch(e){ /* decoration only */ }
+    }
+  }
+
+  // "You vs The Crowd": on the player's most recent fully scored day, compare
+  // their correct calls to how often the majority side was right. Needs no
+  // friends, so a solo player always has someone to beat.
+  async function mqRenderCrowdRivalCard(session){
+    const { data: rows } = await sb.from('predictions')
+      .select('choice, daily_questions!inner(id, question_date, resolved, correct_answer)')
+      .eq('user_id', session.user.id)
+      .eq('daily_questions.resolved', true)
+      .order('created_at', { ascending: false })
+      .limit(12);
+    if(!rows || !rows.length) return null;
+    const day = rows[0].daily_questions.question_date;
+    const dayRows = rows.filter(function(r){ return r.daily_questions.question_date === day && r.daily_questions.correct_answer; });
+    if(!dayRows.length) return null;
+    let mine = 0, crowd = 0, counted = 0;
+    for(const r of dayRows){
+      const vd = await getVoteData(r.daily_questions.id);
+      const yes = vd.counts.yes, no = vd.counts.no;
+      if(yes + no < 3 || yes === no) continue; // too few votes (or a tie) to call a crowd side
+      counted++;
+      const crowdSide = yes > no ? 'yes' : 'no';
+      if(r.choice === r.daily_questions.correct_answer) mine++;
+      if(crowdSide === r.daily_questions.correct_answer) crowd++;
+    }
+    if(!counted) return null;
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px;';
+    const verdict = mine > crowd ? 'You beat the crowd.' : (mine === crowd ? 'You matched the crowd.' : 'The crowd edged you out.');
+    card.innerHTML = '<div style="font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--ink-soft); text-transform:uppercase;">You vs The Crowd \u00b7 ' + escapeHtml(day) + '</div>' +
+      '<div style="font-size:22px; font-weight:700; margin:6px 0 2px;">You ' + mine + ' \u2013 ' + crowd + ' Crowd</div>' +
+      '<div style="font-size:13px; color:var(--ink-soft);">' + verdict + ' Add a friend as a rival to play head to head.</div>';
+    return card;
   }
 
   document.getElementById('group-invite-username-btn').addEventListener('click', async function(){
@@ -2517,7 +2638,14 @@
     }catch(e){ /* never break the page over a prompt */ }
   }
 
-  sb.auth.onAuthStateChange(async function(event, session){
+  sb.auth.onAuthStateChange(function(event, session){
+    // supabase-js holds its auth lock while this callback runs, so any
+    // query made from inside it can stall or go out without the user's token
+    // (which makes the profile insert fail RLS). Hand the work to the next
+    // tick so the session is fully settled first.
+    setTimeout(function(){ mqHandleAuthEvent(event, session); }, 0);
+  });
+  async function mqHandleAuthEvent(event, session){
     if(event === 'SIGNED_IN' && session && session.user){
       const profileResult = await ensureProfile(session.user);
       if(profileResult === 'BANNED') return;
@@ -2540,7 +2668,7 @@
       backdrop.style.display = 'flex';
       input.focus();
     }
-  });
+  }
 
   document.getElementById('new-password-save-btn').addEventListener('click', async function(){
     const input = document.getElementById('new-password-input');
