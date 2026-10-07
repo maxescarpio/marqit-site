@@ -4627,8 +4627,10 @@
         return buddyList.some(function(b){ return b.picks && b.picks[p.q.id] === p.myVote; });
       });
       if(gotBuddyMatch) mqAwardAchievement(session.user.id, 'buddy_bonus');
-      mqCheckStarterBadges(session.user.id);
     }
+    // Starter badges don't depend on having buddies, so check them on every
+    // signed-in load (covers picks saved from a guest session at signup).
+    if(session) mqCheckStarterBadges(session.user.id);
 
     // Change 4 (pre-result picks card): once the day's picks are all
     // locked, prompt sharing them before results are in -- this is
@@ -4821,6 +4823,10 @@
           });
           if(justGotBuddyMatch) mqAwardAchievement(session.user.id, 'buddy_bonus');
         }
+
+        // Starter badges (First Call, etc.) toast right after the picks save,
+        // for every player -- not only those with buddies.
+        mqCheckStarterBadges(session.user.id);
 
         setTimeout(function(){ mqMaybeAskPush('after_submit'); }, 2200);
 
