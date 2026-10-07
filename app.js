@@ -304,8 +304,6 @@
       if(fieldsEl) fieldsEl.style.display = isSignup ? 'contents' : 'none';
       if(ageCheckEl) ageCheckEl.style.display = isSignup ? 'flex' : 'none';
       if(submitBtn) submitBtn.textContent = isSignup ? 'Sign up' : 'Log in';
-      const timeNote = document.querySelector('.auth-time');
-      if(timeNote) timeNote.style.display = isSignup ? '' : 'none';
       if(forgotLinkEl) forgotLinkEl.style.display = isSignup ? 'none' : 'block';
       if(passwordEl) passwordEl.autocomplete = isSignup ? 'new-password' : 'current-password';
       // Explicitly toggle 'required' too — some Safari versions still block submit
@@ -397,10 +395,26 @@
     msgEl.classList.add('ok');
     msgEl.textContent = 'Check ' + email + ' for a link to reset your password.';
   });
+  // Google refuses OAuth inside embedded in-app browsers (Instagram, TikTok,
+  // Snapchat, Facebook...) and shows a dead-end "disallowed_useragent" error.
+  // Catch those here and tell people how to get out instead.
+  function mqInAppBrowser(){
+    try{ return /FBAN|FBAV|FB_IAB|Instagram|TikTok|musical_ly|BytedanceWebview|Snapchat|Twitter|\bLine\//i.test(navigator.userAgent || ''); }
+    catch(e){ return false; }
+  }
+  function mqInAppGoogleBlocked(msgEl){
+    if(!mqInAppBrowser()) return false;
+    if(msgEl){
+      msgEl.className = 'form-msg err';
+      msgEl.textContent = 'Google sign-in is blocked in this app\u2019s browser. Open the page in your browser, or continue with email.';
+    }
+    return true;
+  }
   document.getElementById('google-auth-btn').addEventListener('click', async function(){
     const msg = document.getElementById('form-msg');
     msg.className = 'form-msg';
     msg.textContent = '';
+    if(mqInAppGoogleBlocked(msg)) return;
     const { error } = await sb.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin + window.location.pathname }
@@ -545,6 +559,8 @@
     try{ sessionStorage.setItem('marqit_pending_signup_source', pendingSignupSource); }catch(e){}
     joinToggle.setMode(mode);
     resetAuthPanelToForm();
+    const inAppNote = document.getElementById('inapp-note');
+    if(inAppNote) inAppNote.style.display = mqInAppBrowser() ? 'block' : 'none';
     authPanel.style.display = 'block';
   }
   document.getElementById('nav-login-btn').addEventListener('click', function(){ openAuthPanel('login'); });
@@ -605,6 +621,7 @@
     }catch(e){ return null; }
   }
   async function mqGoogleSignIn(msgEl){
+    if(mqInAppGoogleBlocked(msgEl)) return;
     pendingSignupSource = 'organic';
     try{ sessionStorage.setItem('marqit_pending_signup_source', pendingSignupSource); }catch(e){}
     const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
