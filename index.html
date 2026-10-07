@@ -163,6 +163,17 @@
   </div>
 </div>
 
+<div id="google-password-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:110; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:360px; width:100%;">
+    <div style="font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:18px; margin-bottom:6px;">Add a password</div>
+    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;">Pick a password so you can log in with your username next time. Google still works too.</p>
+    <input type="password" id="google-password-input" maxlength="72" minlength="8" autocomplete="new-password" placeholder="password (8+ characters)" style="width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink); margin-bottom:10px;">
+    <button type="button" id="google-password-save-btn" style="width:100%; padding:11px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Save password</button>
+    <button type="button" id="google-password-skip-btn" style="width:100%; margin-top:8px; background:none; border:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline; padding:4px;">Not now</button>
+    <p class="form-msg" id="google-password-msg" style="margin-top:4px;"></p>
+  </div>
+</div>
+
 <div id="new-password-backdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:110; align-items:center; justify-content:center; padding:16px;">
   <div style="background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:24px; max-width:360px; width:100%;">
     <div style="font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:18px; margin-bottom:6px;">Set a new password</div>
