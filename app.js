@@ -743,6 +743,7 @@
       heroMsg.className = 'form-msg ok';
       heroMsg.textContent = 'You\u2019re signed in as ' + newUsername + '.';
     }
+    mqMaybeAskPassword(session.user, false);
   });
 
   function showSignedIn(username, needsUsername){
@@ -2656,6 +2657,58 @@
     }catch(e){ /* never break the page over a prompt */ }
   }
 
+  // Google sign-ins have no Marqit password. Offer one so they can also log in with
+  // their username and password. Skipped for accounts that already have one, and
+  // snoozed for 3 days if they tap "Not now".
+  function mqMaybeAskPassword(user, needsUsername){
+    try {
+      if(!user || needsUsername) return;
+      const providers = (user.app_metadata && user.app_metadata.providers) || [];
+      const meta = user.user_metadata || {};
+      if(providers.indexOf('google') === -1 || providers.indexOf('email') > -1 || meta.password_set) return;
+      const key = 'mq-pw-snooze-' + user.id;
+      try { const until = parseInt(localStorage.getItem(key) || '0', 10); if(until > Date.now()) return; } catch(e){}
+      const backdrop = document.getElementById('google-password-backdrop');
+      if(!backdrop) return;
+      const input = document.getElementById('google-password-input');
+      const msg = document.getElementById('google-password-msg');
+      input.value = '';
+      msg.textContent = '';
+      msg.className = 'form-msg';
+      backdrop.style.display = 'flex';
+      backdrop.setAttribute('data-user', user.id);
+    } catch(e){ /* never break the page over a prompt */ }
+  }
+  document.getElementById('google-password-skip-btn').addEventListener('click', function(){
+    const backdrop = document.getElementById('google-password-backdrop');
+    try { localStorage.setItem('mq-pw-snooze-' + backdrop.getAttribute('data-user'), String(Date.now() + 3 * 86400000)); } catch(e){}
+    backdrop.style.display = 'none';
+  });
+  document.getElementById('google-password-save-btn').addEventListener('click', async function(){
+    const input = document.getElementById('google-password-input');
+    const msg = document.getElementById('google-password-msg');
+    const pw = input.value;
+    msg.className = 'form-msg';
+    msg.textContent = '';
+    if(pw.length < 8){
+      msg.classList.add('err');
+      msg.textContent = 'Password needs to be at least 8 characters.';
+      return;
+    }
+    const btn = this;
+    btn.disabled = true;
+    const { error } = await sb.auth.updateUser({ password: pw, data: { password_set: true } });
+    btn.disabled = false;
+    if(error){
+      msg.classList.add('err');
+      msg.textContent = 'Could not save \u2014 try again.';
+      return;
+    }
+    msg.classList.add('ok');
+    msg.textContent = 'Saved. You can now log in with your username and password.';
+    setTimeout(function(){ document.getElementById('google-password-backdrop').style.display = 'none'; }, 1800);
+  });
+
   sb.auth.onAuthStateChange(function(event, session){
     // supabase-js holds its auth lock while this callback runs, so any
     // query made from inside it can stall or go out without the user's token
@@ -2668,6 +2721,7 @@
       const profileResult = await ensureProfile(session.user);
       if(profileResult === 'BANNED') return;
       showSignedIn(profileResult.username || 'you', profileResult.needsUsername);
+      mqMaybeAskPassword(session.user, profileResult.needsUsername);
       mqLoadNudgeBanner();
       setTimeout(function(){ mqMaybeAskPush('signin'); }, 2500);
       mqRegisterPushToken(session.user.id);
@@ -2717,6 +2771,7 @@
       ensureProfile(session.user).then(function(profileResult){
         if(profileResult === 'BANNED') return;
         showSignedIn(profileResult.username || 'you', profileResult.needsUsername);
+        mqMaybeAskPassword(session.user, profileResult.needsUsername);
         mqLoadNudgeBanner();
         setTimeout(function(){ mqMaybeAskPush('signin'); }, 2500);
       });
