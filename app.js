@@ -116,6 +116,42 @@
     }
   }
 
+  // After email signup, let the player type the code from the confirmation
+  // email right here. On an iPhone home-screen app a link opens Safari, not the
+  // app, so the login never reaches the app; typing the code keeps them in it.
+  // (Needs the Supabase "Confirm signup" email template to include {{ .Token }};
+  // if it only has the link, the link still works as before.)
+  function mqShowCodeEntry(email, msgEl){
+    var old = document.getElementById('mq-code-entry'); if(old) old.remove();
+    var box = document.createElement('div');
+    box.id = 'mq-code-entry';
+    box.style.cssText = 'display:flex; flex-direction:column; gap:8px; margin-top:10px;';
+    box.innerHTML =
+      '<input type="text" id="mq-code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Code from the email" style="padding:11px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:16px; letter-spacing:2px; background:var(--panel); color:var(--ink);">' +
+      '<button type="button" id="mq-code-btn" style="padding:11px 16px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-weight:600; font-size:14.5px; cursor:pointer;">Confirm code</button>' +
+      '<button type="button" id="mq-code-resend" style="background:none; border:none; color:var(--ink-soft); font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:underline; padding:0; align-self:flex-start;">Send a new code</button>' +
+      '<div id="mq-code-msg" class="form-msg" style="min-height:0;"></div>';
+    msgEl.insertAdjacentElement('afterend', box);
+    var codeMsg = box.querySelector('#mq-code-msg');
+    box.querySelector('#mq-code-btn').addEventListener('click', async function(){
+      var token = box.querySelector('#mq-code-input').value.replace(/\s+/g, '');
+      if(!token){ codeMsg.className = 'form-msg err'; codeMsg.textContent = 'Enter the code from the email.'; return; }
+      this.disabled = true;
+      var res = await sb.auth.verifyOtp({ email: email, token: token, type: 'signup' });
+      this.disabled = false;
+      if(res.error){ codeMsg.className = 'form-msg err'; codeMsg.textContent = 'That code did not work. Check it or send a new one.'; return; }
+      // Signed in -- onAuthStateChange takes it from here.
+      box.remove();
+    });
+    box.querySelector('#mq-code-resend').addEventListener('click', async function(){
+      this.disabled = true;
+      var res = await sb.auth.resend({ type: 'signup', email: email });
+      this.disabled = false;
+      codeMsg.className = 'form-msg ' + (res.error ? 'err' : 'ok');
+      codeMsg.textContent = res.error ? 'Could not resend. Try again in a minute.' : 'New email sent.';
+    });
+  }
+
   async function handleJoin(usernameInput, emailInput, ageCheckbox, btn, msgEl, stateInput, mode){
     const email = emailInput.value.trim();
     const password = document.getElementById('password-input').value;
@@ -184,7 +220,8 @@
       }
       // Confirmation is required -- no session yet. Tell them to check email.
       msgEl.classList.add('ok');
-      msgEl.textContent = 'Check ' + email + ' for a link to confirm your account, then log in.';
+      msgEl.textContent = 'Check ' + email + ' to confirm your account. Tap the link, or type the code from the email below.';
+      mqShowCodeEntry(email, msgEl);
       return;
     }
 
@@ -197,7 +234,7 @@
       msgEl.textContent = error.message.indexOf('Invalid login') > -1
         ? 'Wrong email or password.'
         : (error.message.indexOf('not confirmed') > -1
-          ? 'Confirm your email first \u2014 check your inbox for the link.'
+          ? (mqShowCodeEntry(email, msgEl), 'Confirm your email first \u2014 tap the link in your inbox, or type the code below.')
           : 'Something went wrong. Try again.');
       return;
     }
