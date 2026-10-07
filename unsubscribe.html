@@ -19,14 +19,23 @@
   h1{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:24px;margin-top:20px;}
   p{margin-top:12px;font-size:14.5px;color:var(--ink-soft);}
   a{color:var(--ink);font-weight:600;}
+  .actions{display:flex;flex-direction:column;gap:10px;margin-top:22px;}
+  .btn{width:100%;padding:13px 18px;border-radius:12px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;border:1.5px solid var(--ink);}
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-secondary{background:transparent;color:var(--ink);border-color:var(--line);}
+  .btn:disabled{opacity:.6;cursor:default;}
 </style>
 </head>
 <body>
 
 <div class="card">
   <div class="word">Marqit<span>.</span></div>
-  <h1 id="status-heading">Unsubscribing…</h1>
-  <p id="status-text">One second.</p>
+  <h1 id="status-heading">Unsubscribe from Marqit reminders?</h1>
+  <p id="status-text">You won’t get Marqit emails anymore: your daily results, streak reminders and the weekly recap.</p>
+  <div class="actions" id="actions">
+    <button type="button" class="btn btn-primary" id="yes-btn">Yes, unsubscribe me</button>
+    <button type="button" class="btn btn-secondary" id="no-btn">No, keep my emails</button>
+  </div>
 </div>
 
 <script>
@@ -40,24 +49,41 @@
   var token = params.get('token');
   var heading = document.getElementById('status-heading');
   var text = document.getElementById('status-text');
+  var actions = document.getElementById('actions');
+  var yesBtn = document.getElementById('yes-btn');
+  var noBtn = document.getElementById('no-btn');
 
-  // FIXED: unsubscribe links now carry a signed token alongside uid. A link
-  // missing either piece can't be a real Marqit email link, so don't even
-  // attempt the call -- just point them to their profile instead.
+  // A link missing either piece can't be a real Marqit email link, so don't
+  // offer the button at all -- just point them to their profile instead.
   if(!uid || !token){
+    actions.style.display = 'none';
     heading.textContent = 'Missing link details';
     text.textContent = 'This unsubscribe link looks incomplete. You can also turn this off from your profile on the site.';
     return;
   }
 
-  sb.rpc('unsubscribe_from_resolve_email', { p_user_id: uid, p_token: token }).then(function(res){
-    if(res.error){
-      heading.textContent = 'Something went wrong';
-      text.innerHTML = 'Could not process this automatically. You can also turn it off from your profile at <a href="https://playmarqit.com">playmarqit.com</a>.';
-      return;
-    }
-    heading.textContent = 'You\u2019re unsubscribed';
-    text.innerHTML = 'You won\u2019t get daily results emails anymore. You can turn it back on anytime from your profile at <a href="https://playmarqit.com">playmarqit.com</a>.';
+  // Nothing is changed just by opening this page (so email scanners that open
+  // links can't unsubscribe anyone). The unsubscribe only happens when the
+  // person taps "Yes", and that answer is final.
+  noBtn.addEventListener('click', function(){
+    actions.style.display = 'none';
+    heading.textContent = 'Glad you\u2019re staying';
+    text.innerHTML = 'Nothing has changed. You\u2019ll keep getting your Marqit emails. <a href="https://playmarqit.com">Back to Marqit</a>';
+  });
+
+  yesBtn.addEventListener('click', function(){
+    yesBtn.disabled = true; noBtn.disabled = true;
+    yesBtn.textContent = 'Unsubscribing\u2026';
+    sb.rpc('unsubscribe_from_resolve_email', { p_user_id: uid, p_token: token }).then(function(res){
+      actions.style.display = 'none';
+      if(res.error){
+        heading.textContent = 'Something went wrong';
+        text.innerHTML = 'Could not process this automatically. You can also turn it off from your profile at <a href="https://playmarqit.com">playmarqit.com</a>.';
+        return;
+      }
+      heading.textContent = 'You\u2019re unsubscribed';
+      text.innerHTML = 'You won\u2019t get Marqit reminder emails anymore. You can turn them back on anytime from your profile at <a href="https://playmarqit.com">playmarqit.com</a>.';
+    });
   });
 })();
 </script>
