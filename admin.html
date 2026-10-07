@@ -114,8 +114,7 @@
   <div id="question-list"></div>
   <button id="score-btn" style="margin-top:20px;">Run scoring for this date</button>
   <p id="score-msg" style="font-size:13px; margin-top:8px;"></p>
-  <button id="notify-btn" style="margin-top:8px; background:var(--panel); border:1.5px solid var(--line); color:var(--ink);">Email opted-in users that results are in</button>
-  <p id="notify-msg" style="font-size:13px; margin-top:8px;"></p>
+  <p style="font-size:12.5px; color:var(--ink-soft); margin-top:8px;">Results emails go out automatically when scoring finishes.</p>
 
   <h2>Users</h2>
   <label>Search by username</label>
@@ -563,7 +562,12 @@
     loadQuestionsForDate();
   });
 
-  document.getElementById('view-date').addEventListener('change', loadQuestionsForDate);
+  document.getElementById('view-date').addEventListener('change', function(){
+    // A "Scoring complete" line belongs to the date it was shown for, so clear it when the date changes.
+    var sm = document.getElementById('score-msg'); if(sm) sm.textContent = '';
+    var cm = document.getElementById('check-results-msg'); if(cm) cm.textContent = '';
+    loadQuestionsForDate();
+  });
 
   document.getElementById('check-results-btn').addEventListener('click', async function(){
     const btn = this;
@@ -675,29 +679,6 @@
     }
     const { error } = await sb.rpc('resolve_day', { target_date: date });
     msg.textContent = error ? ('Error: ' + error.message) : 'Scoring complete for ' + date + '.';
-  });
-
-  document.getElementById('notify-btn').addEventListener('click', async function(){
-    const date = document.getElementById('view-date').value;
-    const msg = document.getElementById('notify-msg');
-    const btn = this;
-    if(!confirm('Email everyone who opted in that results for ' + date + ' are ready? Run this after scoring, not before.')){
-      return;
-    }
-    btn.disabled = true;
-    msg.textContent = 'Sending…';
-    const { data: sessionRes } = await sb.auth.getSession();
-    const token = sessionRes && sessionRes.session ? sessionRes.session.access_token : null;
-    const { data, error } = await sb.functions.invoke('notify-results', {
-      body: { target_date: date },
-      headers: token ? { Authorization: 'Bearer ' + token } : {}
-    });
-    btn.disabled = false;
-    if(error){
-      msg.textContent = 'Error: ' + error.message;
-      return;
-    }
-    msg.textContent = 'Sent to ' + (data.sent || 0) + ' people' + (data.failed ? (', ' + data.failed + ' failed') : '') + '.';
   });
 
   async function loadSuggestions(){
