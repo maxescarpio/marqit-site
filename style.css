@@ -975,3 +975,7 @@ body{overflow-x:hidden;}
 #record-card .recap-foot{border-top:0;padding-top:0;margin-bottom:16px;}
 #record-card .rec-cal-wrap{margin-bottom:0;padding-top:14px;border-top:1px solid var(--line);max-width:none;}
 #record-card .rec-cal-wrap>*{max-width:340px;margin-left:auto;margin-right:auto;}
+/* Leaderboard: tighter gap between the heading and the record card */
+#page-leaderboard .hero-lite{padding-bottom:16px;}
+#page-leaderboard .hero-lite + .section{padding-top:18px;}
+#page-leaderboard .lb-builder{bottom:-14px;}
