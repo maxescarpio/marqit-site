@@ -281,10 +281,107 @@
     <div id="daily-questions-container">
       <div class="skel-card"><i class="sk" style="width:38%"></i><i class="sk" style="width:92%;height:22px;margin-top:16px"></i><i class="sk" style="width:64%;height:22px;margin-top:8px"></i><div class="sk-row"><i class="sk"></i><i class="sk"></i></div></div><div class="skel-card"><i class="sk" style="width:38%"></i><i class="sk" style="width:92%;height:22px;margin-top:16px"></i><i class="sk" style="width:64%;height:22px;margin-top:8px"></i><div class="sk-row"><i class="sk"></i><i class="sk"></i></div></div><div class="skel-card"><i class="sk" style="width:38%"></i><i class="sk" style="width:92%;height:22px;margin-top:16px"></i><i class="sk" style="width:64%;height:22px;margin-top:8px"></i><div class="sk-row"><i class="sk"></i><i class="sk"></i></div></div>
     </div>
+    <!-- Share your results: sits right under today's picks so it's the next thing a player sees. Shown once there are results to share. -->
+    <div id="share-section" style="display:none; margin-top:32px;">
+      <div class="sec-head"><span class="sec-ico" style="--rc:70,140,255;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/></svg></span><h3 class="ex-title">Share your results</h3></div>
+      <div class="share-card share-card-lg" id="share-card">
+        <div class="share-head">
+          <strong id="share-card-title">Marqit</strong>
+          <div class="share-streak">
+            <span id="share-card-streak">Sign in to see yours</span>
+          </div>
+        </div>
+        <div class="share-date" id="share-card-date"></div>
+        <p id="share-card-calledit" style="display:none; font-size:13.5px; font-weight:700; color:#F5C336; margin:0 0 14px;"></p>
+        <div class="share-row" id="share-card-row">
+          <p class="ex-sub" style="margin:0;">Play a full day to see your card.</p>
+        </div>
+        <div class="share-foot">playmarqit.com</div>
+      </div>
+      <div class="share-actions">
+        <button type="button" id="share-results-btn" class="share-btn-primary" style="display:none;">Share your results</button>
+        <button type="button" id="share-results-square-btn" class="share-btn-secondary" style="display:none;">Download square</button>
+      </div>
+      <p class="form-msg" id="share-results-msg" style="margin-top:6px;"></p>
+    </div>
     <div class="challenge-banner" style="--tint:246,196,48;">
       <span class="cb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
       <div class="cb-text"><div class="cb-title">2026 Marqit Challenge</div><div class="cb-sub">One big call a week. Starts Nov 16.</div></div>
       <button type="button" id="home-cta-challenge" class="cb-btn">Join</button>
+    </div>
+
+    <!-- Buddies and rivals: add them and see them here on the Play tab (moved from How to play). Shown once signed in. -->
+    <div id="play-friends" style="display:none; margin-top:36px;">
+      <div class="sec-head"><span class="sec-ico" style="--rc:51,209,139;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><h3 class="ex-title">Your buddies</h3></div>
+      <p class="ex-sub">Same pick as a buddy: +25 each. They have to accept first.</p>
+    <div style="max-width:420px; margin-top:20px;" id="buddy-section">
+      <!-- Add-a-buddy form: always visible. You can have as many buddies as
+           you like, so this never gets hidden/blocked the way a single-slot
+           version would. -->
+      <div id="buddy-add-form">
+        <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Add a buddy</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="buddy-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
+          <button id="set-buddy-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Send request</button>
+        </div>
+        <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">They have to accept first.</p>
+      </div>
+      <!-- One row per pending outgoing request (you can have several out at once). -->
+      <div id="buddy-pending-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
+      <!-- One row per accepted buddy. -->
+      <div id="buddy-active-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
+      <p class="form-msg" id="buddy-msg" style="font-size:13px; margin-top:8px;"></p>
+    </div>
+
+      <div class="sec-head" style="margin-top:32px;"><span class="sec-ico" style="--rc:245,100,79;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 2.8v5.4c0 4.4-2.9 7.6-7 9.3-4.1-1.7-7-4.9-7-9.3V5.8z"/><path d="M12.8 7.5l-3 4.6h3.4l-1.2 4.4"/></svg></span><h3 class="ex-title">Your rivals</h3></div>
+      <p class="ex-sub">Beat your rival on a day and take a golden star.</p>
+    <div style="max-width:420px; margin-top:20px;" id="rival-section">
+      <!-- Add-a-rival form: always visible. You can have as many rivals as
+           you like, each with their own independent Showdown below. -->
+      <div id="rival-add-form">
+        <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Add a rival</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="rival-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
+          <button id="set-rival-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Send request</button>
+        </div>
+        <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">They have to accept first.</p>
+      </div>
+      <!-- One row per pending outgoing request. -->
+      <div id="rival-pending-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
+      <!-- One full Showdown card per accepted rival -- each tracks its own
+           activation/star state independently via rival-duel-card-template. -->
+      <div id="rival-active-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
+      <p class="form-msg" id="rival-msg" style="font-size:13px; margin-top:8px;"></p>
+    </div>
+    <!-- Recent Activity: a lightweight feed of your buddies' and rivals'
+         picks on today's calls. Same reveal gating as everything else on
+         this page -- a name only shows up here for a question you've
+         already voted on yourself (or that's locked), so this never works
+         as a way to peek at someone's pick before making your own. -->
+    <div class="sec-head" style="margin-top:32px;"><span class="sec-ico" style="--rc:150,96,214;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L4 14h6l-1 7 9-11h-6z"/></svg></span><h3 class="ex-title">Recent Activity</h3></div>
+    <div style="max-width:420px; margin-top:20px;" id="activity-feed-section">
+      <div id="activity-feed-list" style="display:flex; flex-direction:column; gap:8px; max-height:230px; overflow-y:auto; padding-right:2px; mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%); -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);"></div>
+      <p class="ticket-meta" id="activity-feed-empty" style="display:none;">Add a buddy or rival to see their picks here.</p>
+    </div>
+    <template id="rival-duel-card-template">
+      <div class="rival-duel-card" style="display:flex; flex-direction:column; gap:10px; background:var(--no-bg); border:1px solid var(--no); border-radius:10px; padding:12px 14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <span style="font-size:13.5px; color:var(--no);">Your rival: <strong class="rival-active-name"></strong></span>
+          <span style="display:flex; gap:6px; flex:none;">
+            <button type="button" class="remind-btn" style="padding:6px 12px; border:1px solid var(--no); border-radius:8px; background:none; color:var(--no); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Remind</button>
+            <button type="button" class="remove-rival-btn" style="padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:none; color:var(--ink-soft); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Remove</button>
+          </span>
+        </div>
+        <div class="rival-duel-not-activated">
+          <button type="button" class="activate-duel-btn" style="width:100%; padding:10px 16px; border:none; border-radius:8px; background:var(--no); color:#fff; font-weight:600; font-size:13.5px; cursor:pointer;">Start today's Showdown</button>
+          <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">Both of you must opt in today.</p>
+        </div>
+        <div class="rival-duel-no-stars" style="display:none; font-size:13px; color:var(--ink-soft);">Out of stars. Hit a 5-day streak to earn one.</div>
+        <div class="rival-duel-you-activated" style="display:none; font-size:13px; color:var(--ink-soft);">You're in. Waiting on <strong class="rival-duel-waiting-name"></strong>.</div>
+        <div class="rival-duel-both-activated" style="display:none; font-size:13px; color:var(--yes);">Showdown is on. Good luck.</div>
+        <div class="rival-duel-last-result" style="display:none; font-size:12.5px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:8px; margin-top:2px;"></div>
+      </div>
+    </template>
     </div>
   </div>
 </section>
@@ -366,24 +463,7 @@
       </div>
       <div class="duel-note">Same pick, both get +25. Opposite picks, no bonus.</div>
     </div>
-    <div style="max-width:420px; margin-top:20px;" id="buddy-section">
-      <!-- Add-a-buddy form: always visible. You can have as many buddies as
-           you like, so this never gets hidden/blocked the way a single-slot
-           version would. -->
-      <div id="buddy-add-form">
-        <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Add a buddy</label>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="buddy-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
-          <button id="set-buddy-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Send request</button>
-        </div>
-        <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">They have to accept first.</p>
-      </div>
-      <!-- One row per pending outgoing request (you can have several out at once). -->
-      <div id="buddy-pending-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
-      <!-- One row per accepted buddy. -->
-      <div id="buddy-active-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
-      <p class="form-msg" id="buddy-msg" style="font-size:13px; margin-top:8px;"></p>
-    </div>
+    <p class="ex-sub" style="margin-top:14px;">Add buddies from the Play tab.</p>
 
     <div class="sec-head" style="margin-top:32px;"><span class="sec-ico" style="--rc:245,100,79;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 2.8v5.4c0 4.4-2.9 7.6-7 9.3-4.1-1.7-7-4.9-7-9.3V5.8z"/><path d="M12.8 7.5l-3 4.6h3.4l-1.2 4.4"/></svg></span><h3 class="ex-title">Rival Showdown</h3></div>
     <p class="ex-sub">Everyone starts with 5 golden stars. Earn more with 5-day streaks. Beat your rival on a day and take a star.</p>
@@ -408,78 +488,7 @@
       </div>
       <div class="duel-note">Winner steals a star. A tie changes nothing.</div>
     </div>
-    <div style="max-width:420px; margin-top:20px;" id="rival-section">
-      <!-- Add-a-rival form: always visible. You can have as many rivals as
-           you like, each with their own independent Showdown below. -->
-      <div id="rival-add-form">
-        <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Add a rival</label>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="rival-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
-          <button id="set-rival-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Send request</button>
-        </div>
-        <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">They have to accept first.</p>
-      </div>
-      <!-- One row per pending outgoing request. -->
-      <div id="rival-pending-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
-      <!-- One full Showdown card per accepted rival -- each tracks its own
-           activation/star state independently via rival-duel-card-template. -->
-      <div id="rival-active-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
-      <p class="form-msg" id="rival-msg" style="font-size:13px; margin-top:8px;"></p>
-    </div>
-    <!-- Recent Activity: a lightweight feed of your buddies' and rivals'
-         picks on today's calls. Same reveal gating as everything else on
-         this page -- a name only shows up here for a question you've
-         already voted on yourself (or that's locked), so this never works
-         as a way to peek at someone's pick before making your own. -->
-    <div class="sec-head" style="margin-top:32px;"><span class="sec-ico" style="--rc:150,96,214;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L4 14h6l-1 7 9-11h-6z"/></svg></span><h3 class="ex-title">Recent Activity</h3></div>
-    <div style="max-width:420px; margin-top:20px;" id="activity-feed-section">
-      <div id="activity-feed-list" style="display:flex; flex-direction:column; gap:8px; max-height:230px; overflow-y:auto; padding-right:2px; mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%); -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);"></div>
-      <p class="ticket-meta" id="activity-feed-empty" style="display:none;">Add a buddy or rival to see their picks here.</p>
-    </div>
-    <template id="rival-duel-card-template">
-      <div class="rival-duel-card" style="display:flex; flex-direction:column; gap:10px; background:var(--no-bg); border:1px solid var(--no); border-radius:10px; padding:12px 14px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <span style="font-size:13.5px; color:var(--no);">Your rival: <strong class="rival-active-name"></strong></span>
-          <span style="display:flex; gap:6px; flex:none;">
-            <button type="button" class="remind-btn" style="padding:6px 12px; border:1px solid var(--no); border-radius:8px; background:none; color:var(--no); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Remind</button>
-            <button type="button" class="remove-rival-btn" style="padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:none; color:var(--ink-soft); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Remove</button>
-          </span>
-        </div>
-        <div class="rival-duel-not-activated">
-          <button type="button" class="activate-duel-btn" style="width:100%; padding:10px 16px; border:none; border-radius:8px; background:var(--no); color:#fff; font-weight:600; font-size:13.5px; cursor:pointer;">Start today's Showdown</button>
-          <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">Both of you must opt in today.</p>
-        </div>
-        <div class="rival-duel-no-stars" style="display:none; font-size:13px; color:var(--ink-soft);">Out of stars. Hit a 5-day streak to earn one.</div>
-        <div class="rival-duel-you-activated" style="display:none; font-size:13px; color:var(--ink-soft);">You're in. Waiting on <strong class="rival-duel-waiting-name"></strong>.</div>
-        <div class="rival-duel-both-activated" style="display:none; font-size:13px; color:var(--yes);">Showdown is on. Good luck.</div>
-        <div class="rival-duel-last-result" style="display:none; font-size:12.5px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:8px; margin-top:2px;"></div>
-      </div>
-    </template>
-  </div>
-</section>
-
-<section class="section">
-  <div class="wrap">
-    <div class="sec-head"><span class="sec-ico" style="--rc:70,140,255;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/></svg></span><h3 class="ex-title">Share your results</h3></div>
-    <p class="ex-sub">Post your card anywhere.</p>
-    <div class="share-card" id="share-card">
-      <div class="share-head">
-        <strong id="share-card-title">Marqit</strong>
-        <div class="share-streak">
-          <span id="share-card-streak">Sign in to see yours</span>
-        </div>
-      </div>
-      <p id="share-card-calledit" style="display:none; font-size:12.5px; font-weight:700; color:#F5C336; margin-top:6px;"></p>
-      <div class="share-row" id="share-card-row">
-        <p class="ex-sub" style="margin:0;">Play a full day to see your card.</p>
-      </div>
-      <div class="share-foot">playmarqit.com</div>
-    </div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
-      <button type="button" id="share-results-btn" style="display:none; padding:11px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Share your results</button>
-      <button type="button" id="share-results-square-btn" style="display:none; padding:11px 22px; border:1.5px solid var(--line); border-radius:10px; background:none; color:var(--ink); font-family:inherit; font-weight:600; font-size:14px; cursor:pointer;">Download square</button>
-    </div>
-    <p class="form-msg" id="share-results-msg" style="margin-top:6px;"></p>
+    <p class="ex-sub" style="margin-top:14px;">Add rivals from the Play tab.</p>
   </div>
 </section>
 
@@ -517,8 +526,18 @@
 
 <section class="section">
   <div class="wrap">
-    <h3 class="ex-title">Your week</h3>
-    <div class="recap-card" id="recap-card" style="border-top:3px solid #128A50;">
+    <h3 class="ex-title">Your record</h3>
+    <div class="recap-card record-card" id="record-card">
+      <div class="recap-head">Your record · last 5 weeks</div>
+      <div class="rec-cal-wrap">
+        <div class="rec-dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+        <div class="rec-cal" id="rec-cal"></div>
+        <div class="rec-legend"><span><i style="background:linear-gradient(160deg,#F7D466,#D9A21F)"></i>Perfect Day</span><span><i style="background:rgba(51,209,139,.88)"></i>2 right</span><span><i style="background:rgba(51,209,139,.42)"></i>1 right</span><span><i style="background:rgba(245,100,79,.6)"></i>None right</span><span><i style="background:rgba(128,136,150,.35)"></i>Missed</span></div>
+      </div>
+      <div class="rec-rings" id="rec-rings"></div>
+      <div class="recap-foot" id="rec-foot">Sign in to see your record.</div>
+    </div>
+    <div class="recap-card" id="recap-card" style="margin-top:14px; border-top:3px solid #128A50;">
       <div class="recap-head">This week</div>
       <div class="recap-stats">
         <div><strong id="recap-accuracy" style="color:#128A50;">—</strong><span>Accuracy</span></div>
@@ -531,16 +550,6 @@
       <div class="recap-head">My calls</div>
       <div class="mycalls-rate" id="mycalls-rate"></div>
       <div class="mycalls-list" id="mycalls-list"></div>
-    </div>
-    <div class="recap-card record-card" id="record-card" style="margin-top:14px;">
-      <div class="recap-head">Your record · last 5 weeks</div>
-      <div class="rec-cal-wrap">
-        <div class="rec-dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
-        <div class="rec-cal" id="rec-cal"></div>
-        <div class="rec-legend"><span><i style="background:linear-gradient(160deg,#F7D466,#D9A21F)"></i>Perfect Day</span><span><i style="background:rgba(51,209,139,.88)"></i>2 right</span><span><i style="background:rgba(51,209,139,.42)"></i>1 right</span><span><i style="background:rgba(245,100,79,.6)"></i>None right</span><span><i style="background:rgba(128,136,150,.35)"></i>Missed</span></div>
-      </div>
-      <div class="rec-rings" id="rec-rings"></div>
-      <div class="recap-foot" id="rec-foot">Sign in to see your record.</div>
     </div>
     <p class="ex-sub" style="margin-top:16px;" id="top-predictor-line"><i class="sk" style="width:62%;height:14px;"></i></p>
   </div>
