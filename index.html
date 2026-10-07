@@ -77,8 +77,8 @@
 
     <div style="display:flex; align-items:center; gap:12px;">
       <div id="nav-signed-out" style="display:flex; align-items:center; gap:10px;">
-        <button type="button" id="nav-login-btn" style="background:none; border:none; padding:8px 4px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer;">Log in</button>
-        <button type="button" id="nav-signup-btn" style="background:var(--ink); border:none; border-radius:8px; padding:9px 18px; font-size:14px; font-weight:600; color:var(--paper); cursor:pointer;">Sign up</button>
+        <button type="button" id="nav-login-btn" style="display:none; background:none; border:none; padding:8px 4px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer;">Log in</button>
+        <button type="button" id="nav-signup-btn" style="background:var(--ink); border:none; border-radius:8px; padding:9px 18px; font-size:14px; font-weight:600; color:var(--paper); cursor:pointer;">Play free</button>
       </div>
 
       <div id="nav-signed-in" style="display:none; align-items:center; gap:10px;">
@@ -143,8 +143,26 @@
         <span>I'm 18 or older</span>
       </label>
       <button type="submit" id="join-btn" style="width:100%;">Sign up</button>
+      <button type="button" id="join-use-code-btn" style="background:none; border:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline; padding:4px; align-self:center;">Email me a code instead</button>
       <button type="button" id="email-form-back-btn" style="background:none; border:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline; padding:4px; align-self:center;">&larr; Back</button>
     </form>
+    <div class="signup" id="email-code-step" style="display:none; flex-direction:column; gap:10px;">
+      <div id="code-stage-email" style="display:flex; flex-direction:column; gap:10px;">
+        <p style="font-size:13px; color:var(--ink-soft); margin:0;">Enter your email and we&rsquo;ll send you a sign-in code. No password needed.</p>
+        <input type="email" id="code-email-input" placeholder="you@email.com" autocomplete="email" autocapitalize="none" autocorrect="off">
+        <button type="button" id="send-code-btn" style="width:100%;">Email me a code</button>
+        <div class="signup-note" style="margin-top:0; text-align:center;">By continuing you confirm you&rsquo;re 18+.</div>
+        <button type="button" id="use-password-btn" style="background:none; border:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline; padding:4px; align-self:center;">Use a password instead</button>
+        <button type="button" id="code-back-btn" style="background:none; border:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline; padding:4px; align-self:center;">&larr; Back</button>
+      </div>
+      <div id="code-stage-verify" style="display:none; flex-direction:column; gap:10px;">
+        <p id="code-sent-msg" style="font-size:13px; color:var(--ink-soft); margin:0;"></p>
+        <input type="text" id="code-input" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="10" placeholder="6-digit code" style="text-align:center; letter-spacing:0.25em; font-size:18px;">
+        <button type="button" id="verify-code-btn" style="width:100%;">Verify and continue</button>
+        <button type="button" id="resend-code-btn" style="background:none; border:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline; padding:4px; align-self:center;">Resend code</button>
+        <button type="button" id="code-change-email-btn" style="background:none; border:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline; padding:4px; align-self:center;">Use a different email</button>
+      </div>
+    </div>
     <div id="reset-password-step" style="display:none; flex-direction:column; gap:10px;">
       <p style="font-size:13px; color:var(--ink-soft); margin:0;">Enter your email and we'll send a link to reset your password.</p>
       <input type="email" id="reset-email-input" placeholder="you@email.com" autocomplete="email" style="width:100%; padding:14px 16px; border:1.5px solid var(--line); border-radius:10px; font-family:'Inter',sans-serif; font-size:15px; background:var(--panel); color:var(--ink); box-sizing:border-box;">
