@@ -296,11 +296,6 @@
 
 <section class="section">
   <div class="wrap">
-    <div id="pending-requests-card" style="display:none; max-width:480px; margin-bottom:24px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px;">
-      <div style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">Waiting on you</div>
-      <div id="pending-requests-list" style="display:flex; flex-direction:column; gap:10px;"></div>
-    </div>
-
     <div id="drop-banner" style="display:none; align-items:center; gap:12px; max-width:480px; margin-bottom:16px; background:linear-gradient(135deg, rgba(255,148,38,0.18), rgba(255,80,80,0.12)); border:1.5px solid rgba(255,148,38,0.55); border-radius:14px; padding:14px 16px;">
       <span style="font-size:22px; line-height:1;">🔥</span>
       <div style="flex:1; min-width:0;">
@@ -341,11 +336,19 @@
       <button type="button" id="home-cta-challenge" class="cb-btn">Join</button>
     </div>
 
-    <!-- Buddies and rivals: add them and see them here on the Play tab (moved from How to play). Shown once signed in. -->
-    <div id="play-friends" style="display:none; margin-top:36px;">
-      <div class="sec-head"><span class="sec-ico" style="--rc:51,209,139;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><h3 class="ex-title">Your buddies</h3></div>
+    <!-- Waiting on you: incoming buddy / rival / group requests. Lives below the three questions so nothing sits between a player and today's calls; the profile bell dot still flags new requests. -->
+    <div id="pending-requests-card" style="display:none; max-width:480px; margin-top:28px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px;">
+      <div style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">Waiting on you</div>
+      <div id="pending-requests-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+    </div>
+
+    <!-- Buddies, rivals and recent activity: collapsed by default so the Play tab stays about the three questions. Tap a row to open it. Shown once signed in. -->
+    <div id="play-friends" style="display:none; margin-top:28px;">
+      <details class="mq-fold" id="fold-buddies">
+      <summary><span class="sec-ico" style="--rc:51,209,139;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><h3 class="ex-title">Your buddies</h3><span class="mq-fold-count" id="buddy-fold-count" style="display:none;"></span><svg class="mq-fold-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="mq-fold-body">
       <p class="ex-sub">Same pick as a buddy: +25 each. They have to accept first.</p>
-    <div style="max-width:420px; margin-top:20px;" id="buddy-section">
+    <div style="max-width:420px; margin-top:0;" id="buddy-section">
       <!-- Add-a-buddy form: always visible. You can have as many buddies as
            you like, so this never gets hidden/blocked the way a single-slot
            version would. -->
@@ -363,10 +366,14 @@
       <div id="buddy-active-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
       <p class="form-msg" id="buddy-msg" style="font-size:13px; margin-top:8px;"></p>
     </div>
+      </div>
+      </details>
 
-      <div class="sec-head" style="margin-top:32px;"><span class="sec-ico" style="--rc:245,100,79;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 2.8v5.4c0 4.4-2.9 7.6-7 9.3-4.1-1.7-7-4.9-7-9.3V5.8z"/><path d="M12.8 7.5l-3 4.6h3.4l-1.2 4.4"/></svg></span><h3 class="ex-title">Your rivals</h3></div>
+      <details class="mq-fold" id="fold-rivals">
+      <summary><span class="sec-ico" style="--rc:245,100,79;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 2.8v5.4c0 4.4-2.9 7.6-7 9.3-4.1-1.7-7-4.9-7-9.3V5.8z"/><path d="M12.8 7.5l-3 4.6h3.4l-1.2 4.4"/></svg></span><h3 class="ex-title">Your rivals</h3><span class="mq-fold-count" id="rival-fold-count" style="display:none;"></span><svg class="mq-fold-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="mq-fold-body">
       <p class="ex-sub">Beat your rival on a day and take a golden star.</p>
-    <div style="max-width:420px; margin-top:20px;" id="rival-section">
+    <div style="max-width:420px; margin-top:0;" id="rival-section">
       <!-- Add-a-rival form: always visible. You can have as many rivals as
            you like, each with their own independent Showdown below. -->
       <div id="rival-add-form">
@@ -384,16 +391,22 @@
       <div id="rival-active-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
       <p class="form-msg" id="rival-msg" style="font-size:13px; margin-top:8px;"></p>
     </div>
+      </div>
+      </details>
     <!-- Recent Activity: a lightweight feed of your buddies' and rivals'
          picks on today's calls. Same reveal gating as everything else on
          this page -- a name only shows up here for a question you've
          already voted on yourself (or that's locked), so this never works
          as a way to peek at someone's pick before making your own. -->
-    <div class="sec-head" style="margin-top:32px;"><span class="sec-ico" style="--rc:150,96,214;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L4 14h6l-1 7 9-11h-6z"/></svg></span><h3 class="ex-title">Recent Activity</h3></div>
-    <div style="max-width:420px; margin-top:20px;" id="activity-feed-section">
+      <details class="mq-fold" id="fold-activity">
+      <summary><span class="sec-ico" style="--rc:150,96,214;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L4 14h6l-1 7 9-11h-6z"/></svg></span><h3 class="ex-title">Recent Activity</h3><svg class="mq-fold-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="mq-fold-body">
+    <div style="max-width:420px; margin-top:0;" id="activity-feed-section">
       <div id="activity-feed-list" style="display:flex; flex-direction:column; gap:8px; max-height:230px; overflow-y:auto; padding-right:2px; mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%); -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);"></div>
       <p class="ticket-meta" id="activity-feed-empty" style="display:none;">Add a buddy or rival to see their picks here.</p>
     </div>
+      </div>
+      </details>
     <template id="rival-duel-card-template">
       <div class="rival-duel-card" style="display:flex; flex-direction:column; gap:10px; background:var(--no-bg); border:1px solid var(--no); border-radius:10px; padding:12px 14px;">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">

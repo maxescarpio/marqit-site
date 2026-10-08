@@ -941,12 +941,33 @@
   .share-card-lg .share-icon svg{width:30px;height:30px;}
   .share-card-lg .share-cell-label{font-size:13px;margin-top:8px;color:var(--ink);}
   .share-card-lg .share-foot{font-size:13px;font-weight:600;margin-top:18px;}
-  .share-actions{display:flex;flex-direction:column;gap:10px;max-width:460px;margin-top:16px;}
-  .share-btn-primary{width:100%;align-items:center;justify-content:center;gap:8px;padding:16px 22px;border:none;border-radius:14px;background:linear-gradient(135deg,#5C9BFF,#33D18B);color:#08111F;font-family:inherit;font-weight:800;font-size:16.5px;letter-spacing:.01em;cursor:pointer;box-shadow:0 8px 24px rgba(70,140,255,.30);transition:transform .15s ease,box-shadow .15s ease;}
-  .share-btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(70,140,255,.38);}
+  /* Compact share buttons: same blue-to-green gradient, sized to sit side by side instead of two full-width bars. */
+  .share-actions{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px;max-width:460px;margin-top:14px;}
+  .share-btn-primary{width:auto;min-height:44px;align-items:center;justify-content:center;gap:8px;padding:10px 20px;border:none;border-radius:12px;background:linear-gradient(135deg,#5C9BFF,#33D18B);color:#08111F;font-family:inherit;font-weight:700;font-size:14.5px;letter-spacing:.01em;cursor:pointer;box-shadow:0 4px 14px rgba(70,140,255,.22);transition:transform .15s ease,box-shadow .15s ease;}
+  .share-btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(70,140,255,.30);}
   .share-btn-primary:active{transform:translateY(0);}
-  .share-btn-secondary{width:100%;align-items:center;justify-content:center;padding:13px 22px;border:1.5px solid var(--line);border-radius:14px;background:none;color:var(--ink);font-family:inherit;font-weight:600;font-size:14.5px;cursor:pointer;}
+  .share-btn-secondary{width:auto;min-height:44px;align-items:center;justify-content:center;padding:9px 16px;border:1.5px solid var(--line);border-radius:12px;background:none;color:var(--ink);font-family:inherit;font-weight:600;font-size:13.5px;cursor:pointer;}
   .share-btn-secondary:hover{border-color:rgba(70,140,255,.6);}
+
+  /* ---- Play tab: buddies / rivals / recent activity collapse into tap-to-open rows so the three questions stay the focus ---- */
+  .mq-fold{max-width:480px;margin-top:10px;border:1px solid var(--line);border-radius:14px;background:var(--panel);}
+  .mq-fold:first-child{margin-top:0;}
+  .mq-fold>summary{list-style:none;display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:56px;cursor:pointer;border-radius:14px;-webkit-tap-highlight-color:transparent;}
+  .mq-fold>summary::-webkit-details-marker{display:none;}
+  .mq-fold>summary:hover{background:rgba(128,136,150,.08);}
+  .mq-fold>summary:focus-visible{outline:2px solid rgba(70,140,255,.7);outline-offset:2px;}
+  .mq-fold>summary .sec-ico{width:34px;height:34px;border-radius:11px;}
+  .mq-fold>summary .sec-ico svg{width:18px;height:18px;}
+  .mq-fold>summary .ex-title{flex:1;min-width:0;margin:0;font-size:19px;}
+  .mq-fold-count{flex:none;min-width:22px;padding:2px 8px;border-radius:999px;background:rgba(51,209,139,.2);color:var(--yes);font-size:12.5px;font-weight:700;line-height:1.5;text-align:center;}
+  .mq-fold-chev{flex:none;width:20px;height:20px;color:var(--ink-soft);transition:transform .2s ease;}
+  .mq-fold[open]>summary .mq-fold-chev{transform:rotate(180deg);}
+  .mq-fold-body{padding:2px 14px 16px;}
+  .mq-fold-body>.ex-sub{margin-bottom:12px;}
+  /* Inside the padded card the add-a-username row must be allowed to shrink, or the Send button spills past the edge on phones. */
+  .mq-fold-body input[type=text]{min-width:0;width:100%;}
+  .mq-fold-body #set-buddy-btn,.mq-fold-body #set-rival-btn{flex:none;white-space:nowrap;}
+  @media (prefers-reduced-motion:reduce){.mq-fold-chev{transition:none;}}
 
 
   /* ---- Privacy / Terms pop-up (opens over the page instead of replacing it) ---- */
