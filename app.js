@@ -4327,13 +4327,19 @@
         liveSession = sessRes && sessRes.data && sessRes.data.session;
       }catch(e){ liveSession = null; }
       if(!liveSession){
+        // Signed-out players can send ideas too (limited to 3 a day per device).
+        const dev = mqGuestDeviceId();
+        const gres = dev ? await sb.rpc('submit_guest_suggestion', { p_device_id: dev, p_category: category, p_text: text, p_date: requestedDate }) : { error: { message: 'no device' } };
         btn.disabled = false;
-        // Keep what they typed so it can be put back after they sign up.
-        try{ sessionStorage.setItem('marqit_pitch_draft', JSON.stringify({ category: category, requestedDate: requestedDate, text: text })); }catch(e){}
-        msg.className = 'form-msg';
-        msg.textContent = 'Create a free account to send your idea.';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        openAuthPanel('signup');
+        if(gres.error){
+          msg.className = 'form-msg err';
+          msg.textContent = (gres.error.message && gres.error.message.indexOf('3 ideas') !== -1) ? 'You can send 3 ideas a day. Sign up free to send more.' : 'Could not submit \u2014 try again.';
+          return;
+        }
+        msg.className = 'form-msg ok';
+        msg.textContent = 'Sent! Be ready for Marqit predictions tomorrow.';
+        document.getElementById('suggestion-text').value = '';
+        try{ sessionStorage.removeItem('marqit_pitch_draft'); }catch(e){}
         return;
       }
       const { error } = await sb.from('question_suggestions').insert({
