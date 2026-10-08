@@ -3914,56 +3914,6 @@
   // percentages and buddy lines on the cards themselves -- a person's pick
   // on question q only appears here once the signed-in user has voted on
   // q themselves (or q is locked), so this can't be used to peek ahead.
-  function mqRenderActivityFeed(prepared, people){
-    var listEl = document.getElementById('activity-feed-list');
-    var emptyEl = document.getElementById('activity-feed-empty');
-    if(!listEl) return;
-    if(!people || !people.length){
-      listEl.innerHTML = '';
-      if(emptyEl) emptyEl.style.display = '';
-      return;
-    }
-    if(emptyEl) emptyEl.style.display = 'none';
-
-    var byQ = {};
-    prepared.forEach(function(p){ byQ[p.q.id] = p; });
-
-    var rows = [];
-    people.forEach(function(person){
-      (person.preds || []).forEach(function(pred){
-        var p = byQ[pred.question_id];
-        if(!p) return;
-        var revealed = !!p.myVote || p.isLocked;
-        if(!revealed) return; // same reveal rule as the card itself
-        rows.push({
-          username: person.username,
-          kind: person.kind,
-          choice: pred.choice,
-          question_text: p.q.question_text,
-          created_at: pred.created_at
-        });
-      });
-    });
-
-    rows.sort(function(a, b){ return new Date(b.created_at) - new Date(a.created_at); });
-    rows = rows.slice(0, 12);
-
-    if(!rows.length){
-      listEl.innerHTML = '<p class="ticket-meta">Nothing to show yet today.</p>';
-      return;
-    }
-
-    listEl.innerHTML = rows.map(function(r){
-      var color = r.kind === 'rival' ? 'var(--no)' : 'var(--yes)';
-      var choiceLabel = (r.choice || '').toUpperCase();
-      var ago = mqAgo(Date.now() - new Date(r.created_at).getTime());
-      return '<div class="ticket-meta" style="display:flex; align-items:flex-start; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px;">' +
-        mqIcon(r.kind === 'rival' ? 'swap' : 'link') +
-        '<span style="flex:1;"><strong style="color:var(--ink);">' + escapeHtml(r.username) + '</strong> picked <strong style="color:' + color + ';">' + choiceLabel + '</strong> on \u201c' + escapeHtml(r.question_text) + '\u201d' +
-        (ago ? ' <span style="opacity:.7;">\u00b7 ' + ago + '</span>' : '') + '</span>' +
-      '</div>';
-    }).join('');
-  }
   function mqBuddyInner(name, pick, sameSide){
     var who = escapeHtml(name);
     return sameSide
@@ -4322,7 +4272,9 @@
       '<button type="button" id="suggestion-submit-btn" style="margin-top:12px; padding:11px 22px; border:none; border-radius:10px; background:#FFFFFF; color:#17191D; font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Pitch idea</button>' +
       '<p class="form-msg" id="suggestion-msg" style="margin-top:6px;"></p>';
     wrap.appendChild(box);
-    container.appendChild(wrap);
+    const host = document.getElementById('play-suggest') || container;
+    if(host !== container) host.innerHTML = '';
+    host.appendChild(wrap);
 
     // If someone typed an idea, got sent off to sign up, and came back signed in
     // (same tab -- e.g. Google sign-in or email+password), put their idea back.
@@ -4628,10 +4580,6 @@
     // buddyList is an array now -- there's no limit on how many buddies
     // someone can have, so every one of them shows their own line.
     let buddyList = [];
-    // rivalList mirrors buddyList's shape (id, username, picks) purely so the
-    // Recent Activity feed below can treat both the same way -- it's not
-    // used for the head-to-head Showdown logic, which fetches separately.
-    let rivalList = [];
     if(session){
       const questionIds = questions.map(function(q){ return q.id; });
       const { data: buddyRows } = await sb.from('buddies').select('buddy_id, profiles!buddies_buddy_id_fkey(username)').eq('user_id', session.user.id);
@@ -4641,15 +4589,6 @@
           const buddyPickMap = {};
           (buddyPreds || []).forEach(function(p){ buddyPickMap[p.question_id] = p.choice; });
           return { id: b.buddy_id, username: b.profiles ? b.profiles.username : 'your buddy', picks: buddyPickMap, preds: buddyPreds || [], kind: 'buddy' };
-        }));
-      }
-      const { data: rivalRows } = await sb.from('rivals').select('rival_id, profiles!rivals_rival_id_fkey(username)').eq('user_id', session.user.id);
-      if(rivalRows && rivalRows.length){
-        rivalList = await Promise.all(rivalRows.map(async function(r){
-          const { data: rivalPreds } = await sb.from('predictions').select('question_id, choice, created_at').eq('user_id', r.rival_id).in('question_id', questionIds);
-          const rivalPickMap = {};
-          (rivalPreds || []).forEach(function(p){ rivalPickMap[p.question_id] = p.choice; });
-          return { id: r.rival_id, username: r.profiles ? r.profiles.username : 'your rival', picks: rivalPickMap, preds: rivalPreds || [], kind: 'rival' };
         }));
       }
     }
@@ -4939,7 +4878,6 @@
     if(slateEl){ mqFillSlate(slateEl, session, prepared.filter(function(p){ return !p.isLocked; }).every(function(p){ return !!p.myVote; })); }
     mqFillPlayers(container, prepared);
     mqFillReactions(container, prepared, session);
-    mqRenderActivityFeed(prepared, buddyList.concat(rivalList));
 
     // Buddy Bonus achievement: fires the first time any buddy's pick on a
     // visible (voted-on or locked) question matches the player's own pick.
@@ -7165,4 +7103,12 @@ setTimeout(function(){
   }
   bind('buddy-active-list', 'buddy-fold-count');
   bind('rival-active-list', 'rival-fold-count');
+})();
+
+(function(){
+  var join=document.getElementById('join'), title=document.getElementById('auth-panel-title');
+  if(!join||!title) return;
+  function sync(){ title.style.visibility = join.style.display==='none' || !join.style.display ? 'visible' : 'hidden'; }
+  new MutationObserver(sync).observe(join,{attributes:true,attributeFilter:['style']});
+  sync();
 })();
