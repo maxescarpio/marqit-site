@@ -113,6 +113,7 @@
     return api('widget_get', { p_site_key: SITE, p_page_url: PAGE, p_device_id: DEVICE, p_host: HOST }).then(function(d){
       if(!d || !d.found){ post({ type: 'empty', reason: d && d.reason }); card.hidden = true; return; }
       state.data = d; render();
+      if(!state.viewSent){ state.viewSent = true; try{ api('widget_view', { p_site_key: SITE, p_device_id: DEVICE, p_question_id: d.question.id }).catch(function(){}); }catch(e){} }
     }).catch(function(){ post({ type: 'empty', reason: 'error' }); card.hidden = true; });
   }
 

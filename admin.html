@@ -1050,7 +1050,7 @@
     (data.sites || []).forEach(function(s){
       var row = wEl('div', null); row.className = 'qrow';
       row.appendChild(wEl('div', s.name + (s.active ? '' : ' (off)'), 'font-weight:600;font-size:14px;'));
-      row.appendChild(wEl('div', s.questions + ' questions \u00b7 ' + s.votes + ' votes \u00b7 ' + ((s.domains && s.domains.length) ? s.domains.join(', ') : 'any domain') + (s.auto ? ' \u00b7 auto-approve' : ' \u00b7 comments held'), 'font-size:12px;color:var(--ink-soft);margin-top:2px;'));
+      row.appendChild(wEl('div', s.questions + ' questions \u00b7 ' + (s.viewers || 0) + ' viewers \u00b7 ' + s.votes + ' votes (' + (s.viewers ? Math.round(100 * s.votes / s.viewers) + '% voted' : 'no views yet') + ') \u00b7 ' + (s.comments || 0) + ' comments \u00b7 ' + ((s.domains && s.domains.length) ? s.domains.join(', ') : 'any domain') + (s.auto ? ' \u00b7 auto-approve' : ' \u00b7 comments held'), 'font-size:12px;color:var(--ink-soft);margin-top:2px;'));
       var snip = '<script async src="https://playmarqit.com/embed.js" data-site="' + s.site_key + '"><\/script>';
       var ta = wEl('textarea', snip, 'margin-top:8px;font-family:monospace;font-size:12px;'); ta.readOnly = true; ta.rows = 2; ta.addEventListener('focus', function(){ ta.select(); });
       row.appendChild(ta);
@@ -1063,7 +1063,7 @@
       data.questions.forEach(function(q){
         var r = wEl('div'); r.className = 'qrow';
         r.appendChild(wEl('div', q.text, 'font-weight:600;font-size:14px;'));
-        r.appendChild(wEl('div', q.site + ' \u00b7 ' + q.page_key + ' \u00b7 YES ' + q.yes + ' / NO ' + q.no, 'font-size:12px;color:var(--ink-soft);margin-top:2px;word-break:break-all;'));
+        r.appendChild(wEl('div', q.site + ' \u00b7 ' + q.page_key + ' \u00b7 ' + (q.viewers || 0) + ' viewers \u00b7 YES ' + q.yes + ' / NO ' + q.no, 'font-size:12px;color:var(--ink-soft);margin-top:2px;word-break:break-all;'));
         ov.appendChild(r);
       });
     }
