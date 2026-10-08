@@ -7148,3 +7148,21 @@ setTimeout(function(){
     if(e.key === 'Escape' && overlay && overlay.classList.contains('on')) close();
   });
 })();
+
+/* Play tab: show how many buddies / rivals you have on the collapsed row, so the count is visible without opening it. */
+(function(){
+  function bind(listId, badgeId){
+    var list = document.getElementById(listId);
+    var badge = document.getElementById(badgeId);
+    if(!list || !badge) return;
+    function update(){
+      var n = list.children.length;
+      badge.textContent = n ? String(n) : '';
+      badge.style.display = n ? '' : 'none';
+    }
+    new MutationObserver(update).observe(list, { childList: true });
+    update();
+  }
+  bind('buddy-active-list', 'buddy-fold-count');
+  bind('rival-active-list', 'rival-fold-count');
+})();
