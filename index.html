@@ -50,7 +50,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261008">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -307,8 +307,88 @@
     <div id="daily-questions-container">
       <div class="skel-card"><i class="sk" style="width:38%"></i><i class="sk" style="width:92%;height:22px;margin-top:16px"></i><i class="sk" style="width:64%;height:22px;margin-top:8px"></i><div class="sk-row"><i class="sk"></i><i class="sk"></i></div></div><div class="skel-card"><i class="sk" style="width:38%"></i><i class="sk" style="width:92%;height:22px;margin-top:16px"></i><i class="sk" style="width:64%;height:22px;margin-top:8px"></i><div class="sk-row"><i class="sk"></i><i class="sk"></i></div></div><div class="skel-card"><i class="sk" style="width:38%"></i><i class="sk" style="width:92%;height:22px;margin-top:16px"></i><i class="sk" style="width:64%;height:22px;margin-top:8px"></i><div class="sk-row"><i class="sk"></i><i class="sk"></i></div></div>
     </div>
+    <!-- Waiting on you: incoming buddy / rival / group requests. Lives below the three questions so nothing sits between a player and today's calls; the profile bell dot still flags new requests. -->
+    <div id="pending-requests-card" style="display:none; max-width:480px; margin-top:28px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px;">
+      <div style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">Waiting on you</div>
+      <div id="pending-requests-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+    </div>
+
+    <!-- Buddies, rivals and recent activity: collapsed by default so the Play tab stays about the three questions. Tap a row to open it. Shown once signed in. -->
+    <div id="play-friends" style="display:none; margin-top:28px;">
+      <details class="mq-fold" id="fold-buddies">
+      <summary><span class="sec-ico" style="--rc:51,209,139;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><h3 class="ex-title">Your buddies</h3><span class="mq-fold-count" id="buddy-fold-count" style="display:none;"></span><svg class="mq-fold-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="mq-fold-body">
+      <p class="ex-sub">Same pick as a buddy: +25 each. They have to accept first.</p>
+    <div style="max-width:420px; margin-top:0;" id="buddy-section">
+      <!-- Add-a-buddy form: always visible. You can have as many buddies as
+           you like, so this never gets hidden/blocked the way a single-slot
+           version would. -->
+      <div id="buddy-add-form">
+        <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Add a buddy</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="buddy-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
+          <button id="set-buddy-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Send request</button>
+        </div>
+        <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">They have to accept first.</p>
+      </div>
+      <!-- One row per pending outgoing request (you can have several out at once). -->
+      <div id="buddy-pending-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
+      <!-- One row per accepted buddy. -->
+      <div id="buddy-active-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
+      <p class="form-msg" id="buddy-msg" style="font-size:13px; margin-top:8px;"></p>
+    </div>
+      </div>
+      </details>
+
+      <details class="mq-fold" id="fold-rivals">
+      <summary><span class="sec-ico" style="--rc:245,100,79;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 2.8v5.4c0 4.4-2.9 7.6-7 9.3-4.1-1.7-7-4.9-7-9.3V5.8z"/><path d="M12.8 7.5l-3 4.6h3.4l-1.2 4.4"/></svg></span><h3 class="ex-title">Your rivals</h3><span class="mq-fold-count" id="rival-fold-count" style="display:none;"></span><svg class="mq-fold-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="mq-fold-body">
+      <p class="ex-sub">Beat your rival on a day and take a golden star.</p>
+    <div style="max-width:420px; margin-top:0;" id="rival-section">
+      <!-- Add-a-rival form: always visible. You can have as many rivals as
+           you like, each with their own independent Showdown below. -->
+      <div id="rival-add-form">
+        <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Add a rival</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="rival-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
+          <button id="set-rival-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Send request</button>
+        </div>
+        <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">They have to accept first.</p>
+      </div>
+      <!-- One row per pending outgoing request. -->
+      <div id="rival-pending-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
+      <!-- One full Showdown card per accepted rival -- each tracks its own
+           activation/star state independently via rival-duel-card-template. -->
+      <div id="rival-active-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
+      <p class="form-msg" id="rival-msg" style="font-size:13px; margin-top:8px;"></p>
+    </div>
+      </div>
+      </details>
+    <template id="rival-duel-card-template">
+      <div class="rival-duel-card" style="display:flex; flex-direction:column; gap:10px; background:var(--no-bg); border:1px solid var(--no); border-radius:10px; padding:12px 14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <span style="font-size:13.5px; color:var(--no);">Your rival: <strong class="rival-active-name"></strong></span>
+          <span style="display:flex; gap:6px; flex:none;">
+            <button type="button" class="remind-btn" style="padding:6px 12px; border:1px solid var(--no); border-radius:8px; background:none; color:var(--no); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Remind</button>
+            <button type="button" class="remove-rival-btn" style="padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:none; color:var(--ink-soft); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Remove</button>
+          </span>
+        </div>
+        <div class="rival-duel-not-activated">
+          <button type="button" class="activate-duel-btn" style="width:100%; padding:10px 16px; border:none; border-radius:8px; background:var(--no); color:#fff; font-weight:600; font-size:13.5px; cursor:pointer;">Start today's Showdown</button>
+          <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">Both of you must opt in today.</p>
+        </div>
+        <div class="rival-duel-no-stars" style="display:none; font-size:13px; color:var(--ink-soft);">Out of stars. Hit a 5-day streak to earn one.</div>
+        <div class="rival-duel-you-activated" style="display:none; font-size:13px; color:var(--ink-soft);">You're in. Waiting on <strong class="rival-duel-waiting-name"></strong>.</div>
+        <div class="rival-duel-both-activated" style="display:none; font-size:13px; color:var(--yes);">Showdown is on. Good luck.</div>
+        <div class="rival-duel-last-result" style="display:none; font-size:12.5px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:8px; margin-top:2px;"></div>
+      </div>
+    </template>
+    </div>
+
+    <div id="play-suggest"></div>
+
     <!-- Share your results: sits right under today's picks so it's the next thing a player sees. Shown once there are results to share. -->
-    <div id="share-section" style="display:none; margin-top:32px;">
+    <div id="share-section" style="display:none; margin-top:28px;">
       <div class="sec-head"><span class="sec-ico" style="--rc:70,140,255;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/></svg></span><h3 class="ex-title">Share your results</h3></div>
       <div class="share-card share-card-lg" id="share-card">
         <div class="share-head">
@@ -336,97 +416,6 @@
       <button type="button" id="home-cta-challenge" class="cb-btn">Join</button>
     </div>
 
-    <!-- Waiting on you: incoming buddy / rival / group requests. Lives below the three questions so nothing sits between a player and today's calls; the profile bell dot still flags new requests. -->
-    <div id="pending-requests-card" style="display:none; max-width:480px; margin-top:28px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px;">
-      <div style="font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">Waiting on you</div>
-      <div id="pending-requests-list" style="display:flex; flex-direction:column; gap:10px;"></div>
-    </div>
-
-    <!-- Buddies, rivals and recent activity: collapsed by default so the Play tab stays about the three questions. Tap a row to open it. Shown once signed in. -->
-    <div id="play-friends" style="display:none; margin-top:28px;">
-      <details class="mq-fold" id="fold-buddies">
-      <summary><span class="sec-ico" style="--rc:51,209,139;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><h3 class="ex-title">Your buddies</h3><span class="mq-fold-count" id="buddy-fold-count" style="display:none;"></span><svg class="mq-fold-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
-      <div class="mq-fold-body">
-      <p class="ex-sub">Same pick as a buddy: +25 each. They have to accept first.</p>
-    <div style="max-width:420px; margin-top:0;" id="buddy-section">
-      <!-- Add-a-buddy form: always visible. You can have as many buddies as
-           you like, so this never gets hidden/blocked the way a single-slot
-           version would. -->
-      <div id="buddy-add-form">
-        <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Add a buddy</label>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="buddy-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
-          <button id="set-buddy-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Send request</button>
-        </div>
-        <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">They have to accept first.</p>
-      </div>
-      <!-- One row per pending outgoing request (you can have several out at once). -->
-      <div id="buddy-pending-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
-      <!-- One row per accepted buddy. -->
-      <div id="buddy-active-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
-      <p class="form-msg" id="buddy-msg" style="font-size:13px; margin-top:8px;"></p>
-    </div>
-      </div>
-      </details>
-
-      <details class="mq-fold" id="fold-rivals">
-      <summary><span class="sec-ico" style="--rc:245,100,79;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 2.8v5.4c0 4.4-2.9 7.6-7 9.3-4.1-1.7-7-4.9-7-9.3V5.8z"/><path d="M12.8 7.5l-3 4.6h3.4l-1.2 4.4"/></svg></span><h3 class="ex-title">Your rivals</h3><span class="mq-fold-count" id="rival-fold-count" style="display:none;"></span><svg class="mq-fold-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
-      <div class="mq-fold-body">
-      <p class="ex-sub">Beat your rival on a day and take a golden star.</p>
-    <div style="max-width:420px; margin-top:0;" id="rival-section">
-      <!-- Add-a-rival form: always visible. You can have as many rivals as
-           you like, each with their own independent Showdown below. -->
-      <div id="rival-add-form">
-        <label style="font-size:12.5px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px;">Add a rival</label>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="rival-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
-          <button id="set-rival-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Send request</button>
-        </div>
-        <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">They have to accept first.</p>
-      </div>
-      <!-- One row per pending outgoing request. -->
-      <div id="rival-pending-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
-      <!-- One full Showdown card per accepted rival -- each tracks its own
-           activation/star state independently via rival-duel-card-template. -->
-      <div id="rival-active-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
-      <p class="form-msg" id="rival-msg" style="font-size:13px; margin-top:8px;"></p>
-    </div>
-      </div>
-      </details>
-    <!-- Recent Activity: a lightweight feed of your buddies' and rivals'
-         picks on today's calls. Same reveal gating as everything else on
-         this page -- a name only shows up here for a question you've
-         already voted on yourself (or that's locked), so this never works
-         as a way to peek at someone's pick before making your own. -->
-      <details class="mq-fold" id="fold-activity">
-      <summary><span class="sec-ico" style="--rc:150,96,214;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L4 14h6l-1 7 9-11h-6z"/></svg></span><h3 class="ex-title">Recent Activity</h3><svg class="mq-fold-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
-      <div class="mq-fold-body">
-    <div style="max-width:420px; margin-top:0;" id="activity-feed-section">
-      <div id="activity-feed-list" style="display:flex; flex-direction:column; gap:8px; max-height:230px; overflow-y:auto; padding-right:2px; mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%); -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);"></div>
-      <p class="ticket-meta" id="activity-feed-empty" style="display:none;">Add a buddy or rival to see their picks here.</p>
-    </div>
-      </div>
-      </details>
-    <template id="rival-duel-card-template">
-      <div class="rival-duel-card" style="display:flex; flex-direction:column; gap:10px; background:var(--no-bg); border:1px solid var(--no); border-radius:10px; padding:12px 14px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <span style="font-size:13.5px; color:var(--no);">Your rival: <strong class="rival-active-name"></strong></span>
-          <span style="display:flex; gap:6px; flex:none;">
-            <button type="button" class="remind-btn" style="padding:6px 12px; border:1px solid var(--no); border-radius:8px; background:none; color:var(--no); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Remind</button>
-            <button type="button" class="remove-rival-btn" style="padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:none; color:var(--ink-soft); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Remove</button>
-          </span>
-        </div>
-        <div class="rival-duel-not-activated">
-          <button type="button" class="activate-duel-btn" style="width:100%; padding:10px 16px; border:none; border-radius:8px; background:var(--no); color:#fff; font-weight:600; font-size:13.5px; cursor:pointer;">Start today's Showdown</button>
-          <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">Both of you must opt in today.</p>
-        </div>
-        <div class="rival-duel-no-stars" style="display:none; font-size:13px; color:var(--ink-soft);">Out of stars. Hit a 5-day streak to earn one.</div>
-        <div class="rival-duel-you-activated" style="display:none; font-size:13px; color:var(--ink-soft);">You're in. Waiting on <strong class="rival-duel-waiting-name"></strong>.</div>
-        <div class="rival-duel-both-activated" style="display:none; font-size:13px; color:var(--yes);">Showdown is on. Good luck.</div>
-        <div class="rival-duel-last-result" style="display:none; font-size:12.5px; color:var(--ink-soft); border-top:1px solid var(--line); padding-top:8px; margin-top:2px;"></div>
-      </div>
-    </template>
-    </div>
   </div>
 </section>
 </div>
@@ -926,7 +915,7 @@
   </div>
 </footer>
 
-<script src="app.js" defer></script>
+<script src="app.js?v=20261008" defer></script>
 
 
 

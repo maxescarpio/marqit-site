@@ -1000,3 +1000,5 @@ body{overflow-x:hidden;}
 #page-leaderboard .hero-lite{padding-bottom:16px;}
 #page-leaderboard .hero-lite + .section{padding-top:18px;}
 #page-leaderboard .lb-builder{bottom:-14px;}
+
+.signup .mode-btn{border-radius:0 !important;background:none !important;box-shadow:none;}
