@@ -2201,6 +2201,45 @@
     if(squareBtn) squareBtn.style.display = 'inline-flex';
   }
 
+
+  // Signed-out players get the results card too (their picks come from the
+  // server by device, no streak or rank on it).
+  async function mqLoadGuestShareCard(){
+    try{
+      const dev = mqGuestDeviceId();
+      if(!dev) return;
+      const { data: resolvedQ } = await sb.from('daily_questions').select('question_date').eq('resolved', true).order('question_date', { ascending: false }).limit(1).maybeSingle();
+      if(!resolvedQ) return;
+      const date = resolvedQ.question_date;
+      const { data: questions } = await sb.from('daily_questions').select('*').eq('question_date', date).order('category');
+      if(!questions || !questions.length) return;
+      const { data: picks } = await sb.rpc('get_guest_picks', { p_device_id: dev, p_question_ids: questions.map(function(q){ return q.id; }) });
+      const predMap = {};
+      (picks || []).forEach(function(p){ predMap[p.question_id] = p.choice; });
+      if(!Object.keys(predMap).length) return;
+      const correct = questions.filter(function(q){ return predMap[q.id] && q.resolved && predMap[q.id] === q.correct_answer; }).length;
+      __mqShareCardData = { session: null, guest: true, guestCorrect: correct, date: date, questions: questions, predMap: predMap, standing: { streakDays: 0, tierName: 'Marqit', rankLabel: null }, calledIt: null };
+      const titleEl = document.getElementById('share-card-title'); if(titleEl) titleEl.textContent = 'Marqit';
+      const dateEl = document.getElementById('share-card-date');
+      if(dateEl){ try{ dateEl.textContent = 'Results for ' + new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }catch(e){ dateEl.textContent = ''; } }
+      const shareSec = document.getElementById('share-section'); if(shareSec) shareSec.style.display = 'block';
+      document.getElementById('share-card-streak').textContent = correct + '/' + questions.length + ' correct';
+      const calledItEl = document.getElementById('share-card-calledit'); if(calledItEl) calledItEl.style.display = 'none';
+      const row = document.getElementById('share-card-row');
+      row.innerHTML = '';
+      questions.forEach(function(q){
+        const ok = !!predMap[q.id] && q.resolved && predMap[q.id] === q.correct_answer;
+        const cell = document.createElement('div');
+        cell.className = 'share-cell';
+        cell.innerHTML = '<div class="share-icon ' + (ok ? 'correct' : 'neutral') + '"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">' + (ok ? '<path d="M5 13l4 4L19 7"/>' : '<circle cx="12" cy="12" r="7"/>') + '</svg></div><div class="share-cell-label"></div>';
+        cell.querySelector('.share-cell-label').textContent = CATEGORY_LABELS[q.category] || q.category;
+        row.appendChild(cell);
+      });
+      document.getElementById('share-results-btn').style.display = 'inline-flex';
+      const sq = document.getElementById('share-results-square-btn'); if(sq) sq.style.display = 'inline-flex';
+    }catch(e){}
+  }
+
   // --- Shared share-card visual system -------------------------------------
   // One consistent look across every card type (personal results, pre-result
   // picks, group weekly recap, champion): dark ground + faint dot grid +
@@ -2335,14 +2374,14 @@
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK_MUTED;
     ctx.font = "700 " + Math.round(width * 0.022) + "px " + MQ_HEAD_FONT;
-    mqTrackedText(ctx, 'DAY STREAK', cx, height * 0.2, width * 0.01);
+    mqTrackedText(ctx, data.guest ? 'CORRECT CALLS' : 'DAY STREAK', cx, height * 0.2, width * 0.01);
 
     // Hero number: same sans as the rest of the card, just bigger and
     // heavier -- no tilt, no shadow, no box, no separate typeface.
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK;
     ctx.font = "800 " + Math.round(width * 0.26) + "px " + MQ_DISPLAY_FONT;
-    ctx.fillText(String(data.standing.streakDays), cx, height * 0.335);
+    ctx.fillText(data.guest ? (data.guestCorrect + '/' + data.questions.length) : String(data.standing.streakDays), cx, height * 0.335);
 
     ctx.fillStyle = MQ_INK_SOFT;
     ctx.font = "700 " + Math.round(width * 0.026) + "px " + MQ_HEAD_FONT;
@@ -2393,7 +2432,7 @@
     });
 
     // Change 7: a one-line challenge + the link, edge to edge.
-    mqCardFooterBand(ctx, width, height, 'Beat my ' + data.standing.streakDays + '-day streak', 'playmarqit.com');
+    mqCardFooterBand(ctx, width, height, data.guest ? 'Think you can beat my calls?' : 'Beat my ' + data.standing.streakDays + '-day streak', 'playmarqit.com');
 
     return canvas;
   }
@@ -2417,16 +2456,16 @@
     const session = data.session;
 
     const correctCount = data.questions.filter(function(q){ return data.predMap[q.id] && q.resolved && data.predMap[q.id] === q.correct_answer; }).length;
-    const refTag = mqGetReferralTag(session.user.id, 'daily_results', triggerName);
+    const refTag = mqGetReferralTag(session ? session.user.id : 'guest', 'daily_results', triggerName);
     const shareUrl = 'https://playmarqit.com/?' + refTag;
-    const shareText = 'Beat my ' + data.standing.streakDays + '-day streak. ' + correctCount + '/' + data.questions.length + ' correct today. ' + shareUrl;
+    const shareText = (data.guest ? 'Think you can beat me? ' : 'Beat my ' + data.standing.streakDays + '-day streak. ') + correctCount + '/' + data.questions.length + ' correct. ' + shareUrl;
 
     await mqEnsureCardFonts();
     const canvas = mqDrawResultsCard(1080, 1920, data); // story ratio is the default share
     const packaged = await mqShareCanvasToFileAndCaption(canvas, 'marqit-results.png');
     if(!packaged){ if(msgEl){ msgEl.className = 'form-msg err'; msgEl.textContent = 'Could not generate the image \u2014 try again.'; } return; }
 
-    mqLogCardShare(session.user.id, 'daily_results', triggerName);
+    if(session) mqLogCardShare(session.user.id, 'daily_results', triggerName);
 
     if(navigator.canShare && navigator.canShare({ files: [packaged.file] })){
       try{ await navigator.share({ files: [packaged.file], text: shareText, url: shareUrl }); }
@@ -2468,7 +2507,7 @@
       const canvas = mqDrawResultsCard(1080, 1080, data);
       const packaged = await mqShareCanvasToFileAndCaption(canvas, 'marqit-results-square.png');
       if(!packaged) return;
-      mqLogCardShare(data.session.user.id, 'daily_results', null);
+      if(data.session) mqLogCardShare(data.session.user.id, 'daily_results', null);
       const blobUrl = URL.createObjectURL(packaged.blob);
       const a = document.createElement('a');
       a.href = blobUrl;
@@ -3682,6 +3721,19 @@
           mine[r.question_id][r.emoji] = true;
         }
       });
+      // Signed-out players' reactions live in their own table, keyed by device.
+      try{
+        var gdev = mqGuestDeviceId();
+        var gres = await sb.rpc('get_guest_reactions', { p_question_ids: ids, p_device_id: gdev });
+        (gres.data || []).forEach(function(g){
+          counts[g.question_id] = counts[g.question_id] || {};
+          counts[g.question_id][g.emoji] = (counts[g.question_id][g.emoji] || 0) + Number(g.n);
+          if(!session && g.mine){
+            mine[g.question_id] = mine[g.question_id] || {};
+            mine[g.question_id][g.emoji] = true;
+          }
+        });
+      }catch(e){}
       container.querySelectorAll('.reaction-row').forEach(function(row){
         var qid = row.getAttribute('data-question-id');
         row.querySelectorAll('.reaction-btn').forEach(function(btn){
@@ -3877,7 +3929,6 @@
     if(!qid) return;
     var { data: sessionRes } = await sb.auth.getSession();
     var session = sessionRes && sessionRes.session;
-    if(!session){ openAuthPanel('signup'); return; }
     var emoji = btn.getAttribute('data-emoji');
     var countEl = btn.querySelector('.reaction-count');
     var wasMine = btn.classList.contains('mine');
@@ -3898,7 +3949,9 @@
     mqApplyReaction(row, emoji, newN, !wasMine);
     try{
       var res;
-      if(wasMine){
+      if(!session){
+        res = await sb.rpc('toggle_guest_reaction', { p_device_id: mqGuestDeviceId(), p_question_id: qid, p_emoji: emoji, p_on: !wasMine });
+      }else if(wasMine){
         res = await sb.from('question_reactions').delete().eq('question_id', qid).eq('user_id', session.user.id).eq('emoji', emoji);
       }else{
         res = await sb.from('question_reactions').insert({ question_id: qid, user_id: session.user.id, emoji: emoji });
@@ -4327,13 +4380,19 @@
         liveSession = sessRes && sessRes.data && sessRes.data.session;
       }catch(e){ liveSession = null; }
       if(!liveSession){
+        // Signed-out players can send ideas too (limited to 3 a day per device).
+        const dev = mqGuestDeviceId();
+        const gres = dev ? await sb.rpc('submit_guest_suggestion', { p_device_id: dev, p_category: category, p_text: text, p_date: requestedDate }) : { error: { message: 'no device' } };
         btn.disabled = false;
-        // Keep what they typed so it can be put back after they sign up.
-        try{ sessionStorage.setItem('marqit_pitch_draft', JSON.stringify({ category: category, requestedDate: requestedDate, text: text })); }catch(e){}
-        msg.className = 'form-msg';
-        msg.textContent = 'Create a free account to send your idea.';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        openAuthPanel('signup');
+        if(gres.error){
+          msg.className = 'form-msg err';
+          msg.textContent = (gres.error.message && gres.error.message.indexOf('3 ideas') !== -1) ? 'You can send 3 ideas a day. Sign up free to send more.' : 'Could not submit \u2014 try again.';
+          return;
+        }
+        msg.className = 'form-msg ok';
+        msg.textContent = 'Sent! Be ready for Marqit predictions tomorrow.';
+        document.getElementById('suggestion-text').value = '';
+        try{ sessionStorage.removeItem('marqit_pitch_draft'); }catch(e){}
         return;
       }
       const { error } = await sb.from('question_suggestions').insert({
@@ -4878,6 +4937,7 @@
     if(slateEl){ mqFillSlate(slateEl, session, prepared.filter(function(p){ return !p.isLocked; }).every(function(p){ return !!p.myVote; })); }
     mqFillPlayers(container, prepared);
     mqFillReactions(container, prepared, session);
+    if(!session) mqLoadGuestShareCard();
 
     // Buddy Bonus achievement: fires the first time any buddy's pick on a
     // visible (voted-on or locked) question matches the player's own pick.
