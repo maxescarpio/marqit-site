@@ -110,6 +110,8 @@
   <label>Add or change a question</label>
   <select id="wq-site"></select>
   <input id="wq-url" type="text" placeholder="Article web address, e.g. https://examplesports.com/mahomes-knee" style="margin-top:8px;">
+  <button id="wq-draft-btn" type="button" style="margin-top:8px;">Draft question from this link</button>
+  <p id="wq-draft-msg" style="font-size:13px; margin-top:6px;"></p>
   <input id="wq-text" type="text" placeholder="Will Patrick Mahomes be placed on IR?" maxlength="200" style="margin-top:8px;">
   <input id="wq-note" type="text" placeholder="How it resolves (optional)" maxlength="300" style="margin-top:8px;">
   <button id="wq-add-btn">Save question</button>
@@ -1084,6 +1086,20 @@
     const { data, error } = await sb.rpc('admin_widget_create_site', { p_name: name, p_domains: domains, p_auto_approve: document.getElementById('wsite-auto').checked });
     if(error){ wMsg('wsite-msg', 'Error: ' + error.message, true); return; }
     wMsg('wsite-msg', 'Site added. Key: ' + data); document.getElementById('wsite-name').value = ''; loadWidgets();
+  });
+  document.getElementById('wq-draft-btn').addEventListener('click', async function(){
+    var btn = this, link = document.getElementById('wq-url').value.trim();
+    if(!/^https:\/\//i.test(link)){ wMsg('wq-draft-msg', 'Paste the full https:// link above first.', true); return; }
+    btn.disabled = true; wMsg('wq-draft-msg', 'Reading the story and drafting. This takes about 15 seconds.');
+    try{
+      var sess = (await sb.auth.getSession()).data.session;
+      var r = await fetch(SUPABASE_URL + '/functions/v1/draft-widget-question', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (sess ? sess.access_token : ''), apikey: SUPABASE_ANON_KEY }, body: JSON.stringify({ story_url: link }) });
+      var d = await r.json();
+      if(!r.ok || d.error){ wMsg('wq-draft-msg', d.error || 'Drafting failed.', true); }
+      else if(d.skip){ wMsg('wq-draft-msg', 'No good question in that story: ' + d.reason, true); }
+      else { document.getElementById('wq-text').value = d.question_text; document.getElementById('wq-note').value = d.resolution_note; wMsg('wq-draft-msg', 'Drafted. Read it, edit if you like, then press Save question.'); }
+    }catch(e){ wMsg('wq-draft-msg', 'Drafting failed. Try again.', true); }
+    btn.disabled = false;
   });
   document.getElementById('wq-add-btn').addEventListener('click', async function(){
     const { error } = await sb.rpc('admin_widget_upsert_question', { p_site_key: document.getElementById('wq-site').value, p_page_url: document.getElementById('wq-url').value, p_text: document.getElementById('wq-text').value, p_note: document.getElementById('wq-note').value });
