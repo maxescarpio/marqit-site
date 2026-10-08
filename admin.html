@@ -100,6 +100,23 @@
   <button id="bulk-add-btn">Add all 3</button>
   <p id="bulk-msg" style="font-size:13px; margin-top:8px;"></p>
 
+  <h2>Publisher widgets</h2>
+  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Partner sites that show the Marqit widget. Add a site, give it a question for each article, and approve comments.</p>
+  <label>New site name</label><input id="wsite-name" type="text" placeholder="Example Sports Blog">
+  <label>Allowed domains (comma separated, blank = any)</label><input id="wsite-domains" type="text" placeholder="examplesports.com, www.examplesports.com">
+  <label style="display:flex;align-items:center;gap:8px;"><input id="wsite-auto" type="checkbox" style="width:auto;"> Auto-approve comments (otherwise each comment waits for you)</label>
+  <button id="wsite-add-btn">Add site</button>
+  <p id="wsite-msg" style="font-size:13px; margin-top:8px;"></p>
+  <label>Add or change a question</label>
+  <select id="wq-site"></select>
+  <input id="wq-url" type="text" placeholder="Article web address, e.g. https://examplesports.com/mahomes-knee" style="margin-top:8px;">
+  <input id="wq-text" type="text" placeholder="Will Patrick Mahomes be placed on IR?" maxlength="200" style="margin-top:8px;">
+  <input id="wq-note" type="text" placeholder="How it resolves (optional)" maxlength="300" style="margin-top:8px;">
+  <button id="wq-add-btn">Save question</button>
+  <p id="wq-msg" style="font-size:13px; margin-top:8px;"></p>
+  <div id="widget-overview"></div>
+  <div id="widget-comments"></div>
+
   <h2>Question suggestions</h2>
   <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Submitted by users when today's calls are locked. Only visible to you.</p>
   <div id="suggestions-list"></div>
@@ -1017,11 +1034,69 @@
     if(!error) loadChampionSection();
   });
 
+  // ---- Publisher widgets ----
+  function wMsg(id, t, err){ var m = document.getElementById(id); m.textContent = t; m.style.color = err ? 'var(--no)' : 'var(--yes)'; }
+  function wEl(tag, text, css){ var e = document.createElement(tag); if(text != null) e.textContent = text; if(css) e.style.cssText = css; return e; }
+  async function loadWidgets(){
+    const { data, error } = await sb.rpc('admin_widget_overview');
+    const ov = document.getElementById('widget-overview'); const cm = document.getElementById('widget-comments');
+    ov.textContent = ''; cm.textContent = '';
+    if(error){ ov.appendChild(wEl('p', 'Could not load widgets: ' + error.message, 'font-size:13px;color:var(--no);')); return; }
+    const sel = document.getElementById('wq-site'); const keep = sel.value; sel.textContent = '';
+    (data.sites || []).forEach(function(s){ var o = document.createElement('option'); o.value = s.site_key; o.textContent = s.name; sel.appendChild(o); });
+    if(keep) sel.value = keep;
+    (data.sites || []).forEach(function(s){
+      var row = wEl('div', null); row.className = 'qrow';
+      row.appendChild(wEl('div', s.name + (s.active ? '' : ' (off)'), 'font-weight:600;font-size:14px;'));
+      row.appendChild(wEl('div', s.questions + ' questions \u00b7 ' + s.votes + ' votes \u00b7 ' + ((s.domains && s.domains.length) ? s.domains.join(', ') : 'any domain') + (s.auto ? ' \u00b7 auto-approve' : ' \u00b7 comments held'), 'font-size:12px;color:var(--ink-soft);margin-top:2px;'));
+      var snip = '<script async src="https://playmarqit.com/embed.js" data-site="' + s.site_key + '"><\/script>';
+      var ta = wEl('textarea', snip, 'margin-top:8px;font-family:monospace;font-size:12px;'); ta.readOnly = true; ta.rows = 2; ta.addEventListener('focus', function(){ ta.select(); });
+      row.appendChild(ta);
+      var act = wEl('div'); act.className = 'actions';
+      var tg = wEl('button', s.active ? 'Turn off' : 'Turn on'); tg.addEventListener('click', async function(){ tg.disabled = true; await sb.rpc('admin_widget_set_active', { p_site_key: s.site_key, p_active: !s.active }); loadWidgets(); });
+      act.appendChild(tg); row.appendChild(act); ov.appendChild(row);
+    });
+    if((data.questions || []).length){
+      ov.appendChild(wEl('p', 'Questions', 'font-size:13px;font-weight:600;margin-top:16px;'));
+      data.questions.forEach(function(q){
+        var r = wEl('div'); r.className = 'qrow';
+        r.appendChild(wEl('div', q.text, 'font-weight:600;font-size:14px;'));
+        r.appendChild(wEl('div', q.site + ' \u00b7 ' + q.page_key + ' \u00b7 YES ' + q.yes + ' / NO ' + q.no, 'font-size:12px;color:var(--ink-soft);margin-top:2px;word-break:break-all;'));
+        ov.appendChild(r);
+      });
+    }
+    ov.appendChild(wEl('p', 'Comments waiting or reported', 'font-size:13px;font-weight:600;margin-top:16px;'));
+    if(!(data.pending_comments || []).length) cm.appendChild(wEl('p', 'Nothing to review.', 'font-size:13px;color:var(--ink-soft);'));
+    (data.pending_comments || []).forEach(function(c){
+      var r = wEl('div'); r.className = 'qrow';
+      r.appendChild(wEl('div', c.body, 'font-size:14px;'));
+      r.appendChild(wEl('div', c.name + ' \u00b7 ' + c.side.toUpperCase() + ' \u00b7 on "' + c.question + '"' + (c.reports ? ' \u00b7 ' + c.reports + ' reports' : ''), 'font-size:12px;color:var(--ink-soft);margin-top:2px;'));
+      var a = wEl('div'); a.className = 'actions';
+      var ok = wEl('button', 'Approve'); ok.className = 'btn-yes'; ok.addEventListener('click', async function(){ ok.disabled = true; await sb.rpc('admin_widget_set_comment_status', { p_id: c.id, p_status: 'approved' }); loadWidgets(); });
+      var hide = wEl('button', 'Hide'); hide.className = 'btn-no'; hide.addEventListener('click', async function(){ hide.disabled = true; await sb.rpc('admin_widget_set_comment_status', { p_id: c.id, p_status: 'hidden' }); loadWidgets(); });
+      a.appendChild(ok); a.appendChild(hide); r.appendChild(a); cm.appendChild(r);
+    });
+  }
+  document.getElementById('wsite-add-btn').addEventListener('click', async function(){
+    const name = document.getElementById('wsite-name').value.trim();
+    const domains = document.getElementById('wsite-domains').value.split(',').map(function(d){ return d.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, ''); }).filter(Boolean);
+    if(!name){ wMsg('wsite-msg', 'Enter a site name.', true); return; }
+    const { data, error } = await sb.rpc('admin_widget_create_site', { p_name: name, p_domains: domains, p_auto_approve: document.getElementById('wsite-auto').checked });
+    if(error){ wMsg('wsite-msg', 'Error: ' + error.message, true); return; }
+    wMsg('wsite-msg', 'Site added. Key: ' + data); document.getElementById('wsite-name').value = ''; loadWidgets();
+  });
+  document.getElementById('wq-add-btn').addEventListener('click', async function(){
+    const { error } = await sb.rpc('admin_widget_upsert_question', { p_site_key: document.getElementById('wq-site').value, p_page_url: document.getElementById('wq-url').value, p_text: document.getElementById('wq-text').value, p_note: document.getElementById('wq-note').value });
+    if(error){ wMsg('wq-msg', 'Error: ' + error.message, true); return; }
+    wMsg('wq-msg', 'Saved.'); document.getElementById('wq-text').value = ''; document.getElementById('wq-note').value = ''; loadWidgets();
+  });
+
   checkAccess().then(function(ok){
     if(ok){
       loadQuestionDrafts();
       loadQuestionsForDate();
       loadSuggestions();
+      loadWidgets();
       loadChallengeDrafts();
       loadChallengeQuestions();
       loadChapters();

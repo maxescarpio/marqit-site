@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Marqit prediction</title>
+<style>
+  :root{
+    --bg:#0A1428; --panel:#12203A; --line:#1E2D4A; --line2:#2A3B5C;
+    --ink:#F2F5FA; --soft:#C5D0E4; --mute:#8FA0BC; --faint:#6F82A3;
+    --yes:#33D18B; --no:#F5644F; --blue:#5C9BFF;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:transparent;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .card{background:var(--bg);border:1px solid var(--line);border-radius:18px;padding:16px 16px 12px;box-shadow:0 10px 30px rgba(10,20,40,.28);}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;letter-spacing:.01em;}
+  .tag{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);}
+  h1{font-size:19px;line-height:1.25;margin:0 0 12px;font-weight:700;}
+  .btns{display:flex;gap:10px;}
+  .vote{flex:1;min-height:52px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;transition:transform .12s ease,filter .12s ease;}
+  .vote:hover{filter:brightness(1.07);} .vote:active{transform:scale(.97);}
+  .vote:focus-visible,.cbtn:focus-visible,.post:focus-visible,a:focus-visible,.rep:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+  .vote.yes{background:var(--yes);color:#04210F;} .vote.no{background:var(--no);color:#2B0A05;}
+  .hint{margin:10px 0 0;font-size:12.5px;color:var(--mute);}
+  .you{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;font-size:13px;color:var(--soft);}
+  .you .n{font-size:12.5px;color:var(--mute);}
+  .bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line);}
+  .bar i{display:block;height:100%;transition:width .6s cubic-bezier(.2,.8,.2,1);}
+  .bar .y{background:var(--yes);} .bar .n{background:var(--no);}
+  .pcts{display:flex;justify-content:space-between;margin-top:8px;font-weight:800;font-size:22px;}
+  .pcts small{font-size:12px;font-weight:700;letter-spacing:.06em;}
+  .pcts .y{color:var(--yes);} .pcts .n{color:var(--no);}
+  .trend{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+  .trend .lab{display:flex;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);margin-bottom:6px;}
+  .trend .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:2px;}
+  .note{margin:10px 0 0;font-size:11.5px;color:var(--faint);line-height:1.4;}
+  .cbtn{margin-top:14px;width:100%;display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;color:var(--ink);font-size:14px;font-weight:700;cursor:pointer;text-align:left;font-family:inherit;}
+  .cbtn .grow{flex:1;} .cbtn .c{color:var(--mute);font-weight:600;}
+  .cbtn svg.chev{transition:transform .2s ease;}
+  .cbtn[aria-expanded=true] svg.chev{transform:rotate(180deg);}
+  .clist{margin-top:10px;display:flex;flex-direction:column;gap:12px;max-height:260px;overflow-y:auto;padding-right:2px;}
+  .cm{display:flex;gap:10px;}
+  .av{flex:none;width:30px;height:30px;border-radius:50%;background:var(--line);color:var(--soft);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+  .cm .meta{display:flex;align-items:center;gap:8px;font-size:12.5px;flex-wrap:wrap;}
+  .side{font-size:10.5px;font-weight:800;letter-spacing:.07em;padding:2px 7px;border-radius:6px;border:1px solid;}
+  .side.yes{color:var(--yes);border-color:var(--yes);} .side.no{color:var(--no);border-color:var(--no);}
+  .when{color:var(--faint);} .pend{color:var(--mute);font-style:italic;}
+  .cm p{margin:4px 0 0;font-size:13.5px;line-height:1.45;color:#D3DCEC;overflow-wrap:anywhere;}
+  .rep{background:none;border:none;padding:2px 0;color:var(--faint);font-size:11px;text-decoration:underline;cursor:pointer;font-family:inherit;margin-left:auto;}
+  .none{font-size:13px;color:var(--mute);margin:0;}
+  .form{margin-top:12px;display:flex;flex-direction:column;gap:8px;}
+  .form input,.form textarea{width:100%;min-height:44px;padding:10px 12px;background:var(--panel);border:1px solid var(--line2);border-radius:10px;color:var(--ink);font-size:14px;font-family:inherit;}
+  .form textarea{min-height:64px;resize:vertical;}
+  .form input::placeholder,.form textarea::placeholder{color:var(--faint);}
+  .row{display:flex;gap:8px;align-items:center;}
+  .post{flex:none;min-height:44px;padding:0 18px;border:none;border-radius:10px;background:var(--blue);color:#06142E;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;}
+  .post[disabled]{opacity:.55;cursor:default;}
+  .msg{font-size:12.5px;color:var(--mute);flex:1;} .msg.err{color:var(--no);} .msg.ok{color:var(--yes);}
+  .foot{margin-top:12px;font-size:11.5px;color:var(--faint);}
+  .foot a{color:var(--soft);font-weight:700;text-decoration:none;} .foot a:hover{text-decoration:underline;}
+  .skel{height:150px;border-radius:12px;background:linear-gradient(90deg,var(--panel),var(--line),var(--panel));background-size:200% 100%;animation:sh 1.2s linear infinite;}
+  @keyframes sh{to{background-position:-200% 0;}}
+  @media (prefers-reduced-motion:reduce){.bar i,.vote,.cbtn svg.chev{transition:none;}.skel{animation:none;}}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
+</style>
+</head>
+<body>
+<section class="card" id="card" aria-label="Marqit prediction" hidden></section>
+<script>
+(function(){
+  var SUPABASE_URL = 'https://ivapcztkasjfetntkzxy.supabase.co';
+  var KEY = 'sb_publishable_S1DZQXDDpffETdJh2xJONQ_QSNjnunn';
+  var qs = new URLSearchParams(location.search);
+  var SITE = qs.get('site') || '';
+  var PAGE = qs.get('u') || '';
+  var HOST = qs.get('h') || '';
+  var card = document.getElementById('card');
+  var state = { data: null, open: false, busy: false, msg: '', msgKind: '' };
+  var mem = {};
+
+  function store(k, v){
+    try{ if(v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); }catch(e){ if(v === undefined) return mem[k] || null; mem[k] = v; }
+    return v === undefined ? null : v;
+  }
+  function uuid(){
+    if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){ var r = Math.random()*16|0; return (c === 'x' ? r : (r&3|8)).toString(16); });
+  }
+  var DEVICE = store('mq_wd') || (function(){ var id = uuid(); store('mq_wd', id); return id; })();
+
+  function api(fn, body){
+    return fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+      method: 'POST',
+      headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function(r){
+      return r.json().then(function(j){ if(!r.ok) throw new Error((j && j.message) || 'Request failed'); return j; });
+    });
+  }
+  function post(msg){ try{ parent.postMessage(Object.assign({ mq: true }, msg), '*'); }catch(e){} }
+  function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
+  function svg(html, w, h){ var s = document.createElementNS('http://www.w3.org/2000/svg','svg'); s.setAttribute('viewBox','0 0 '+w+' '+h); s.setAttribute('width', w); s.setAttribute('height', h); s.setAttribute('aria-hidden','true'); s.innerHTML = html; return s; }
+  function ago(iso){
+    var s = Math.max(1, Math.round((Date.now() - new Date(iso).getTime())/1000));
+    if(s < 60) return 'now'; if(s < 3600) return Math.floor(s/60)+'m'; if(s < 86400) return Math.floor(s/3600)+'h'; return Math.floor(s/86400)+'d';
+  }
+  function fmt(n){ return Number(n).toLocaleString('en-US'); }
+
+  function load(){
+    return api('widget_get', { p_site_key: SITE, p_page_url: PAGE, p_device_id: DEVICE, p_host: HOST }).then(function(d){
+      if(!d || !d.found){ post({ type: 'empty', reason: d && d.reason }); card.hidden = true; return; }
+      state.data = d; render();
+    }).catch(function(){ post({ type: 'empty', reason: 'error' }); card.hidden = true; });
+  }
+
+  function render(){
+    var d = state.data; if(!d) return;
+    var activeId = document.activeElement && document.activeElement.id;
+    var draft = { n: (document.getElementById('cname')||{}).value, b: (document.getElementById('cbody')||{}).value };
+    card.hidden = false; card.textContent = '';
+    var top = el('div','top');
+    var brand = el('div','brand');
+    brand.appendChild(svg('<path d="M4 18l5-6 4 3 7-9" stroke="#33D18B" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 6h5v5" stroke="#33D18B" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>', 24, 24));
+    brand.appendChild(el('span', null, 'Marqit'));
+    top.appendChild(brand); top.appendChild(el('span','tag','Make the call'));
+    card.appendChild(top);
+    card.appendChild(el('h1', null, d.question.text));
+
+    var yes = Number(d.counts.yes)||0, no = Number(d.counts.no)||0, total = yes + no;
+    var voted = !!d.my_vote;
+    if(!voted){
+      var b = el('div','btns');
+      ['yes','no'].forEach(function(c){
+        var btn = el('button','vote '+c, c.toUpperCase()); btn.type = 'button';
+        btn.setAttribute('aria-label', 'Vote ' + c.toUpperCase());
+        btn.addEventListener('click', function(){ castVote(c); });
+        b.appendChild(btn);
+      });
+      card.appendChild(b);
+      card.appendChild(el('p','hint','One tap. No account needed. See what everyone else said.'));
+    }else{
+      var yp = total ? Math.round(yes*100/total) : 0, np = total ? 100 - yp : 0;
+      var you = el('div','you');
+      var l = el('span', null, 'You said '); var st = el('strong', null, d.my_vote.toUpperCase()); st.style.color = d.my_vote === 'yes' ? 'var(--yes)' : 'var(--no)'; l.appendChild(st);
+      you.appendChild(l); you.appendChild(el('span','n', fmt(total) + (total === 1 ? ' vote' : ' votes')));
+      card.appendChild(you);
+      var bar = el('div','bar'); bar.setAttribute('role','img'); bar.setAttribute('aria-label', yp + ' percent yes, ' + np + ' percent no');
+      var by = el('i','y'); by.style.width = yp + '%'; var bn = el('i','n'); bn.style.width = np + '%'; bar.appendChild(by); bar.appendChild(bn);
+      card.appendChild(bar);
+      var pc = el('div','pcts');
+      var a = el('span','y', yp + '% '); a.appendChild(el('small', null, 'YES'));
+      var c2 = el('span','n'); c2.appendChild(el('small', null, 'NO')); c2.appendChild(document.createTextNode(' ' + np + '%'));
+      pc.appendChild(a); pc.appendChild(c2); card.appendChild(pc);
+      var tr = d.trend || [];
+      if(tr.length >= 2){
+        var t = el('div','trend');
+        var lab = el('div','lab'); lab.appendChild(el('span', null, 'YES share over time')); lab.appendChild(el('span', null, 'Live')); t.appendChild(lab);
+        var W = 290, H = 70, pts = tr.map(function(p, i){ return [ (i/(tr.length-1))*W, H - 6 - (Number(p.pct)/100)*(H-12) ]; });
+        var poly = pts.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ');
+        var last = pts[pts.length-1];
+        var s = svg('<line x1="0" y1="'+(H/2)+'" x2="'+W+'" y2="'+(H/2)+'" stroke="#2A3B5C" stroke-dasharray="3 4"/><polyline points="'+poly+'" fill="none" stroke="#33D18B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="4" fill="#33D18B"/>', W, H);
+        s.setAttribute('width','100%'); s.setAttribute('height', H); s.style.display = 'block';
+        s.setAttribute('role','img'); s.setAttribute('aria-label','Line chart of the YES share as votes came in');
+        t.appendChild(s);
+        var ends = el('div','ends'); ends.appendChild(el('span', null, 'First vote')); ends.appendChild(el('span', null, 'Now')); t.appendChild(ends);
+        card.appendChild(t);
+      }
+      if(d.question.note) card.appendChild(el('p','note','How it resolves: ' + d.question.note));
+    }
+
+    // comments
+    var cm = d.comments || [];
+    var cb = el('button','cbtn'); cb.type = 'button'; cb.id = 'cbtn'; cb.setAttribute('aria-expanded', state.open ? 'true' : 'false');
+    var ci = svg('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z" fill="none" stroke="#8FA0BC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>', 24, 24); ci.setAttribute('width','18'); ci.setAttribute('height','18'); cb.appendChild(ci);
+    var gl = el('span','grow','Comments '); gl.appendChild(el('span','c','· ' + cm.filter(function(x){ return !x.pending; }).length));
+    cb.appendChild(gl);
+    var chev = svg('<path d="M6 9l6 6 6-6" fill="none" stroke="#8FA0BC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>', 24, 24); chev.setAttribute('class','chev'); chev.setAttribute('width','18'); chev.setAttribute('height','18');
+    cb.appendChild(chev);
+    cb.addEventListener('click', function(){ state.open = !state.open; render(); });
+    card.appendChild(cb);
+    if(state.open){
+      var list = el('div','clist'); list.setAttribute('role','list');
+      if(!cm.length) list.appendChild(el('p','none','No comments yet. Be the first to defend your call.'));
+      cm.forEach(function(c){
+        var row = el('div','cm'); row.setAttribute('role','listitem');
+        row.appendChild(el('div','av', (c.name||'?').slice(0,2).toUpperCase()));
+        var body = el('div'); body.style.minWidth = 0; body.style.flex = 1;
+        var meta = el('div','meta'); meta.appendChild(el('strong', null, c.name));
+        meta.appendChild(el('span','side '+c.side, c.side.toUpperCase()));
+        meta.appendChild(el('span','when', ago(c.at)));
+        if(c.pending) meta.appendChild(el('span','pend','Waiting for review'));
+        else if(!c.mine){ var r = el('button','rep','Report'); r.type = 'button'; r.addEventListener('click', function(){ api('widget_report_comment', { p_comment_id: c.id }).then(function(){ row.remove(); }).catch(function(){}); }); meta.appendChild(r); }
+        body.appendChild(meta); body.appendChild(el('p', null, c.body));
+        row.appendChild(body); list.appendChild(row);
+      });
+      card.appendChild(list);
+      if(voted){
+        var f = el('form','form'); f.noValidate = true;
+        var n = el('input'); n.id = 'cname'; n.maxLength = 24; n.placeholder = 'Your name'; n.setAttribute('aria-label','Your name'); n.autocomplete = 'nickname'; n.value = draft.n != null ? draft.n : (store('mq_wn') || '');
+        var t2 = el('textarea'); t2.id = 'cbody'; t2.maxLength = 280; t2.placeholder = 'Defend your call…'; t2.setAttribute('aria-label','Your comment'); t2.value = draft.b || '';
+        var rw = el('div','row'); var ms = el('span','msg'+(state.msgKind ? ' '+state.msgKind : ''), state.msg); ms.setAttribute('role','status');
+        var pb = el('button','post','Post'); pb.type = 'submit'; pb.disabled = state.busy;
+        rw.appendChild(ms); rw.appendChild(pb);
+        f.appendChild(n); f.appendChild(t2); f.appendChild(rw);
+        f.addEventListener('submit', function(ev){ ev.preventDefault(); sendComment(n.value, t2.value); });
+        card.appendChild(f);
+      }else{
+        card.appendChild(el('p','hint','Vote first, then join the conversation.'));
+      }
+    }
+    var foot = el('div','foot'); foot.appendChild(document.createTextNode('Powered by '));
+    var fa = el('a', null, 'Marqit'); fa.href = 'https://playmarqit.com/?ref=widget~' + encodeURIComponent(SITE); fa.target = '_blank'; fa.rel = 'noopener';
+    foot.appendChild(fa); card.appendChild(foot);
+    if(activeId){ var ae = document.getElementById(activeId); if(ae && ae.focus) try{ ae.focus(); }catch(e){} }
+    post({ type: 'ready' }); sendHeight();
+  }
+
+  function castVote(c){
+    if(state.busy) return; state.busy = true;
+    var d = state.data; d.my_vote = c; d.counts[c] = (Number(d.counts[c])||0) + 1; render();
+    api('widget_vote', { p_site_key: SITE, p_device_id: DEVICE, p_question_id: d.question.id, p_choice: c })
+      .then(function(){ post({ type: 'voted' }); return load(); })
+      .catch(function(){ return load(); })
+      .then(function(){ state.busy = false; });
+  }
+  function sendComment(name, body){
+    if(state.busy) return;
+    name = (name||'').trim(); body = (body||'').trim();
+    if(name.length < 2){ state.msg = 'Add a name (2+ letters).'; state.msgKind = 'err'; render(); return; }
+    if(body.length < 2){ state.msg = 'Write a comment first.'; state.msgKind = 'err'; render(); return; }
+    state.busy = true; state.msg = 'Posting…'; state.msgKind = ''; render();
+    store('mq_wn', name);
+    api('widget_comment', { p_site_key: SITE, p_device_id: DEVICE, p_question_id: state.data.question.id, p_name: name, p_body: body })
+      .then(function(status){
+        state.msg = status === 'approved' ? 'Posted.' : 'Thanks. Your comment shows after a quick review.'; state.msgKind = 'ok';
+        state.busy = false; var b = document.getElementById('cbody'); return load().then(function(){ var nb = document.getElementById('cbody'); if(nb) nb.value = ''; });
+      })
+      .catch(function(e){ state.busy = false; state.msg = (e && e.message) || 'Could not post. Try again.'; state.msgKind = 'err'; render(); });
+  }
+  function sendHeight(){ post({ type: 'resize', height: Math.ceil(document.documentElement.scrollHeight) }); }
+  if(window.ResizeObserver) new ResizeObserver(sendHeight).observe(document.body);
+
+  // show a skeleton while loading
+  var sk = el('div','skel'); sk.id = 'skel'; document.body.insertBefore(sk, card);
+  load().then(function(){ var s = document.getElementById('skel'); if(s) s.remove(); sendHeight(); });
+  setInterval(function(){ if(document.visibilityState === 'visible' && state.data && state.data.my_vote && !state.busy && !(document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName))) load(); }, 25000);
+})();
+</script>
+</body>
+</html>

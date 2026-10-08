@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add Marqit to Your Site | Setup Guide</title>
+<meta name="robots" content="noindex">
+<style>
+  :root{--navy:#0C3470;--gold:#BC9C22;--ink:#1d2433;--mute:#5b6475;--line:#d6dbe6;--box:#EEF2F9;}
+  *{box-sizing:border-box;}
+  body{font-family:Carlito,Calibri,'Segoe UI',Arial,sans-serif;font-size:16px;line-height:1.5;color:var(--ink);margin:0;background:#fff;}
+  .page{max-width:780px;margin:0 auto;padding:32px 24px 56px;}
+  .hd{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+  .hd img{width:72px;height:72px;}
+  .hd b{display:block;color:var(--navy);font-size:19px;}
+  .hd span{color:var(--mute);font-size:14px;}
+  h1{font-size:34px;line-height:1.15;color:var(--navy);margin:0 0 6px;padding-bottom:10px;border-bottom:2px solid var(--gold);}
+  h2{font-size:21px;color:var(--navy);margin:28px 0 8px;}
+  h3{font-size:16.5px;color:var(--navy);margin:16px 0 4px;}
+  p{margin:0 0 10px;} ul,ol{margin:0 0 10px;padding-left:22px;} li{margin-bottom:4px;} li::marker{color:var(--navy);}
+  .lead{font-size:18px;color:#2a3550;}
+  .code{position:relative;background:#0A1428;color:#e7edf8;border-radius:10px;padding:14px 92px 14px 16px;font:13.5px/1.5 ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere;margin:8px 0 12px;white-space:pre-wrap;}
+  .code button{position:absolute;top:10px;right:10px;border:0;border-radius:8px;background:var(--gold);color:#1b1500;font:700 13px Carlito,Calibri,Arial,sans-serif;padding:8px 14px;cursor:pointer;min-height:36px;}
+  .code button:focus-visible{outline:2px solid #fff;outline-offset:2px;}
+  .box{background:var(--box);border-left:4px solid var(--gold);padding:12px 16px;margin:14px 0;border-radius:0 8px 8px 0;}
+  .box h3{margin-top:0;}
+  .steps{counter-reset:s;list-style:none;padding:0;}
+  .steps>li{counter-increment:s;position:relative;padding-left:46px;margin-bottom:18px;}
+  .steps>li::before{content:counter(s);position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:var(--navy);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  table{border-collapse:collapse;width:100%;margin:8px 0 14px;font-size:14.5px;}
+  th{background:var(--navy);color:#fff;text-align:left;padding:7px 10px;} td{border-bottom:1px solid var(--line);padding:7px 10px;vertical-align:top;}
+  .ft{margin-top:36px;padding-top:10px;border-top:1.5px solid var(--gold);color:var(--mute);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  a{color:#2f6fd6;}
+  .chip{display:inline-block;background:var(--box);border:1px solid var(--line);border-radius:6px;padding:0 6px;font:13px ui-monospace,Menlo,Consolas,monospace;}
+  @media print{.code button{display:none}.code{padding-right:16px}.page{padding:0}h2{break-after:avoid}.box,table,.code{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hd"><img src="grand-media-group-logo.png" alt="Grand Media Group"><div><b>Grand Media Group LLC</b><span>Marqit Publisher Program &middot; playmarqit.com</span></div></div>
+  <h1>Add Marqit to Your Site in 5 Minutes</h1>
+  <p class="lead">One line of code puts a one-tap prediction on your stories. Readers vote YES or NO, see where everyone else landed, and talk it out in the comments. We write the questions, host everything and moderate the comments. You don't have to do anything after setup.</p>
+
+  <h2>Your code</h2>
+  <p>This is the only thing you need. It is the same on every page.</p>
+  <div class="code" id="mq-code">&lt;script async src="https://playmarqit.com/embed.js" data-site="<span class="site-key">YOUR_SITE_KEY</span>"&gt;&lt;/script&gt;<button type="button" id="copy-main">Copy</button></div>
+  <p class="box" id="nokey" style="display:none;">Your site key arrives in the email we send you. Where it says <span class="chip">YOUR_SITE_KEY</span>, paste your key. If you opened a personal setup link from us, it is already filled in.</p>
+
+  <h2>Set it up</h2>
+  <ol class="steps">
+    <li><h3>Paste the code where you want the widget</h3>
+      <p>Pick one of the three layouts. Each one is the same line with a small change.</p>
+      <p><b>A. Inside the article</b> (simplest). Paste the code where the widget should appear, for example after the first or second paragraph.</p>
+      <p><b>B. In your sidebar.</b> Give your sidebar box an id (for example <span class="chip">marqit-slot</span>), put the code anywhere on the page, and add <span class="chip">data-target="#marqit-slot"</span>:</p>
+      <div class="code" data-copy>&lt;script async src="https://playmarqit.com/embed.js" data-site="<span class="site-key">YOUR_SITE_KEY</span>" data-target="#marqit-slot"&gt;&lt;/script&gt;<button type="button">Copy</button></div>
+      <p><b>C. As a pop-up</b> in the corner of the screen. Readers can close it, and it shrinks to a small "Make the call" tab:</p>
+      <div class="code" data-copy>&lt;script async src="https://playmarqit.com/embed.js" data-site="<span class="site-key">YOUR_SITE_KEY</span>" data-mode="popup"&gt;&lt;/script&gt;<button type="button">Copy</button></div>
+      <p>For a pop-up on the left, add <span class="chip">data-position="left"</span>. To change when it appears, add <span class="chip">data-delay="8"</span> (seconds).</p>
+    </li>
+    <li><h3>Put it on your article template once</h3>
+      <p>Add the line to your article page layout so it appears on every story. You do not need to edit each article. A page only shows the widget when we have set a question for it, so adding it everywhere is safe.</p>
+    </li>
+    <li><h3>Send us your stories</h3>
+      <p>Email the links to <a href="mailto:help@playmarqit.com">help@playmarqit.com</a> (a list is fine). We write the question for each one and it appears on that page by itself, with nothing to change on your side. If you would like to approve questions first, tell us and we will send them for a quick yes before they go live.</p>
+    </li>
+    <li><h3>Check that it works</h3>
+      <p>Open one of your stories and refresh the page. You should see the Marqit box with YES and NO buttons. If you do not, see "If it does not show up" below.</p>
+    </li>
+  </ol>
+
+  <h2>Where to paste it on common platforms</h2>
+  <p>Menu names change now and then, so treat these as a guide. If you get stuck, send us a screenshot.</p>
+  <table>
+    <tr><th>Platform</th><th>How</th></tr>
+    <tr><td>WordPress</td><td>In the post editor, add a <b>Custom HTML</b> block and paste the code. To add it to every post, use your theme's footer or a "header and footer scripts" plugin.</td></tr>
+    <tr><td>Ghost</td><td>Settings, then <b>Code injection</b>, then Site footer. Or add an <b>HTML card</b> inside a post.</td></tr>
+    <tr><td>Squarespace</td><td>Add a <b>Code block</b> to a page. Site-wide code lives under Settings, Advanced, <b>Code Injection</b> (a Business plan or higher is needed).</td></tr>
+    <tr><td>Webflow</td><td>Add an <b>Embed</b> element, or paste it into the page's Custom Code before the closing body tag.</td></tr>
+    <tr><td>Custom or hand-built sites</td><td>Paste the line into your article template, just before the closing <span class="chip">&lt;/body&gt;</span> tag.</td></tr>
+    <tr><td>Substack, Medium</td><td>These block outside scripts on posts, so the widget cannot run there.</td></tr>
+  </table>
+
+  <h2>Good to know</h2>
+  <div class="box">
+    <ul>
+      <li><b>Free to play, nothing to buy.</b> No ads, no prizes, no money and no gambling in the widget.</li>
+      <li><b>No cookies and no tracking.</b> It saves one anonymous random ID in the reader's browser so each person's vote counts once. No names, emails or ad tracking. If you serve readers in the EU or UK, mention this in your privacy policy.</li>
+      <li><b>Fast.</b> It loads after your page finishes, so it does not slow your site down.</li>
+      <li><b>Works on phones.</b> The widget adjusts to the screen and the pop-up fits small devices.</li>
+      <li><b>We moderate the comments.</b> New comments are checked before they show, links are blocked, and readers can report anything. You can ask us to turn the widget off at any time.</li>
+      <li><b>Easy to remove.</b> Delete the line of code and it is gone.</li>
+    </ul>
+  </div>
+
+  <h2>If it does not show up</h2>
+  <ol>
+    <li><b>We may not have set a question for that page yet.</b> This is the most common reason. Email us the link and we will add it.</li>
+    <li><b>The page address changed.</b> We match each question to the article's web address. If you change a story's link, tell us.</li>
+    <li><b>An ad blocker is hiding it.</b> Try a private window with extensions off.</li>
+    <li><b>The platform removed the script.</b> Some editors strip code from posts. Use one of the options in the table above.</li>
+  </ol>
+  <p>Still stuck? Email <a href="mailto:help@playmarqit.com">help@playmarqit.com</a> with the link to the page and we will fix it.</p>
+
+  <div class="ft"><span>Grand Media Group LLC &middot; Marqit Publisher Program &middot; playmarqit.com</span><span>help@playmarqit.com</span></div>
+</div>
+<script>
+(function(){
+  var key = new URLSearchParams(location.search).get('site');
+  if(key && /^[A-Za-z0-9_-]{4,40}$/.test(key)){
+    document.querySelectorAll('.site-key').forEach(function(s){ s.textContent = key; });
+  }else{
+    var n = document.getElementById('nokey'); if(n) n.style.display = 'block';
+  }
+  function bind(box){
+    var btn = box.querySelector('button'); if(!btn) return;
+    btn.addEventListener('click', function(){
+      var text = box.cloneNode(true); text.querySelector('button').remove();
+      var t = text.textContent.trim();
+      function done(){ btn.textContent = 'Copied'; setTimeout(function(){ btn.textContent = 'Copy'; }, 1800); }
+      if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done, function(){}); }
+      else{ var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); done(); }catch(e){} ta.remove(); }
+    });
+  }
+  document.querySelectorAll('.code').forEach(bind);
+})();
+</script>
+</body>
+</html>

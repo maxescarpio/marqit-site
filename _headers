@@ -20,3 +20,11 @@
 
 /sw.js
   Cache-Control: no-cache
+
+/embed.js
+  Cache-Control: public, max-age=300
+  Access-Control-Allow-Origin: *
+
+/widget.html
+  Cache-Control: no-cache
+  Content-Security-Policy: frame-ancestors *
