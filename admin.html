@@ -105,6 +105,13 @@
   <label>New site name</label><input id="wsite-name" type="text" placeholder="Example Sports Blog">
   <label>Allowed domains (comma separated, blank = any)</label><input id="wsite-domains" type="text" placeholder="examplesports.com, www.examplesports.com">
   <label style="display:flex;align-items:center;gap:8px;"><input id="wsite-auto" type="checkbox" style="width:auto;"> Auto-approve comments (otherwise each comment waits for you)</label>
+  <label>How are questions made?</label>
+  <select id="wsite-mode">
+    <option value="review">Claude drafts each question, I approve it (recommended)</option>
+    <option value="auto">Claude drafts and posts questions automatically</option>
+    <option value="manual">I write every question myself</option>
+  </select>
+  <p style="font-size:12px;color:var(--ink-soft);margin:4px 0 0;">The first two need the site's website address above. Then the publisher pastes one line of code once and every article gets a question.</p>
   <button id="wsite-add-btn">Add site</button>
   <p id="wsite-msg" style="font-size:13px; margin-top:8px;"></p>
   <label>Add or change a question</label>
@@ -116,6 +123,7 @@
   <input id="wq-note" type="text" placeholder="How it resolves (optional)" maxlength="300" style="margin-top:8px;">
   <button id="wq-add-btn">Save question</button>
   <p id="wq-msg" style="font-size:13px; margin-top:8px;"></p>
+  <div id="widget-pending-q"></div>
   <div id="widget-overview"></div>
   <div id="widget-comments"></div>
 
@@ -1039,10 +1047,29 @@
   // ---- Publisher widgets ----
   function wMsg(id, t, err){ var m = document.getElementById(id); m.textContent = t; m.style.color = err ? 'var(--no)' : 'var(--yes)'; }
   function wEl(tag, text, css){ var e = document.createElement(tag); if(text != null) e.textContent = text; if(css) e.style.cssText = css; return e; }
+  function renderPendingQuestions(list){
+    var box = document.getElementById('widget-pending-q'); box.textContent = '';
+    if(!list.length) return;
+    box.appendChild(wEl('p', 'Questions waiting for your approval', 'font-size:14px;font-weight:700;margin-top:16px;'));
+    box.appendChild(wEl('p', 'Claude drafted these from the publisher\'s stories. Nothing shows to readers until you approve. Edit the wording if you like.', 'font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;'));
+    list.forEach(function(q){
+      var r = wEl('div'); r.className = 'qrow';
+      r.appendChild(wEl('div', q.site + ' \u00b7 ' + (q.url || q.page_key), 'font-size:12px;color:var(--ink-soft);word-break:break-all;'));
+      var t = document.createElement('input'); t.type = 'text'; t.maxLength = 200; t.value = q.text; t.style.marginTop = '6px'; r.appendChild(t);
+      var n = document.createElement('input'); n.type = 'text'; n.maxLength = 300; n.value = q.note || ''; n.placeholder = 'How it resolves'; n.style.marginTop = '6px'; r.appendChild(n);
+      var a = wEl('div'); a.className = 'actions';
+      var ok = wEl('button', 'Approve'); ok.className = 'btn-yes'; ok.addEventListener('click', async function(){ ok.disabled = true; var res = await sb.rpc('admin_widget_review_question', { p_id: q.id, p_action: 'approve', p_text: t.value, p_note: n.value }); if(res.error){ alert(res.error.message); } loadWidgets(); });
+      var no = wEl('button', 'Reject'); no.className = 'btn-no'; no.addEventListener('click', async function(){ no.disabled = true; await sb.rpc('admin_widget_review_question', { p_id: q.id, p_action: 'reject' }); loadWidgets(); });
+      a.appendChild(ok); a.appendChild(no); r.appendChild(a); box.appendChild(r);
+    });
+  }
   async function loadWidgets(){
     const { data, error } = await sb.rpc('admin_widget_overview');
     const ov = document.getElementById('widget-overview'); const cm = document.getElementById('widget-comments');
     ov.textContent = ''; cm.textContent = '';
+    var modes = {}, pendingQ = [];
+    try{ var mr = await sb.rpc('admin_widget_site_modes'); if(mr.data) modes = mr.data; var pr = await sb.rpc('admin_widget_pending_questions'); if(pr.data) pendingQ = pr.data; }catch(e){}
+    renderPendingQuestions(pendingQ);
     if(error){ ov.appendChild(wEl('p', 'Could not load widgets: ' + error.message, 'font-size:13px;color:var(--no);')); return; }
     const sel = document.getElementById('wq-site'); const keep = sel.value; sel.textContent = '';
     (data.sites || []).forEach(function(s){ var o = document.createElement('option'); o.value = s.site_key; o.textContent = s.name; sel.appendChild(o); });
@@ -1051,16 +1078,24 @@
       var row = wEl('div', null); row.className = 'qrow';
       row.appendChild(wEl('div', s.name + (s.active ? '' : ' (off)'), 'font-weight:600;font-size:14px;'));
       row.appendChild(wEl('div', s.questions + ' questions \u00b7 ' + (s.viewers || 0) + ' viewers \u00b7 ' + s.votes + ' votes (' + (s.viewers ? Math.round(100 * s.votes / s.viewers) + '% voted' : 'no views yet') + ') \u00b7 ' + (s.comments || 0) + ' comments \u00b7 ' + ((s.domains && s.domains.length) ? s.domains.join(', ') : 'any domain') + (s.auto ? ' \u00b7 auto-approve' : ' \u00b7 comments held'), 'font-size:12px;color:var(--ink-soft);margin-top:2px;'));
-      var snip = '<script async src="https://playmarqit.com/embed.js" data-site="' + s.site_key + '"><\/script>';
+      var mode = modes[s.site_key] || 'manual';
+      var snip = '<script async src="https://playmarqit.com/embed.js" data-site="' + s.site_key + '"' + (mode !== 'manual' ? ' data-mode="auto"' : '') + '><\/script>';
+      row.appendChild(wEl('div', 'Install link: playmarqit.com/install.html?site=' + s.site_key, 'font-size:12px;color:var(--ink-soft);margin-top:4px;word-break:break-all;'));
+      var msel = document.createElement('select'); msel.style.marginTop = '8px';
+      [['review', 'Questions: Claude drafts, I approve'], ['auto', 'Questions: Claude drafts and posts'], ['manual', 'Questions: I write them']].forEach(function(o){ var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; msel.appendChild(op); });
+      msel.value = mode;
+      msel.addEventListener('change', async function(){ var r = await sb.rpc('admin_widget_set_site_mode', { p_site_key: s.site_key, p_mode: msel.value }); if(r.error){ alert(r.error.message); } loadWidgets(); });
+      row.appendChild(msel);
       var ta = wEl('textarea', snip, 'margin-top:8px;font-family:monospace;font-size:12px;'); ta.readOnly = true; ta.rows = 2; ta.addEventListener('focus', function(){ ta.select(); });
       row.appendChild(ta);
       var act = wEl('div'); act.className = 'actions';
       var tg = wEl('button', s.active ? 'Turn off' : 'Turn on'); tg.addEventListener('click', async function(){ tg.disabled = true; await sb.rpc('admin_widget_set_active', { p_site_key: s.site_key, p_active: !s.active }); loadWidgets(); });
       act.appendChild(tg); row.appendChild(act); ov.appendChild(row);
     });
-    if((data.questions || []).length){
+    var liveQs = (data.questions || []).filter(function(q){ return q.active; });
+    if(liveQs.length){
       ov.appendChild(wEl('p', 'Questions', 'font-size:13px;font-weight:600;margin-top:16px;'));
-      data.questions.forEach(function(q){
+      liveQs.forEach(function(q){
         var r = wEl('div'); r.className = 'qrow';
         r.appendChild(wEl('div', q.text, 'font-weight:600;font-size:14px;'));
         r.appendChild(wEl('div', q.site + ' \u00b7 ' + q.page_key + ' \u00b7 ' + (q.viewers || 0) + ' viewers \u00b7 YES ' + q.yes + ' / NO ' + q.no, 'font-size:12px;color:var(--ink-soft);margin-top:2px;word-break:break-all;'));
@@ -1071,8 +1106,11 @@
     (function(){
       var n = (data.pending_comments || []).length, b = document.getElementById('widget-alert');
       if(!b){ b = document.createElement('a'); b.id = 'widget-alert'; b.href = '#widget-comments'; b.style.cssText = 'position:sticky;top:0;z-index:50;display:none;padding:10px 14px;background:#BC9C22;color:#fff;font-weight:700;font-size:14px;text-align:center;text-decoration:none;'; document.body.insertBefore(b, document.body.firstChild); }
-      b.style.display = n ? 'block' : 'none'; b.textContent = n + ' widget comment' + (n === 1 ? '' : 's') + ' waiting for review. Tap to jump to them.';
-      document.title = (n ? '(' + n + ') ' : '') + document.title.replace(/^\(\d+\) /, '');
+      var nq = pendingQ.length, tot = n + nq;
+      b.href = nq ? '#widget-pending-q' : '#widget-comments';
+      b.style.display = tot ? 'block' : 'none';
+      b.textContent = (nq ? nq + ' question' + (nq === 1 ? '' : 's') + ' to approve' : '') + (nq && n ? ' and ' : '') + (n ? n + ' comment' + (n === 1 ? '' : 's') + ' to review' : '') + '. Tap to jump to ' + (tot === 1 ? 'it' : 'them') + '.';
+      document.title = (tot ? '(' + tot + ') ' : '') + document.title.replace(/^\(\d+\) /, '');
     })();
     if(!(data.pending_comments || []).length) cm.appendChild(wEl('p', 'Nothing to review.', 'font-size:13px;color:var(--ink-soft);'));
     (data.pending_comments || []).forEach(function(c){
@@ -1091,7 +1129,12 @@
     if(!name){ wMsg('wsite-msg', 'Enter a site name.', true); return; }
     const { data, error } = await sb.rpc('admin_widget_create_site', { p_name: name, p_domains: domains, p_auto_approve: document.getElementById('wsite-auto').checked });
     if(error){ wMsg('wsite-msg', 'Error: ' + error.message, true); return; }
-    wMsg('wsite-msg', 'Site added. Key: ' + data); document.getElementById('wsite-name').value = ''; loadWidgets();
+    var chosen = document.getElementById('wsite-mode').value, modeNote = '';
+    if(chosen !== 'manual'){
+      var mres = await sb.rpc('admin_widget_set_site_mode', { p_site_key: data, p_mode: chosen });
+      if(mres.error){ modeNote = ' (Questions are set to manual: ' + mres.error.message + ')'; }
+    }
+    wMsg('wsite-msg', 'Site added. Key: ' + data + '. Install link: playmarqit.com/install.html?site=' + data + modeNote); document.getElementById('wsite-name').value = ''; loadWidgets();
   });
   setInterval(function(){ if(!document.hidden && document.getElementById('widget-overview')) loadWidgets(); }, 60000);
   document.getElementById('wq-draft-btn').addEventListener('click', async function(){
