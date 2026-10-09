@@ -38,47 +38,52 @@
 <body>
 <div class="page">
   <div class="hd"><img src="grand-media-group-logo.png" alt="Grand Media Group"><div><b>Grand Media Group LLC</b><span>Marqit Publisher Program &middot; playmarqit.com</span></div></div>
-  <h1>Add Marqit to Your Site in 5 Minutes</h1>
+  <h1>Add Marqit to Your Site in 2 Minutes</h1>
   <p class="lead">One line of code puts a one-tap prediction on your stories. Readers vote YES or NO, see where everyone else landed, and talk it out in the comments. We write the questions, host everything and moderate the comments. You don't have to do anything after setup.</p>
 
   <h2>Your code</h2>
-  <p>This is the only thing you need. It is the same on every page.</p>
-  <div class="code" id="mq-code">&lt;script async src="https://playmarqit.com/embed.js" data-site="<span class="site-key">YOUR_SITE_KEY</span>"&gt;&lt;/script&gt;<button type="button" id="copy-main">Copy</button></div>
+  <p>This is the only thing you need. Paste it <b>once</b>, and it works on every article.</p>
+  <div class="code" id="mq-code">&lt;script async src="https://playmarqit.com/embed.js" data-site="<span class="site-key">YOUR_SITE_KEY</span>" data-mode="auto"&gt;&lt;/script&gt;<button type="button" id="copy-main">Copy</button></div>
   <p class="box" id="nokey" style="display:none;">Your site key arrives in the email we send you. Where it says <span class="chip">YOUR_SITE_KEY</span>, paste your key. If you opened a personal setup link from us, it is already filled in.</p>
 
   <h2>Set it up</h2>
   <ol class="steps">
-    <li><h3>Paste the code where you want the widget</h3>
-      <p>Pick one of the three layouts. Each one is the same line with a small change.</p>
-      <p><b>A. Inside the article</b> (simplest). Paste the code where the widget should appear, for example after the first or second paragraph.</p>
-      <p><b>B. In your sidebar.</b> Give your sidebar box an id (for example <span class="chip">marqit-slot</span>), put the code anywhere on the page, and add <span class="chip">data-target="#marqit-slot"</span>:</p>
-      <div class="code" data-copy>&lt;script async src="https://playmarqit.com/embed.js" data-site="<span class="site-key">YOUR_SITE_KEY</span>" data-target="#marqit-slot"&gt;&lt;/script&gt;<button type="button">Copy</button></div>
-      <p><b>C. As a pop-up</b> in the corner of the screen. Readers can close it, and it shrinks to a small "Make the call" tab:</p>
-      <div class="code" data-copy>&lt;script async src="https://playmarqit.com/embed.js" data-site="<span class="site-key">YOUR_SITE_KEY</span>" data-mode="popup"&gt;&lt;/script&gt;<button type="button">Copy</button></div>
-      <p>For a pop-up on the left, add <span class="chip">data-position="left"</span>. To change when it appears, add <span class="chip">data-delay="8"</span> (seconds).</p>
+    <li><h3>Paste the code once, site-wide</h3>
+      <p>Put it in the part of your site that appears on every page, usually called the <b>footer</b> or <b>code injection</b>. The table below shows where that is on common platforms. WordPress users can skip the pasting and use our plugin.</p>
     </li>
-    <li><h3>Put it on your article template once</h3>
-      <p>Add the line to your article page layout so it appears on every story. You do not need to edit each article. A page only shows the widget when we have set a question for it, so adding it everywhere is safe.</p>
-    </li>
-    <li><h3>Send us your stories</h3>
-      <p>Email the links to <a href="mailto:help@playmarqit.com">help@playmarqit.com</a> (a list is fine). We write the question for each one and it appears on that page by itself, with nothing to change on your side. If you would like to approve questions first, tell us and we will send them for a quick yes before they go live.</p>
+    <li><h3>That is it</h3>
+      <p>We write a question for each new article and you never have to touch anything again. The widget places itself inside your articles, after the second or third paragraph. It ignores your home page and anything that is not an article.</p>
+      <p>At first, we check each question before it appears, so a new story may take a little while to show the widget. You do not need to do anything.</p>
     </li>
     <li><h3>Check that it works</h3>
-      <p>Open one of your stories and refresh the page. You should see the Marqit box with YES and NO buttons. If you do not, see "If it does not show up" below.</p>
+      <p>Open a story and refresh the page. After we approve the question, you should see the Marqit box with YES and NO buttons. If you do not, see "If it does not show up" below.</p>
     </li>
   </ol>
 
-  <h2>Where to paste it on common platforms</h2>
+  <h2>Where to paste it</h2>
   <p>Menu names change now and then, so treat these as a guide. If you get stuck, send us a screenshot.</p>
   <table>
     <tr><th>Platform</th><th>How</th></tr>
-    <tr><td>WordPress</td><td>In the post editor, add a <b>Custom HTML</b> block and paste the code. To add it to every post, use your theme's footer or a "header and footer scripts" plugin.</td></tr>
-    <tr><td>Ghost</td><td>Settings, then <b>Code injection</b>, then Site footer. Or add an <b>HTML card</b> inside a post.</td></tr>
-    <tr><td>Squarespace</td><td>Add a <b>Code block</b> to a page. Site-wide code lives under Settings, Advanced, <b>Code Injection</b> (a Business plan or higher is needed).</td></tr>
-    <tr><td>Webflow</td><td>Add an <b>Embed</b> element, or paste it into the page's Custom Code before the closing body tag.</td></tr>
+    <tr><td>WordPress</td><td><b>Easiest:</b> <a href="/marqit-widget.zip" download>download our plugin</a>. In WordPress go to Plugins, Add New, Upload Plugin, choose the file, and press Activate. Then open Settings, Marqit, paste your site key, and Save. <b>Or</b> use any &ldquo;header and footer scripts&rdquo; plugin and paste the code into the Footer box.</td></tr>
+    <tr><td>Ghost</td><td>Settings, then <b>Code injection</b>, then Site footer.</td></tr>
+    <tr><td>Squarespace</td><td>Settings, Advanced, <b>Code Injection</b>, Footer (a Business plan or higher is needed).</td></tr>
+    <tr><td>Wix</td><td>Settings, <b>Custom code</b>, Add code. Paste it, choose all pages, and place it at the end of the body (a Premium plan is needed).</td></tr>
+    <tr><td>Webflow</td><td>Project settings, Custom code, <b>Footer code</b>.</td></tr>
+    <tr><td>Shopify (blog)</td><td>Online Store, Themes, Edit code, open <span class="chip">theme.liquid</span> and paste it just before <span class="chip">&lt;/body&gt;</span>.</td></tr>
+    <tr><td>Blogger</td><td>Theme, Edit HTML, and paste it just before <span class="chip">&lt;/body&gt;</span>.</td></tr>
+    <tr><td>Google Tag Manager</td><td>New tag, <b>Custom HTML</b>, paste the code, trigger on All Pages.</td></tr>
     <tr><td>Custom or hand-built sites</td><td>Paste the line into your article template, just before the closing <span class="chip">&lt;/body&gt;</span> tag.</td></tr>
     <tr><td>Substack, Medium</td><td>These block outside scripts on posts, so the widget cannot run there.</td></tr>
   </table>
+
+  <h2>Want more control?</h2>
+  <p>Everything below is optional. Add these to the same line of code.</p>
+  <ul>
+    <li><b>Only some sections:</b> add <span class="chip">data-paths="/news/,/sports/"</span> and it only runs on addresses that start with those.</li>
+    <li><b>Skip some sections:</b> add <span class="chip">data-exclude="/video/"</span>.</li>
+    <li><b>Pop-up in the corner</b> instead of inside the article: change <span class="chip">data-mode="auto"</span> to <span class="chip">data-mode="popup"</span>.</li>
+    <li><b>Just one article, or one exact spot</b> (such as your sidebar): remove <span class="chip">data-mode="auto"</span> and paste the line where you want the widget. We set that page's question by hand.</li>
+  </ul>
 
   <h2>Good to know</h2>
   <div class="box">
@@ -94,7 +99,8 @@
 
   <h2>If it does not show up</h2>
   <ol>
-    <li><b>We may not have set a question for that page yet.</b> This is the most common reason. Email us the link and we will add it.</li>
+    <li><b>The question is waiting for our approval.</b> This is the most common reason on a brand-new story. It usually appears within a day.</li>
+    <li><b>The page is not an article.</b> The widget skips home pages, lists of stories and other pages that are not a single article.</li>
     <li><b>The page address changed.</b> We match each question to the article's web address. If you change a story's link, tell us.</li>
     <li><b>An ad blocker is hiding it.</b> Try a private window with extensions off.</li>
     <li><b>The platform removed the script.</b> Some editors strip code from posts. Use one of the options in the table above.</li>
