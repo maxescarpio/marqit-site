@@ -109,6 +109,22 @@
     var s = Math.max(1, Math.round((Date.now() - new Date(iso).getTime())/1000));
     if(s < 60) return 'now'; if(s < 3600) return Math.floor(s/60)+'m'; if(s < 86400) return Math.floor(s/3600)+'h'; return Math.floor(s/86400)+'d';
   }
+
+  // Simple clean-language check. Not perfect (no filter is), but stops the obvious.
+  // Stems that are safe to catch anywhere inside a username or comment word (checked inside each word, not across spaces):
+  var MQ_BAD_STEMS = ['fuck','shit','bitch','nigg','fagg','whore','slut','asshole','pussy','bastard','motherf'];
+  // Short words that must match as a whole word only (so "class" or "Dickson" are fine):
+  var MQ_BAD_WORDS = ['cunt','cunts','ass','arse','dick','cock','piss','twat','tits','retard','retarded','fag','coon','spic','kike','chink','tranny','rape','rapist'];
+  function mqHasProfanity(text){
+    var t = String(text || '').toLowerCase();
+    var map = {'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s','!':'i'};
+    t = t.replace(/[0134577@$!]/g, function(c){ return map[c] || c; });
+    var words = t.split(/[^a-z]+/).filter(Boolean);
+    var i;
+    for(i = 0; i < words.length; i++){ for(var j = 0; j < MQ_BAD_STEMS.length; j++){ if(words[i].indexOf(MQ_BAD_STEMS[j]) !== -1) return true; } }
+    for(i = 0; i < words.length; i++){ if(MQ_BAD_WORDS.indexOf(words[i]) !== -1) return true; }
+    return false;
+  }
   function fmt(n){ return Number(n).toLocaleString('en-US'); }
 
   function load(){
@@ -212,6 +228,7 @@
         var pb = el('button','post','Post'); pb.type = 'submit'; pb.disabled = state.busy;
         rw.appendChild(ms); rw.appendChild(pb);
         f.appendChild(n); f.appendChild(t2); f.appendChild(rw);
+        f.appendChild(el('p','note','Keep it clean: no curse words, links or personal attacks.'));
         f.addEventListener('submit', function(ev){ ev.preventDefault(); sendComment(n.value, t2.value); });
         card.appendChild(f);
       }else{
@@ -248,6 +265,7 @@
     name = (name||'').trim(); body = (body||'').trim();
     if(name.length < 2){ state.msg = 'Add a name (2+ letters).'; state.msgKind = 'err'; render(); return; }
     if(body.length < 2){ state.msg = 'Write a comment first.'; state.msgKind = 'err'; render(); return; }
+    if(mqHasProfanity(name) || mqHasProfanity(body)){ state.msg = 'Please keep it clean: no curse words.'; state.msgKind = 'err'; render(); return; }
     state.busy = true; state.msg = 'Posting…'; state.msgKind = ''; render();
     store('mq_wn', name);
     api('widget_comment', { p_site_key: SITE, p_device_id: DEVICE, p_question_id: state.data.question.id, p_name: name, p_body: body })
