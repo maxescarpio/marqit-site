@@ -207,7 +207,7 @@
       const { data: signUpData, error } = await sb.auth.signUp({
         email: email,
         password: password,
-        options: { data: { username: username, age_confirmed: true, state: state || null, signup_source: pendingSignupSource }, emailRedirectTo: window.location.origin + window.location.pathname }
+        options: { data: { username: username, age_confirmed: true, state: state || null, signup_source: mqSignupSource() }, emailRedirectTo: window.location.origin + window.location.pathname }
       });
       btn.disabled = false;
       btn.textContent = originalText;
@@ -412,7 +412,7 @@
         options: {
           shouldCreateUser: true,
           emailRedirectTo: window.location.origin + window.location.pathname,
-          data: { signup_source: pendingSignupSource || 'organic', signup_method: 'code' }
+          data: { signup_source: mqSignupSource(), signup_method: 'code' }
         }
       });
       if(error){
@@ -555,6 +555,17 @@
     }
   });
   let pendingSignupSource = 'organic';
+
+  // The database creates the profile the instant the account exists, using the
+  // signup_source sent with signUp(). So a publisher-widget visitor must be
+  // credited here ('widget:<siteKey>'), not afterwards in ensureProfileInner.
+  function mqSignupSource(){
+    try{
+      var w = sessionStorage.getItem('marqit_widget_site');
+      if(w && /^[A-Za-z0-9_-]{4,40}$/.test(w)) return 'widget:' + w;
+    }catch(e){}
+    return pendingSignupSource || 'organic';
+  }
 
   // --- Referral tracking (Share Card Update spec, Change 7) ---------------
   // A shared card's link carries ?ref=<sharerUserId>~<cardType>~<trigger>.
