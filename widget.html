@@ -14,34 +14,34 @@
   *{box-sizing:border-box;}
   html,body{margin:0;background:transparent;}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-  .card{background:var(--bg);border:1px solid var(--line);border-radius:18px;padding:16px 16px 12px;box-shadow:0 10px 30px rgba(10,20,40,.28);}
-  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .card{background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:12px 14px 10px;box-shadow:0 10px 30px rgba(10,20,40,.28);}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
   .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;letter-spacing:.01em;}
   .tag{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);}
-  h1{font-size:19px;line-height:1.25;margin:0 0 12px;font-weight:700;}
+  h1{font-size:17px;line-height:1.25;margin:0 0 10px;font-weight:700;}
   .btns{display:flex;gap:10px;}
-  .vote{flex:1;min-height:52px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;transition:transform .12s ease,filter .12s ease;}
+  .vote{flex:1;min-height:46px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;transition:transform .12s ease,filter .12s ease;}
   .vote:hover{filter:brightness(1.07);} .vote:active{transform:scale(.97);}
   .vote:focus-visible,.cbtn:focus-visible,.post:focus-visible,a:focus-visible,.rep:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
   .vote.yes{background:var(--yes);color:#04210F;} .vote.no{background:var(--no);color:#2B0A05;}
   .hint{margin:10px 0 0;font-size:12.5px;color:var(--mute);}
   .you{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;font-size:13px;color:var(--soft);}
   .you .n{font-size:12.5px;color:var(--mute);}
-  .bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line);}
+  .bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line);}
   .bar i{display:block;height:100%;transition:width .6s cubic-bezier(.2,.8,.2,1);}
   .bar .y{background:var(--yes);} .bar .n{background:var(--no);}
-  .pcts{display:flex;justify-content:space-between;margin-top:8px;font-weight:800;font-size:22px;}
+  .pcts{display:flex;justify-content:space-between;margin-top:6px;font-weight:800;font-size:16px;}
   .pcts small{font-size:12px;font-weight:700;letter-spacing:.06em;}
   .pcts .y{color:var(--yes);} .pcts .n{color:var(--no);}
   .trend{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
   .trend .lab{display:flex;justify-content:space-between;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);margin-bottom:6px;}
   .trend .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:2px;}
   .note{margin:10px 0 0;font-size:11.5px;color:var(--faint);line-height:1.4;}
-  .cbtn{margin-top:14px;width:100%;display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;color:var(--ink);font-size:14px;font-weight:700;cursor:pointer;text-align:left;font-family:inherit;}
+  .cbtn{margin-top:10px;width:100%;display:flex;align-items:center;gap:10px;min-height:40px;padding:0 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;color:var(--ink);font-size:14px;font-weight:700;cursor:pointer;text-align:left;font-family:inherit;}
   .cbtn .grow{flex:1;} .cbtn .c{color:var(--mute);font-weight:600;}
   .cbtn svg.chev{transition:transform .2s ease;}
   .cbtn[aria-expanded=true] svg.chev{transform:rotate(180deg);}
-  .clist{margin-top:10px;display:flex;flex-direction:column;gap:12px;max-height:260px;overflow-y:auto;padding-right:2px;}
+  .clist{margin-top:10px;display:flex;flex-direction:column;gap:12px;max-height:180px;overflow-y:auto;padding-right:2px;}
   .cm{display:flex;gap:10px;}
   .av{flex:none;width:30px;height:30px;border-radius:50%;background:var(--line);color:var(--soft);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
   .cm .meta{display:flex;align-items:center;gap:8px;font-size:12.5px;flex-wrap:wrap;}
@@ -59,9 +59,9 @@
   .post{flex:none;min-height:44px;padding:0 18px;border:none;border-radius:10px;background:var(--blue);color:#06142E;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;}
   .post[disabled]{opacity:.55;cursor:default;}
   .msg{font-size:12.5px;color:var(--mute);flex:1;} .msg.err{color:var(--no);} .msg.ok{color:var(--yes);}
-  .play{display:block;margin-top:12px;padding:11px 14px;border-radius:12px;border:1px solid var(--line, #2A3B5C);background:#12203A;color:#F2F5FA;font-weight:800;font-size:14px;text-align:center;text-decoration:none;}
+  .play{display:block;margin-top:8px;padding:9px 14px;border-radius:12px;border:1px solid var(--line, #2A3B5C);background:#12203A;color:#F2F5FA;font-weight:800;font-size:14px;text-align:center;text-decoration:none;}
   .play:hover{background:#18294A;} .play:focus-visible{outline:2px solid #5C9BFF;outline-offset:2px;}
-  .foot{margin-top:12px;font-size:11.5px;color:var(--faint);}
+  .foot{margin-top:8px;font-size:11.5px;color:var(--faint);}
   .foot a{color:var(--soft);font-weight:700;text-decoration:none;} .foot a:hover{text-decoration:underline;}
   .skel{height:150px;border-radius:12px;background:linear-gradient(90deg,var(--panel),var(--line),var(--panel));background-size:200% 100%;animation:sh 1.2s linear infinite;}
   @keyframes sh{to{background-position:-200% 0;}}
@@ -119,6 +119,24 @@
     }).catch(function(){ post({ type: 'empty', reason: 'error' }); card.hidden = true; });
   }
 
+  function addDetails(d){
+      var tr = d.trend || [];
+      if(tr.length >= 2){
+        var t = el('div','trend');
+        var lab = el('div','lab'); lab.appendChild(el('span', null, 'YES share over time')); lab.appendChild(el('span', null, 'Live')); t.appendChild(lab);
+        var W = 290, H = 70, pts = tr.map(function(p, i){ return [ (i/(tr.length-1))*W, H - 6 - (Number(p.pct)/100)*(H-12) ]; });
+        var poly = pts.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ');
+        var last = pts[pts.length-1];
+        var s = svg('<line x1="0" y1="'+(H/2)+'" x2="'+W+'" y2="'+(H/2)+'" stroke="#2A3B5C" stroke-dasharray="3 4"/><polyline points="'+poly+'" fill="none" stroke="#33D18B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="4" fill="#33D18B"/>', W, H);
+        s.setAttribute('width','100%'); s.setAttribute('height', H); s.style.display = 'block';
+        s.setAttribute('role','img'); s.setAttribute('aria-label','Line chart of the YES share as votes came in');
+        t.appendChild(s);
+        var ends = el('div','ends'); ends.appendChild(el('span', null, 'First vote')); ends.appendChild(el('span', null, 'Now')); t.appendChild(ends);
+        card.appendChild(t);
+      }
+      if(d.question.note) card.appendChild(el('p','note','How it resolves: ' + d.question.note));
+  }
+
   function render(){
     var d = state.data; if(!d) return;
     var activeId = document.activeElement && document.activeElement.id;
@@ -157,34 +175,20 @@
       var a = el('span','y', yp + '% '); a.appendChild(el('small', null, 'YES'));
       var c2 = el('span','n'); c2.appendChild(el('small', null, 'NO')); c2.appendChild(document.createTextNode(' ' + np + '%'));
       pc.appendChild(a); pc.appendChild(c2); card.appendChild(pc);
-      var tr = d.trend || [];
-      if(tr.length >= 2){
-        var t = el('div','trend');
-        var lab = el('div','lab'); lab.appendChild(el('span', null, 'YES share over time')); lab.appendChild(el('span', null, 'Live')); t.appendChild(lab);
-        var W = 290, H = 70, pts = tr.map(function(p, i){ return [ (i/(tr.length-1))*W, H - 6 - (Number(p.pct)/100)*(H-12) ]; });
-        var poly = pts.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ');
-        var last = pts[pts.length-1];
-        var s = svg('<line x1="0" y1="'+(H/2)+'" x2="'+W+'" y2="'+(H/2)+'" stroke="#2A3B5C" stroke-dasharray="3 4"/><polyline points="'+poly+'" fill="none" stroke="#33D18B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="4" fill="#33D18B"/>', W, H);
-        s.setAttribute('width','100%'); s.setAttribute('height', H); s.style.display = 'block';
-        s.setAttribute('role','img'); s.setAttribute('aria-label','Line chart of the YES share as votes came in');
-        t.appendChild(s);
-        var ends = el('div','ends'); ends.appendChild(el('span', null, 'First vote')); ends.appendChild(el('span', null, 'Now')); t.appendChild(ends);
-        card.appendChild(t);
-      }
-      if(d.question.note) card.appendChild(el('p','note','How it resolves: ' + d.question.note));
     }
 
     // comments
     var cm = d.comments || [];
     var cb = el('button','cbtn'); cb.type = 'button'; cb.id = 'cbtn'; cb.setAttribute('aria-expanded', state.open ? 'true' : 'false');
     var ci = svg('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z" fill="none" stroke="#8FA0BC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>', 24, 24); ci.setAttribute('width','18'); ci.setAttribute('height','18'); cb.appendChild(ci);
-    var gl = el('span','grow','Comments '); gl.appendChild(el('span','c','· ' + cm.filter(function(x){ return !x.pending; }).length));
+    var gl = el('span','grow',voted ? 'Discussion ' : 'Comments '); gl.appendChild(el('span','c','· ' + cm.filter(function(x){ return !x.pending; }).length));
     cb.appendChild(gl);
     var chev = svg('<path d="M6 9l6 6 6-6" fill="none" stroke="#8FA0BC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>', 24, 24); chev.setAttribute('class','chev'); chev.setAttribute('width','18'); chev.setAttribute('height','18');
     cb.appendChild(chev);
     cb.addEventListener('click', function(){ state.open = !state.open; render(); });
     card.appendChild(cb);
     if(state.open){
+      if(voted) addDetails(d);
       var list = el('div','clist'); list.setAttribute('role','list');
       if(!cm.length) list.appendChild(el('p','none','No comments yet. Be the first to defend your call.'));
       cm.forEach(function(c){
