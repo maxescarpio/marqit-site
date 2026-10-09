@@ -7,6 +7,22 @@
     return /^[a-zA-Z0-9_]{3,24}$/.test(v);
   }
 
+  // Simple clean-language check. Not perfect (no filter is), but stops the obvious.
+  // Stems that are safe to catch anywhere inside a username or comment word (checked inside each word, not across spaces):
+  var MQ_BAD_STEMS = ['fuck','shit','bitch','nigg','fagg','whore','slut','asshole','pussy','bastard','motherf'];
+  // Short words that must match as a whole word only (so "class" or "Dickson" are fine):
+  var MQ_BAD_WORDS = ['cunt','cunts','ass','arse','dick','cock','piss','twat','tits','retard','retarded','fag','coon','spic','kike','chink','tranny','rape','rapist'];
+  function mqHasProfanity(text){
+    var t = String(text || '').toLowerCase();
+    var map = {'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s','!':'i'};
+    t = t.replace(/[0134577@$!]/g, function(c){ return map[c] || c; });
+    var words = t.split(/[^a-z]+/).filter(Boolean);
+    var i;
+    for(i = 0; i < words.length; i++){ for(var j = 0; j < MQ_BAD_STEMS.length; j++){ if(words[i].indexOf(MQ_BAD_STEMS[j]) !== -1) return true; } }
+    for(i = 0; i < words.length; i++){ if(MQ_BAD_WORDS.indexOf(words[i]) !== -1) return true; }
+    return false;
+  }
+
   var SUPABASE_URL = 'https://ivapcztkasjfetntkzxy.supabase.co';
   var SUPABASE_ANON_KEY = 'sb_publishable_S1DZQXDDpffETdJh2xJONQ_QSNjnunn';
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -164,6 +180,11 @@
     if(isSignup && !isValidUsername(username)){
       msgEl.classList.add('err');
       msgEl.textContent = 'Username: 3-24 characters, letters/numbers/underscores only.';
+      return;
+    }
+    if(isSignup && mqHasProfanity(username)){
+      msgEl.classList.add('err');
+      msgEl.textContent = 'That username is not allowed. Please keep it clean and pick another.';
       return;
     }
     const loginByUsername = !isSignup && email.indexOf('@') === -1;
