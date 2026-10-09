@@ -1068,6 +1068,12 @@
       });
     }
     ov.appendChild(wEl('p', 'Comments waiting or reported', 'font-size:13px;font-weight:600;margin-top:16px;'));
+    (function(){
+      var n = (data.pending_comments || []).length, b = document.getElementById('widget-alert');
+      if(!b){ b = document.createElement('a'); b.id = 'widget-alert'; b.href = '#widget-comments'; b.style.cssText = 'position:sticky;top:0;z-index:50;display:none;padding:10px 14px;background:#BC9C22;color:#fff;font-weight:700;font-size:14px;text-align:center;text-decoration:none;'; document.body.insertBefore(b, document.body.firstChild); }
+      b.style.display = n ? 'block' : 'none'; b.textContent = n + ' widget comment' + (n === 1 ? '' : 's') + ' waiting for review. Tap to jump to them.';
+      document.title = (n ? '(' + n + ') ' : '') + document.title.replace(/^\(\d+\) /, '');
+    })();
     if(!(data.pending_comments || []).length) cm.appendChild(wEl('p', 'Nothing to review.', 'font-size:13px;color:var(--ink-soft);'));
     (data.pending_comments || []).forEach(function(c){
       var r = wEl('div'); r.className = 'qrow';
@@ -1087,6 +1093,7 @@
     if(error){ wMsg('wsite-msg', 'Error: ' + error.message, true); return; }
     wMsg('wsite-msg', 'Site added. Key: ' + data); document.getElementById('wsite-name').value = ''; loadWidgets();
   });
+  setInterval(function(){ if(!document.hidden && document.getElementById('widget-overview')) loadWidgets(); }, 60000);
   document.getElementById('wq-draft-btn').addEventListener('click', async function(){
     var btn = this, link = document.getElementById('wq-url').value.trim();
     if(!/^https:\/\//i.test(link)){ wMsg('wq-draft-msg', 'Paste the full https:// link above first.', true); return; }

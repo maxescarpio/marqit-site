@@ -573,6 +573,12 @@
       // The referrer id lands in a uuid foreign-key column, so anything that
       // isn't a well-formed UUID must be dropped here -- a bad value would
       // otherwise make the new user's profile insert fail at signup.
+      // Publisher widget link: ?ref=widget~<siteKey>. Remember which partner site
+      // sent this visitor so their signup can be credited to it (see ensureProfileInner).
+      if(parts[0] === 'widget'){
+        if(/^[A-Za-z0-9_-]{4,40}$/.test(parts[1])) sessionStorage.setItem('marqit_widget_site', parts[1]);
+        return;
+      }
       var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if(!UUID_RE.test(parts[0])) return;
       var TAG_RE = /^[a-z_]{1,32}$/;
@@ -817,7 +823,13 @@
     // reading so a later, unrelated sign-in in the same tab can't inherit it.
     let storedSignupSource = null;
     try{ storedSignupSource = sessionStorage.getItem('marqit_pending_signup_source'); sessionStorage.removeItem('marqit_pending_signup_source'); }catch(e){}
-    const signupSource = (user.user_metadata && user.user_metadata.signup_source) || storedSignupSource || 'organic';
+    let signupSource = (user.user_metadata && user.user_metadata.signup_source) || storedSignupSource || 'organic';
+    // Came from a publisher widget? Credit that partner site (signup_source = 'widget:<siteKey>').
+    try{
+      const widgetSite = sessionStorage.getItem('marqit_widget_site');
+      if(widgetSite && /^[A-Za-z0-9_-]{4,40}$/.test(widgetSite)) signupSource = 'widget:' + widgetSite;
+      sessionStorage.removeItem('marqit_widget_site');
+    }catch(e){}
 
     // Referral attribution (Share Card Update spec) -- captured earlier by
     // captureReferral() from a ?ref= link, if this signup arrived via one.
