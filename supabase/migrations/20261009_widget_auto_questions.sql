@@ -64,3 +64,15 @@ begin
     raise exception 'Bad action';
   end if;
 end $function$;
+
+-- Edit the wording of a question after it is live (admin only).
+create or replace function public.admin_widget_update_question(p_id uuid, p_text text)
+ returns void language plpgsql security definer set search_path to 'public'
+as $function$
+begin
+  if not is_marqit_admin() then raise exception 'Not authorized'; end if;
+  if p_text is null or length(btrim(p_text)) < 10 or length(btrim(p_text)) > 200 then raise exception 'Question must be 10 to 200 characters'; end if;
+  update widget_questions set question_text = btrim(p_text) where id = p_id;
+end $function$;
+revoke all on function public.admin_widget_update_question(uuid, text) from public, anon;
+grant execute on function public.admin_widget_update_question(uuid, text) to authenticated;

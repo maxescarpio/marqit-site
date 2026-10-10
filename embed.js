@@ -15,6 +15,8 @@
  *   data-position="right" | "left"   popup corner (default right)
  *   data-delay="4"       popup only: seconds before it opens (default 4)
  *   data-width="340"     widget width in px (default 340, auto 480, never wider than the screen)
+ *   Add ?mqdebug to any page address (or data-debug="1") to see a small note saying what the widget is doing
+ *   and, if it shows nothing, exactly why.
  * No cookies are set and nothing is stored on the page except a "closed" flag for popups.
  */
 (function(){
@@ -35,6 +37,29 @@
   var width = Math.max(260, Math.min(isAuto ? 560 : 480, parseInt(script.getAttribute('data-width'), 10) || (isAuto ? 480 : 340)));
   var base;
   try{ base = new URL(script.src, location.href).origin; }catch(e){ base = 'https://playmarqit.com'; }
+
+  var debug = script.getAttribute('data-debug') === '1' || /[?&]mqdebug\b/.test(location.search);
+  var dbgBox = null;
+  function dbg(msg){
+    if(!debug) return;
+    try{ console.log('[Marqit] ' + msg); }catch(e){}
+    if(!dbgBox){
+      dbgBox = document.createElement('div');
+      dbgBox.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483600;max-width:340px;background:#0C3470;color:#fff;font:12px/1.4 -apple-system,Segoe UI,Arial,sans-serif;padding:10px 12px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.3);';
+      var t = document.createElement('div'); t.style.cssText = 'font-weight:700;margin-bottom:4px;'; t.textContent = 'Marqit debug'; dbgBox.appendChild(t);
+      (document.body || document.documentElement).appendChild(dbgBox);
+    }
+    var l = document.createElement('div'); l.textContent = msg; dbgBox.appendChild(l);
+  }
+  var REASONS = {
+    site: 'The site key was not found, or the site is turned off in admin.',
+    domain: 'This page address (' + location.hostname + ') is not on the site\'s allowed domains. Add it in admin.',
+    question: 'No question exists for this page yet.',
+    pending: 'A question was drafted and is waiting for approval in admin.',
+    skipped: 'No question was made for this page (sensitive topic, not a story, unreadable page, or the daily limit was reached).',
+    error: 'Could not reach Marqit (network or blocked request).'
+  };
+  dbg('Script loaded. Site key: ' + site + '. Mode: ' + mode + '.');
 
   var canon = document.querySelector('link[rel="canonical"]');
   var pageUrl = (canon && canon.href) || location.href;
@@ -139,10 +164,11 @@
         iframe.style.height = Math.min(m.height, 1400) + 'px';
       }else if(m.type === 'empty'){
         // no question for this page (yet): leave no trace
+        dbg('Widget stayed hidden. ' + (REASONS[m.reason] || 'No reason given.'));
         if(wrap.parentNode) wrap.parentNode.removeChild(wrap);
         if(pill && pill.parentNode) pill.parentNode.removeChild(pill);
       }else if(m.type === 'ready' && !ready){
-        ready = true;
+        ready = true; dbg('Widget loaded and showing.');
         if(pop){
           if(wasClosed()){ closed = true; pill.classList.add('mqw-show'); }
           else setTimeout(function(){ if(!closed) pop.classList.add('mqw-show'); }, delay);
@@ -153,9 +179,11 @@
 
   if(isAuto){
     var go = function(){
-      if(!pathOk() || !looksLikeArticle()) return;
+      if(!pathOk()){ dbg('Skipped: this page is the home page, or excluded by data-paths / data-exclude.'); return; }
+      if(!looksLikeArticle()){ dbg('Skipped: the page does not look like a news article (no article og:type, no Article data, and not exactly one <article>).'); return; }
       var spot = findSpot();
-      if(spot) start('auto', spot); else start('popup');
+      if(spot){ dbg('Article found. Placing the widget after a paragraph.'); start('auto', spot); }
+      else{ dbg('Could not find article paragraphs. Using the corner pop-up instead.'); start('popup'); }
     };
     if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
   }else{
