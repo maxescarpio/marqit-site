@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check Your Marqit Setup</title>
+<meta name="robots" content="noindex">
+<style>
+  :root{--navy:#0C3470;--gold:#BC9C22;--ink:#1d2433;--mute:#5b6475;--line:#d6dbe6;--box:#EEF2F9;--ok:#1d7a4d;--warn:#8a6a00;--bad:#b3261e;}
+  *{box-sizing:border-box;}
+  body{font-family:Carlito,Calibri,'Segoe UI',Arial,sans-serif;font-size:16px;line-height:1.5;color:var(--ink);margin:0;background:#fff;}
+  .page{max-width:720px;margin:0 auto;padding:32px 20px 56px;}
+  .hd{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+  .hd img{width:72px;height:72px;}
+  .hd b{display:block;color:var(--navy);font-size:19px;}
+  .hd span{color:var(--mute);font-size:14px;}
+  h1{font-size:32px;line-height:1.15;color:var(--navy);margin:0 0 6px;padding-bottom:10px;border-bottom:2px solid var(--gold);}
+  p{margin:0 0 10px;} .lead{font-size:18px;color:#2a3550;}
+  label{display:block;font-weight:700;color:var(--navy);margin:16px 0 4px;}
+  input{width:100%;font:inherit;padding:11px 12px;border:1.5px solid var(--line);border-radius:8px;min-height:44px;}
+  input:focus-visible,button:focus-visible{outline:2px solid #2f6fd6;outline-offset:2px;}
+  button{margin-top:14px;border:0;border-radius:8px;background:var(--navy);color:#fff;font:700 16px Carlito,Calibri,Arial,sans-serif;padding:11px 22px;min-height:44px;cursor:pointer;}
+  button[disabled]{opacity:.6;cursor:default;}
+  #res{margin-top:22px;}
+  .f{display:flex;gap:10px;padding:10px 12px;border-radius:8px;margin-bottom:8px;background:var(--box);border-left:4px solid var(--line);}
+  .f.ok{border-left-color:var(--ok);} .f.warn{border-left-color:var(--gold);} .f.fail{border-left-color:var(--bad);}
+  .f b{flex:0 0 auto;min-width:54px;} .f.ok b{color:var(--ok);} .f.warn b{color:var(--warn);} .f.fail b{color:var(--bad);}
+  .sum{font-size:18px;font-weight:700;margin:0 0 12px;}
+  .ft{margin-top:36px;padding-top:10px;border-top:1.5px solid var(--gold);color:var(--mute);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  a{color:#2f6fd6;}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hd"><img src="grand-media-group-logo.png" alt="Grand Media Group"><div><b>Grand Media Group LLC</b><span>Marqit Publisher Program &middot; playmarqit.com</span></div></div>
+  <h1>Check Your Marqit Setup</h1>
+  <p class="lead">Paste the link to one of your articles. We look at the page and tell you, in plain words, whether Marqit is installed and what to do next.</p>
+  <form id="f">
+    <label for="u">Link to an article on your site</label>
+    <input id="u" type="url" placeholder="https://yoursite.com/2026/10/09/your-story" required>
+    <label for="k">Your site key (optional)</label>
+    <input id="k" type="text" placeholder="mq_...">
+    <button id="go" type="submit">Check it</button>
+  </form>
+  <div id="res" aria-live="polite"></div>
+  <p style="margin-top:22px;color:var(--mute);font-size:14.5px;">We can only see what a visitor's browser first receives. If your line is added by a tag manager, it may show as missing here even though it works. In that case, open your article and add <b>?mqdebug</b> to the end of its address to see a small note from the widget.</p>
+  <div class="ft"><span>Grand Media Group LLC &middot; Marqit Publisher Program &middot; playmarqit.com</span><span>help@playmarqit.com</span></div>
+</div>
+<script>
+(function(){
+  var SB = 'https://ivapcztkasjfetntkzxy.supabase.co', KEY = 'sb_publishable_S1DZQXDDpffETdJh2xJONQ_QSNjnunn';
+  var qs = new URLSearchParams(location.search);
+  if(qs.get('site')) document.getElementById('k').value = qs.get('site');
+  if(qs.get('u')) document.getElementById('u').value = qs.get('u');
+  var res = document.getElementById('res'), go = document.getElementById('go');
+  document.getElementById('f').addEventListener('submit', function(e){
+    e.preventDefault();
+    go.disabled = true; go.textContent = 'Checking...'; res.textContent = '';
+    fetch(SB + '/functions/v1/widget-install-check', {
+      method: 'POST',
+      headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: document.getElementById('u').value.trim(), site: document.getElementById('k').value.trim() })
+    }).then(function(r){ return r.json(); }).then(function(j){
+      var fs = (j && j.findings) || [], bad = fs.filter(function(x){ return x.level === 'fail'; }).length, warn = fs.filter(function(x){ return x.level === 'warn'; }).length;
+      var s = document.createElement('p'); s.className = 'sum';
+      s.textContent = bad ? 'Not working yet. Here is what to fix:' : warn ? 'Installed. A couple of things to know:' : 'All good. The widget should show on this page.';
+      res.appendChild(s);
+      fs.forEach(function(x){
+        var d = document.createElement('div'); d.className = 'f ' + x.level;
+        var b = document.createElement('b'); b.textContent = x.level === 'ok' ? 'OK' : x.level === 'warn' ? 'Note' : 'Fix';
+        var t = document.createElement('span'); t.textContent = x.text;
+        d.appendChild(b); d.appendChild(t); res.appendChild(d);
+      });
+    }).catch(function(){
+      res.textContent = 'We could not run the check. Try again in a minute, or email help@playmarqit.com.';
+    }).then(function(){ go.disabled = false; go.textContent = 'Check it'; });
+  });
+})();
+</script>
+</body>
+</html>

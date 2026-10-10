@@ -143,7 +143,7 @@
               body: JSON.stringify({ site: SITE, url: PAGE })
             }).then(function(r){ return r.json(); }).then(function(j){
               if(j && j.status === 'live') return load();
-              post({ type: 'empty', reason: 'pending' }); card.hidden = true;
+              post({ type: 'empty', reason: (j && j.status === 'pending') ? 'pending' : 'skipped' }); card.hidden = true;
             }).catch(function(){ post({ type: 'empty', reason: 'error' }); card.hidden = true; });
           }
         }

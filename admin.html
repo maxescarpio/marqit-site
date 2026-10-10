@@ -1097,8 +1097,16 @@
       ov.appendChild(wEl('p', 'Questions', 'font-size:13px;font-weight:600;margin-top:16px;'));
       liveQs.forEach(function(q){
         var r = wEl('div'); r.className = 'qrow';
-        r.appendChild(wEl('div', q.text, 'font-weight:600;font-size:14px;'));
+        var qt = wEl('div', q.text, 'font-weight:600;font-size:14px;'); r.appendChild(qt);
+        var ed = wEl('button', 'Edit wording'); ed.style.cssText = 'margin-top:6px;';
+        ed.addEventListener('click', function(){
+          var inp = document.createElement('input'); inp.type = 'text'; inp.maxLength = 200; inp.value = q.text; inp.style.marginTop = '6px';
+          var sv = wEl('button', 'Save'); sv.className = 'btn-yes'; sv.style.marginLeft = '6px';
+          sv.addEventListener('click', async function(){ sv.disabled = true; var res = await sb.rpc('admin_widget_update_question', { p_id: q.id, p_text: inp.value }); if(res.error){ alert(res.error.message); sv.disabled = false; return; } loadWidgets(); });
+          qt.replaceWith(inp); ed.replaceWith(sv); inp.focus();
+        });
         r.appendChild(wEl('div', q.site + ' \u00b7 ' + q.page_key + ' \u00b7 ' + (q.viewers || 0) + ' viewers \u00b7 YES ' + q.yes + ' / NO ' + q.no, 'font-size:12px;color:var(--ink-soft);margin-top:2px;word-break:break-all;'));
+        r.appendChild(ed);
         ov.appendChild(r);
       });
     }
