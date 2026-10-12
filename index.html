@@ -50,7 +50,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261012e">
+<link rel="stylesheet" href="style.css?v=20261012g">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -385,11 +385,12 @@
     </template>
     </div>
 
+    <!-- Request a prediction (left) and Share your results (right) sit side by side, equal size; they stack on phones. -->
+    <div class="play-extras">
     <div id="play-suggest"></div>
 
-    <!-- Share your results: sits right under today's picks so it's the next thing a player sees. Shown once there are results to share. -->
-    <div id="share-section" style="display:none; margin-top:28px;">
-      <div class="sec-head"><span class="sec-ico" style="--rc:70,140,255;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/></svg></span><h3 class="ex-title">Share your results</h3></div>
+    <!-- Share your results: shown once there are results to share. -->
+    <div id="share-section" style="display:none;">
       <div class="share-card share-card-lg" id="share-card">
         <div class="share-head">
           <strong id="share-card-title">Marqit</strong>
@@ -409,6 +410,7 @@
         <button type="button" id="share-results-square-btn" class="share-btn-secondary" style="display:none;">Download square</button>
       </div>
       <p class="form-msg" id="share-results-msg" style="margin-top:6px;"></p>
+    </div>
     </div>
     <div class="challenge-banner" style="--tint:246,196,48;">
       <span class="cb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
@@ -730,26 +732,19 @@
       </div>
     </div>
 
-    <h3 class="ex-title" style="margin-top:30px;">State</h3>
-    <div class="boards one">
-      <div class="board" style="--tint:46,198,196;">
-        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#3B8C8C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg><span id="state-board-title">Your state</span></div>
-        <div class="board-rows" id="board-state">
-          <div class="brow"><span>Set your state to see this.</span></div>
-        </div>
-      </div>
-    </div>
-
-    <h3 class="ex-title" style="margin-top:30px;">Overall</h3>
-    <div class="scope-tab-row" id="lb-scope-tabs" style="margin-bottom:14px;">
-      <button type="button" class="scope-tab active" data-scope="worldwide">Worldwide</button>
-      <button type="button" class="scope-tab" data-scope="friends">Friends</button>
-    </div>
-    <div class="boards one">
+    <div class="boards one" style="margin-top:30px;">
       <div class="board" style="--tint:246,196,48;">
-        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#F5C336" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg><span id="lb-board-title-text">Marqit Big Leaderboard</span></div>
+        <div class="bb-head"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#F5C336" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg><h3 class="ex-title">Marqit Big Board</h3></div>
+        <div class="scope-tab-row" id="lb-scope-tabs">
+          <button type="button" class="scope-tab active" data-scope="worldwide">Worldwide</button>
+          <button type="button" class="scope-tab" data-scope="state"><span id="state-board-title">Your state</span></button>
+          <button type="button" class="scope-tab" data-scope="friends">Friends</button>
+        </div>
         <div class="board-rows" id="big-board-rows">
           <div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>
+        </div>
+        <div class="board-rows" id="board-state" style="display:none;">
+          <div class="brow"><span>Set your state to see this.</span></div>
         </div>
       </div>
     </div>
@@ -930,7 +925,7 @@
     <p class="welcome-note">No account needed to play.</p>
   </div>
 </div>
-<script src="app.js?v=20261012f" defer></script>
+<script src="app.js?v=20261012g" defer></script>
 
 
 
