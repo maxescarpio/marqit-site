@@ -6765,11 +6765,63 @@
     if(typeof loadTopOrgsBoard === 'function') loadTopOrgsBoard();
   }
 
+  // ---- Group vs. group: this week's head-to-head (get_group_matchups) ----
+  async function loadGroupMatchup(){
+    var el = document.getElementById('group-matchup');
+    if(!el) return;
+    try{
+      var res = await sb.rpc('get_group_matchups');
+      if(res.error || !res.data || !res.data.length){ el.hidden = true; return; }
+      var rows = res.data;
+      var myId = null;
+      try{
+        var sr = await sb.auth.getSession();
+        var ses = sr.data && sr.data.session;
+        if(ses){ var m = await sb.from('group_members').select('group_id').eq('user_id', ses.user.id).maybeSingle(); myId = m.data ? m.data.group_id : null; }
+      }catch(e){}
+      var mine = myId ? rows.filter(function(r){ return r.group_id === myId; })[0] : null;
+      var a = mine || rows[0];
+      var b = a.opponent_id ? rows.filter(function(r){ return r.group_id === a.opponent_id; })[0] : null;
+      var wk = new Date(a.week_start + 'T12:00:00'); wk.setDate(wk.getDate() + 6);
+      var endTxt = wk.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      function side(g, lead){
+        var d = document.createElement('div'); d.className = 'gvg-side' + (lead ? ' lead' : '');
+        var n = document.createElement('div'); n.className = 'gvg-name'; n.textContent = (g.symbol ? g.symbol + ' ' : '') + g.name;
+        var sc = document.createElement('div'); sc.className = 'gvg-score'; sc.textContent = Number(g.score).toLocaleString(undefined, { maximumFractionDigits: 1 });
+        var sm = document.createElement('div'); sm.className = 'gvg-sub'; sm.textContent = 'avg pts per member · ' + Number(g.member_count) + (Number(g.member_count) === 1 ? ' member' : ' members');
+        d.appendChild(n); d.appendChild(sc); d.appendChild(sm);
+        return d;
+      }
+      el.textContent = '';
+      var head = document.createElement('div'); head.className = 'gvg-head';
+      head.textContent = (mine ? 'Your matchup' : 'Matchup of the week') + ' · ends ' + endTxt;
+      el.appendChild(head);
+      if(!b){
+        var bye = document.createElement('div'); bye.className = 'gvg-bye'; bye.textContent = a.name + ' has a bye this week. More chapters means more matchups.';
+        el.appendChild(bye);
+      }else{
+        var row = document.createElement('div'); row.className = 'gvg-row';
+        var aw = Number(a.score) >= Number(b.score);
+        var tie = Number(a.score) === Number(b.score);
+        row.appendChild(side(a, aw && !tie));
+        var vs = document.createElement('div'); vs.className = 'gvg-vs'; vs.textContent = 'VS';
+        row.appendChild(vs);
+        row.appendChild(side(b, !aw && !tie));
+        el.appendChild(row);
+      }
+      var note = document.createElement('div'); note.className = 'gvg-note';
+      note.textContent = 'Chapters are paired by rank each week. Score is average points per member, so size doesn’t decide it.';
+      el.appendChild(note);
+      el.hidden = false;
+    }catch(e){ el.hidden = true; }
+  }
+
   // ---- Top Chapters: cross-group leaderboard, ranked by combined points ---
   // Deliberately a raw sum (not per-member average) -- a chapter that
   // recruits more people racks up more total points, so growing the group
   // is itself the winning move, not just playing well individually.
   async function loadTopGroupsBoard(p_school){
+    loadGroupMatchup();
     const el = document.getElementById('board-top-groups');
     if(!el) return;
     const params = { p_limit: 25 };
