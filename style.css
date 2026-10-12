@@ -856,24 +856,38 @@
 
   /* ---- appeal before a call is made ---- */
   .boards.one{grid-template-columns:minmax(0,520px);}
+  /* Marqit Big Board: one card, tabs inside it */
+  .bb-head{display:flex;align-items:center;gap:10px;}
+  .bb-head .ex-title{margin:0;}
+  .board .scope-tab-row{margin-top:6px;}
   .opt-price svg{width:20px;height:20px;stroke-width:2.4;margin-right:8px;flex:none;}
   .buddy-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 11px 4px 9px;border-radius:100px;font-size:12px;font-weight:600;background:rgba(51,209,139,.16);color:var(--yes);}
-  .mq-slate{margin-bottom:16px;padding:16px 18px;border-radius:18px;border:1px solid rgba(246,196,48,.45);
+  .mq-slate{margin-bottom:16px;padding:12px 16px;border-radius:16px;border:1px solid rgba(246,196,48,.45);
     background:radial-gradient(120% 150% at 0% 0%,rgba(246,196,48,.24),transparent 62%),var(--panel);}
   .slate-top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;}
   /* merged status box: lock timer + points side by side */
   .slate-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 28px;}
   .slate-head .lock-card.in-slate{flex:1 1 230px;min-width:0;max-width:none !important;margin:0 !important;padding:0;background:none;border:0;border-radius:0;text-align:left;}
   .slate-head .lock-card.in-slate .lock-top{justify-content:flex-start;flex-direction:column;align-items:flex-start;gap:6px;}
-  .slate-head .lock-card.in-slate .lock-val{font-size:38px;}
+  .slate-head .lock-card.in-slate .lock-val{font-size:32px;}
   .slate-head .slate-top{flex:0 1 auto;}
-  .slate-pts{display:flex;align-items:baseline;gap:9px;}
-  .slate-pts b{font-family:'Big Shoulders Display',sans-serif;font-size:42px;line-height:.9;font-weight:800;color:#F5C336;}
-  .slate-pts span{font-size:13px;font-weight:600;color:var(--ink);}
+  .slate-pts{display:flex;align-items:baseline;gap:8px;}
+  .slate-pts b{font-family:'Big Shoulders Display',sans-serif;font-size:34px;line-height:.9;font-weight:800;color:#F5C336;}
+  .slate-pts span{font-size:12.5px;font-weight:600;color:var(--ink);}
   .slate-meta{display:flex;gap:6px;flex-wrap:wrap;}
-  .slate-meta span{font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:100px;background:rgba(128,136,150,.2);color:var(--ink-soft);}
-  .slate-streak{display:flex;align-items:center;gap:7px;margin-top:11px;font-size:13px;font-weight:600;color:#FFB03A;}
+  .slate-meta span{font-size:11px;font-weight:600;padding:2px 9px;border-radius:100px;background:rgba(128,136,150,.2);color:var(--ink-soft);}
+  .slate-streak{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#FFB03A;}
   .slate-streak:empty{display:none;margin:0;}
+  /* streak and tier share one line; the thin progress bar runs full width under them */
+  .slate-mid{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:12px;row-gap:6px;margin-top:9px;}
+  .slate-mid:not(:has(.slate-streak:not(:empty), .slate-tier:not(:empty))){display:none;}
+  .slate-mid .slate-tier{display:contents;}
+  .slate-mid .tier-row{grid-column:2;justify-self:end;justify-content:flex-end;gap:8px;white-space:nowrap;font-size:12px;}
+  .slate-mid .tier-bar{grid-column:1 / -1;margin-top:0;}
+  @media (max-width:520px){
+    .slate-mid{grid-template-columns:1fr;}
+    .slate-mid .tier-row{grid-column:1;justify-self:stretch;justify-content:space-between;}
+  }
   .slate-streak svg{width:15px;height:15px;flex:none;}
 
   /* ---- streak flame intensity: grows/warms in color as a streak climbs tiers ---- */
@@ -897,7 +911,7 @@
   .pp-dots .pp-slot.yes{border:1.5px solid var(--yes);background:var(--yes-bg);color:var(--yes);opacity:1;}
   .pp-dots .pp-slot.no{border:1.5px solid var(--no);background:var(--no-bg);color:var(--no);opacity:1;}
 
-  .slate-buddy{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--yes);}
+  .slate-buddy{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;font-weight:600;color:var(--yes);}
   .slate-buddy svg{width:14px;height:14px;flex:none;}
   .pick-progress{flex-wrap:wrap;row-gap:6px;}
   .pp-text{white-space:nowrap;}
@@ -905,7 +919,7 @@
 
   /* ---- calmer slate wording + shimmering rows instead of "Loading" ---- */
   .slate-pts{flex-wrap:wrap;}
-  .slate-pre{font-size:13px;font-weight:600;color:var(--ink-soft);align-self:center;}
+  .slate-pre{font-size:12.5px;font-weight:600;color:var(--ink-soft);align-self:center;}
   .skel-rows{display:flex;flex-direction:column;gap:14px;padding:8px 0 4px;}
   .skel-rows .sk{height:14px;}
   .skel-rows .sk:nth-child(1){width:88%;}
@@ -918,7 +932,7 @@
   .tier-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12.5px;font-weight:600;}
   .tier-name{color:var(--ink);}
   .tier-next{color:var(--ink-soft);}
-  .tier-bar{height:6px;border-radius:6px;background:rgba(128,136,150,.28);margin-top:6px;overflow:hidden;}
+  .tier-bar{height:3px;border-radius:3px;background:rgba(128,136,150,.28);margin-top:6px;overflow:hidden;}
   .tier-bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#F5C336,#FFB03A);transition:width 1.1s var(--ease);}
   .status-pill.inplay{background:rgba(240,150,40,.2);color:#FFB03A;}
   .status-pill.inplay .live-dot{background:#FFB03A;}
@@ -954,6 +968,18 @@
   .share-btn-primary:active{transform:translateY(0);}
   .share-btn-secondary{width:auto;min-height:44px;align-items:center;justify-content:center;padding:9px 16px;border:1.5px solid var(--line);border-radius:12px;background:none;color:var(--ink);font-family:inherit;font-weight:600;font-size:13.5px;cursor:pointer;}
   .share-btn-secondary:hover{border-color:rgba(70,140,255,.6);}
+
+  /* ---- Request a prediction (left) + Share your results (right): two equal boxes, side by side ---- */
+  .play-extras{display:flex;flex-wrap:wrap;gap:28px;align-items:stretch;}
+  .play-extras > *{margin-top:24px;}
+  .play-extras #play-suggest{flex:1 1 340px;min-width:0;display:flex;flex-direction:column;}
+  .play-extras #play-suggest:empty{display:none;}
+  .play-extras #play-suggest > div{flex:1;display:flex;flex-direction:column;border-top:0 !important;margin-top:0 !important;padding-top:0 !important;}
+  .play-extras #play-suggest > div > div{flex:1;max-width:none !important;box-sizing:border-box;}
+  .play-extras #share-section{flex:1 1 340px;min-width:0;box-sizing:border-box;flex-direction:column;padding:24px;border-radius:16px;border:2px solid rgba(70,140,255,.6);background:radial-gradient(120% 80% at 0% 0%,rgba(70,140,255,.17),transparent 62%),var(--panel);box-shadow:0 12px 36px rgba(70,140,255,.18);}
+  .play-extras #share-section .share-card{max-width:none;padding:0;border:0;border-radius:0;background:none;box-shadow:none;}
+  .play-extras #share-section .share-actions{max-width:none;margin-top:auto;padding-top:16px;}
+  .play-extras #share-section .form-msg{margin-top:6px;}
 
   /* ---- Play tab: buddies / rivals / recent activity collapse into tap-to-open rows so the three questions stay the focus ---- */
   .mq-fold{max-width:480px;margin-top:10px;border:1px solid var(--line);border-radius:14px;background:var(--panel);}

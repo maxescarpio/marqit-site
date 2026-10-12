@@ -2207,7 +2207,7 @@
     }
     // The share section lives on the Play tab and stays hidden until there is a card to show.
     const shareSec = document.getElementById('share-section');
-    if(shareSec) shareSec.style.display = 'block';
+    if(shareSec) shareSec.style.display = 'flex';
     document.getElementById('share-card-streak').textContent = standing.streakDays + '-day streak';
 
     const calledItEl = document.getElementById('share-card-calledit');
@@ -2266,7 +2266,7 @@
       const titleEl = document.getElementById('share-card-title'); if(titleEl) titleEl.textContent = 'Marqit';
       const dateEl = document.getElementById('share-card-date');
       if(dateEl){ try{ dateEl.textContent = 'Results for ' + new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }catch(e){ dateEl.textContent = ''; } }
-      const shareSec = document.getElementById('share-section'); if(shareSec) shareSec.style.display = 'block';
+      const shareSec = document.getElementById('share-section'); if(shareSec) shareSec.style.display = 'flex';
       document.getElementById('share-card-streak').textContent = correct + '/' + questions.length + ' correct';
       const calledItEl = document.getElementById('share-card-calledit'); if(calledItEl) calledItEl.style.display = 'none';
       const row = document.getElementById('share-card-row');
@@ -3605,8 +3605,7 @@
     el.innerHTML =
       '<div class="slate-top"><div class="slate-pts"><span class="slate-pre">Earn up to</span><b>' + total + '</b><span>points today</span></div>' +
       '<div class="slate-meta"><span>' + count + (count === 1 ? ' call' : ' calls') + '</span>' + (count === 3 ? '<span>3 for 3 adds +100</span>' : '') + '</div></div>' +
-      '<div class="slate-streak"></div>' +
-      '<div class="slate-tier"></div>' +
+      '<div class="slate-mid"><div class="slate-streak"></div><div class="slate-tier"></div></div>' +
       (boostedCount ? '<div class="slate-buddy boost"><b class="boost-2x">2X</b><span>One call today is worth double</span></div>' : '') +
       (names.length ? '<div class="slate-buddy">' + mqIcon('link') + '<span>Buddy Bonus: +25 on any call where you match ' + buddyLabel + '</span></div>' : '');
     return el;
@@ -5667,14 +5666,13 @@
       var btn = e.target.closest('.scope-tab');
       if(!btn) return;
       tabs.querySelectorAll('.scope-tab').forEach(function(b){ b.classList.toggle('active', b === btn); });
-      var titleEl = document.getElementById('lb-board-title-text');
-      if(btn.getAttribute('data-scope') === 'friends'){
-        if(titleEl) titleEl.textContent = 'Friends Leaderboard';
-        loadFriendsBoard();
-      }else{
-        if(titleEl) titleEl.textContent = 'Marqit Big Leaderboard';
-        loadBigBoard();
-      }
+      var scope = btn.getAttribute('data-scope');
+      // Worldwide and Friends share one list; State has its own, filled by loadStateBoard.
+      var stateEl = document.getElementById('board-state');
+      if(stateEl) stateEl.style.display = (scope === 'state') ? '' : 'none';
+      if(boardEl) boardEl.style.display = (scope === 'state') ? 'none' : '';
+      if(scope === 'friends') loadFriendsBoard();
+      else if(scope === 'worldwide') loadBigBoard();
     });
   })();
 
