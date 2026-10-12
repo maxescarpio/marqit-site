@@ -4899,7 +4899,7 @@
       const guestSel = {};
       guestQs.forEach(function(p){ if(p.myVote) guestSel[p.q.id] = p.myVote; });
       const gControls = document.createElement('div');
-      gControls.style.cssText = 'max-width:480px; margin-top:8px;';
+      gControls.style.cssText = 'max-width:none; margin-top:8px;';
 
       if(guestDone){
         // Submitted: results are already showing on the cards (myVote was set above).
@@ -4927,9 +4927,9 @@
         document.getElementById('guest-change-btn').addEventListener('click', function(){ mqTrack('guest_change_picks'); mqSetGuestPicks(effectiveDate, null); loadDailyQuestions(); });
       }else{
         gControls.innerHTML =
-          '<div class="pick-progress" id="pick-progress" style="display:flex;"><span class="pp-dots">' + guestQs.map(function(p){ var v = mqDetectVisual(p.q); return '<i class="pp-slot">' + (v.icon || CATEGORY_ICONS[p.q.category] || '') + '</i>'; }).join('') + '</span><span class="pp-text">0 of ' + guestQs.length + ' picked</span><span class="pp-bonus">All right = +100 bonus</span></div>' +
-          '<button type="button" id="guest-submit-btn" disabled style="width:100%; padding:14px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; opacity:0.4;">Pick all three first</button>' +
-          '<p style="font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:8px;">No account needed to play.</p>';
+          '<div class="pick-dock"><div class="pick-progress" id="pick-progress" style="display:flex;"><span class="pp-dots">' + guestQs.map(function(p){ var v = mqDetectVisual(p.q); return '<i class="pp-slot">' + (v.icon || CATEGORY_ICONS[p.q.category] || '') + '</i>'; }).join('') + '</span><span class="pp-text">0 of ' + guestQs.length + ' picked</span><span class="pp-bonus">All right = +100 bonus</span></div>' +
+          '<button type="button" id="guest-submit-btn" disabled style="width:100%; padding:14px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; opacity:0.4;">Pick all three first</button></div>' +
+          '<p style="font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:0;">No account needed to play.</p>';
         container.appendChild(gControls);
         const gBtn = document.getElementById('guest-submit-btn');
         function updateGuestState(){
@@ -5034,13 +5034,13 @@
       let answering = false;
 
       const controls = document.createElement('div');
-      controls.style.cssText = 'max-width:480px; margin-top:8px;';
+      controls.style.cssText = 'max-width:none; margin-top:8px;';
       controls.innerHTML =
         '<div class="submit-cele" id="submit-cele" aria-hidden="true"><div class="cele-slots" id="cele-slots">' +
           editableQuestions.map(function(){ return '<i class="cele-slot">' + mqIcon('check') + '</i>'; }).join('') +
           '</div><div class="cele-msg" id="cele-msg"></div></div>' +
-        '<div class="pick-progress" id="pick-progress" style="display:' + (allAlreadyAnswered ? 'none' : 'flex') + ';"><span class="pp-dots">' + editableQuestions.map(function(p){ var v = mqDetectVisual(p.q); return '<i class="pp-slot">' + (v.icon || CATEGORY_ICONS[p.q.category] || '') + '</i>'; }).join('') + '</span><span class="pp-text">0 of ' + editableQuestions.length + ' picked</span><span class="pp-bonus">All right = +100 bonus</span></div>' +
-        '<button type="button" id="submit-all-btn" disabled style="width:100%; padding:14px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; opacity:0.4; display:' + (allAlreadyAnswered ? 'none' : 'block') + ';">Pick all three first</button>' +
+        '<div class="pick-dock"><div class="pick-progress" id="pick-progress" style="display:' + (allAlreadyAnswered ? 'none' : 'flex') + ';"><span class="pp-dots">' + editableQuestions.map(function(p){ var v = mqDetectVisual(p.q); return '<i class="pp-slot">' + (v.icon || CATEGORY_ICONS[p.q.category] || '') + '</i>'; }).join('') + '</span><span class="pp-text">0 of ' + editableQuestions.length + ' picked</span><span class="pp-bonus">All right = +100 bonus</span></div>' +
+        '<button type="button" id="submit-all-btn" disabled style="width:100%; padding:14px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; opacity:0.4; display:' + (allAlreadyAnswered ? 'none' : 'block') + ';">Pick all three first</button></div>' +
         '<button type="button" id="edit-predictions-btn" style="width:100%; padding:14px 22px; border:1.5px solid var(--line); border-radius:10px; background:none; color:var(--ink); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; display:' + (allAlreadyAnswered && editsRemaining > 0 ? 'block' : 'none') + ';">Edit predictions</button>' +
         '<p id="edit-limit-msg" style="font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:4px; display:' + (allAlreadyAnswered && editsRemaining === 0 ? 'block' : 'none') + ';">You\u2019ve used all 3 edits for today\u2019s predictions.</p>' +
         '<p class="form-msg" id="submit-all-msg" style="margin-top:6px;"></p>' +
