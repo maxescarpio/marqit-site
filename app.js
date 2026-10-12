@@ -4859,6 +4859,18 @@
     if(!allLockedNow && lockTime){
       slateEl = mqSlateEl(prepared.length, buddyList.map(function(b){ return b.username; }), prepared.filter(function(p){ return p.q.is_boosted; }).length);
       container.appendChild(slateEl);
+      // One status box: the lock timer moves into the points slate so the
+      // countdown and "Earn up to" sit side by side instead of in two boxes.
+      var slateTopEl = slateEl.querySelector('.slate-top');
+      if(slateTopEl && timerEl.querySelector('.lock-top')){
+        var slateHead = document.createElement('div');
+        slateHead.className = 'slate-head';
+        slateEl.insertBefore(slateHead, slateEl.firstChild);
+        timerEl.classList.add('in-slate');
+        timerEl.style.cssText = '';
+        slateHead.appendChild(timerEl);
+        slateHead.appendChild(slateTopEl);
+      }
     }
 
     // Change 4 data + persistent entry point: any locked call with a pick
