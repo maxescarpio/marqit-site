@@ -688,7 +688,7 @@
   /* ---- wide screens: three-up cards, no swipe dots ---- */
   @media (min-width:860px){.dots{display:none;}}
   @media (min-width:900px){
-    #daily-questions-container{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start;}
+    #daily-questions-container{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:stretch;}
     #daily-questions-container>*{margin-bottom:0 !important;}
     #daily-questions-container>.predict-card,#daily-questions-container>.skel-card{max-width:none !important;}
     #daily-questions-container>:not(.predict-card):not(.skel-card){grid-column:1/-1;}
@@ -1002,3 +1002,24 @@ body{overflow-x:hidden;}
 #page-leaderboard .lb-builder{bottom:-14px;}
 
 .signup .mode-btn{border-radius:0 !important;background:none !important;box-shadow:none;}
+
+/* ---- equal-height question cards: every card in the row matches the tallest,
+   and "How this resolves" is pinned to the bottom of each one ---- */
+.predict-card{display:flex;flex-direction:column;}
+.predict-card > .resolve-details{margin-top:auto !important;}
+.predict-card > .reaction-row{margin-bottom:14px;}
+@media (min-width:900px){
+  #daily-questions-container>.predict-card{height:100%;}
+}
+
+/* ---- pick bar: progress + submit in one full-width row that stays on screen ---- */
+.pick-dock{position:sticky;bottom:0;z-index:30;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:stretch;
+  padding:0;background:linear-gradient(to top,var(--paper) 78%,transparent);}
+.pick-dock > .pick-progress{margin:10px 0 0;align-content:center;}
+.pick-dock > button{margin:0 0 12px !important;width:100% !important;}
+@media (min-width:900px){
+  .pick-dock{grid-template-columns:minmax(0,1fr) minmax(240px,360px);column-gap:14px;row-gap:0;}
+  .pick-dock > .pick-progress{margin:10px 0 12px;}
+  .pick-dock > button{margin:10px 0 12px !important;}
+  .pick-dock .pp-bonus{flex-basis:auto;margin-left:auto;text-align:right;}
+}
