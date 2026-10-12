@@ -5123,7 +5123,14 @@
             const dev = mqGuestDeviceId();
             if(dev) await sb.rpc('submit_guest_predictions', { p_device_id: dev, p_answers: guestQs.map(function(p){ return { question_id: p.q.id, choice: guestSel[p.q.id] }; }) });
           }catch(e){}
-          loadDailyQuestions(); // re-render with the crowd results showing
+          // Re-render with the crowd results showing. The re-render swaps the cards
+          // for short placeholders, which shrinks the page and drops the visitor at
+          // the bottom. Hold the height and put the scroll position back so they
+          // stay on the questions.
+          var keepY = window.scrollY;
+          container.style.minHeight = container.offsetHeight + 'px';
+          try{ await loadDailyQuestions(); }finally{ container.style.minHeight = ''; }
+          window.scrollTo({ top: keepY, behavior: 'instant' });
         });
         updateGuestState();
       }
