@@ -50,7 +50,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261012a">
+<link rel="stylesheet" href="style.css?v=20261012c">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -284,10 +284,22 @@
 </div>
 
 <div id="page-home" class="page">
+<div class="wrap challenge-top">
+  <div class="challenge-banner" style="--tint:246,196,48;">
+    <span class="cb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
+    <div class="cb-text"><div class="cb-title">2026 Marqit Challenge</div><div class="cb-sub">One big call a week. Starts Nov 16.</div></div>
+    <button type="button" id="home-cta-challenge" class="cb-btn">Join</button>
+  </div>
+</div>
 <header class="hero hero-play">
   <div class="wrap">
-    <h1>Pick. Lock. Climb.</h1>
-    <p class="sub">3 free picks a day. <span class="streak-accent">Keep your streak alive.</span></p>
+    <h1>Call it before it happens.</h1>
+    <p class="sub">3 free picks a day on news, pop culture and sports. <span class="streak-accent">Build a streak and climb the leaderboard.</span></p>
+    <div class="payoff-row" aria-label="What you get for playing">
+      <div class="payoff"><b>100</b><span>points per correct call</span></div>
+      <div class="payoff"><b>+100</b><span>bonus for a perfect day</span></div>
+      <div class="payoff"><b>5 tiers</b><span>from Rookie to Legend</span></div>
+    </div>
     <p id="hero-guest-note" style="display:inline-flex; align-items:center; gap:8px; margin:16px 0 8px; padding:7px 16px; border:1px solid var(--line); border-radius:999px; background:var(--panel); font-size:13.5px; font-weight:600; color:var(--ink);"><span style="color:var(--yes);">&#10003;</span> No account needed to play. Just pick and submit.</p>
     <p class="form-msg" id="hero-status-msg"></p>
     <p class="count-line" id="count-line" style="display:none;"></p>
@@ -409,11 +421,6 @@
         <button type="button" id="share-results-square-btn" class="share-btn-secondary" style="display:none;">Download square</button>
       </div>
       <p class="form-msg" id="share-results-msg" style="margin-top:6px;"></p>
-    </div>
-    <div class="challenge-banner" style="--tint:246,196,48;">
-      <span class="cb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
-      <div class="cb-text"><div class="cb-title">2026 Marqit Challenge</div><div class="cb-sub">One big call a week. Starts Nov 16.</div></div>
-      <button type="button" id="home-cta-challenge" class="cb-btn">Join</button>
     </div>
 
   </div>
@@ -915,7 +922,21 @@
   </div>
 </footer>
 
-<script src="app.js?v=20261012a" defer></script>
+<div id="welcome-sheet" class="welcome-sheet" role="dialog" aria-modal="true" aria-labelledby="welcome-title" hidden>
+  <div class="welcome-panel">
+    <div class="welcome-grab" aria-hidden="true"></div>
+    <div class="welcome-kicker">Welcome to Marqit</div>
+    <h2 id="welcome-title">Here&rsquo;s how it works</h2>
+    <ol class="welcome-steps">
+      <li><b>Pick</b><span>Yes or No on 3 daily calls.</span></li>
+      <li><b>Lock</b><span>Each call locks before its event starts.</span></li>
+      <li><b>Score</b><span>100 points per correct call. Go 3-for-3 for a Perfect Day.</span></li>
+    </ol>
+    <button type="button" id="welcome-go" class="welcome-go">Make your first call</button>
+    <p class="welcome-note">No account needed to play.</p>
+  </div>
+</div>
+<script src="app.js?v=20261012c" defer></script>
 
 
 

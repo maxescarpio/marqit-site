@@ -3750,6 +3750,154 @@
   // counts painted per-button, tap toggles your own (insert/delete). Anyone
   // can react, even before voting -- these aren't gated like crowd % since
   // a reaction doesn't reveal which side someone picked.
+  // ===== Comments (replaces the emoji reaction row) =====
+  // Reads/writes go through RPCs from supabase/migrations/20261012_question_comments.sql.
+  // If that migration isn't applied yet the dropdowns simply say comments are coming soon.
+  async function mqFillComments(container, prepared, session){
+    var boxes = container.querySelectorAll('.cmt');
+    if(!boxes.length) return;
+    var ids = prepared.map(function(p){ return p.q.id; });
+    var all = [], ok = true;
+    async function load(){
+      try{
+        var res = await sb.rpc('get_question_comments', { p_question_ids: ids });
+        if(res.error) throw res.error;
+        all = res.data || []; ok = true;
+      }catch(e){ ok = false; all = []; }
+    }
+    function ago(t){
+      var m = Math.max(0, Math.round((Date.now() - new Date(t).getTime()) / 60000));
+      if(m < 1) return 'now';
+      if(m < 60) return m + 'm';
+      if(m < 1440) return Math.round(m / 60) + 'h';
+      return Math.round(m / 1440) + 'd';
+    }
+    function el(tag, cls, text){ var n = document.createElement(tag); if(cls) n.className = cls; if(text != null) n.textContent = text; return n; }
+    function oneComment(c, qid, isReply){
+      var row = el('div', 'cmt-item' + (isReply ? ' is-reply' : ''));
+      var av = el('div', 'cmt-av', c.avatar_emoji || (c.username || '?').charAt(0).toUpperCase());
+      if(c.avatar_color) av.style.background = c.avatar_color;
+      var main = el('div', 'cmt-main');
+      var who = el('div', 'cmt-who');
+      who.appendChild(el('b', null, c.username || 'player'));
+      who.appendChild(el('span', 'cmt-ago', ' · ' + ago(c.created_at)));
+      main.appendChild(who);
+      main.appendChild(el('div', 'cmt-text', c.body));
+      var acts = el('div', 'cmt-acts');
+      var like = el('button', 'cmt-act' + (c.mine ? ' on' : ''), 'Like' + (Number(c.likes) > 0 ? ' · ' + c.likes : ''));
+      like.type = 'button';
+      like.addEventListener('click', async function(){
+        if(!session){ mqCommentNote(main, 'Sign in to like.'); return; }
+        await sb.rpc('toggle_comment_like', { p_comment_id: c.id }); await load(); renderAll();
+      });
+      acts.appendChild(like);
+      if(!isReply){
+        var rep = el('button', 'cmt-act', 'Reply'); rep.type = 'button';
+        rep.addEventListener('click', function(){
+          if(!session){ mqCommentNote(main, 'Sign in to reply.'); return; }
+          var ex = main.querySelector('.cmt-reply-box');
+          if(ex){ ex.remove(); return; }
+          var box = composer(qid, c.id, 'Reply to ' + (c.username || 'player'));
+          box.classList.add('cmt-reply-box');
+          main.appendChild(box);
+          box.querySelector('input').focus();
+        });
+        acts.appendChild(rep);
+      }
+      if(session){
+        if(c.is_me){
+          var del = el('button', 'cmt-act', 'Delete'); del.type = 'button';
+          del.addEventListener('click', async function(){ await sb.rpc('delete_my_comment', { p_comment_id: c.id }); await load(); renderAll(); });
+          acts.appendChild(del);
+        }else{
+          var rp = el('button', 'cmt-act', 'Report'); rp.type = 'button';
+          rp.addEventListener('click', async function(){ await sb.rpc('report_question_comment', { p_comment_id: c.id }); rp.textContent = 'Reported'; rp.disabled = true; });
+          acts.appendChild(rp);
+        }
+      }
+      main.appendChild(acts);
+      row.appendChild(av); row.appendChild(main);
+      return row;
+    }
+    function composer(qid, parentId, placeholder){
+      var f = el('form', 'cmt-form');
+      var inp = el('input'); inp.type = 'text'; inp.maxLength = 280; inp.placeholder = placeholder || 'Add a comment'; inp.setAttribute('aria-label', placeholder || 'Add a comment');
+      var btn = el('button', 'cmt-post', 'Post'); btn.type = 'submit';
+      var msg = el('div', 'cmt-msg');
+      f.appendChild(inp); f.appendChild(btn); f.appendChild(msg);
+      f.addEventListener('submit', async function(ev){
+        ev.preventDefault();
+        var v = inp.value.trim(); if(!v) return;
+        btn.disabled = true;
+        var r = await sb.rpc('post_question_comment', { p_question_id: qid, p_body: v, p_parent_id: parentId || null });
+        btn.disabled = false;
+        if(r.error){ msg.textContent = r.error.message || 'Could not post'; return; }
+        inp.value = ''; msg.textContent = '';
+        await load(); renderAll();
+      });
+      return f;
+    }
+    function renderAll(){
+      boxes.forEach(function(box){
+        var qid = box.getAttribute('data-question-id');
+        var list = box.querySelector('.cmt-list'), comp = box.querySelector('.cmt-compose'), cnt = box.querySelector('.cmt-count');
+        var mineOpen = box.querySelector('.cmt-reply-box');
+        list.textContent = ''; comp.textContent = '';
+        if(!ok){ cnt.textContent = ''; list.appendChild(el('div', 'cmt-empty', 'Comments are coming soon.')); return; }
+        var mine = all.filter(function(c){ return c.question_id === qid; });
+        cnt.textContent = mine.length ? '· ' + mine.length : '';
+        var tops = mine.filter(function(c){ return !c.parent_id; });
+        if(!tops.length) list.appendChild(el('div', 'cmt-empty', 'No comments yet. Say what you think.'));
+        tops.forEach(function(c){
+          var wrap = el('div', 'cmt-thread');
+          wrap.appendChild(oneComment(c, qid, false));
+          var kids = mine.filter(function(k){ return k.parent_id === c.id; });
+          if(kids.length){ var rl = el('div', 'cmt-replies'); kids.forEach(function(k){ rl.appendChild(oneComment(k, qid, true)); }); wrap.appendChild(rl); }
+          list.appendChild(wrap);
+        });
+        if(session) comp.appendChild(composer(qid, null, 'Add a comment'));
+        else comp.appendChild(el('div', 'cmt-signin', 'Sign in to join the conversation.'));
+      });
+    }
+    await load(); renderAll();
+  }
+  function mqCommentNote(parent, text){
+    var old = parent.querySelector('.cmt-note'); if(old) old.remove();
+    var n = document.createElement('div'); n.className = 'cmt-note'; n.textContent = text; parent.appendChild(n);
+    setTimeout(function(){ if(n.parentNode) n.remove(); }, 2500);
+  }
+
+  // ===== First-visit welcome sheet =====
+  (function(){
+    var sheet = document.getElementById('welcome-sheet');
+    if(!sheet) return;
+    var seen = false;
+    try{ seen = localStorage.getItem('marqit_welcome_seen') === '1'; }catch(e){}
+    function close(){
+      sheet.hidden = true;
+      document.body.style.overflow = '';
+      try{ localStorage.setItem('marqit_welcome_seen', '1'); }catch(e){}
+    }
+    sheet.addEventListener('click', function(ev){ if(ev.target === sheet) close(); });
+    document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape' && !sheet.hidden) close(); });
+    var go = document.getElementById('welcome-go');
+    if(go) go.addEventListener('click', function(){
+      close();
+      var first = document.querySelector('.predict-card');
+      if(first && first.scrollIntoView) first.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    if(seen) return;
+    setTimeout(async function(){
+      try{
+        var r = await sb.auth.getSession();
+        if(r && r.data && r.data.session){ try{ localStorage.setItem('marqit_welcome_seen', '1'); }catch(e){} return; }
+      }catch(e){}
+      var home = document.getElementById('page-home');
+      if(home && home.offsetParent === null) return;
+      sheet.hidden = false; document.body.style.overflow = 'hidden';
+    }, 1200);
+  })();
+
   async function mqFillReactions(container, prepared, session){
     try{
       var ids = prepared.map(function(p){ return p.q.id; });
@@ -4121,20 +4269,11 @@
       buddyHtml +
       trendHtml +
       '<div class="ticket-foot"><div class="foot-left"><div class="foot-players"></div><span class="foot-count">' + total + ' voted</span></div>' + latestHtml + '</div>' +
-      '<div class="reaction-row" data-question-id="' + q.id + '">' +
-        '<div class="reaction-base">' +
-          REACTION_EMOJIS.map(function(e){ return '<button type="button" class="reaction-btn" data-emoji="' + e + '"><span class="reaction-emoji">' + e + '</span><span class="reaction-count"></span></button>'; }).join('') +
-        '</div>' +
-        '<div class="reaction-extra"></div>' +
-        '<div class="reaction-more-wrap">' +
-          '<button type="button" class="reaction-more-btn" aria-label="More reactions" aria-haspopup="true" aria-expanded="false">' +
-            '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>' +
-          '</button>' +
-          '<div class="reaction-menu" role="menu">' +
-            EXTRA_REACTION_EMOJIS.map(function(e){ return '<button type="button" class="reaction-btn reaction-menu-btn" data-emoji="' + e + '"><span class="reaction-emoji">' + e + '</span><span class="reaction-count"></span></button>'; }).join('') +
-          '</div>' +
-        '</div>' +
-      '</div>' +
+      '<details class="cmt" data-question-id="' + q.id + '">' +
+        '<summary class="cmt-sum"><span>Comments <span class="cmt-count"></span></span>' +
+          '<svg class="cmt-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
+        '<div class="cmt-body"><div class="cmt-list"></div><div class="cmt-compose"></div></div>' +
+      '</details>' +
       resolutionHtml +
       '<p class="form-msg" style="margin-top:8px;"></p>';
     div.querySelector('.ticket-q').textContent = q.question_text;
@@ -4859,6 +4998,18 @@
     if(!allLockedNow && lockTime){
       slateEl = mqSlateEl(prepared.length, buddyList.map(function(b){ return b.username; }), prepared.filter(function(p){ return p.q.is_boosted; }).length);
       container.appendChild(slateEl);
+      // One status box: the lock timer moves into the points slate so the
+      // countdown and "Earn up to" sit side by side instead of in two boxes.
+      var slateTopEl = slateEl.querySelector('.slate-top');
+      if(slateTopEl && timerEl.querySelector('.lock-top')){
+        var slateHead = document.createElement('div');
+        slateHead.className = 'slate-head';
+        slateEl.insertBefore(slateHead, slateEl.firstChild);
+        timerEl.classList.add('in-slate');
+        timerEl.style.cssText = '';
+        slateHead.appendChild(timerEl);
+        slateHead.appendChild(slateTopEl);
+      }
     }
 
     // Change 4 data + persistent entry point: any locked call with a pick
@@ -4980,7 +5131,7 @@
 
     if(slateEl){ mqFillSlate(slateEl, session, prepared.filter(function(p){ return !p.isLocked; }).every(function(p){ return !!p.myVote; })); }
     mqFillPlayers(container, prepared);
-    mqFillReactions(container, prepared, session);
+    mqFillComments(container, prepared, session);
     if(!session) mqLoadGuestShareCard();
 
     // Buddy Bonus achievement: fires the first time any buddy's pick on a
