@@ -30,6 +30,7 @@ const BLOCKED_HEADLINE = new RegExp(
     // deaths and funerals of real people
     'die[sd]?', 'dead', 'deaths?', 'dying', 'passed\\s+away', 'funerals?', 'obituar\\w*',
     'late\\s+(husband|wife|father|mother|son|daughter)', 'cancer', 'tumou?rs?', 'diagnos\\w*', 'chemo\\w*', 'terminal\\s+ill\\w*', 'health\\s+(battle|scare|struggles?|crisis)', 'hospital\\w*', 'sex(ual)?', 'nude', 'naked',
+    'ass', 'asses', 'asshole\\w*', 'bitch\\w*', 'fuck\\w*', 'shit\\w*', 'damn\\w*', 'crap', 'piss\\w*', 'dick', 'cock', 'whore\\w*', 'slut\\w*',
   ].join('|') + ')\\b',
   'i'
 );
@@ -153,18 +154,18 @@ async function youtube(key: string): Promise<Candidate[]> {
 }
 
 // ---- Claude: keep, rewrite, ask ----
-const PROMPT = `You curate the Trending tab of Marqit, a fun daily-predictions site for sports, pop culture, music and tech fans. Below is a numbered list of things trending right now from public sources.
+const PROMPT = `You curate the Trending tab of Marqit, a fun daily-predictions site for finance, tech, sports, pop culture and music fans. Below is a numbered list of things trending right now from public sources.
 
-For each item decide whether to KEEP it. Keep at most ${MAX_KEEP} in total, favoring variety across sports, pop culture, music, tech and entertainment, and favoring things fans would actually argue about.
+For each item decide whether to KEEP it. Keep at most ${MAX_KEEP} in total, favoring finance and tech first (markets, big companies, AI, chips, billionaires), then sports, pop culture and music, and favoring things fans would actually argue about.
 
-KEEP only: sports (teams, players, games, trades), movies, TV, streaming, celebrities and their work, music and songs, video games, tech products and tech companies, viral entertainment.
+KEEP only: stocks, markets, earnings, IPOs and company business news, AI and chips (Nvidia, Jensen Huang), SpaceX, Tesla, Elon Musk, Jeff Bezos, Amazon, Apple, Google, Meta and other big companies and billionaires (their business moves only, never their politics), sports (teams, players, games, trades), movies, TV, streaming, celebrities and their work, music and songs, video games, tech products and tech companies, viral entertainment.
 DROP (keep=false) anything about: politics, politicians, government, elections, war, military, conflict, crime, police, courts, lawsuits, arrests, accidents, disasters, weather emergencies, health or illness of a real person, death or anyone who has died (a death year of 2025 or 2026 in a Wikipedia summary means drop), religion, race, gender identity, immigration, sexual content, anything tragic or divisive. Also drop confusing items, duplicates of something already kept, and anything you cannot explain from the information given.
 
 For each KEPT item return:
 - "title": a short, clear topic name a fan would recognize (max 60 characters). For a YouTube video, a clean version of the video title. For a song, "Song Title - Artist".
 - "context": ONE plain sentence (max 110 characters) saying why it is trending, using only the information given. No hype. Never invent facts.
-- "lane": one of sports, pop, music, tech, news (pop = movies, TV, celebrities, streaming).
-- "q": a Yes/No debate question (max 90 characters) about the real argument fans are having, plain spoken, taking a real position. Use real names. If there is no real debate, use null.
+- "lane": one of markets (stocks, earnings, finance, billionaires), tech, sports, pop (movies, TV, celebrities, streaming), music, news.
+- "q": a Yes/No debate question (max 90 characters) that makes a DEFINITIVE call fans will split on: "Is X the best...", "Will X win...", "Is X overrated?", "Is X a bubble?". Never hedge: no "one of the best", no spread, odds or "cover", no "could" or "might", no "still". Use only names, teams and numbers given in the item, never facts from your own memory (rosters, teams, prices, titles may be out of date). If there is no real debate, or you are unsure it is current, use null.
 
 Reply with JSON only: {"items":[{"i":0,"keep":false},{"i":1,"keep":true,"title":"...","context":"...","lane":"sports","q":"..."}]}`;
 
@@ -224,7 +225,7 @@ Deno.serve(async (req: Request) => {
       if (isBlocked(title) || isBlocked(context)) continue;
       let q: string | null = typeof d.q === 'string' ? d.q.trim() : null;
       if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlocked(q))) q = null;
-      const lane = ['sports', 'pop', 'music', 'tech', 'news'].includes(d.lane) ? d.lane : 'news';
+      const lane = ['sports', 'pop', 'music', 'tech', 'news', 'markets'].includes(d.lane) ? d.lane : 'news';
       const key = c.url || `trend:${slug(c.source)}:${slug(title)}:${today}`;
       if (seen.has(key)) continue;
       seen.add(key);
