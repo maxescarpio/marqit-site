@@ -3685,7 +3685,7 @@
   function mqFillSlate(slate, session, answeredAll){
     var el = slate.querySelector('.slate-streak');
     if(!el) return;
-    if(!session){ el.innerHTML = mqIcon('flame') + '<span>Sign up free to start a streak</span>'; return; }
+    if(!session){ el.innerHTML = mqIcon('flame') + '<span>Playing as a guest. Sign up free to keep your streak.</span>'; return; }
     sb.from('streaks').select('current_streak, total_points').eq('user_id', session.user.id).maybeSingle().then(function(res){
       var n = (res && res.data && res.data.current_streak) || 0;
       var pts = (res && res.data && res.data.total_points) || 0;
@@ -4349,6 +4349,44 @@
       : (mqIcon('swap') + '<span>' + who + ' picked ' + pick.toUpperCase() + ' \u2014 opposite call, no Buddy Bonus this time</span>');
   }
 
+  // Subject photos and face-offs: loaded after the cards are drawn, so a missing
+  // photo (or no visuals set up yet) never blocks the questions.
+  async function mqApplyVisuals(container){
+    try{
+      var cards = Array.prototype.slice.call(container.querySelectorAll('.predict-card[data-question-id]'));
+      if(!cards.length) return;
+      var res = await sb.rpc('get_question_visuals', { p_ids: cards.map(function(c){ return c.getAttribute('data-question-id'); }) });
+      if(res.error || !res.data) return;
+      var by = {}; res.data.forEach(function(v){ by[v.question_id] = v; });
+      function photo(url, name){
+        return '<div class="mq-photo"><div class="mq-photo-img"><img src="' + escapeHtml(url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest(\'.mq-photo\').remove()"></div>' +
+          (name ? '<span>' + escapeHtml(name) + '</span>' : '') + '</div>';
+      }
+      cards.forEach(function(card){
+        var v = by[card.getAttribute('data-question-id')];
+        if(!v || !/^https:\/\//i.test(v.subject_image_url || '')) return;
+        var row = card.querySelector('.mq-qrow'); if(!row) return;
+        var old = card.querySelector('.mq-subject, .mq-matchup'); if(old) old.remove();
+        var face = /^https:\/\//i.test(v.vs_image_url || '');
+        var html = '<div class="mq-photos' + (face ? ' face-off' : '') + '">' + photo(v.subject_image_url, v.subject_name) +
+          (face ? '<b class="mq-vs-mark">VS</b>' + photo(v.vs_image_url, v.vs_name) : '') + '</div>';
+        row.insertAdjacentHTML('beforebegin', html);
+      });
+    }catch(e){}
+  }
+  // One real number at the top of the Play page: how many calls have been made today.
+  async function mqShowCallCount(container){
+    try{
+      var el = document.getElementById('play-status'); if(!el) return;
+      var ids = Array.prototype.slice.call(container.querySelectorAll('.predict-card[data-question-id]')).map(function(c){ return c.getAttribute('data-question-id'); });
+      if(!ids.length) return;
+      var r = await sb.from('predictions').select('id', { count: 'exact', head: true }).in('question_id', ids);
+      var n = r && r.count;
+      if(!n){ el.style.display = 'none'; return; }
+      el.innerHTML = '<i class="live-dot"></i><b>' + n.toLocaleString('en-US') + '</b> ' + (n === 1 ? 'call' : 'calls') + ' made today';
+      el.style.display = 'flex';
+    }catch(e){}
+  }
   function buildQuestionCard(q, index, myVote, voteCounts, isLocked, trend, isMostCalled, buddyList, isMover){
     var yesCount = voteCounts.yes || 0;
     var noCount = voteCounts.no || 0;
@@ -5225,6 +5263,8 @@
       container.appendChild(card);
       animateTrendLine(card);
     }
+    mqApplyVisuals(container);
+    mqShowCallCount(container);
 
     // Signed-out visitors can play with no account: pick Yes/No on all three,
     // submit, and see where the crowd stands right away. An account is only
