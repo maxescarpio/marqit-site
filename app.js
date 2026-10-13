@@ -1465,6 +1465,8 @@
         row.querySelector('.q-text').textContent = q.question_text;
         picksList.appendChild(row);
       });
+      // Your latest three stay in view; the rest sit behind a dropdown.
+      mqFoldList(picksList, 3, { one: 'earlier pick', many: 'earlier picks' });
     }
 
     document.getElementById('profile-modal-backdrop').style.display = 'flex';
@@ -1715,6 +1717,29 @@
     loadBuddySection();
   });
 
+  // Show the first few rows of a long list and tuck the rest behind a "Show N more" dropdown.
+  // Safe to call again after the list changes: it unwraps any earlier dropdown first.
+  function mqFoldList(listEl, keep, words){
+    if(!listEl) return;
+    var old = null;
+    for(var i = 0; i < listEl.children.length; i++){
+      if(listEl.children[i].classList && listEl.children[i].classList.contains('mq-list-more')){ old = listEl.children[i]; break; }
+    }
+    if(old){
+      Array.prototype.slice.call(old.children).forEach(function(c){ if(c.tagName !== 'SUMMARY') listEl.insertBefore(c, old); });
+      old.remove();
+    }
+    var rows = Array.prototype.slice.call(listEl.children);
+    if(rows.length <= keep) return;
+    var extra = rows.slice(keep), n = extra.length;
+    var d = document.createElement('details');
+    d.className = 'mycalls-more mq-list-more';
+    d.innerHTML = '<summary><span class="mm-closed">Show ' + n + ' ' + (n === 1 ? words.one : words.many) + '</span><span class="mm-open">Show less</span>' +
+      '<svg class="mm-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>';
+    extra.forEach(function(c){ d.appendChild(c); });
+    listEl.appendChild(d);
+  }
+
   async function loadBuddySection(){
     const pendingListEl = document.getElementById('buddy-pending-list');
     const activeListEl = document.getElementById('buddy-active-list');
@@ -1751,6 +1776,8 @@
         '<button type="button" class="cancel-buddy-request-btn" data-request-id="' + r.id + '" style="padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:none; color:var(--ink-soft); font-weight:600; font-size:12.5px; cursor:pointer; white-space:nowrap;">Cancel</button>' +
       '</div>';
     }).join('');
+
+    mqFoldList(activeListEl, 3, { one: 'more buddy', many: 'more buddies' });
   }
 
   document.getElementById('set-rival-btn').addEventListener('click', async function(){
@@ -1948,6 +1975,7 @@
       try{ const crowdCard = await mqRenderCrowdRivalCard(session); if(crowdCard) activeListEl.appendChild(crowdCard); }
       catch(e){ /* decoration only */ }
     }
+    mqFoldList(activeListEl, 3, { one: 'more rival', many: 'more rivals' });
   }
 
   // "You vs The Crowd": on the player's most recent fully scored day, compare
@@ -3895,6 +3923,106 @@
       if(home && home.offsetParent === null) return;
       sheet.hidden = false; document.body.style.overflow = 'hidden';
     }, 1200);
+  })();
+
+  // ===== Yesterday's results sheet =====
+  // Opens once a day, on the first visit after you made picks the day before and at least one has been scored.
+  // Signed-in players are read by account; guests by the device id the site already uses for guest picks.
+  (function(){
+    var sheet = document.getElementById('results-sheet');
+    if(!sheet) return;
+    var KEY = 'mq_results_seen';
+    var yDate = '';
+    var DOT = { sports: '#FF9426', pop_culture: '#AA70FF', news: '#468CFF' };
+    var bodyEl = document.getElementById('results-body');
+    function yesterdayET(){
+      var d = new Date(getETDateInfo().dateStr + 'T12:00:00Z');
+      d.setUTCDate(d.getUTCDate() - 1);
+      return d.toISOString().slice(0, 10);
+    }
+    function close(){
+      sheet.hidden = true;
+      document.body.style.overflow = '';
+      try{ if(yDate) localStorage.setItem(KEY, yDate); }catch(e){}
+    }
+    sheet.addEventListener('click', function(ev){ if(ev.target === sheet) close(); });
+    document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape' && !sheet.hidden) close(); });
+    var closeBtn = document.getElementById('results-close'); if(closeBtn) closeBtn.addEventListener('click', close);
+    var goBtn = document.getElementById('results-go'); if(goBtn) goBtn.addEventListener('click', close);
+    bodyEl.addEventListener('click', function(ev){
+      if(ev.target.closest && ev.target.closest('#results-signup')){
+        close();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        openAuthPanel('signup');
+      }
+    });
+
+    async function run(){
+      try{
+        yDate = yesterdayET();
+        var seen = ''; try{ seen = localStorage.getItem(KEY) || ''; }catch(e){}
+        if(seen === yDate) return;
+        var home = document.getElementById('page-home');
+        if(home && home.offsetParent === null) return;
+        var welcome = document.getElementById('welcome-sheet');
+        if(welcome && !welcome.hidden) return;
+
+        var qres = await sb.from('daily_questions').select('id, question_text, category, correct_answer, resolved').eq('question_date', yDate).order('category');
+        var questions = qres.data || [];
+        if(!questions.length) return;
+        var ids = questions.map(function(q){ return q.id; });
+
+        var sr = await sb.auth.getSession();
+        var session = sr && sr.data && sr.data.session;
+        var picks = {}, streak = 0;
+        if(session){
+          var pr = await sb.from('predictions').select('question_id, choice').eq('user_id', session.user.id).in('question_id', ids);
+          (pr.data || []).forEach(function(p){ picks[p.question_id] = p.choice; });
+          var st = await sb.from('streaks').select('current_streak').eq('user_id', session.user.id).maybeSingle();
+          streak = (st && st.data && st.data.current_streak) || 0;
+        }else{
+          var dev = mqGuestDeviceId(); if(!dev) return;
+          var gr = await sb.rpc('get_guest_picks', { p_device_id: dev, p_question_ids: ids });
+          (gr.data || []).forEach(function(p){ picks[p.question_id] = p.choice; });
+        }
+        var mine = questions.filter(function(q){ return picks[q.id]; });
+        var scored = mine.filter(function(q){ return q.resolved && q.correct_answer; });
+        if(!scored.length) return;
+
+        var right = scored.filter(function(q){ return String(picks[q.id]).toLowerCase() === q.correct_answer; }).length;
+        var partial = scored.length < mine.length;
+        var html = '<div class="rs-tiles"><div class="rs-tile"><b>' + right + ' of ' + scored.length + '</b><span>right' + (partial ? ' so far' : '') + '</span></div>';
+        if(session) html += '<div class="rs-tile"><b>' + streak + '</b><span>day streak</span></div>';
+        html += '</div>';
+        mine.forEach(function(q){
+          var pick = String(picks[q.id]).toLowerCase();
+          var pill = '<span class="rs-pill">Pending</span>';
+          if(q.resolved && q.correct_answer){
+            pill = pick === q.correct_answer
+              ? '<span class="rs-pill win">Correct</span>'
+              : '<span class="rs-pill loss">Missed · answer: ' + (q.correct_answer === 'yes' ? 'Yes' : 'No') + '</span>';
+          }
+          html += '<div class="rs-row">' +
+            '<div class="rs-cat"><span class="rs-dot" style="background:' + (DOT[q.category] || '#A8ABB3') + ';"></span>' + escapeHtml(CATEGORY_LABELS[q.category] || q.category || '') + '</div>' +
+            '<div class="rs-q">' + escapeHtml(q.question_text || '') + '</div>' +
+            '<div class="rs-meta"><span>Your pick: <b style="color:' + (pick === 'yes' ? 'var(--yes)' : 'var(--no)') + ';">' + (pick === 'yes' ? 'Yes' : 'No') + '</b></span>' + pill + '</div>' +
+          '</div>';
+        });
+        if(partial) html += '<p class="rs-note">Pending calls get scored once they settle.</p>';
+        if(!session) html += '<div class="rs-signup"><b>Sign up free to keep your points and build a streak.</b><button type="button" id="results-signup">Sign up free</button></div>';
+
+        var kick = document.getElementById('results-kicker');
+        if(kick){
+          try{ kick.textContent = 'Yesterday · ' + new Date(yDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
+          catch(e){ kick.textContent = 'Yesterday'; }
+        }
+        bodyEl.innerHTML = html;
+        if(welcome && !welcome.hidden) return;
+        sheet.hidden = false;
+        document.body.style.overflow = 'hidden';
+      }catch(e){ /* results sheet is a nicety: never get in the way of the page */ }
+    }
+    setTimeout(run, 1800);
   })();
 
   async function mqFillReactions(container, prepared, session){
@@ -7450,7 +7578,11 @@ setTimeout(function(){
     var badge = document.getElementById(badgeId);
     if(!list || !badge) return;
     function update(){
-      var n = list.children.length;
+      // Rows tucked into a "Show N more" dropdown still count.
+      var n = 0;
+      Array.prototype.forEach.call(list.children, function(c){
+        n += (c.classList && c.classList.contains('mq-list-more')) ? Math.max(0, c.children.length - 1) : 1;
+      });
       badge.textContent = n ? String(n) : '';
       badge.style.display = n ? '' : 'none';
     }
