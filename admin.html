@@ -118,6 +118,11 @@
   <input type="datetime-local" id="add-lock">
   <label>Resolution criteria (optional)</label>
   <textarea id="add-resolution" rows="2" placeholder="How this will be judged, e.g. 'Based on final box score after OT'"></textarea>
+  <label style="display:block;margin-top:8px;">Photo (optional): subject name, photo link, and for a face-off the other side</label>
+  <input id="add-sub-name" placeholder="Subject name, e.g. Jensen Huang">
+  <input id="add-sub-img" placeholder="Subject photo link (https://...)">
+  <input id="add-vs-name" placeholder="Versus name (face-off only)">
+  <input id="add-vs-img" placeholder="Versus photo link (face-off only)">
   <button id="add-btn">Add question</button>
   <p id="add-msg" style="font-size:13px; margin-top:8px;"></p>
 
@@ -405,6 +410,9 @@
             '<label>Question</label><textarea rows="2" id="edit-text-' + q.id + '"></textarea>' +
             '<label>Lock time</label><input type="datetime-local" id="edit-lock-' + q.id + '">' +
             '<label>Resolution criteria (optional)</label><textarea rows="2" id="edit-resolution-' + q.id + '"></textarea>' +
+            '<label>Photo: subject name / link, face-off name / link</label>' +
+            '<input id="edit-subname-' + q.id + '" placeholder="Subject name"><input id="edit-subimg-' + q.id + '" placeholder="Subject photo link (https://...)">' +
+            '<input id="edit-vsname-' + q.id + '" placeholder="Versus name"><input id="edit-vsimg-' + q.id + '" placeholder="Versus photo link">' +
             '<button data-save-id="' + q.id + '">Save changes</button>' +
           '</div>'
         );
@@ -467,6 +475,16 @@
       });
     });
 
+    (async function(){
+      try{
+        const vres = await sb.rpc('get_question_visuals', { p_ids: data.map(function(q){ return q.id; }) });
+        (vres.data || []).forEach(function(v){
+          var set = function(k, val){ var el = document.getElementById(k + v.question_id); if(el) el.value = val || ''; };
+          set('edit-subname-', v.subject_name); set('edit-subimg-', v.subject_image_url); set('edit-vsname-', v.vs_name); set('edit-vsimg-', v.vs_image_url);
+        });
+      }catch(e){}
+    })();
+
     list.querySelectorAll('button[data-save-id]').forEach(function(btn){
       btn.addEventListener('click', async function(){
         const id = btn.getAttribute('data-save-id');
@@ -489,6 +507,10 @@
           p_resolution_criteria: resolution || null
         });
         if(resErr){ alert('Question saved, but resolution criteria failed to save: ' + resErr.message); }
+        const vr2 = await sb.rpc('admin_set_question_visual', { p_question_id: id,
+          p_subject_name: document.getElementById('edit-subname-' + id).value, p_subject_image_url: document.getElementById('edit-subimg-' + id).value,
+          p_vs_name: document.getElementById('edit-vsname-' + id).value, p_vs_image_url: document.getElementById('edit-vsimg-' + id).value });
+        if(vr2.error){ alert('Saved, but the photo failed: ' + vr2.error.message); }
         loadQuestionsForDate();
       });
     });
@@ -529,10 +551,16 @@
       return;
     }
 
-    if(resolution){
+    const subName = document.getElementById('add-sub-name').value, subImg = document.getElementById('add-sub-img').value,
+          vsName = document.getElementById('add-vs-name').value, vsImg = document.getElementById('add-vs-img').value;
+    if(resolution || subImg || vsImg){
       const { data: newQ } = await sb.from('daily_questions').select('id').eq('question_date', date).eq('category', category).maybeSingle();
       if(newQ){
-        await sb.rpc('admin_set_resolution_criteria', { p_question_id: newQ.id, p_resolution_criteria: resolution });
+        if(resolution) await sb.rpc('admin_set_resolution_criteria', { p_question_id: newQ.id, p_resolution_criteria: resolution });
+        if(subImg || vsImg){
+          const vr = await sb.rpc('admin_set_question_visual', { p_question_id: newQ.id, p_subject_name: subName, p_subject_image_url: subImg, p_vs_name: vsName, p_vs_image_url: vsImg });
+          if(vr.error) msg.textContent = 'Added, but the photo failed: ' + vr.error.message;
+        }
       }
     }
 
