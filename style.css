@@ -5,9 +5,9 @@
     --paper:#111318;
     --panel:#1B1E24;
     --line:#2C2F37;
-    --yes:#33D18B;
+    --yes:#22E58A;
     --yes-bg:rgba(24,170,104,0.44);
-    --no:#F5644F;
+    --no:#FF4D3D;
     --no-bg:rgba(222,64,50,0.44);
   }
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -1284,3 +1284,46 @@ body{overflow-x:hidden;}
 
 :root{--c-markets:#2EE6A6;}
 .news-card[data-lane="markets"]{--lane:var(--c-markets);}
+
+/* ================= play screen refresh ================= */
+/* no glow, no gold outlines: neutral borders, gold only on the countdown */
+.feed-chip.on{box-shadow:none;}
+.news-card:hover{transform:none;box-shadow:none;border-color:var(--ink-soft);}
+.predict-card,.predict-card[data-cat]{border-color:var(--line);}
+.mq-slate{border-color:var(--line);}
+.crowd-teaser{border:1px dashed var(--line);}
+.crowd-teaser>svg{color:var(--ink-soft);}
+.teaser-bar i{background:linear-gradient(90deg,transparent,rgba(244,244,241,.35),transparent);}
+.slate-pts b{color:var(--ink);}
+/* removed generic microcopy */
+.slate-top,.activity-ticker{display:none !important;}
+.hero-play h1{font-size:clamp(34px,6vw,52px);line-height:1;}
+#hero-guest-note{display:block !important;margin:10px 0 6px !important;padding:0 !important;border:0 !important;background:none !important;border-radius:0 !important;font-size:15px !important;font-weight:500 !important;color:var(--ink-soft) !important;}
+#hero-guest-note span{display:none;}
+
+/* ---- Yes / No: one look everywhere ---- */
+.predict-card .opt,.take-btn{font-family:'Big Shoulders Display',sans-serif;text-transform:uppercase;letter-spacing:.04em;}
+.predict-card .opt .opt-label{font-family:'Big Shoulders Display',sans-serif;font-size:22px;font-weight:800;letter-spacing:.04em;opacity:1;}
+.predict-card .opt .opt-price{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:30px;letter-spacing:.02em;text-transform:uppercase;gap:0;}
+.predict-card .opt .opt-pct{margin-left:2px;font-size:.8em;}
+.predict-card .opt{flex-direction:row;gap:10px;min-height:64px;border-width:2px;}
+/* before a vote: both solid. after: your pick stays solid, the other goes dark */
+.predict-card .opt.yes,.take-yes{background:var(--yes);border-color:var(--yes);box-shadow:none;}
+.predict-card .opt.no,.take-no{background:var(--no);border-color:var(--no);box-shadow:none;}
+.predict-card .opt.yes .opt-price,.predict-card .opt.yes .opt-label,.take-yes{color:#03140B;}
+.predict-card .opt.no .opt-price,.predict-card .opt.no .opt-label,.take-no{color:#FFFFFF;}
+.take-btn{font-size:24px;font-weight:800;}
+.take-yes:hover:not(:disabled),.predict-card .opt.yes:hover{background:#3CF0A0;transform:none;}
+.take-no:hover:not(:disabled),.predict-card .opt.no:hover{background:#FF6454;transform:none;}
+.predict-card:has(.opt.picked) .opt:not(.picked){background:var(--panel);}
+.predict-card:has(.opt.picked) .opt.yes:not(.picked){border-color:var(--yes);}
+.predict-card:has(.opt.picked) .opt.no:not(.picked){border-color:var(--no);}
+.predict-card:has(.opt.picked) .opt.yes:not(.picked) .opt-price,.predict-card:has(.opt.picked) .opt.yes:not(.picked) .opt-label{color:var(--yes);}
+.predict-card:has(.opt.picked) .opt.no:not(.picked) .opt-price,.predict-card:has(.opt.picked) .opt.no:not(.picked) .opt-label{color:var(--no);}
+.predict-card .opt.yes.picked{background:var(--yes);border-color:var(--yes);}
+.predict-card .opt.no.picked{background:var(--no);border-color:var(--no);}
+.predict-card .opt.yes.picked .opt-price,.predict-card .opt.yes.picked .opt-label{color:#03140B;}
+.predict-card .opt.no.picked .opt-price,.predict-card .opt.no.picked .opt-label{color:#FFFFFF;}
+.take-bar-y,.crowd-bar i{background:var(--yes);}
+.take-bar-n,.crowd-bar{background:var(--no);}
+.take-split{font-family:'Big Shoulders Display',sans-serif;font-size:22px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;}

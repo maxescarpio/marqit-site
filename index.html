@@ -50,7 +50,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261014f">
+<link rel="stylesheet" href="style.css?v=20261014g">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -288,9 +288,9 @@
 <div id="page-home" class="page">
 <header class="hero hero-play">
   <div class="wrap">
-    <h1>Make your 3 calls.</h1>
-    <p class="sub">Yes or no on today's news, sports and pop culture. <span class="streak-accent">Get them right, climb the board.</span></p>
-    <p id="hero-guest-note" style="display:inline-flex; align-items:center; gap:8px; margin:16px 0 8px; padding:7px 16px; border:1px solid var(--line); border-radius:999px; background:var(--panel); font-size:13.5px; font-weight:600; color:var(--ink);"><span style="color:var(--yes);">&#10003;</span> No account needed. Pick now, sign up whenever.</p>
+    <h1 id="hero-date">Today</h1>
+    <script>try{document.getElementById("hero-date").textContent=new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});}catch(e){}</script>
+    <p id="hero-guest-note" style="display:inline-flex; align-items:center; gap:8px; margin:16px 0 8px; padding:7px 16px; border:1px solid var(--line); border-radius:999px; background:var(--panel); font-size:13.5px; font-weight:600; color:var(--ink);"><span style="color:var(--yes);">&#10003;</span> No account needed. Just pick your answers.</p>
     <p class="form-msg" id="hero-status-msg"></p>
     <p class="count-line" id="count-line" style="display:none;"></p>
   </div>
@@ -959,7 +959,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261014f" defer></script>
+<script src="app.js?v=20261014g" defer></script>
 
 
 
