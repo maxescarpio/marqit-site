@@ -3824,16 +3824,17 @@
   // ===== Comments (replaces the emoji reaction row) =====
   // Reads/writes go through RPCs from supabase/migrations/20261012_question_comments.sql.
   // If that migration isn't applied yet the dropdowns simply say comments are coming soon.
-  async function mqFillComments(container, prepared, session){
+  async function mqFillComments(container, prepared, session, api){
+    api = api || { get:'get_question_comments', getArg:'p_question_ids', post:'post_question_comment', postArg:'p_question_id', like:'toggle_comment_like', del:'delete_my_comment', report:'report_question_comment', idKey:'question_id' };
     var boxes = container.querySelectorAll('.cmt');
     if(!boxes.length) return;
     var ids = prepared.map(function(p){ return p.q.id; });
     var all = [], ok = true;
     async function load(){
       try{
-        var res = await sb.rpc('get_question_comments', { p_question_ids: ids });
+        var res = await sb.rpc(api.get, (function(){ var o = {}; o[api.getArg] = ids; return o; })());
         if(res.error) throw res.error;
-        all = res.data || []; ok = true;
+        all = (res.data || []).map(function(c){ if(api.idKey !== 'question_id') c.question_id = c[api.idKey]; return c; }); ok = true;
       }catch(e){ ok = false; all = []; }
     }
     function ago(t){
@@ -3859,7 +3860,7 @@
       like.type = 'button';
       like.addEventListener('click', async function(){
         if(!session){ mqCommentNote(main, 'Sign in to like.'); return; }
-        await sb.rpc('toggle_comment_like', { p_comment_id: c.id }); await load(); renderAll();
+        await sb.rpc(api.like, { p_comment_id: c.id }); await load(); renderAll();
       });
       acts.appendChild(like);
       if(!isReply){
@@ -3878,11 +3879,11 @@
       if(session){
         if(c.is_me){
           var del = el('button', 'cmt-act', 'Delete'); del.type = 'button';
-          del.addEventListener('click', async function(){ await sb.rpc('delete_my_comment', { p_comment_id: c.id }); await load(); renderAll(); });
+          del.addEventListener('click', async function(){ await sb.rpc(api.del, { p_comment_id: c.id }); await load(); renderAll(); });
           acts.appendChild(del);
         }else{
           var rp = el('button', 'cmt-act', 'Report'); rp.type = 'button';
-          rp.addEventListener('click', async function(){ await sb.rpc('report_question_comment', { p_comment_id: c.id }); rp.textContent = 'Reported'; rp.disabled = true; });
+          rp.addEventListener('click', async function(){ await sb.rpc(api.report, { p_comment_id: c.id }); rp.textContent = 'Reported'; rp.disabled = true; });
           acts.appendChild(rp);
         }
       }
@@ -3900,7 +3901,8 @@
         ev.preventDefault();
         var v = inp.value.trim(); if(!v) return;
         btn.disabled = true;
-        var r = await sb.rpc('post_question_comment', { p_question_id: qid, p_body: v, p_parent_id: parentId || null });
+        var args = { p_body: v, p_parent_id: parentId || null }; args[api.postArg] = qid;
+        var r = await sb.rpc(api.post, args);
         btn.disabled = false;
         if(r.error){ msg.textContent = r.error.message || 'Could not post'; return; }
         inp.value = ''; msg.textContent = '';
@@ -3932,6 +3934,7 @@
     }
     await load(); renderAll();
   }
+  var MQ_NEWS_COMMENT_API = { get:'get_news_comments', getArg:'p_news_ids', post:'post_news_comment', postArg:'p_news_id', like:'toggle_news_comment_like', del:'delete_my_news_comment', report:'report_news_comment', idKey:'news_id' };
   function mqCommentNote(parent, text){
     var old = parent.querySelector('.cmt-note'); if(old) old.remove();
     var n = document.createElement('div'); n.className = 'cmt-note'; n.textContent = text; parent.appendChild(n);
@@ -7404,9 +7407,11 @@
     'war\\s+crimes?', 'airstrikes?', 'missile\\s+strikes?',
     // self-harm, overdoses, abuse, kidnapping
     'suicid\\w*', 'self-harm', 'overdos\\w*', 'child\\s+abus\\w*', 'abus\\w*\\s+(of\\s+)?(a\\s+)?(child|children|kids?|minors?)',
-    'kidnap\\w*', 'abduct\\w*', 'child\\s+endangerment', 'domestic\\s+violence', 'assault\\w*'
+    'kidnap\\w*', 'abduct\\w*', 'child\\s+endangerment', 'domestic\\s+violence', 'assault\\w*',
+    // deaths and funerals of real people
+    'die[sd]?', 'dead', 'deaths?', 'dying', 'passed\\s+away', 'funerals?', 'obituar\\w*', 'late\\s+(husband|wife|father|mother|son|daughter)'
   ].join('|') + ')\\b', 'i');
-  var MQ_NEWS_OK_PHRASES = /\b(shooting\s+(guard|percentage|star|touch|slump|form|stroke)|kill(s|ed|ing)?\s+(it|the\s+(game|show|stage|crowd|room)))\b/gi;
+  var MQ_NEWS_OK_PHRASES = /\b(shooting\s+(guard|percentage|star|touch|slump|form|stroke)|kill(s|ed|ing)?\s+(it|the\s+(game|show|stage|crowd|room))|die[- ]hards?)\b/gi;
   function mqNewsAllowed(headline){
     var t = String(headline || '');
     if(!t) return false;
@@ -7496,23 +7501,92 @@
         img = '<div class="news-img"><img src="' + escapeHtml(row.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>';
       }
       var when = ago(row.published_at || row.fetched_at);
-      return '<a class="news-card" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" data-news-id="' + escapeHtml(row.id || '') + '">' +
+      var id = escapeHtml(row.id || '');
+      var take = '';
+      if(row.take_question){
+        take = '<div class="news-take" data-take-id="' + id + '">' +
+          '<div class="take-label">The debate</div>' +
+          '<div class="take-q">' + escapeHtml(row.take_question) + '</div>' +
+          '<div class="take-btns"><button type="button" class="take-btn take-yes" data-choice="yes">Yes</button><button type="button" class="take-btn take-no" data-choice="no">No</button></div>' +
+          '<div class="take-result" hidden></div>' +
+          '<div class="take-note">No points. Just the debate.</div>' +
+          '</div>' +
+          '<details class="cmt news-cmt" data-question-id="' + id + '">' +
+            '<summary class="cmt-sum"><span>Discussion <span class="cmt-count"></span></span>' +
+            '<svg class="cmt-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
+            '<div class="cmt-body"><div class="cmt-list"></div><div class="cmt-compose"></div></div>' +
+          '</details>';
+      }
+      return '<div class="news-card" data-news-id="' + id + '">' +
+        '<a class="news-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' +
         img +
         '<div class="news-body"><div class="news-meta">' + logo + '<span>' + escapeHtml(row.source_name || '') + '</span>' + (when ? '<span>·</span><span>' + when + '</span>' : '') + '</div>' +
-        '<div class="news-h">' + escapeHtml(row.headline || '') + '</div></div></a>';
+        '<div class="news-h">' + escapeHtml(row.headline || '') + '</div></div></a>' + take + '</div>';
     }
+
+    function paintResult(card, r){
+      var box = card.querySelector('.take-result');
+      if(!box) return;
+      var y = Number(r.yes_count) || 0, n = Number(r.no_count) || 0, t = y + n;
+      var yp = t ? Math.round(y * 100 / t) : 0, np = t ? 100 - yp : 0;
+      var mine = r.my_choice;
+      card.querySelectorAll('.take-btn').forEach(function(b){
+        b.classList.toggle('picked', b.getAttribute('data-choice') === mine);
+        b.disabled = !!mine;
+      });
+      card.querySelector('.take-btns').hidden = !!mine;
+      if(!mine){ box.hidden = true; return; }
+      box.hidden = false;
+      box.innerHTML = '<div class="take-bar"><i class="take-bar-y" style="width:' + yp + '%"></i><i class="take-bar-n" style="width:' + np + '%"></i></div>' +
+        '<div class="take-split"><span class="' + (mine === 'yes' ? 'me' : '') + '">Yes ' + yp + '%</span><span class="' + (mine === 'no' ? 'me' : '') + '">No ' + np + '%</span></div>' +
+        '<div class="take-count">' + t + (t === 1 ? ' vote' : ' votes') + ' · you said ' + (mine === 'yes' ? 'Yes' : 'No') + '</div>';
+    }
+
+    async function loadResults(ids){
+      if(!ids.length) return;
+      try{
+        var res = await sb.rpc('get_news_take_results', { p_news_ids: ids, p_device: mqGuestDeviceId() });
+        if(res.error) throw res.error;
+        (res.data || []).forEach(function(r){
+          var card = grid.querySelector('.news-card[data-news-id="' + r.news_id + '"]');
+          if(card) paintResult(card, r);
+        });
+      }catch(e){ /* buttons stay available; voting still tries */ }
+    }
+
+    grid.addEventListener('click', async function(ev){
+      var btn = ev.target.closest && ev.target.closest('.take-btn');
+      if(!btn || btn.disabled) return;
+      var card = btn.closest('.news-card');
+      var id = card && card.getAttribute('data-news-id');
+      if(!id) return;
+      card.querySelectorAll('.take-btn').forEach(function(b){ b.disabled = true; });
+      var res = await sb.rpc('vote_news_take', { p_news_id: id, p_choice: btn.getAttribute('data-choice'), p_device: mqGuestDeviceId() });
+      if(res.error){
+        card.querySelectorAll('.take-btn').forEach(function(b){ b.disabled = false; });
+        var note = card.querySelector('.take-note'); if(note) note.textContent = 'Could not save your vote. Try again.';
+        return;
+      }
+      await loadResults([id]);
+    });
 
     async function load(){
       if(loaded) return;
       loaded = true;
       var cols = 'id, headline, source_name, article_url, published_at, fetched_at';
-      var res = await sb.from('news_ticker').select(cols + ', image_url').order('fetched_at', { ascending: false }).limit(40);
-      // Until the photo column exists, fall back to the plain list so the tab still works.
+      var res = await sb.from('news_ticker').select(cols + ', image_url, take_question').order('fetched_at', { ascending: false }).limit(40);
+      // Until the newer columns exist, fall back to the plain list so the tab still works.
       if(res.error) res = await sb.from('news_ticker').select(cols).order('fetched_at', { ascending: false }).limit(40);
       if(res.error){ loaded = false; grid.innerHTML = '<p class="news-empty">News is not loading right now. Try again in a minute.</p>'; return; }
       var rows = (res.data || []).filter(function(r){ return mqNewsAllowed(r.headline); });
       var html = rows.map(cardHtml).join('');
       grid.innerHTML = html || '<p class="news-empty">No stories right now. Check back soon.</p>';
+      var withTake = rows.filter(function(r){ return r.take_question; });
+      if(!withTake.length) return;
+      loadResults(withTake.map(function(r){ return r.id; }));
+      var session = null;
+      try{ var sr = await sb.auth.getSession(); session = sr && sr.data && sr.data.session; }catch(e){}
+      mqFillComments(grid, withTake.map(function(r){ return { q: { id: r.id } }; }), session, MQ_NEWS_COMMENT_API);
     }
 
     tab.addEventListener('click', load);

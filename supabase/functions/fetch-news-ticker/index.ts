@@ -103,10 +103,13 @@ const BLOCKED_HEADLINE = new RegExp(
     'suicid\\w*', 'self-harm', 'overdos\\w*',
     'child\\s+abus\\w*', 'abus\\w*\\s+(of\\s+)?(a\\s+)?(child|children|kids?|minors?)',
     'kidnap\\w*', 'abduct\\w*', 'child\\s+endangerment', 'domestic\\s+violence', 'assault\\w*',
+    // deaths and funerals of real people
+    'die[sd]?', 'dead', 'deaths?', 'dying', 'passed\\s+away', 'funerals?', 'obituar\\w*',
+    'late\\s+(husband|wife|father|mother|son|daughter)',
   ].join('|') + ')\\b',
   'i'
 );
-const OK_PHRASES = /\b(shooting\s+(guard|percentage|star|touch|slump|form|stroke)|kill(s|ed|ing)?\s+(it|the\s+(game|show|stage|crowd|room)))\b/gi;
+const OK_PHRASES = /\b(shooting\s+(guard|percentage|star|touch|slump|form|stroke)|kill(s|ed|ing)?\s+(it|the\s+(game|show|stage|crowd|room))|die[- ]hards?)\b/gi;
 const REHAB_DEATH = /\brehab\b/i;
 const DEATH_WORD = /\b(death|deaths|died|dies|dead|dying)\b/i;
 function isBlockedHeadline(title: string): boolean {
@@ -133,6 +136,58 @@ const MAX_ROWS = 40;
 function photoUrl(item: any): string | null {
   const u = typeof item.image === 'string' ? item.image.trim() : '';
   return /^https:\/\//i.test(u) ? u : null;
+}
+
+
+// ---- Debate questions -------------------------------------------------------
+// Every allowed story gets one neutral Yes/No question so fans can weigh in on
+// Marqit. No points are involved. Stories on touchy ground get null (no
+// question). take_checked is set once a story has been through the model, so a
+// null isn't re-sent every poll; if the API call fails it stays false and the
+// next poll retries.
+const TAKE_MODEL = 'claude-haiku-5-5';
+const TAKE_PROMPT = `You write one debate question per news headline for a sports / pop-culture fan site.
+Rules:
+- A Yes/No question a fan could argue either way (an opinion, not a fact lookup). Max 90 characters. Plain, human wording, no hype.
+- Only sports, entertainment, TV, music, film, games, tech and lifestyle stories.
+- Return null for ANYTHING touching: politics or politicians, elections, government, war, military, conflict, crime, courts or lawsuits, accidents, disasters, weather emergencies, health or illness of a real person, death, religion, race, gender identity, immigration, or anything tragic or divisive.
+- Never name a private individual. Never accuse anyone of anything.
+Reply with JSON only: {"items":[{"i":0,"q":"question or null"}]}`;
+
+async function generateTakes(admin: any) {
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!apiKey) return { skipped: 'no ANTHROPIC_API_KEY' };
+  const { data: pending, error } = await admin
+    .from('news_ticker')
+    .select('id, headline')
+    .eq('take_checked', false)
+    .order('fetched_at', { ascending: false })
+    .limit(40);
+  if (error) throw error;
+  if (!pending || pending.length === 0) return { generated: 0 };
+
+  const list = pending.map((r: any, i: number) => `${i}. ${r.headline}`).join('\n');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: TAKE_MODEL, max_tokens: 2000, system: TAKE_PROMPT, messages: [{ role: 'user', content: list }] }),
+  });
+  if (!res.ok) throw new Error('anthropic ' + res.status);
+  const out = await res.json();
+  const text = (out.content || []).map((c: any) => c.text || '').join('');
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('no JSON from model');
+  const items = JSON.parse(m[0]).items || [];
+  let n = 0;
+  for (const it of items) {
+    const row = pending[it.i];
+    if (!row) continue;
+    let q = typeof it.q === 'string' ? it.q.trim() : null;
+    if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlockedHeadline(q))) q = null;
+    const { error: uErr } = await admin.from('news_ticker').update({ take_question: q, take_checked: true }).eq('id', row.id);
+    if (!uErr && q) n++;
+  }
+  return { generated: n, checked: items.length };
 }
 
 Deno.serve(async (req: Request) => {
@@ -220,7 +275,10 @@ Deno.serve(async (req: Request) => {
       if (trimError) throw trimError;
     }
 
-    return new Response(JSON.stringify({ scanned: allNews.length, matched: rows.length, newly_inserted: (upserted || []).length }), { status: 200 });
+    let takes: any = null;
+    try { takes = await generateTakes(admin); } catch (e) { takes = { error: String(e) }; }
+
+    return new Response(JSON.stringify({ scanned: allNews.length, matched: rows.length, newly_inserted: (upserted || []).length, takes }), { status: 200 });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
