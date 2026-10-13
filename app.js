@@ -7482,7 +7482,7 @@
   // ===== News + Trending feeds, and discussion threads =====
   // Both tabs show the same kind of card: the story, an optional Yes/No debate, and a
   // comment count. Tapping a card opens its thread (the story, the debate and the full
-  // discussion). Marqit "updates" (kind = 'update') are posted from the admin page.
+  // discussion). Trending posts (kind = 'post') are links to social posts, added from the admin page.
   (function(){
     var LANES = [ ['all', 'All'], ['sports', 'Sports'], ['pop', 'Pop Culture'], ['music', 'Music'], ['tech', 'Tech'], ['news', 'News'] ];
     var LANE_NAME = { sports: 'Sports', pop: 'Pop Culture', music: 'Music', tech: 'Tech', news: 'News' };
@@ -7515,7 +7515,7 @@
     function hot(r){
       var s = statsById[r.id] || {};
       var ageH = Math.max(0, (Date.now() - new Date(r.fetched_at || r.published_at || Date.now()).getTime()) / 3600000);
-      var base = (Number(s.comments) || 0) * 3 + (Number(s.votes) || 0) + (r.kind === 'update' ? 4 : 0);
+      var base = (Number(s.comments) || 0) * 3 + (Number(s.votes) || 0) + (r.kind === 'post' ? 4 : 0);
       return (base + 1) / Math.pow(ageH + 2, 1.2) + (r.pinned ? 1000 : 0);
     }
 
@@ -7525,7 +7525,7 @@
       loadingRows = (async function(){
         var base = 'id, headline, source_name, article_url, published_at, fetched_at';
         var tries = [
-          base + ', image_url, take_question, summary, kind, lane, body, pinned',
+          base + ', image_url, take_question, summary, kind, lane, pinned',
           base + ', image_url, take_question',
           base + ', image_url',
           base
@@ -7536,7 +7536,7 @@
           if(!res.error) break;
         }
         if(!res || res.error){ loadingRows = null; return null; }
-        var rows = (res.data || []).filter(function(r){ return r.kind === 'update' || mqNewsAllowed(r.headline); });
+        var rows = (res.data || []).filter(function(r){ return r.kind === 'post' || mqNewsAllowed(r.headline); });
         rows.forEach(function(r){ r.kind = r.kind || 'news'; rowsById[r.id] = r; });
         allRows = rows;
         return rows;
@@ -7560,19 +7560,82 @@
       }catch(e){ /* buttons stay available; voting still tries */ }
     }
 
+
+    // ---- social posts (Trending) ----
+    var PLATFORMS = { 'x.com': 'X', 'twitter.com': 'X', 'instagram.com': 'Instagram', 'tiktok.com': 'TikTok', 'bsky.app': 'Bluesky', 'youtube.com': 'YouTube', 'youtu.be': 'YouTube', 'threads.net': 'Threads', 'threads.com': 'Threads' };
+    function hostOf(url){ try { return new URL(url).hostname.replace(/^(www|mobile|m)\./, '').toLowerCase(); } catch(e){ return ''; } }
+    function platformOf(url){ return PLATFORMS[hostOf(url)] || 'Post'; }
+    var scriptLoads = {};
+    function loadScript(src){
+      if(scriptLoads[src]) return scriptLoads[src];
+      scriptLoads[src] = new Promise(function(resolve, reject){
+        var sc = document.createElement('script'); sc.src = src; sc.async = true; sc.charset = 'utf-8';
+        sc.onload = function(){ resolve(); }; sc.onerror = function(){ reject(new Error('blocked')); };
+        document.head.appendChild(sc);
+      });
+      return scriptLoads[src];
+    }
+    function embedFallback(el, url){
+      el.classList.add('post-fallback');
+      el.innerHTML = '<a class="post-open" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">View the post on ' + escapeHtml(platformOf(url)) + ' ↗</a>';
+    }
+    // Renders the platform's own embed so the post shows exactly as its author made it, with credit.
+    async function renderEmbed(el){
+      if(el.getAttribute('data-done')) return;
+      el.setAttribute('data-done', '1');
+      var url = el.getAttribute('data-url') || '', host = hostOf(url);
+      try{
+        if(host === 'x.com' || host === 'twitter.com'){
+          var m = url.match(/status(?:es)?\/(\d+)/);
+          if(!m){ embedFallback(el, url); return; }
+          await loadScript('https://platform.twitter.com/widgets.js');
+          el.innerHTML = '';
+          var made = await window.twttr.widgets.createTweet(m[1], el, { theme: 'dark', dnt: true, conversation: 'none', align: 'center' });
+          if(!made) embedFallback(el, url);
+        }else if(host === 'instagram.com'){
+          el.innerHTML = '<blockquote class="instagram-media" data-instgrm-permalink="' + escapeHtml(url) + '" data-instgrm-version="14" style="max-width:540px;width:100%;margin:0 auto;"></blockquote>';
+          await loadScript('https://www.instagram.com/embed.js');
+          if(window.instgrm && window.instgrm.Embeds) window.instgrm.Embeds.process();
+        }else if(host === 'tiktok.com'){
+          var tm = url.match(/video\/(\d+)/);
+          if(!tm){ embedFallback(el, url); return; }
+          el.innerHTML = '<blockquote class="tiktok-embed" cite="' + escapeHtml(url) + '" data-video-id="' + tm[1] + '" style="max-width:605px;min-width:300px;margin:0 auto;"><section></section></blockquote>';
+          await loadScript('https://www.tiktok.com/embed.js');
+        }else if(host === 'youtube.com' || host === 'youtu.be'){
+          var ym = url.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{6,})/);
+          if(!ym){ embedFallback(el, url); return; }
+          el.innerHTML = '<div class="post-yt"><iframe src="https://www.youtube-nocookie.com/embed/' + ym[1] + '" title="YouTube video" loading="lazy" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
+        }else{
+          embedFallback(el, url);
+        }
+      }catch(e){ embedFallback(el, url); }
+    }
+    var embedObserver = ('IntersectionObserver' in window) ? new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ if(en.isIntersecting){ embedObserver.unobserve(en.target); renderEmbed(en.target); } });
+    }, { rootMargin: '300px 0px' }) : null;
+    function wireEmbeds(scope){
+      scope.querySelectorAll('.post-embed:not([data-done])').forEach(function(el){
+        if(embedObserver && scope !== inner) embedObserver.observe(el); else renderEmbed(el);
+      });
+    }
+
     // ---- pieces of markup shared by cards and the thread screen ----
     function metaHtml(r){
       var url = r.article_url || '', domain = '';
       try { if(url) domain = new URL(url).hostname.replace(/^www\./, ''); } catch(e){}
-      var logo = domain ? '<img class="nt-logo" src="https://www.google.com/s2/favicons?sz=64&domain=' + escapeHtml(domain) + '" alt="" onerror="this.style.display=\'none\'">' : '';
       var when = ago(r.published_at || r.fetched_at);
-      var who = r.kind === 'update' ? '<span class="upd-badge">Marqit update</span>' : '<span>' + escapeHtml(r.source_name || '') + '</span>';
-      var src = (r.kind === 'update' && r.source_name) ? '<span>·</span><span>' + escapeHtml(r.source_name) + '</span>' : '';
-      return '<div class="news-meta">' + logo + who + src + (when ? '<span>·</span><span>' + when + '</span>' : '') + '<span class="lane-tag">' + escapeHtml(LANE_NAME[laneOf(r)] || '') + '</span></div>';
+      var who;
+      if(r.kind === 'post'){
+        who = '<span class="plat-badge">' + escapeHtml(platformOf(url)) + '</span>' + (r.source_name ? '<span class="post-by">' + escapeHtml(r.source_name) + '</span>' : '');
+      }else{
+        var logo = domain ? '<img class="nt-logo" src="https://www.google.com/s2/favicons?sz=64&domain=' + escapeHtml(domain) + '" alt="" onerror="this.style.display=\'none\'">' : '';
+        who = logo + '<span>' + escapeHtml(r.source_name || '') + '</span>';
+      }
+      return '<div class="news-meta">' + who + (when ? '<span>·</span><span>' + when + '</span>' : '') + '<span class="lane-tag">' + escapeHtml(LANE_NAME[laneOf(r)] || '') + '</span></div>';
     }
     function imgHtml(r){
       if(r.image_url && /^https:\/\//i.test(r.image_url)){
-        return '<div class="news-img"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>';
+        return '<div class="news-img"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="var c=this.closest(\'.news-card\');(c||this.parentNode).remove()"></div>';
       }
       return '';
     }
@@ -7593,11 +7656,15 @@
         '<div class="feed-stats"><span class="feed-cmt">' + '<svg class="mq-ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>' + (c ? plural(c, 'comment') : 'Start the discussion') + '</span>' +
         (Number(s.votes) ? '<span>' + plural(Number(s.votes), 'vote') + '</span>' : '') + '</div></div>';
     }
+    function embedHtml(r){
+      return '<div class="post-embed" data-url="' + escapeHtml(r.article_url || '') + '"><div class="post-skel">Loading post…</div></div>';
+    }
     function cardHtml(r){
-      var snippet = (r.kind === 'update' && r.body) ? '<div class="news-sn">' + escapeHtml(r.body) + '</div>' : '';
-      return '<article class="news-card" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
-        imgHtml(r) +
-        '<div class="news-body">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div>' + snippet + '</div>' +
+      var isPost = r.kind === 'post';
+      return '<article class="news-card' + (isPost ? ' is-post' : '') + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+        (isPost ? '' : imgHtml(r)) +
+        '<div class="news-body">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div></div>' +
+        (isPost ? embedHtml(r) : '') +
         takeHtml(r) + footHtml(r) + '</article>';
     }
 
@@ -7672,17 +7739,12 @@
     }
     Feed.prototype.pick = function(){
       var rows = allRows || [];
-      var self = this, lane = this.lane, list;
+      var lane = this.lane, list;
       if(this.cfg.kind === 'news'){
-        list = rows.filter(function(r){ return r.kind !== 'update'; });
+        // Only stories with a photo AND a debate question are shown.
+        list = rows.filter(function(r){ return r.kind !== 'post' && r.take_question && r.image_url && /^https:\/\//i.test(r.image_url); });
       }else{
-        var updates = rows.filter(function(r){ return r.kind === 'update'; });
-        var active = rows.filter(function(r){ var s = statsById[r.id] || {}; return r.kind !== 'update' && ((Number(s.comments) || 0) > 0 || (Number(s.votes) || 0) > 0); });
-        list = updates.concat(active);
-        if(list.length < 12){
-          var have = {}; list.forEach(function(r){ have[r.id] = 1; });
-          rows.filter(function(r){ return r.kind !== 'update' && !have[r.id]; }).slice(0, 12 - list.length).forEach(function(r){ list.push(r); });
-        }
+        list = rows.filter(function(r){ return r.kind === 'post'; });
       }
       if(lane !== 'all') list = list.filter(function(r){ return laneOf(r) === lane; });
       list = list.slice();
@@ -7692,8 +7754,9 @@
     };
     Feed.prototype.render = function(){
       var list = this.pick();
-      this.grid.innerHTML = list.map(cardHtml).join('') || '<p class="news-empty">' + (this.cfg.kind === 'news' ? 'No stories in this lane right now. Check back soon.' : 'Nothing here yet. Check back soon.') + '</p>';
+      this.grid.innerHTML = list.map(cardHtml).join('') || '<p class="news-empty">' + (this.cfg.kind === 'news' ? 'No stories in this lane right now. Check back soon.' : 'No posts here yet. Check back soon.') + '</p>';
       paintAll(this.grid);
+      wireEmbeds(this.grid);
     };
     Feed.prototype.load = async function(){
       if(this.loaded) return;
@@ -7710,7 +7773,7 @@
     function onGridClick(ev){
       var btn = ev.target.closest('.take-btn');
       if(btn){ ev.stopPropagation(); if(!btn.disabled) vote(btn); return; }
-      if(ev.target.closest('a')) return;
+      if(ev.target.closest('a') || ev.target.closest('.post-embed')) return;
       var card = ev.target.closest('.news-card');
       if(card && card.getAttribute('data-news-id')) openThread(card.getAttribute('data-news-id'), true);
     }
@@ -7733,21 +7796,22 @@
       openId = id;
       await Promise.all([loadStats([id]), loadResults(r.take_question ? [id] : [])]);
       var s = statsById[id] || {};
-      var text = r.kind === 'update' ? r.body : r.summary;
-      var read = r.article_url ? '<a class="thread-read" href="' + escapeHtml(r.article_url) + '" target="_blank" rel="noopener noreferrer">Read the story' + (r.source_name && r.kind !== 'update' ? ' on ' + escapeHtml(r.source_name) : '') + ' ↗</a>' : '';
+      var isPost = r.kind === 'post', text = isPost ? '' : r.summary;
+      var read = (r.article_url && !isPost) ? '<a class="thread-read" href="' + escapeHtml(r.article_url) + '" target="_blank" rel="noopener noreferrer">Read the story' + (isPost ? '' : (r.source_name ? ' on ' + escapeHtml(r.source_name) : '')) + ' ↗</a>' : '';
       inner.innerHTML =
         '<div class="thread-top"><button type="button" class="thread-back" id="thread-back" aria-label="Back">' +
           '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Back</button>' +
           '<button type="button" class="thread-share" id="thread-share">Share</button></div>' +
-        '<div class="thread-story">' + imgHtml(r) +
+        '<div class="thread-story">' + (isPost ? '' : imgHtml(r)) +
           '<div class="news-body">' + metaHtml(r) + '<h3 class="thread-h">' + escapeHtml(r.headline || '') + '</h3>' +
           (text ? '<p class="thread-sum">' + escapeHtml(text) + '</p>' : '') + read + '</div>' +
-          takeHtml(r) + '</div>' +
+          (isPost ? embedHtml(r) : '') + takeHtml(r) + '</div>' +
         '<div class="thread-cmt-head"><h4>Discussion <span id="thread-count">' + (Number(s.comments) ? '· ' + Number(s.comments) : '') + '</span></h4>' +
           '<span class="thread-sort"><button type="button" class="feed-chip on" data-tsort="top">Top</button><button type="button" class="feed-chip" data-tsort="new">New</button></span></div>' +
         '<details class="cmt thread-cmt" open data-question-id="' + escapeHtml(id) + '" data-sort="' + sortMode + '"><summary class="cmt-sum" style="display:none"><span>Comments <span class="cmt-count"></span></span></summary>' +
           '<div class="cmt-body"><div class="cmt-compose"></div><div class="cmt-list"></div></div></details>';
       paintAll(inner);
+      wireEmbeds(inner);
       document.getElementById('thread-back').addEventListener('click', closeThread);
       document.getElementById('thread-share').addEventListener('click', function(){ shareThread(r); });
       inner.querySelectorAll('[data-tsort]').forEach(function(b){

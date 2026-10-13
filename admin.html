@@ -59,18 +59,16 @@
   <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Comments the word filter held back, plus any that got 3 reports and were hidden. Held comments are only visible to their author until you approve them. Applies to News, Trending and the daily questions.</p>
   <div id="review-list">Loading&hellip;</div>
 
-  <h2>Trending updates</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Post an update to the Trending tab. Each one gets its own discussion thread. Add a Yes/No question if you want a debate on it.</p>
+  <h2>Trending posts</h2>
+  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Paste a link to a post on X, Instagram, TikTok, Bluesky, YouTube or Threads. It shows on the Trending tab as the real post (embedded from the platform, with credit and a link back) with its own Marqit discussion. Add a Yes/No question if you want a debate on it.</p>
+  <label>Post link</label><input id="upd-url" type="text" placeholder="https://x.com/AdamSchefter/status/123456789">
   <label>Lane</label>
   <select id="upd-lane"><option value="sports">Sports</option><option value="pop">Pop Culture</option><option value="music">Music</option><option value="tech">Tech</option><option value="news">News</option></select>
-  <label>Headline</label><input id="upd-title" type="text" maxlength="200" placeholder="Billboard Hot 100: new No. 1 this week">
-  <label>Details (optional)</label><textarea id="upd-body" rows="3" maxlength="1200" placeholder="A few sentences on what happened."></textarea>
-  <label>Source name (optional)</label><input id="upd-source" type="text" maxlength="60" placeholder="Billboard">
-  <label>Source link (optional, https)</label><input id="upd-url" type="text" placeholder="https://www.billboard.com/...">
-  <label>Photo link (optional, https)</label><input id="upd-img" type="text" placeholder="https://...">
-  <label>Yes/No debate question (optional)</label><input id="upd-take" type="text" maxlength="120" placeholder="Does this deserve to be No. 1?">
+  <label>One-line headline (what it is about)</label><input id="upd-title" type="text" maxlength="200" placeholder="Schefter: Ravens finalizing a deal with ...">
+  <label>Who posted it (optional)</label><input id="upd-source" type="text" maxlength="60" placeholder="Adam Schefter">
+  <label>Yes/No debate question (optional)</label><input id="upd-take" type="text" maxlength="120" placeholder="Is this the right move for the Ravens?">
   <label style="display:flex;align-items:center;gap:8px;"><input id="upd-pin" type="checkbox" style="width:auto;"> Pin to the top</label>
-  <button id="upd-post-btn">Post update</button>
+  <button id="upd-post-btn">Add post</button>
   <p id="upd-msg" style="font-size:13px; margin-top:8px;"></p>
   <div id="upd-list"></div>
 
@@ -1233,38 +1231,37 @@
   var LANE_NAMES = { sports: 'Sports', pop: 'Pop Culture', music: 'Music', tech: 'Tech', news: 'News' };
   async function loadUpdates(){
     var box = document.getElementById('upd-list');
-    var res = await sb.from('news_ticker').select('id, headline, lane, pinned, take_question, fetched_at').eq('kind', 'update').order('fetched_at', { ascending: false }).limit(30);
+    var res = await sb.from('news_ticker').select('id, headline, article_url, source_name, lane, pinned, take_question, fetched_at').eq('kind', 'post').order('fetched_at', { ascending: false }).limit(30);
     box.textContent = '';
-    if(res.error){ box.textContent = 'Could not load updates (is the database update applied?)'; return; }
+    if(res.error){ box.textContent = 'Could not load posts (is the database update applied?)'; return; }
     (res.data || []).forEach(function(u){
       var r = wEl('div'); r.className = 'qrow';
       r.appendChild(wEl('div', (LANE_NAMES[u.lane] || u.lane) + (u.pinned ? ' \u00b7 pinned' : '') + ' \u00b7 ' + new Date(u.fetched_at).toLocaleString(), 'font-size:11.5px;font-weight:700;color:var(--ink-soft);'));
       r.appendChild(wEl('div', u.headline, 'font-weight:600;font-size:14px;margin-top:4px;'));
+      r.appendChild(wEl('div', (u.source_name ? u.source_name + ' \u00b7 ' : '') + (u.article_url || ''), 'font-size:12px;color:var(--ink-soft);margin-top:2px;word-break:break-all;'));
       var q = wEl('input'); q.type = 'text'; q.maxLength = 120; q.value = u.take_question || ''; q.placeholder = 'Yes/No question (blank = none)'; q.style.marginTop = '8px'; r.appendChild(q);
       var a = wEl('div'); a.className = 'actions';
       var sv = wEl('button', 'Save question'); sv.className = 'btn-edit';
       sv.addEventListener('click', async function(){ sv.disabled = true; var x = await sb.rpc('admin_set_take_question', { p_id: u.id, p_question: q.value }); if(x.error) alert(x.error.message); sv.disabled = false; });
       var pin = wEl('button', u.pinned ? 'Unpin' : 'Pin'); pin.className = 'btn-edit';
-      pin.addEventListener('click', async function(){ pin.disabled = true; await sb.rpc('admin_set_update_pinned', { p_id: u.id, p_pinned: !u.pinned }); loadUpdates(); });
+      pin.addEventListener('click', async function(){ pin.disabled = true; await sb.rpc('admin_set_post_pinned', { p_id: u.id, p_pinned: !u.pinned }); loadUpdates(); });
       var del = wEl('button', 'Delete'); del.className = 'btn-no';
-      del.addEventListener('click', async function(){ if(!confirm('Delete this update and its comments?')) return; del.disabled = true; await sb.rpc('admin_delete_update', { p_id: u.id }); loadUpdates(); });
+      del.addEventListener('click', async function(){ if(!confirm('Delete this post and its comments?')) return; del.disabled = true; await sb.rpc('admin_delete_post', { p_id: u.id }); loadUpdates(); });
       a.appendChild(sv); a.appendChild(pin); a.appendChild(del); r.appendChild(a); box.appendChild(r);
     });
   }
   document.getElementById('upd-post-btn').addEventListener('click', async function(){
-    var res = await sb.rpc('admin_post_update', {
+    var res = await sb.rpc('admin_post_social', {
       p_lane: document.getElementById('upd-lane').value,
-      p_title: document.getElementById('upd-title').value,
-      p_body: document.getElementById('upd-body').value,
-      p_source_name: document.getElementById('upd-source').value,
-      p_source_url: document.getElementById('upd-url').value,
-      p_image_url: document.getElementById('upd-img').value,
+      p_url: document.getElementById('upd-url').value,
+      p_headline: document.getElementById('upd-title').value,
+      p_author: document.getElementById('upd-source').value,
       p_take_question: document.getElementById('upd-take').value,
       p_pinned: document.getElementById('upd-pin').checked
     });
     if(res.error){ modMsg('upd-msg', 'Error: ' + res.error.message, true); return; }
-    modMsg('upd-msg', 'Posted. It is live on the Trending tab.');
-    ['upd-title', 'upd-body', 'upd-source', 'upd-url', 'upd-img', 'upd-take'].forEach(function(i){ document.getElementById(i).value = ''; });
+    modMsg('upd-msg', 'Added. It is live on the Trending tab.');
+    ['upd-title', 'upd-source', 'upd-url', 'upd-take'].forEach(function(i){ document.getElementById(i).value = ''; });
     document.getElementById('upd-pin').checked = false;
     loadUpdates();
   });
