@@ -50,7 +50,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261012g">
+<link rel="stylesheet" href="style.css?v=20261012h">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -314,7 +314,7 @@
     </div>
 
     <!-- Buddies, rivals and recent activity: collapsed by default so the Play tab stays about the three questions. Tap a row to open it. Shown once signed in. -->
-    <div id="play-friends" style="display:none; margin-top:28px;">
+    <div id="play-friends" class="play-friends-grid" style="display:none; margin-top:28px;">
       <details class="mq-fold" id="fold-buddies">
       <summary><span class="sec-ico" style="--rc:51,209,139;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><h3 class="ex-title">Your buddies</h3><span class="mq-fold-count" id="buddy-fold-count" style="display:none;"></span><svg class="mq-fold-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
       <div class="mq-fold-body">
@@ -573,7 +573,11 @@
     </div>
     <div class="recap-card" id="recap-card" style="margin-top:14px; border-top:3px solid #128A50;">
       <div class="recap-head">This week</div>
-      <div class="recap-stats">
+      <div class="recap-strip" id="recap-strip" style="display:none;">
+        <div class="rs-streak"><strong id="recap-strip-streak" style="color:#128A50;">—</strong><span>Day streak</span></div>
+        <div class="rs-days" id="recap-strip-days"></div>
+      </div>
+      <div class="recap-stats" id="recap-stats">
         <div><strong id="recap-accuracy" style="color:#128A50;">—</strong><span>Accuracy</span></div>
         <div><strong id="recap-predictions" style="color:#128A50;">—</strong><span>Predictions</span></div>
         <div><strong id="recap-streak" style="color:#128A50;">—</strong><span>Day streak</span></div>
@@ -925,7 +929,7 @@
     <p class="welcome-note">No account needed to play.</p>
   </div>
 </div>
-<script src="app.js?v=20261012g" defer></script>
+<script src="app.js?v=20261012h" defer></script>
 
 
 

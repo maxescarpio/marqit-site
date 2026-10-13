@@ -1000,7 +1000,7 @@
       heroMsg.className = 'form-msg ok';
       heroMsg.textContent = needsUsername ? 'Pick a username to finish setting up your account.' : 'You\'re signed in as ' + username + '.';
     }
-    const playFriends = document.getElementById('play-friends'); if(playFriends) playFriends.style.display = 'block';
+    const playFriends = document.getElementById('play-friends'); if(playFriends) playFriends.style.display = 'grid';
     if(needsUsername) promptUsernameChoice();
     loadMyStats();
     loadShareCard(username);
@@ -4483,7 +4483,7 @@
     wrap.style.cssText = 'border-top:1px solid var(--line); margin-top:24px; padding-top:24px;';
 
     const box = document.createElement('div');
-    box.style.cssText = 'max-width:480px; background:var(--paper); border:2px solid var(--yes); border-radius:16px; padding:24px;';
+    box.style.cssText = 'max-width:480px; background:var(--paper); border:2px solid var(--yes); border-radius:16px; padding:20px 22px;';
 
     // Tomorrow's date in ET, used as the earliest date someone can request.
     const etParts = getETDateInfo().dateStr.split('-').map(Number);
@@ -4497,14 +4497,16 @@
         '<p class="ticket-q" style="max-width:none; margin:0;">Request a prediction</p>' +
       '</div>' +
       '<p class="ticket-meta">Got an idea for a future call? Tell us what, and which day.</p>' +
-      '<select id="suggestion-category" style="padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px; margin-top:14px; margin-bottom:8px;">' +
+      '<div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; margin-bottom:8px;">' +
+      '<select id="suggestion-category" style="padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px;">' +
         '<option value="sports">Sports</option>' +
         '<option value="pop_culture">Pop culture</option>' +
         '<option value="news">News</option>' +
       '</select>' +
-      '<input type="date" id="suggestion-date" min="' + minDateStr + '" value="' + minDateStr + '" style="display:block; padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px; margin-bottom:8px;">' +
-      '<textarea id="suggestion-text" rows="2" maxlength="300" placeholder="What should we ask?" style="display:block; width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px; resize:vertical;"></textarea>' +
-      '<button type="button" id="suggestion-submit-btn" style="margin-top:12px; padding:11px 22px; border:none; border-radius:10px; background:#FFFFFF; color:#17191D; font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Pitch idea</button>' +
+      '<input type="date" id="suggestion-date" min="' + minDateStr + '" value="' + minDateStr + '" style="padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px;">' +
+      '</div>' +
+      '<textarea id="suggestion-text" rows="2" maxlength="300" placeholder="What should we ask?" style="display:block; width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px; resize:none;"></textarea>' +
+      '<button type="button" id="suggestion-submit-btn" style="margin-top:10px; padding:10px 22px; border:none; border-radius:10px; background:#FFFFFF; color:#17191D; font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Pitch idea</button>' +
       '<p class="form-msg" id="suggestion-msg" style="margin-top:6px;"></p>';
     wrap.appendChild(box);
     const host = document.getElementById('play-suggest') || container;
@@ -6098,7 +6100,7 @@
     var right = rows.filter(function(r){ return r.choice === r.daily_questions.correct_answer; }).length;
     rateEl.innerHTML = '<b>' + Math.round(right / rows.length * 100) + '%</b><span>hit rate \u00b7 last ' + rows.length + '</span>';
 
-    listEl.innerHTML = rows.map(function(r){
+    function callRow(r){
       var dq = r.daily_questions, won = r.choice === dq.correct_answer;
       var icon = CATEGORY_ICONS[dq.category] || '';
       var qtext = (dq.question_text || '').length > 46 ? dq.question_text.slice(0, 44) + '\u2026' : (dq.question_text || '');
@@ -6107,7 +6109,18 @@
         '<span class="mycall-q">' + escapeHtml(qtext) + '</span>' +
         '<span class="mycall-res">' + mqIcon(won ? 'check' : 'xmark') + '</span>' +
       '</div>';
-    }).join('');
+    }
+    // Your latest three stay in view; anything older sits behind a "Show earlier calls" dropdown.
+    var firstRows = rows.slice(0, 3), olderRows = rows.slice(3);
+    var html = firstRows.map(callRow).join('');
+    if(olderRows.length){
+      html += '<details class="mycalls-more">' +
+        '<summary><span class="mm-closed">Show ' + olderRows.length + ' earlier ' + (olderRows.length === 1 ? 'call' : 'calls') + '</span><span class="mm-open">Show less</span>' +
+        '<svg class="mm-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
+        olderRows.map(callRow).join('') +
+      '</details>';
+    }
+    listEl.innerHTML = html;
   }
 
   async function loadWeeklyRecap(){
@@ -6129,8 +6142,39 @@
     const { data: myStreak } = await sb.from('streaks').select('current_streak').eq('user_id', session.user.id).maybeSingle();
 
     if(!data || data.length === 0){
-      document.getElementById('recap-foot').textContent = 'No resolved calls yet this week.';
-      document.getElementById('recap-streak').textContent = myStreak ? myStreak.current_streak : 0;
+      var streakNow = myStreak ? myStreak.current_streak : 0;
+      document.getElementById('recap-streak').textContent = streakNow;
+      // Nothing scored yet: show Mon-Sun with the calls you've locked in so far, instead of empty dashes.
+      var stripEl = document.getElementById('recap-strip'), daysEl = document.getElementById('recap-strip-days'), statsEl = document.getElementById('recap-stats');
+      if(stripEl && daysEl && statsEl){
+        var locked = {};
+        try{
+          var lr = await sb.from('predictions')
+            .select('daily_questions!inner(question_date)')
+            .eq('user_id', session.user.id)
+            .gte('daily_questions.question_date', weekStart)
+            .lte('daily_questions.question_date', today);
+          (lr.data || []).forEach(function(row){
+            var d = row.daily_questions && row.daily_questions.question_date;
+            if(d) locked[d] = (locked[d] || 0) + 1;
+          });
+        }catch(e){ /* the strip still shows without counts */ }
+        var names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        var base = new Date(weekStart + 'T00:00:00Z');
+        daysEl.innerHTML = names.map(function(nm, i){
+          var dt = new Date(base.getTime()); dt.setUTCDate(base.getUTCDate() + i);
+          var ds = dt.toISOString().slice(0, 10), n = locked[ds] || 0;
+          var cls = 'rs-day' + (ds === today ? ' today' : '') + (ds > today ? ' future' : '') + (n ? ' has' : '');
+          return '<div class="' + cls + '"><span class="rs-dot">' + (n ? n : '') + '</span><span class="rs-name">' + nm + '</span></div>';
+        }).join('');
+        var todayN = locked[today] || 0;
+        document.getElementById('recap-strip-streak').textContent = streakNow;
+        statsEl.style.display = 'none';
+        stripEl.style.display = 'flex';
+        document.getElementById('recap-foot').textContent = (todayN ? (todayN + (todayN === 1 ? ' call' : ' calls') + ' locked in today. ') : '') + 'Your week fills in as results come back.';
+      }else{
+        document.getElementById('recap-foot').textContent = 'No resolved calls yet this week.';
+      }
       return;
     }
 
