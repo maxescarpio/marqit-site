@@ -50,7 +50,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261014e">
+<link rel="stylesheet" href="style.css?v=20261014f">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -78,7 +78,7 @@
     <div style="display:flex; align-items:center; gap:12px;">
       <div id="nav-signed-out" style="display:flex; align-items:center; gap:10px;">
         <button type="button" id="nav-login-btn" style="display:none; background:none; border:none; padding:8px 4px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer;">Log in</button>
-        <button type="button" id="nav-signup-btn" style="background:var(--ink); border:none; border-radius:8px; padding:9px 18px; font-size:14px; font-weight:600; color:var(--paper); cursor:pointer;">Play free</button>
+        <button type="button" id="nav-signup-btn" style="background:var(--ink); border:none; border-radius:8px; padding:9px 18px; font-size:14px; font-weight:600; color:var(--paper); cursor:pointer;">Sign up free</button>
       </div>
 
       <div id="nav-signed-in" style="display:none; align-items:center; gap:10px;">
@@ -288,9 +288,9 @@
 <div id="page-home" class="page">
 <header class="hero hero-play">
   <div class="wrap">
-    <h1>Pick. Lock. Climb.</h1>
-    <p class="sub">3 free picks a day. <span class="streak-accent">Keep your streak alive.</span></p>
-    <p id="hero-guest-note" style="display:inline-flex; align-items:center; gap:8px; margin:16px 0 8px; padding:7px 16px; border:1px solid var(--line); border-radius:999px; background:var(--panel); font-size:13.5px; font-weight:600; color:var(--ink);"><span style="color:var(--yes);">&#10003;</span> No account needed to play. Just pick and submit.</p>
+    <h1>Make your 3 calls.</h1>
+    <p class="sub">Yes or no on today's news, sports and pop culture. <span class="streak-accent">Get them right, climb the board.</span></p>
+    <p id="hero-guest-note" style="display:inline-flex; align-items:center; gap:8px; margin:16px 0 8px; padding:7px 16px; border:1px solid var(--line); border-radius:999px; background:var(--panel); font-size:13.5px; font-weight:600; color:var(--ink);"><span style="color:var(--yes);">&#10003;</span> No account needed. Pick now, sign up whenever.</p>
     <p class="form-msg" id="hero-status-msg"></p>
     <p class="count-line" id="count-line" style="display:none;"></p>
   </div>
@@ -428,7 +428,7 @@
 <section class="section hero-lite">
   <div class="wrap">
     <h2>News</h2>
-    <p style="font-size:16px; margin-top:12px; max-width:520px; color:var(--ink-soft);">The stories everyone is talking about in sports, pop culture and more. Pick a side and join the discussion.</p>
+    <p style="font-size:16px; margin-top:12px; max-width:520px; color:var(--ink-soft);">What people are arguing about today. Pick a side and say why.</p>
     <div class="feed-chips" id="news-chips"></div>
     <div class="news-grid" id="news-grid" aria-live="polite">
       <div class="news-card news-skel"><i class="sk" style="height:150px;border-radius:0;"></i><div class="news-body"><i class="sk" style="width:40%;"></i><i class="sk" style="width:92%;margin-top:10px;"></i><i class="sk" style="width:70%;margin-top:6px;"></i></div></div>
@@ -458,7 +458,7 @@
 <section class="section hero-lite" style="--fx1:51,209,139;--fx2:84,108,250;">
   <div class="wrap">
     <h2>How to play</h2>
-    <p style="font-size:15px; margin-top:10px;">Pick. Lock. Climb the leaderboard.</p>
+    <p style="font-size:15px; margin-top:10px;">See who is calling it right.</p>
   </div>
 </section>
 
@@ -650,7 +650,7 @@
     <div id="group-in-group" style="display:none;">
       <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">
         Invite link: <code id="group-invite-code" style="background:var(--yes-bg); color:var(--yes); border:1px solid var(--yes); padding:3px 9px; border-radius:10px; font-weight:700;"></code>
-        <button id="copy-invite-btn" style="margin-left:8px; padding:4px 10px; border:1px solid var(--line); border-radius:10px; background:none; font-size:12px; cursor:pointer;">Copy</button>
+        <button id="copy-invite-btn" style="margin-left:8px; padding:6px 14px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-size:13px; font-weight:600; cursor:pointer;">Copy</button>
         <button id="leave-group-btn" style="margin-left:8px; padding:4px 10px; border:1px solid var(--no); border-radius:10px; background:none; color:var(--no); font-size:12px; cursor:pointer;">Leave group</button>
       </p>
       <div style="display:flex; gap:8px; max-width:420px; margin-bottom:16px;">
@@ -959,7 +959,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261014e" defer></script>
+<script src="app.js?v=20261014f" defer></script>
 
 
 

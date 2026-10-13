@@ -1,95 +1,81 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Only headlines from these outlets are shown in the ticker and the News tab.
-// Keyed by the article's hostname (minus a leading www.), mapped to the display
-// name we want to show instead of the article's author byline.
-const ALLOWED_SOURCES: Record<string, string> = {
-  // General news
-  'bbc.com': 'BBC',
-  'bbc.co.uk': 'BBC',
-  'reuters.com': 'Reuters',
-  'apnews.com': 'AP News',
-  'nbcnews.com': 'NBC News',
-  'abcnews.go.com': 'ABC News',
-  'cbsnews.com': 'CBS News',
-  'usatoday.com': 'USA Today',
-  'theguardian.com': 'The Guardian',
-  'nytimes.com': 'The New York Times',
-  'washingtonpost.com': 'The Washington Post',
-  'wsj.com': 'The Wall Street Journal',
-  'politico.com': 'Politico',
-  'nypost.com': 'New York Post',
-  'metro.co.uk': 'Metro',
-  'mirror.co.uk': 'Mirror',
-  'npr.org': 'NPR',
-  'time.com': 'Time',
-  'newsweek.com': 'Newsweek',
-  'independent.co.uk': 'The Independent',
-  'telegraph.co.uk': 'The Telegraph',
-  'axios.com': 'Axios',
-  'businessinsider.com': 'Business Insider',
-  'thehill.com': 'The Hill',
-  'news.sky.com': 'Sky News',
-  'aljazeera.com': 'Al Jazeera',
-  'latimes.com': 'LA Times',
-  // Entertainment
-  'people.com': 'People',
-  'eonline.com': 'E! Online',
-  'variety.com': 'Variety',
-  'ew.com': 'Entertainment Weekly',
-  'usmagazine.com': 'Us Weekly',
-  'tmz.com': 'TMZ',
-  'pagesix.com': 'Page Six',
-  'rollingstone.com': 'Rolling Stone',
-  'billboard.com': 'Billboard',
-  'hollywoodreporter.com': 'The Hollywood Reporter',
-  'deadline.com': 'Deadline',
-  'gq.com': 'GQ',
-  'elle.com': 'Elle',
+// THE NEWS SOURCE LIST. Only stories from these outlets are ever stored or shown.
+// To add or remove a site, edit this list. Each outlet belongs to one tab:
+// 'news' (general, business, finance, tech), 'pop' (pop culture, entertainment,
+// music) or 'sports'. Keyed by hostname (minus www.), value is [display name, tab].
+type Tab = 'news' | 'pop' | 'sports';
+const SOURCES: Record<string, [string, Tab]> = {
+  // News: general
+  'apnews.com': ['AP News', 'news'],
+  'reuters.com': ['Reuters', 'news'],
+  'bbc.com': ['BBC', 'news'],
+  'bbc.co.uk': ['BBC', 'news'],
+  'nbcnews.com': ['NBC News', 'news'],
+  'abcnews.go.com': ['ABC News', 'news'],
+  'cbsnews.com': ['CBS News', 'news'],
+  'usatoday.com': ['USA Today', 'news'],
+  'theguardian.com': ['The Guardian', 'news'],
+  'nytimes.com': ['The New York Times', 'news'],
+  'npr.org': ['NPR', 'news'],
+  'time.com': ['Time', 'news'],
+  'axios.com': ['Axios', 'news'],
+  'nypost.com': ['New York Post', 'news'],
+  'newsweek.com': ['Newsweek', 'news'],
+  'independent.co.uk': ['The Independent', 'news'],
+  // News: business and finance
+  'wsj.com': ['The Wall Street Journal', 'news'],
+  'bloomberg.com': ['Bloomberg', 'news'],
+  'cnbc.com': ['CNBC', 'news'],
+  'finance.yahoo.com': ['Yahoo Finance', 'news'],
+  'marketwatch.com': ['MarketWatch', 'news'],
+  'forbes.com': ['Forbes', 'news'],
+  'fortune.com': ['Fortune', 'news'],
+  'barrons.com': ["Barron's", 'news'],
+  'businessinsider.com': ['Business Insider', 'news'],
+  'inc.com': ['Inc.', 'news'],
+  'fastcompany.com': ['Fast Company', 'news'],
+  'semafor.com': ['Semafor', 'news'],
+  'benzinga.com': ['Benzinga', 'news'],
+  'thestreet.com': ['TheStreet', 'news'],
+  'investors.com': ["Investor's Business Daily", 'news'],
+  // News: tech and space
+  'techcrunch.com': ['TechCrunch', 'news'],
+  'theverge.com': ['The Verge', 'news'],
+  'engadget.com': ['Engadget', 'news'],
+  'wired.com': ['Wired', 'news'],
+  'arstechnica.com': ['Ars Technica', 'news'],
+  'cnet.com': ['CNET', 'news'],
+  'venturebeat.com': ['VentureBeat', 'news'],
+  'gizmodo.com': ['Gizmodo', 'news'],
+  'mashable.com': ['Mashable', 'news'],
+  'tomshardware.com': ["Tom's Hardware", 'news'],
+  'space.com': ['Space.com', 'news'],
+  'electrek.co': ['Electrek', 'news'],
+  '9to5mac.com': ['9to5Mac', 'news'],
+  'theinformation.com': ['The Information', 'news'],
+  // Pop culture
+  'people.com': ['People', 'pop'],
+  'eonline.com': ['E! Online', 'pop'],
+  'variety.com': ['Variety', 'pop'],
+  'ew.com': ['Entertainment Weekly', 'pop'],
+  'usmagazine.com': ['Us Weekly', 'pop'],
+  'tmz.com': ['TMZ', 'pop'],
+  'pagesix.com': ['Page Six', 'pop'],
+  'rollingstone.com': ['Rolling Stone', 'pop'],
+  'billboard.com': ['Billboard', 'pop'],
+  'hollywoodreporter.com': ['The Hollywood Reporter', 'pop'],
+  'deadline.com': ['Deadline', 'pop'],
   // Sports
-  'espn.com': 'ESPN',
-  'sports.yahoo.com': 'Yahoo Sports',
-  'bleacherreport.com': 'Bleacher Report',
-  'cbssports.com': 'CBS Sports',
-  'si.com': 'Sports Illustrated',
-  'theathletic.com': 'The Athletic',
-  'nfl.com': 'NFL',
-  'nba.com': 'NBA',
-  'mlb.com': 'MLB',
-  // Business / finance
-  'finance.yahoo.com': 'Yahoo Finance',
-  'forbes.com': 'Forbes',
-  'cnbc.com': 'CNBC',
-  'bloomberg.com': 'Bloomberg',
-  'marketwatch.com': 'MarketWatch',
-  'fortune.com': 'Fortune',
-  'barrons.com': "Barron's",
-  'investopedia.com': 'Investopedia',
-  'inc.com': 'Inc.',
-  'fastcompany.com': 'Fast Company',
-  'semafor.com': 'Semafor',
-  'benzinga.com': 'Benzinga',
-  'thestreet.com': 'TheStreet',
-  'investors.com': "Investor's Business Daily",
-  'seekingalpha.com': 'Seeking Alpha',
-  'coindesk.com': 'CoinDesk',
-  'cnbc.com.au': 'CNBC',
-  // Tech
-  'techcrunch.com': 'TechCrunch',
-  'theverge.com': 'The Verge',
-  'engadget.com': 'Engadget',
-  'wired.com': 'Wired',
-  'arstechnica.com': 'Ars Technica',
-  'cnet.com': 'CNET',
-  'mashable.com': 'Mashable',
-  'venturebeat.com': 'VentureBeat',
-  'zdnet.com': 'ZDNet',
-  'gizmodo.com': 'Gizmodo',
-  'tomshardware.com': 'Tom\'s Hardware',
-  'space.com': 'Space.com',
-  'electrek.co': 'Electrek',
-  '9to5mac.com': '9to5Mac',
-  'theinformation.com': 'The Information',
+  'espn.com': ['ESPN', 'sports'],
+  'sports.yahoo.com': ['Yahoo Sports', 'sports'],
+  'bleacherreport.com': ['Bleacher Report', 'sports'],
+  'cbssports.com': ['CBS Sports', 'sports'],
+  'si.com': ['Sports Illustrated', 'sports'],
+  'theathletic.com': ['The Athletic', 'sports'],
+  'nfl.com': ['NFL', 'sports'],
+  'nba.com': ['NBA', 'sports'],
+  'mlb.com': ['MLB', 'sports'],
 };
 
 // Headlines matching any of these are never stored or shown. Strict on purpose
@@ -141,23 +127,23 @@ function isBlockedHeadline(title: string): boolean {
 // the allow-list each time. 3 calls x 72 polls/day (20-min cadence) = 216
 // calls/day, still under the 250/day cap.
 const QUERY_URLS = [
-  'https://api.currentsapi.services/v1/latest-news?language=en&category=business',
-  'https://api.currentsapi.services/v1/latest-news?language=en&category=technology',
+  'https://api.currentsapi.services/v1/latest-news?language=en&category=sports',
+  'https://api.currentsapi.services/v1/latest-news?language=en&category=entertainment',
 ];
-// The third call rotates so sports and entertainment still get pulled, while
-// finance and tech (the main focus of the News tab) are pulled every time.
+// Sports and pop culture are pulled every poll so those tabs never run dry; the
+// third call rotates through the News tab's feeds (general, business, tech).
 // Still 3 calls per poll, so the daily cap is unchanged.
 const ROTATING_URLS = [
   'https://api.currentsapi.services/v1/latest-news?language=en',
-  'https://api.currentsapi.services/v1/latest-news?language=en&category=sports',
-  'https://api.currentsapi.services/v1/latest-news?language=en&category=entertainment',
+  'https://api.currentsapi.services/v1/latest-news?language=en&category=business',
+  'https://api.currentsapi.services/v1/latest-news?language=en&category=technology',
 ];
 // Stories older than this are dropped, so questions never debate stale news
 // (old trades, old feuds) as if it were happening today.
 const MAX_AGE_HOURS = 36;
 
 // Only stories with a photo are stored (the News tab shows a story only if it has a photo and a debate question).
-const MAX_ROWS = 100;
+const MAX_ROWS = 150;
 
 // Currents sends the photo as `image`, or the text "None" when there isn't one.
 function photoUrl(item: any): string | null {
@@ -190,7 +176,7 @@ Rules:
 Reply with JSON only: {"items":[{"i":0,"q":"question or null","lane":"markets"}]}`;
 
 // ---- question safety net -----------------------------------------------------
-const LANES_OK = ['markets', 'tech', 'sports', 'pop', 'music', 'news'];
+const TAB_OF: Record<string, Tab> = { markets: 'news', tech: 'news', news: 'news', sports: 'sports', pop: 'pop', music: 'pop' };
 const WEAK_Q = /\b(one of the (best|worst|greatest)|cover the spread|the spread|over\/under|odds|do you think|should fans|could|might)\b/i;
 const SKIP_WORDS = new Set(['is','are','was','will','can','does','do','did','has','have','the','a','an','and','or','in','on','at','to','of','for','best','worst','new','top','this','that','these','who','what','why','how','when','which','it','he','she','they','we','you','i','yes','no','win','still','than','more','most','better','worse','over','under','worth']);
 // Every capitalised word or number in the question must appear in the story
@@ -214,7 +200,7 @@ async function generateTakes(admin: any) {
   if (!apiKey) return { skipped: 'no ANTHROPIC_API_KEY' };
   const { data: pending, error } = await admin
     .from('news_ticker')
-    .select('id, headline, summary, source_name')
+    .select('id, headline, summary, source_name, lane')
     .eq('take_checked', false)
     .order('fetched_at', { ascending: false })
     .limit(40);
@@ -240,7 +226,7 @@ async function generateTakes(admin: any) {
     let q = typeof it.q === 'string' ? it.q.trim() : null;
     if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlockedHeadline(q) || WEAK_Q.test(q) || !isGrounded(q, `${row.headline} ${row.summary || ''}`))) q = null;
     const upd: any = { take_question: q, take_checked: true };
-    if (q && LANES_OK.includes(it.lane)) upd.lane = it.lane;
+    if (q && TAB_OF[it.lane] && (!row.lane || row.lane === 'news')) upd.lane = TAB_OF[it.lane]; // only general outlets are re-sorted by the model
     const { error: uErr } = await admin.from('news_ticker').update(upd).eq('id', row.id);
     if (!uErr && q) n++;
   }
@@ -286,8 +272,9 @@ Deno.serve(async (req: Request) => {
         try { hostname = new URL(item.url).hostname.replace(/^www\./, ''); }
         catch (_) { return null; }
 
-        const displayName = ALLOWED_SOURCES[hostname];
-        if (!displayName) return null; // not on the allow-list — drop it
+        const src = SOURCES[hostname];
+        if (!src) return null;
+        const displayName = src[0]; // not on the allow-list — drop it
 
         if (item.title && isBlockedHeadline(String(item.title))) return null; // too sensitive — drop it
         if (!photoUrl(item)) return null; // no photo — drop it
@@ -297,6 +284,7 @@ Deno.serve(async (req: Request) => {
         return {
           headline: item.title,
           source_name: displayName,
+          lane: src[1],
           article_url: item.url,
           image_url: photoUrl(item),
           summary: typeof item.description === 'string' ? item.description.trim().slice(0, 700) || null : null,
