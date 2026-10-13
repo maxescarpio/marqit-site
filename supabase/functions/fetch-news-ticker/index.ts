@@ -130,7 +130,8 @@ const QUERY_URLS = [
   'https://api.currentsapi.services/v1/latest-news?language=en&category=entertainment',
 ];
 
-const MAX_ROWS = 40;
+// Only stories with a photo are stored (the News tab shows a story only if it has a photo and a debate question).
+const MAX_ROWS = 100;
 
 // Currents sends the photo as `image`, or the text "None" when there isn't one.
 function photoUrl(item: any): string | null {
@@ -237,6 +238,7 @@ Deno.serve(async (req: Request) => {
         if (!displayName) return null; // not on the allow-list — drop it
 
         if (item.title && isBlockedHeadline(String(item.title))) return null; // too sensitive — drop it
+        if (!photoUrl(item)) return null; // no photo — drop it
 
         return {
           headline: item.title,

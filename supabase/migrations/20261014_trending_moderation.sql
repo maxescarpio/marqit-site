@@ -1,5 +1,5 @@
 -- Trending tab + comment moderation.
--- 1) Marqit "updates" live in news_ticker with kind = 'update' (never auto-trimmed).
+-- 1) Trending posts (links to posts on X, Instagram, TikTok, etc.) live in news_ticker with kind = 'post' (never auto-trimmed).
 -- 2) Comments get a word screen: block (rejected), hold (author sees it, others don't until approved).
 -- 3) Admin-only functions for the review queue, blocked terms, and posting updates.
 -- Admin = is_marqit_admin(), same as the rest of the admin page.
@@ -10,7 +10,7 @@ alter table public.news_ticker
   add column if not exists body text,
   add column if not exists pinned boolean not null default false;
 do $$ begin
-  alter table public.news_ticker add constraint news_ticker_kind_chk check (kind in ('news', 'update'));
+  alter table public.news_ticker add constraint news_ticker_kind_chk check (kind in ('news', 'post'));
 exception when duplicate_object then null; end $$;
 create index if not exists news_ticker_kind_idx on public.news_ticker (kind, fetched_at desc);
 
@@ -307,45 +307,47 @@ begin
 end $function$;
 
 -- ---------- admin: updates and debate questions ----------
-create or replace function public.admin_post_update(
-  p_lane text, p_title text, p_body text default null, p_source_name text default null,
-  p_source_url text default null, p_image_url text default null, p_take_question text default null,
-  p_pinned boolean default false)
+create or replace function public.admin_post_social(
+  p_lane text, p_url text, p_headline text, p_author text default null,
+  p_take_question text default null, p_pinned boolean default false)
  returns uuid language plpgsql security definer set search_path to 'public'
 as $function$
 declare
   v_id uuid;
-  v_title text := btrim(coalesce(p_title, ''));
-  v_url text := nullif(btrim(coalesce(p_source_url, '')), '');
-  v_img text := nullif(btrim(coalesce(p_image_url, '')), '');
+  v_url text := btrim(coalesce(p_url, ''));
+  v_head text := btrim(coalesce(p_headline, ''));
+  v_host text;
   v_take text := nullif(btrim(coalesce(p_take_question, '')), '');
 begin
   if not is_marqit_admin() then raise exception 'Not authorized'; end if;
   if p_lane not in ('sports', 'pop', 'music', 'tech', 'news') then raise exception 'Bad lane'; end if;
-  if char_length(v_title) < 3 or char_length(v_title) > 200 then raise exception 'Title must be 3 to 200 characters'; end if;
-  if v_url is not null and v_url !~* '^https://' then raise exception 'Source link must start with https://'; end if;
-  if v_img is not null and v_img !~* '^https://' then raise exception 'Image link must start with https://'; end if;
-  insert into news_ticker (headline, body, source_name, article_url, image_url, kind, lane, take_question, take_checked, pinned, published_at)
-  values (v_title, nullif(btrim(coalesce(p_body, '')), ''), nullif(btrim(coalesce(p_source_name, '')), ''), v_url, v_img,
-          'update', p_lane, v_take, true, coalesce(p_pinned, false), now())
+  if v_url !~* '^https://' then raise exception 'Paste the full post link (starts with https://)'; end if;
+  v_host := lower(substring(v_url from '^https://(?:www\.|mobile\.|m\.)?([^/?#]+)'));
+  if v_host not in ('x.com', 'twitter.com', 'instagram.com', 'tiktok.com', 'bsky.app', 'youtube.com', 'youtu.be', 'threads.net', 'threads.com') then
+    raise exception 'Supported: X, Instagram, TikTok, Bluesky, YouTube, Threads';
+  end if;
+  if char_length(v_head) < 3 or char_length(v_head) > 200 then raise exception 'Headline must be 3 to 200 characters'; end if;
+  if exists (select 1 from news_ticker where article_url = v_url) then raise exception 'That post is already on Trending'; end if;
+  insert into news_ticker (headline, source_name, article_url, kind, lane, take_question, take_checked, pinned, published_at)
+  values (v_head, nullif(btrim(coalesce(p_author, '')), ''), v_url, 'post', p_lane, v_take, true, coalesce(p_pinned, false), now())
   returning id into v_id;
   return v_id;
 end $function$;
 
-create or replace function public.admin_delete_update(p_id uuid)
+create or replace function public.admin_delete_post(p_id uuid)
  returns void language plpgsql security definer set search_path to 'public'
 as $function$
 begin
   if not is_marqit_admin() then raise exception 'Not authorized'; end if;
-  delete from news_ticker where id = p_id and kind = 'update';
+  delete from news_ticker where id = p_id and kind = 'post';
 end $function$;
 
-create or replace function public.admin_set_update_pinned(p_id uuid, p_pinned boolean)
+create or replace function public.admin_set_post_pinned(p_id uuid, p_pinned boolean)
  returns void language plpgsql security definer set search_path to 'public'
 as $function$
 begin
   if not is_marqit_admin() then raise exception 'Not authorized'; end if;
-  update news_ticker set pinned = coalesce(p_pinned, false) where id = p_id and kind = 'update';
+  update news_ticker set pinned = coalesce(p_pinned, false) where id = p_id and kind = 'post';
 end $function$;
 
 -- Edit or clear the debate question on any story or update (blank clears it).
@@ -364,7 +366,7 @@ revoke all on function public.admin_review_comment(text, uuid, text) from public
 revoke all on function public.admin_list_terms() from public, anon;
 revoke all on function public.admin_add_term(text, text, boolean) from public, anon;
 revoke all on function public.admin_remove_term(uuid) from public, anon;
-revoke all on function public.admin_post_update(text, text, text, text, text, text, text, boolean) from public, anon;
-revoke all on function public.admin_delete_update(uuid) from public, anon;
-revoke all on function public.admin_set_update_pinned(uuid, boolean) from public, anon;
+revoke all on function public.admin_post_social(text, text, text, text, text, boolean) from public, anon;
+revoke all on function public.admin_delete_post(uuid) from public, anon;
+revoke all on function public.admin_set_post_pinned(uuid, boolean) from public, anon;
 revoke all on function public.admin_set_take_question(uuid, text) from public, anon;
