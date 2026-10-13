@@ -1253,3 +1253,31 @@ body{overflow-x:hidden;}
 .news-card.is-trend .news-body{padding-bottom:4px;}
 .trend-ctx{margin:8px 0 0;font-size:14px;line-height:1.4;color:var(--ink-soft);}
 .news-card.is-trend .post-embed{padding:0 16px 8px;}
+
+/* ---- photos: never cropped, faces always whole ---- */
+.news-img{position:relative;aspect-ratio:3/2;background:#0C0E12;}
+.news-img::before{content:"";position:absolute;inset:-20px;background:var(--bg) center/cover no-repeat;filter:blur(22px) saturate(1.3) brightness(.65);}
+.news-img img{position:relative;object-fit:contain;object-position:center;}
+
+/* ---- more pop: lane colors, glow, bolder Yes / No ---- */
+:root{--c-sports:#FF8A3D;--c-pop:#FF4FA3;--c-music:#A06BFF;--c-tech:#3CD8FF;--c-news:#F2C14E;}
+.news-card{--lane:var(--c-news);border-top:3px solid var(--lane);transition:transform .15s,box-shadow .2s,border-color .15s;}
+.news-card[data-lane="sports"]{--lane:var(--c-sports);}
+.news-card[data-lane="pop"]{--lane:var(--c-pop);}
+.news-card[data-lane="music"]{--lane:var(--c-music);}
+.news-card[data-lane="tech"]{--lane:var(--c-tech);}
+.news-card:hover{transform:translateY(-3px);border-color:var(--lane);box-shadow:0 10px 30px -8px var(--lane);}
+.lane-tag{color:var(--lane);opacity:1;}
+.news-h{font-size:18px;font-weight:700;}
+.news-take .take-label{color:var(--lane);}
+.news-take .take-q{font-size:18px;font-weight:700;line-height:1.25;}
+.take-yes{background:linear-gradient(135deg,#1FC97F,#33D18B);border-color:#33D18B;color:#04140C;box-shadow:0 4px 16px -4px rgba(51,209,139,.6);}
+.take-no{background:linear-gradient(135deg,#FF5A44,#FF7A5C);border-color:#FF6A52;color:#1A0603;box-shadow:0 4px 16px -4px rgba(255,90,68,.6);}
+.take-yes:hover:not(:disabled){background:linear-gradient(135deg,#2BE08F,#4DE0A0);transform:translateY(-1px);}
+.take-no:hover:not(:disabled){background:linear-gradient(135deg,#FF6E58,#FF8C70);transform:translateY(-1px);}
+.take-bar{height:12px;border-radius:6px;}
+.take-bar-y{background:linear-gradient(90deg,#1FC97F,#4DE0A0);transition:width .8s cubic-bezier(.2,.8,.2,1);}
+.take-bar-n{background:linear-gradient(90deg,#FF7A5C,#FF5A44);}
+.take-split{font-size:16px;font-weight:800;}
+.feed-chip:hover{border-color:var(--gold);color:var(--ink);}
+.feed-chip.on{box-shadow:0 0 18px -2px rgba(242,193,78,.55);}
