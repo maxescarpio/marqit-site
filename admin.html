@@ -55,6 +55,35 @@
   <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Drafted automatically each morning by Claude, grounded in real web search. Edit anything before approving — nothing here posts to the site until you approve it.</p>
   <div id="drafts-list"></div>
 
+  <h2>Comments to review</h2>
+  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Comments the word filter held back, plus any that got 3 reports and were hidden. Held comments are only visible to their author until you approve them. Applies to News, Trending and the daily questions.</p>
+  <div id="review-list">Loading&hellip;</div>
+
+  <h2>Trending updates</h2>
+  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Post an update to the Trending tab. Each one gets its own discussion thread. Add a Yes/No question if you want a debate on it.</p>
+  <label>Lane</label>
+  <select id="upd-lane"><option value="sports">Sports</option><option value="pop">Pop Culture</option><option value="music">Music</option><option value="tech">Tech</option><option value="news">News</option></select>
+  <label>Headline</label><input id="upd-title" type="text" maxlength="200" placeholder="Billboard Hot 100: new No. 1 this week">
+  <label>Details (optional)</label><textarea id="upd-body" rows="3" maxlength="1200" placeholder="A few sentences on what happened."></textarea>
+  <label>Source name (optional)</label><input id="upd-source" type="text" maxlength="60" placeholder="Billboard">
+  <label>Source link (optional, https)</label><input id="upd-url" type="text" placeholder="https://www.billboard.com/...">
+  <label>Photo link (optional, https)</label><input id="upd-img" type="text" placeholder="https://...">
+  <label>Yes/No debate question (optional)</label><input id="upd-take" type="text" maxlength="120" placeholder="Does this deserve to be No. 1?">
+  <label style="display:flex;align-items:center;gap:8px;"><input id="upd-pin" type="checkbox" style="width:auto;"> Pin to the top</label>
+  <button id="upd-post-btn">Post update</button>
+  <p id="upd-msg" style="font-size:13px; margin-top:8px;"></p>
+  <div id="upd-list"></div>
+
+  <h2>Blocked words</h2>
+  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Block = the comment is rejected. Hold = it posts for the author only and waits in the review list above. Links, emails and phone numbers are always blocked. Each entry is a word or a simple pattern (lower case, e.g. <code>kill\s+him</code>). Letter swaps like 0 for o are caught automatically.</p>
+  <div style="display:flex; gap:8px;">
+    <input type="text" id="term-input" placeholder="word or pattern" style="flex:1;">
+    <select id="term-mode" style="width:auto;"><option value="hold">Hold</option><option value="block">Block</option></select>
+    <button id="term-add-btn" style="margin-top:0; white-space:nowrap;">Add</button>
+  </div>
+  <p id="term-msg" style="font-size:13px; margin-top:8px;"></p>
+  <div id="term-list"></div>
+
   <h2>Chapters</h2>
   <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Every group on the site. Verify a chapter (badge + prize eligibility) and set its school, national org, and letters — these feed the Top Chapters, Top Orgs, and Head-to-Head boards. Verifying a new chapter auto-grants "Founding Chapter" status to the first 20.</p>
   <div id="chapters-list">Loading&hellip;</div>
@@ -1165,8 +1194,109 @@
     wMsg('wq-msg', 'Saved.'); document.getElementById('wq-text').value = ''; document.getElementById('wq-note').value = ''; loadWidgets();
   });
 
+  // ---- Comment review, Trending updates, blocked words ----
+  function modMsg(id, t, err){ var m = document.getElementById(id); m.textContent = t; m.style.color = err ? 'var(--no)' : 'var(--yes)'; }
+  async function loadReview(){
+    var box = document.getElementById('review-list');
+    var res = await sb.rpc('admin_review_queue');
+    box.textContent = '';
+    if(res.error){ box.textContent = 'Could not load: ' + res.error.message; return; }
+    if(!res.data.length){ box.appendChild(wEl('p', 'Nothing waiting. All clear.', 'font-size:13px;color:var(--ink-soft);')); return; }
+    res.data.forEach(function(c){
+      var r = wEl('div'); r.className = 'qrow';
+      var tag = c.held ? 'HELD BY FILTER' : ('HIDDEN \u00b7 ' + c.reports + ' reports');
+      r.appendChild(wEl('div', tag + ' \u00b7 ' + (c.kind === 'news' ? 'News/Trending' : 'Daily question') + ' \u00b7 by ' + (c.username || 'player') + (c.banned ? ' (banned)' : ''), 'font-size:11.5px;font-weight:700;color:var(--ink-soft);'));
+      r.appendChild(wEl('div', c.body, 'margin-top:6px;font-size:14px;'));
+      r.appendChild(wEl('div', 'On: ' + c.context, 'font-size:12px;color:var(--ink-soft);margin-top:4px;'));
+      var a = wEl('div'); a.className = 'actions';
+      var ok = wEl('button', 'Approve'); ok.className = 'btn-yes';
+      ok.addEventListener('click', async function(){ ok.disabled = true; var x = await sb.rpc('admin_review_comment', { p_kind: c.kind, p_id: c.id, p_action: 'approve' }); if(x.error) alert(x.error.message); loadReview(); });
+      var del = wEl('button', 'Delete'); del.className = 'btn-no';
+      del.addEventListener('click', async function(){ del.disabled = true; var x = await sb.rpc('admin_review_comment', { p_kind: c.kind, p_id: c.id, p_action: 'delete' }); if(x.error) alert(x.error.message); loadReview(); });
+      a.appendChild(ok); a.appendChild(del);
+      if(!c.banned){
+        var ban = wEl('button', 'Delete + ban user'); ban.className = 'btn-delete';
+        ban.addEventListener('click', async function(){
+          var reason = prompt('Reason for banning ' + (c.username || 'this user') + '?', 'Comment rules');
+          if(reason === null) return;
+          ban.disabled = true;
+          var y = await sb.rpc('admin_ban_user', { p_user_id: c.user_id, p_reason: reason });
+          if(y.error){ alert(y.error.message); ban.disabled = false; return; }
+          await sb.rpc('admin_review_comment', { p_kind: c.kind, p_id: c.id, p_action: 'delete' });
+          loadReview();
+        });
+        a.appendChild(ban);
+      }
+      r.appendChild(a); box.appendChild(r);
+    });
+  }
+  var LANE_NAMES = { sports: 'Sports', pop: 'Pop Culture', music: 'Music', tech: 'Tech', news: 'News' };
+  async function loadUpdates(){
+    var box = document.getElementById('upd-list');
+    var res = await sb.from('news_ticker').select('id, headline, lane, pinned, take_question, fetched_at').eq('kind', 'update').order('fetched_at', { ascending: false }).limit(30);
+    box.textContent = '';
+    if(res.error){ box.textContent = 'Could not load updates (is the database update applied?)'; return; }
+    (res.data || []).forEach(function(u){
+      var r = wEl('div'); r.className = 'qrow';
+      r.appendChild(wEl('div', (LANE_NAMES[u.lane] || u.lane) + (u.pinned ? ' \u00b7 pinned' : '') + ' \u00b7 ' + new Date(u.fetched_at).toLocaleString(), 'font-size:11.5px;font-weight:700;color:var(--ink-soft);'));
+      r.appendChild(wEl('div', u.headline, 'font-weight:600;font-size:14px;margin-top:4px;'));
+      var q = wEl('input'); q.type = 'text'; q.maxLength = 120; q.value = u.take_question || ''; q.placeholder = 'Yes/No question (blank = none)'; q.style.marginTop = '8px'; r.appendChild(q);
+      var a = wEl('div'); a.className = 'actions';
+      var sv = wEl('button', 'Save question'); sv.className = 'btn-edit';
+      sv.addEventListener('click', async function(){ sv.disabled = true; var x = await sb.rpc('admin_set_take_question', { p_id: u.id, p_question: q.value }); if(x.error) alert(x.error.message); sv.disabled = false; });
+      var pin = wEl('button', u.pinned ? 'Unpin' : 'Pin'); pin.className = 'btn-edit';
+      pin.addEventListener('click', async function(){ pin.disabled = true; await sb.rpc('admin_set_update_pinned', { p_id: u.id, p_pinned: !u.pinned }); loadUpdates(); });
+      var del = wEl('button', 'Delete'); del.className = 'btn-no';
+      del.addEventListener('click', async function(){ if(!confirm('Delete this update and its comments?')) return; del.disabled = true; await sb.rpc('admin_delete_update', { p_id: u.id }); loadUpdates(); });
+      a.appendChild(sv); a.appendChild(pin); a.appendChild(del); r.appendChild(a); box.appendChild(r);
+    });
+  }
+  document.getElementById('upd-post-btn').addEventListener('click', async function(){
+    var res = await sb.rpc('admin_post_update', {
+      p_lane: document.getElementById('upd-lane').value,
+      p_title: document.getElementById('upd-title').value,
+      p_body: document.getElementById('upd-body').value,
+      p_source_name: document.getElementById('upd-source').value,
+      p_source_url: document.getElementById('upd-url').value,
+      p_image_url: document.getElementById('upd-img').value,
+      p_take_question: document.getElementById('upd-take').value,
+      p_pinned: document.getElementById('upd-pin').checked
+    });
+    if(res.error){ modMsg('upd-msg', 'Error: ' + res.error.message, true); return; }
+    modMsg('upd-msg', 'Posted. It is live on the Trending tab.');
+    ['upd-title', 'upd-body', 'upd-source', 'upd-url', 'upd-img', 'upd-take'].forEach(function(i){ document.getElementById(i).value = ''; });
+    document.getElementById('upd-pin').checked = false;
+    loadUpdates();
+  });
+  async function loadTerms(){
+    var box = document.getElementById('term-list');
+    var res = await sb.rpc('admin_list_terms');
+    box.textContent = '';
+    if(res.error){ box.textContent = 'Could not load: ' + res.error.message; return; }
+    var det = document.createElement('details');
+    var sum = document.createElement('summary'); sum.textContent = res.data.length + ' entries (tap to view)'; sum.style.cssText = 'cursor:pointer;font-size:13px;margin-top:6px;';
+    det.appendChild(sum);
+    res.data.forEach(function(t){
+      var row = wEl('div', null, 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;');
+      row.appendChild(wEl('b', t.mode.toUpperCase(), 'width:52px;color:' + (t.mode === 'block' ? 'var(--no)' : 'var(--ink-soft)') + ';'));
+      row.appendChild(wEl('code', t.pattern, 'flex:1;word-break:break-all;'));
+      var x = wEl('button', 'Remove'); x.className = 'btn-delete'; x.style.cssText = 'margin-top:0;padding:4px 10px;font-size:12px;';
+      x.addEventListener('click', async function(){ x.disabled = true; await sb.rpc('admin_remove_term', { p_id: t.id }); loadTerms(); });
+      row.appendChild(x); det.appendChild(row);
+    });
+    box.appendChild(det);
+  }
+  document.getElementById('term-add-btn').addEventListener('click', async function(){
+    var res = await sb.rpc('admin_add_term', { p_pattern: document.getElementById('term-input').value, p_mode: document.getElementById('term-mode').value, p_collapsed: false });
+    if(res.error){ modMsg('term-msg', 'Error: ' + res.error.message, true); return; }
+    modMsg('term-msg', 'Added.'); document.getElementById('term-input').value = ''; loadTerms();
+  });
+
   checkAccess().then(function(ok){
     if(ok){
+      loadReview();
+      loadUpdates();
+      loadTerms();
       loadQuestionDrafts();
       loadQuestionsForDate();
       loadSuggestions();
