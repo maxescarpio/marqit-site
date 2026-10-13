@@ -47,7 +47,8 @@ select * from (values
   ('go\s+die', 'block', false, 'threat'),
   ('hope\s+(you|u)\s+die', 'block', false, 'threat'),
   ('(you|u)\s+should\s+(just\s+)?die', 'block', false, 'threat'),
-  ('(i|ill|i\s+will|im\s+going\s+to|im\s+gonna|we\s+will|we\s+ll)\s+(kill|find|hurt|shoot|stab|beat)\s+(you|u)', 'block', false, 'threat'),
+  ('(i|ill|i\s+will|im\s+going\s+to|im\s+gonna|we\s+will|we\s+ll)\s+(kill|shoot|stab)\s+(you|u)', 'block', false, 'threat'),
+  ('(i|ill|i\s+will|im\s+going\s+to|im\s+gonna|we\s+will|we\s+ll)\s+(find|hurt|beat\s+up)\s+(you|u)', 'hold', false, 'possible threat'),
   -- borderline: held for review
   ('suicid\w*', 'hold', false, 'self-harm'),
   ('kill\s+(him|her|them|everyone|all)', 'hold', false, 'violence'),
@@ -74,7 +75,7 @@ as $function$
 declare
   t text := lower(coalesce(p_body, ''));
   norm text;
-  collapsed text;
+  letters text;
   r record;
   result text := 'ok';
 begin
@@ -84,10 +85,10 @@ begin
   if t ~ '(\+?1[ .-]?)?\(?\d{3}\)?[ .-]?\d{3}[ .-]?\d{4}' then return 'block'; end if;
 
   norm := regexp_replace(translate(t, '0134578@$!', 'oieastbasi'), '[''’]', '', 'g');
-  collapsed := regexp_replace(norm, '[^a-z]', '', 'g');
+  letters := regexp_replace(norm, '[^a-z]', '', 'g');
 
   for r in select pattern, mode, collapsed as c from moderation_terms loop
-    if (r.c and collapsed ~ r.pattern) or ((not r.c) and norm ~ ('\m(' || r.pattern || ')\M')) then
+    if (r.c and letters ~ r.pattern) or ((not r.c) and norm ~ ('\m(' || r.pattern || ')\M')) then
       if r.mode = 'block' then return 'block'; end if;
       result := 'hold';
     end if;
