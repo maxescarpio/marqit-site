@@ -7437,7 +7437,15 @@
 
     sb.from('news_ticker')
       .select('headline, source_name, article_url')
+      .eq('kind', 'news')
       .order('fetched_at', { ascending: false })
+      .then(function(res){
+        if(res && res.error){
+          // kind column not there yet: fall back to the old query
+          return sb.from('news_ticker').select('headline, source_name, article_url').order('fetched_at', { ascending: false });
+        }
+        return res;
+      })
       .then(function(res){
         var rows = ((res && res.data) ? res.data : []).filter(function(r){ return mqNewsAllowed(r.headline); });
         // Stay hidden until there's enough real content that the seamless-loop
@@ -7516,6 +7524,8 @@
       var s = statsById[r.id] || {};
       var ageH = Math.max(0, (Date.now() - new Date(r.fetched_at || r.published_at || Date.now()).getTime()) / 3600000);
       var base = (Number(s.comments) || 0) * 3 + (Number(s.votes) || 0) + (r.kind === 'post' ? 4 : 0);
+      // trend rows carry their position on the source charts (1 = top)
+      if(r.kind === 'trend' && r.trend_rank){ base += Math.max(0, 12 - Number(r.trend_rank)); }
       return (base + 1) / Math.pow(ageH + 2, 1.2) + (r.pinned ? 1000 : 0);
     }
 
@@ -7525,6 +7535,7 @@
       loadingRows = (async function(){
         var base = 'id, headline, source_name, article_url, published_at, fetched_at';
         var tries = [
+          base + ', image_url, take_question, summary, kind, lane, pinned, trend_rank',
           base + ', image_url, take_question, summary, kind, lane, pinned',
           base + ', image_url, take_question',
           base + ', image_url',
@@ -7536,7 +7547,7 @@
           if(!res.error) break;
         }
         if(!res || res.error){ loadingRows = null; return null; }
-        var rows = (res.data || []).filter(function(r){ return r.kind === 'post' || mqNewsAllowed(r.headline); });
+        var rows = (res.data || []).filter(function(r){ return r.kind === 'post' || ((!r.kind || r.kind === 'news' || r.kind === 'trend') && mqNewsAllowed(r.headline)); });
         rows.forEach(function(r){ r.kind = r.kind || 'news'; rowsById[r.id] = r; });
         allRows = rows;
         return rows;
@@ -7625,7 +7636,9 @@
       try { if(url) domain = new URL(url).hostname.replace(/^www\./, ''); } catch(e){}
       var when = ago(r.published_at || r.fetched_at);
       var who;
-      if(r.kind === 'post'){
+      if(r.kind === 'trend'){
+        who = '<span class="plat-badge">' + escapeHtml(r.source_name || 'Trending') + '</span>';
+      }else if(r.kind === 'post'){
         who = '<span class="plat-badge">' + escapeHtml(platformOf(url)) + '</span>' + (r.source_name ? '<span class="post-by">' + escapeHtml(r.source_name) + '</span>' : '');
       }else{
         var logo = domain ? '<img class="nt-logo" src="https://www.google.com/s2/favicons?sz=64&domain=' + escapeHtml(domain) + '" alt="" onerror="this.style.display=\'none\'">' : '';
@@ -7635,7 +7648,7 @@
     }
     function imgHtml(r){
       if(r.image_url && /^https:\/\//i.test(r.image_url)){
-        return '<div class="news-img"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="var c=this.closest(\'.news-card\');(c||this.parentNode).remove()"></div>';
+        return '<div class="news-img"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="var c=this.closest(\'.news-card\');if(c&&c.classList.contains(\'is-trend\')){this.parentNode.remove()}else{(c||this.parentNode).remove()}"></div>';
       }
       return '';
     }
@@ -7656,15 +7669,17 @@
         '<div class="feed-stats"><span class="feed-cmt">' + '<svg class="mq-ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>' + (c ? plural(c, 'comment') : 'Start the discussion') + '</span>' +
         (Number(s.votes) ? '<span>' + plural(Number(s.votes), 'vote') + '</span>' : '') + '</div></div>';
     }
+    function isYt(r){ return r.kind === 'trend' && /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(r.article_url || ''); }
     function embedHtml(r){
       return '<div class="post-embed" data-url="' + escapeHtml(r.article_url || '') + '"><div class="post-skel">Loading post…</div></div>';
     }
     function cardHtml(r){
-      var isPost = r.kind === 'post';
-      return '<article class="news-card' + (isPost ? ' is-post' : '') + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
-        (isPost ? '' : imgHtml(r)) +
-        '<div class="news-body">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div></div>' +
-        (isPost ? embedHtml(r) : '') +
+      var isPost = r.kind === 'post', isTrend = r.kind === 'trend', yt = isYt(r);
+      return '<article class="news-card' + (isPost ? ' is-post' : '') + (isTrend ? ' is-trend' : '') + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+        ((isPost || yt) ? '' : imgHtml(r)) +
+        '<div class="news-body">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div>' +
+        (isTrend && r.summary ? '<p class="trend-ctx">' + escapeHtml(r.summary) + '</p>' : '') + '</div>' +
+        ((isPost || yt) ? embedHtml(r) : '') +
         takeHtml(r) + footHtml(r) + '</article>';
     }
 
@@ -7742,9 +7757,9 @@
       var lane = this.lane, list;
       if(this.cfg.kind === 'news'){
         // Only stories with a photo AND a debate question are shown.
-        list = rows.filter(function(r){ return r.kind !== 'post' && r.take_question && r.image_url && /^https:\/\//i.test(r.image_url); });
+        list = rows.filter(function(r){ return (!r.kind || r.kind === 'news') && r.take_question && r.image_url && /^https:\/\//i.test(r.image_url); });
       }else{
-        list = rows.filter(function(r){ return r.kind === 'post'; });
+        list = rows.filter(function(r){ return (r.kind === 'post' || r.kind === 'trend') && r.take_question; });
       }
       if(lane !== 'all') list = list.filter(function(r){ return laneOf(r) === lane; });
       list = list.slice();
@@ -7754,7 +7769,7 @@
     };
     Feed.prototype.render = function(){
       var list = this.pick();
-      this.grid.innerHTML = list.map(cardHtml).join('') || '<p class="news-empty">' + (this.cfg.kind === 'news' ? 'No stories in this lane right now. Check back soon.' : 'No posts here yet. Check back soon.') + '</p>';
+      this.grid.innerHTML = list.map(cardHtml).join('') || '<p class="news-empty">' + (this.cfg.kind === 'news' ? 'No stories in this lane right now. Check back soon.' : 'Nothing trending in this lane right now. Check back soon.') + '</p>';
       paintAll(this.grid);
       wireEmbeds(this.grid);
     };
@@ -7796,16 +7811,16 @@
       openId = id;
       await Promise.all([loadStats([id]), loadResults(r.take_question ? [id] : [])]);
       var s = statsById[id] || {};
-      var isPost = r.kind === 'post', text = isPost ? '' : r.summary;
-      var read = (r.article_url && !isPost) ? '<a class="thread-read" href="' + escapeHtml(r.article_url) + '" target="_blank" rel="noopener noreferrer">Read the story' + (isPost ? '' : (r.source_name ? ' on ' + escapeHtml(r.source_name) : '')) + ' ↗</a>' : '';
+      var isPost = r.kind === 'post', isTrend = r.kind === 'trend', yt = isYt(r), text = isPost ? '' : r.summary;
+      var read = (r.article_url && !isPost && !isTrend) ? '<a class="thread-read" href="' + escapeHtml(r.article_url) + '" target="_blank" rel="noopener noreferrer">Read the story' + (isPost ? '' : (r.source_name ? ' on ' + escapeHtml(r.source_name) : '')) + ' ↗</a>' : '';
       inner.innerHTML =
         '<div class="thread-top"><button type="button" class="thread-back" id="thread-back" aria-label="Back">' +
           '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Back</button>' +
           '<button type="button" class="thread-share" id="thread-share">Share</button></div>' +
-        '<div class="thread-story">' + (isPost ? '' : imgHtml(r)) +
+        '<div class="thread-story">' + ((isPost || yt) ? '' : imgHtml(r)) +
           '<div class="news-body">' + metaHtml(r) + '<h3 class="thread-h">' + escapeHtml(r.headline || '') + '</h3>' +
           (text ? '<p class="thread-sum">' + escapeHtml(text) + '</p>' : '') + read + '</div>' +
-          (isPost ? embedHtml(r) : '') + takeHtml(r) + '</div>' +
+          ((isPost || yt) ? embedHtml(r) : '') + takeHtml(r) + '</div>' +
         '<div class="thread-cmt-head"><h4>Discussion <span id="thread-count">' + (Number(s.comments) ? '· ' + Number(s.comments) : '') + '</span></h4>' +
           '<span class="thread-sort"><button type="button" class="feed-chip on" data-tsort="top">Top</button><button type="button" class="feed-chip" data-tsort="new">New</button></span></div>' +
         '<details class="cmt thread-cmt" open data-question-id="' + escapeHtml(id) + '" data-sort="' + sortMode + '"><summary class="cmt-sum" style="display:none"><span>Comments <span class="cmt-count"></span></span></summary>' +

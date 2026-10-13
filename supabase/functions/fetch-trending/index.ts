@@ -1,0 +1,252 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+// Builds the Trending tab: what people are searching, watching and listening to right now.
+// Sources (all free): Google Trends daily searches, Wikipedia most-read, Apple Music top songs,
+// Bluesky trending topics, and YouTube Most Popular (needs YOUTUBE_API_KEY, skipped without it).
+// Claude then keeps only sports / pop culture / music / tech topics, drops anything sensitive,
+// and writes a short context line plus one debate question. Nothing here is an article.
+
+// ---- safety (same word list as the news fetcher, plus politics and conflict) ----
+const BLOCKED_HEADLINE = new RegExp(
+  '\\b(' + [
+    // sexual violence and exploitation
+    'rape[ds]?', 'rapists?', 'raping', 'molest\\w*', 'pedophil\\w*', 'incest',
+    'sexual(ly)?\\s+(assault\\w*|abus\\w*|misconduct|harass\\w*|violence)',
+    'sex\\s+traffick\\w*', 'traffick\\w*',
+    // shootings, killings, murder
+    'serial\\s+killers?', 'shootings?', 'shooters?', 'gunm[ae]n', 'gunfire',
+    'shot\\s+dead', 'shot\\s+and\\s+killed', 'fatally\\s+shot', 'gunned\\s+down',
+    '(was|were|been|is|being|get|gets)\\s+shot', 'shot\\s+by',
+    'murder\\w*', 'homicides?', 'manslaughter', 'slain', 'slaying', 'stabb\\w*',
+    'killed', 'kills', 'killings?', 'killers?', 'massacres?', 'mass\\s+casualt\\w*',
+    'death\\s+toll', 'deadly', 'fatal\\w*', 'found\\s+dead', 'dead\\s+bod\\w*', 'bod(y|ies)\\s+found',
+    // bombings, terrorism, war violence
+    'bomb\\w*', 'explosions?', 'exploded', 'terror\\w*', 'hostages?', 'behead\\w*',
+    'genocide', 'torture\\w*', 'war\\s+crimes?', 'airstrikes?', 'missile\\s+strikes?',
+    // self-harm, overdoses, abuse, kidnapping
+    'suicid\\w*', 'self-harm', 'overdos\\w*',
+    'child\\s+abus\\w*', 'abus\\w*\\s+(of\\s+)?(a\\s+)?(child|children|kids?|minors?)',
+    'kidnap\\w*', 'abduct\\w*', 'child\\s+endangerment', 'domestic\\s+violence', 'assault\\w*',
+    // deaths and funerals of real people
+    'die[sd]?', 'dead', 'deaths?', 'dying', 'passed\\s+away', 'funerals?', 'obituar\\w*',
+    'late\\s+(husband|wife|father|mother|son|daughter)', 'cancer', 'tumou?rs?', 'diagnos\\w*', 'chemo\\w*', 'terminal\\s+ill\\w*', 'health\\s+(battle|scare|struggles?|crisis)', 'hospital\\w*', 'sex(ual)?', 'nude', 'naked',
+  ].join('|') + ')\\b',
+  'i'
+);
+const OK_PHRASES = /\b(shooting\s+(guard|percentage|star|touch|slump|form|stroke)|kill(s|ed|ing)?\s+(it|the\s+(game|show|stage|crowd|room))|die[- ]hards?)\b/gi;
+const REHAB_DEATH = /\brehab\b/i;
+const DEATH_WORD = /\b(death|deaths|died|dies|dead|dying)\b/i;
+function isBlockedHeadline(title: string): boolean {
+  if (REHAB_DEATH.test(title) && DEATH_WORD.test(title)) return true;
+  return BLOCKED_HEADLINE.test(title.replace(OK_PHRASES, ''));
+}
+
+
+const POLITICS = /\b(trump|biden|harris|vance|obama|election|elections|senate|senator|congress|congressional|democrat\w*|republican\w*|gop|white\s+house|supreme\s+court|shutdown|impeach\w*|immigration|ice\s+raids?|deport\w*|border|israel\w*|gaza|hamas|hezbollah|ukrain\w*|russia\w*|putin|zelensky\w*|iran\w*|china|taiwan|north\s+korea|nato|war|invasion|troops|military|pentagon|police|arrest\w*|indict\w*|lawsuit|trial|verdict|sentenc\w*|prison|jail|charged|accused|scandal|abortion|vaccine|covid|flood\w*|inundaci\w*|earthquake|hurricane|wildfire|tornado|storm|evacuat\w*|crash|outbreak)\b/i;
+function isBlocked(text: string): boolean {
+  const t = text || '';
+  if (isBlockedHeadline(t)) return true;
+  return POLITICS.test(t);
+}
+
+const TREND_MODEL = 'claude-sonnet-5-5';
+const MAX_KEEP = 30;
+const KEEP_HOURS = 48;
+
+type Candidate = { id: number; source: string; title: string; info: string; url: string | null; image: string | null; rank: number };
+
+function decode(s: string): string {
+  return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").trim();
+}
+function tag(block: string, name: string): string {
+  const m = block.match(new RegExp('<' + name + '[^>]*>([\\s\\S]*?)</' + name + '>', 'i'));
+  return m ? decode(m[1]) : '';
+}
+function slug(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+}
+function dayStr(d: Date): string { return d.toISOString().slice(0, 10); }
+
+async function getJson(url: string, headers: Record<string, string> = {}): Promise<any> {
+  const res = await fetch(url, { headers: { 'User-Agent': 'MarqitTrending/1.0 (playmarqit.com)', ...headers } });
+  if (!res.ok) throw new Error(url.split('?')[0] + ' ' + res.status);
+  return res.json();
+}
+
+// ---- sources ----
+function parseGoogleTrends(xml: string): { title: string; traffic: string; news: string }[] {
+  const items = xml.match(/<item>[\s\S]*?<\/item>/gi) || [];
+  return items.map((it) => ({
+    title: tag(it, 'title'),
+    traffic: tag(it, 'ht:approx_traffic'),
+    news: tag(it, 'ht:news_item_title'),
+  })).filter((x) => x.title);
+}
+async function googleTrends(): Promise<Candidate[]> {
+  const res = await fetch('https://trends.google.com/trending/rss?geo=US', { headers: { 'User-Agent': 'MarqitTrending/1.0' } });
+  if (!res.ok) throw new Error('google trends ' + res.status);
+  const rows = parseGoogleTrends(await res.text());
+  return rows.slice(0, 25).map((r, i) => ({
+    id: 0, source: 'Google Trends', title: r.title,
+    info: (r.traffic ? r.traffic + ' searches. ' : '') + (r.news ? 'Related headline: ' + r.news : ''),
+    url: null, image: null, rank: i + 1,
+  }));
+}
+
+function wikiSkip(title: string): boolean {
+  return /^(Main_Page|Special:|Wikipedia:|Portal:|Help:|File:|Category:|Template:|Talk:|User:|-)/.test(title) || title === '.' || /^List_of_/.test(title);
+}
+async function wikipedia(): Promise<Candidate[]> {
+  const d = new Date(Date.now() - 36 * 3600 * 1000); // yesterday UTC; today's data is not published yet
+  const url = `https://wikimedia.org/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')}`;
+  const data = await getJson(url);
+  const arts = ((data.items || [])[0]?.articles || []).filter((a: any) => !wikiSkip(a.article)).slice(0, 30);
+  const out: Candidate[] = [];
+  await Promise.all(arts.map(async (a: any, i: number) => {
+    try {
+      const s = await getJson('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(a.article));
+      const extract = String(s.extract || '').slice(0, 220);
+      out.push({
+        id: 0, source: 'Wikipedia', title: String(s.title || a.article).replace(/_/g, ' '),
+        info: `${Number(a.views).toLocaleString('en-US')} page views yesterday. ${s.description ? s.description + '. ' : ''}${extract}`,
+        url: null, image: (s.thumbnail && /^https:\/\//.test(s.thumbnail.source || '')) ? s.thumbnail.source : null, rank: i + 1,
+      });
+    } catch (_) { /* skip this page */ }
+  }));
+  return out.sort((x, y) => x.rank - y.rank);
+}
+
+async function appleMusic(): Promise<Candidate[]> {
+  const data = await getJson('https://rss.applemarketingtools.com/api/v2/us/music/most-played/10/songs.json');
+  return (data.feed?.results || []).map((r: any, i: number) => ({
+    id: 0, source: 'Apple Music', title: `${r.name} by ${r.artistName}`,
+    info: `No. ${i + 1} most-played song on Apple Music in the US.`,
+    url: null, image: typeof r.artworkUrl100 === 'string' ? r.artworkUrl100.replace('100x100', '600x600') : null, rank: i + 1,
+  }));
+}
+
+async function bluesky(): Promise<Candidate[]> {
+  const data = await getJson('https://public.api.bsky.app/xrpc/app.bsky.unspecced.getTrendingTopics?limit=25');
+  const topics = [...(data.topics || []), ...(data.suggested || [])];
+  return topics.slice(0, 25).map((t: any, i: number) => ({
+    id: 0, source: 'Bluesky', title: String(t.topic || t.displayName || ''),
+    info: 'Trending topic on Bluesky.', url: null, image: null, rank: i + 1,
+  })).filter((c: Candidate) => c.title);
+}
+
+async function youtube(key: string): Promise<Candidate[]> {
+  const cats: [string, string][] = [['10', 'music'], ['17', 'sports'], ['24', 'entertainment'], ['28', 'tech']];
+  const out: Candidate[] = [];
+  await Promise.all(cats.map(async ([cat, label]) => {
+    try {
+      const d = await getJson(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&regionCode=US&videoCategoryId=${cat}&maxResults=6&key=${key}`);
+      (d.items || []).forEach((v: any, i: number) => {
+        out.push({
+          id: 0, source: 'YouTube', title: String(v.snippet?.title || ''),
+          info: `${label} video from ${v.snippet?.channelTitle || 'a channel'}, ${Number(v.statistics?.viewCount || 0).toLocaleString('en-US')} views, among the most popular ${label} videos in the US right now.`,
+          url: 'https://www.youtube.com/watch?v=' + v.id, image: null, rank: i + 1,
+        });
+      });
+    } catch (_) { /* skip this category */ }
+  }));
+  return out;
+}
+
+// ---- Claude: keep, rewrite, ask ----
+const PROMPT = `You curate the Trending tab of Marqit, a fun daily-predictions site for sports, pop culture, music and tech fans. Below is a numbered list of things trending right now from public sources.
+
+For each item decide whether to KEEP it. Keep at most ${MAX_KEEP} in total, favoring variety across sports, pop culture, music, tech and entertainment, and favoring things fans would actually argue about.
+
+KEEP only: sports (teams, players, games, trades), movies, TV, streaming, celebrities and their work, music and songs, video games, tech products and tech companies, viral entertainment.
+DROP (keep=false) anything about: politics, politicians, government, elections, war, military, conflict, crime, police, courts, lawsuits, arrests, accidents, disasters, weather emergencies, health or illness of a real person, death or anyone who has died (a death year of 2025 or 2026 in a Wikipedia summary means drop), religion, race, gender identity, immigration, sexual content, anything tragic or divisive. Also drop confusing items, duplicates of something already kept, and anything you cannot explain from the information given.
+
+For each KEPT item return:
+- "title": a short, clear topic name a fan would recognize (max 60 characters). For a YouTube video, a clean version of the video title. For a song, "Song Title - Artist".
+- "context": ONE plain sentence (max 110 characters) saying why it is trending, using only the information given. No hype. Never invent facts.
+- "lane": one of sports, pop, music, tech, news (pop = movies, TV, celebrities, streaming).
+- "q": a Yes/No debate question (max 90 characters) about the real argument fans are having, plain spoken, taking a real position. Use real names. If there is no real debate, use null.
+
+Reply with JSON only: {"items":[{"i":0,"keep":false},{"i":1,"keep":true,"title":"...","context":"...","lane":"sports","q":"..."}]}`;
+
+async function curate(cands: Candidate[]): Promise<any[]> {
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!apiKey) throw new Error('no ANTHROPIC_API_KEY');
+  const list = cands.map((c) => `${c.id}. [${c.source}] ${c.title} :: ${c.info}`).join('\n');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: TREND_MODEL, max_tokens: 8000, system: PROMPT, messages: [{ role: 'user', content: list }] }),
+  });
+  if (!res.ok) throw new Error('anthropic ' + res.status);
+  const out = await res.json();
+  const text = (out.content || []).map((c: any) => c.text || '').join('');
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('no JSON from model');
+  return JSON.parse(m[0]).items || [];
+}
+
+Deno.serve(async (req: Request) => {
+  const token = (req.headers.get('Authorization') || '').replace('Bearer ', '');
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  if (token !== serviceRoleKey) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+
+  try {
+    const report: Record<string, any> = {};
+    const ytKey = Deno.env.get('YOUTUBE_API_KEY');
+    const jobs: [string, Promise<Candidate[]>][] = [
+      ['google', googleTrends()], ['wikipedia', wikipedia()], ['apple', appleMusic()], ['bluesky', bluesky()],
+    ];
+    if (ytKey) jobs.push(['youtube', youtube(ytKey)]); else report.youtube = 'skipped: no YOUTUBE_API_KEY';
+    const settled = await Promise.allSettled(jobs.map((j) => j[1]));
+    let all: Candidate[] = [];
+    settled.forEach((r, i) => {
+      if (r.status === 'fulfilled') { report[jobs[i][0]] = r.value.length; all = all.concat(r.value); }
+      else report[jobs[i][0]] = 'failed: ' + String((r as PromiseRejectedResult).reason);
+    });
+
+    // Drop anything obviously sensitive before it ever reaches the model, then number the rest.
+    all = all.filter((c) => !isBlocked(c.title) && !isBlocked(c.info.replace(/Related headline:.*/i, '')));
+    all.forEach((c, i) => { c.id = i; });
+    if (all.length === 0) return new Response(JSON.stringify({ error: 'No candidates from any source', report }), { status: 502 });
+
+    const decisions = await curate(all);
+    const today = dayStr(new Date());
+    const rows: any[] = [];
+    const seen = new Set<string>();
+    for (const d of decisions) {
+      const c = all[d.i];
+      if (!c || !d.keep) continue;
+      const title = String(d.title || '').trim();
+      const context = String(d.context || '').trim();
+      if (title.length < 3 || title.length > 80 || context.length < 5) continue;
+      if (isBlocked(title) || isBlocked(context)) continue;
+      let q: string | null = typeof d.q === 'string' ? d.q.trim() : null;
+      if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlocked(q))) q = null;
+      const lane = ['sports', 'pop', 'music', 'tech', 'news'].includes(d.lane) ? d.lane : 'news';
+      const key = c.url || `trend:${slug(c.source)}:${slug(title)}:${today}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({
+        headline: title, summary: context, source_name: c.source, article_url: key, image_url: c.image,
+        kind: 'trend', lane, take_question: q, take_checked: true, trend_rank: Math.min(c.rank, 100), published_at: new Date().toISOString(),
+      });
+      if (rows.length >= MAX_KEEP) break;
+    }
+
+    let inserted = 0;
+    if (rows.length) {
+      const { data: ins, error } = await admin.from('news_ticker').upsert(rows, { onConflict: 'article_url', ignoreDuplicates: true }).select('id');
+      if (error) throw error;
+      inserted = (ins || []).length;
+    }
+    // Retire old trends so the tab stays about right now.
+    const cutoff = new Date(Date.now() - KEEP_HOURS * 3600 * 1000).toISOString();
+    await admin.from('news_ticker').delete().eq('kind', 'trend').lt('fetched_at', cutoff).eq('pinned', false);
+
+    return new Response(JSON.stringify({ candidates: all.length, kept: rows.length, inserted, report }), { status: 200 });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+  }
+});

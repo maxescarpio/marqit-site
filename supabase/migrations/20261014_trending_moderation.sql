@@ -7,10 +7,11 @@
 alter table public.news_ticker
   add column if not exists kind text not null default 'news',
   add column if not exists lane text,
+  add column if not exists trend_rank smallint,
   add column if not exists body text,
   add column if not exists pinned boolean not null default false;
 do $$ begin
-  alter table public.news_ticker add constraint news_ticker_kind_chk check (kind in ('news', 'post'));
+  alter table public.news_ticker add constraint news_ticker_kind_chk check (kind in ('news', 'post', 'trend'));
 exception when duplicate_object then null; end $$;
 create index if not exists news_ticker_kind_idx on public.news_ticker (kind, fetched_at desc);
 
