@@ -4485,6 +4485,7 @@
       '</div>' +
       crowdHtml +
       resultHtml +
+      ((q.resolved && q.correct_answer) ? '<div class="who-wrap"><button type="button" class="who-btn" data-qid="' + escapeHtml(q.id) + '">Who called it</button><div class="who-list" hidden></div></div>' : '') +
       crowdTagHtml +
       lockedNote +
       buddyHtml +
@@ -7531,6 +7532,171 @@
   // Both tabs show the same kind of card: the story, an optional Yes/No debate, and a
   // comment count. Tapping a card opens its thread (the story, the debate and the full
   // discussion). Trending posts (kind = 'post') are links to social posts, added from the admin page.
+
+  // ---- Followers, record badges, invite bonus, "who called it" ----
+  (function(){
+    var cache = {}, scanTimer = null, sheetEl = null;
+    function getSession(){ return sb.auth.getSession().then(function(r){ return r && r.data && r.data.session; }).catch(function(){ return null; }); }
+    function key(n){ return String(n || '').toLowerCase(); }
+    function fetchCards(names){
+      var need = names.filter(function(n, i){ return n && !(key(n) in cache) && names.indexOf(n) === i; });
+      if(!need.length) return Promise.resolve();
+      need.forEach(function(n){ cache[key(n)] = null; });
+      return sb.rpc('get_user_cards', { p_usernames: need }).then(function(r){
+        (r.data || []).forEach(function(c){ cache[key(c.username)] = c; });
+      }).catch(function(){ need.forEach(function(n){ delete cache[key(n)]; }); });
+    }
+    function badgeHtml(c){
+      var parts = [];
+      if(c.accuracy != null) parts.push(c.accuracy + '% right');
+      if((c.streak || 0) >= 3) parts.push(mqIcon('flame') + c.streak);
+      return parts.length ? parts.join(' · ') : '';
+    }
+    function avatar(c, size){
+      var face = c.avatar_emoji || String(c.username || '?').charAt(0).toUpperCase();
+      return '<i class="mq-av" style="width:' + size + 'px;height:' + size + 'px;background:' + escapeHtml(c.avatar_color || '#2B3140') + ';">' + escapeHtml(face) + '</i>';
+    }
+
+    // record badge next to every name in comment threads
+    function scan(){
+      var els = Array.prototype.slice.call(document.querySelectorAll('.cmt-who > b:not([data-rec])'));
+      if(!els.length) return;
+      var names = els.map(function(b){ b.setAttribute('data-rec', '1'); b.classList.add('mq-caller-name'); return b.textContent; });
+      fetchCards(names).then(function(){
+        els.forEach(function(b){
+          var c = cache[key(b.textContent)]; if(!c) return;
+          var t = badgeHtml(c); if(!t) return;
+          var sp = document.createElement('span'); sp.className = 'rec-badge'; sp.innerHTML = t;
+          b.insertAdjacentElement('afterend', sp);
+        });
+      });
+    }
+    new MutationObserver(function(){ clearTimeout(scanTimer); scanTimer = setTimeout(scan, 300); }).observe(document.body, { childList: true, subtree: true });
+
+    function toast(msg){
+      var t = document.createElement('div'); t.className = 'mq-toast'; t.textContent = msg; document.body.appendChild(t);
+      setTimeout(function(){ t.remove(); }, 4500);
+    }
+    function closeSheet(){ if(sheetEl){ sheetEl.remove(); sheetEl = null; } }
+
+    // caller card (tap any name)
+    function openCard(name){
+      Promise.all([fetchCards([name]), getSession()]).then(function(res){
+        var c = cache[key(name)], session = res[1]; if(!c) return;
+        closeSheet();
+        sheetEl = document.createElement('div'); sheetEl.className = 'mq-sheet-bg';
+        var action = c.is_me ? '<div class="mq-sheet-note">This is you</div>'
+          : session ? '<button type="button" class="mq-follow-btn' + (c.is_following ? ' on' : '') + '" data-follow="' + escapeHtml(c.username) + '">' + (c.is_following ? 'Following' : 'Follow') + '</button>'
+          : '<button type="button" class="mq-follow-btn" data-signup="1">Sign up free to follow</button>';
+        var rec = c.accuracy != null ? (c.accuracy + '% right on ' + c.calls + ' calls') : (Number(c.calls) > 0 ? (c.calls + ' calls so far') : 'New player');
+        sheetEl.innerHTML = '<div class="mq-sheet" role="dialog" aria-label="Player"><button type="button" class="mq-sheet-x" aria-label="Close">&times;</button>' +
+          '<div class="mq-sheet-top">' + avatar(c, 60) + '<div><div class="mq-sheet-name">' + escapeHtml(c.username) + '</div><div class="mq-sheet-rec">' + rec + ((c.streak || 0) >= 3 ? ' · ' + mqIcon('flame') + c.streak + ' day streak' : '') + '</div></div></div>' +
+          '<div class="mq-sheet-counts"><span><b>' + c.followers + '</b> followers</span><span><b>' + c.following + '</b> following</span></div>' +
+          action + '<div class="mq-sheet-msg" aria-live="polite"></div></div>';
+        document.body.appendChild(sheetEl);
+      });
+    }
+    async function toggleFollow(btn){
+      var name = btn.getAttribute('data-follow'), on = btn.classList.contains('on');
+      btn.disabled = true;
+      var res = await sb.rpc(on ? 'unfollow_user' : 'follow_user', { p_username: name });
+      btn.disabled = false;
+      var msg = btn.closest('.mq-sheet') && btn.closest('.mq-sheet').querySelector('.mq-sheet-msg');
+      if(res.error){ if(msg) msg.textContent = res.error.message; else toast(res.error.message); return; }
+      var c = cache[key(name)];
+      if(c){ c.is_following = !on; c.followers = Math.max(0, Number(c.followers) + (on ? -1 : 1)); }
+      btn.classList.toggle('on', !on); btn.textContent = on ? 'Follow' : 'Following';
+      var cnt = btn.closest('.mq-sheet') && btn.closest('.mq-sheet').querySelector('.mq-sheet-counts b');
+      if(cnt && c) cnt.textContent = c.followers;
+    }
+    document.addEventListener('click', function(e){
+      var t = e.target;
+      if(t.closest('.mq-sheet-x') || (t.classList && t.classList.contains('mq-sheet-bg'))){ closeSheet(); return; }
+      var fb = t.closest('button[data-follow]'); if(fb){ toggleFollow(fb); return; }
+      var su = t.closest('button[data-signup]'); if(su){ closeSheet(); openAuthPanel('signup'); return; }
+      var nm = t.closest('.mq-caller-name, .lb-name-text');
+      if(nm && !nm.closest('.mq-sheet')){ var n = nm.textContent.trim(); if(n) openCard(n); }
+    });
+
+    // profile menu: counts, invite, anonymity, new followers, suggestions
+    function rowHtml(c){
+      var b = badgeHtml(c);
+      return '<div class="mq-row">' + avatar(c, 36) + '<div class="mq-row-main"><b class="mq-caller-name">' + escapeHtml(c.username) + '</b>' + (b ? '<small>' + b + '</small>' : '') + '</div>' +
+        (c.is_me ? '' : '<button type="button" class="mq-follow-btn sm' + (c.is_following ? ' on' : '') + '" data-follow="' + escapeHtml(c.username) + '">' + (c.is_following ? 'Following' : 'Follow') + '</button>') + '</div>';
+    }
+    async function fillProfile(){
+      var box = document.getElementById('mq-social'); if(!box) return;
+      var session = await getSession(); if(!session){ box.style.display = 'none'; return; }
+      box.style.display = 'block';
+      var uid = session.user.id;
+      var uname = (document.getElementById('profile-modal-username') || {}).textContent || '';
+      delete cache[key(uname)];
+      await fetchCards([uname]);
+      var mine = cache[key(uname)];
+      if(mine){ document.getElementById('mq-followers-n').textContent = mine.followers; document.getElementById('mq-following-n').textContent = mine.following; }
+      var link = location.origin + '/?' + mqGetReferralTag(uid, 'invite', 'profile');
+      var inv = document.getElementById('mq-invite-btn');
+      inv.onclick = function(){
+        if(navigator.share){ navigator.share({ title: 'Marqit', text: 'Make 3 daily calls with me on Marqit', url: link }).catch(function(){}); }
+        else if(navigator.clipboard){ navigator.clipboard.writeText(link).then(function(){ inv.textContent = 'Link copied'; setTimeout(function(){ inv.textContent = 'Invite friends: +200 points each'; }, 2000); }); }
+      };
+      sb.rpc('get_my_referrals').then(function(r){
+        var row = r.data && r.data[0]; var n = row ? Number(row.friends) : 0;
+        document.getElementById('mq-invite-note').textContent = n ? (n + (n === 1 ? ' friend joined' : ' friends joined') + ' · +' + row.points + ' points') : 'You both get 200 points once they make their first call.';
+      });
+      var anon = document.getElementById('mq-anon-box');
+      sb.from('profiles').select('hide_name_on_calls').eq('id', uid).maybeSingle().then(function(r){ anon.checked = !!(r.data && r.data.hide_name_on_calls); });
+      anon.onchange = function(){ sb.rpc('set_hide_name_on_calls', { p_hide: anon.checked }); };
+      sb.rpc('get_my_followers', { p_limit: 10 }).then(function(r){
+        var list = r.data || [], el = document.getElementById('mq-newfollowers');
+        el.innerHTML = list.length ? '<div class="mq-soc-h">Your followers</div>' + list.map(rowHtml).join('') : '';
+      });
+      sb.rpc('get_suggested_callers', { p_limit: 6 }).then(function(r){
+        var list = r.data || [], el = document.getElementById('mq-suggested');
+        el.innerHTML = list.length ? '<div class="mq-soc-h">Top callers to follow</div>' + list.map(rowHtml).join('') : '';
+      });
+      claimBonus(uid);
+    }
+    function claimBonus(uid){
+      try{ if(localStorage.getItem('mq_refclaim_' + uid)) return; }catch(e){}
+      sb.rpc('claim_referral_bonus').then(function(r){
+        if(r.data && r.data.awarded){
+          try{ localStorage.setItem('mq_refclaim_' + uid, '1'); }catch(e){}
+          toast('Invite bonus: you and your friend each got ' + r.data.points + ' points.');
+        }
+      });
+    }
+    var pm = document.getElementById('profile-modal-backdrop');
+    if(pm) new MutationObserver(function(){ if(pm.style.display !== 'none') fillProfile(); }).observe(pm, { attributes: true, attributeFilter: ['style'] });
+    setTimeout(function(){ getSession().then(function(s){ if(s) claimBonus(s.user.id); }); }, 4000);
+
+    // "Who called it" under resolved Play cards
+    document.addEventListener('click', async function(e){
+      var btn = e.target.closest && e.target.closest('.who-btn'); if(!btn) return;
+      var list = btn.parentNode.querySelector('.who-list');
+      if(!list.hidden){ list.hidden = true; return; }
+      list.hidden = false; list.textContent = 'Loading...';
+      var res = await sb.rpc('get_who_called_it', { p_question_id: btn.getAttribute('data-qid') });
+      var rows = res.data || [];
+      if(!rows.length){ list.textContent = 'No one to show yet.'; return; }
+      var session = await getSession(), hideNow = false;
+      if(session){ var pr = await sb.from('profiles').select('hide_name_on_calls').eq('id', session.user.id).maybeSingle(); hideNow = !!(pr.data && pr.data.hide_name_on_calls); }
+      list.innerHTML = '<div class="who-head">' + rows[0].total_correct + ' of ' + rows[0].total_calls + ' called it. First 10 shown.</div>' +
+        rows.map(function(r){
+          if(r.anonymous && !r.is_me) return '<div class="mq-row"><i class="mq-av" style="width:36px;height:36px;background:#2B3140;">?</i><div class="mq-row-main"><b>Anonymous caller</b></div></div>';
+          return '<div class="mq-row">' + avatar(r, 36) + '<div class="mq-row-main"><b class="mq-caller-name">' + escapeHtml(r.username || 'player') + '</b>' + (r.is_me ? '<small>You' + (r.anonymous ? ' (hidden from others)' : '') + '</small>' : '') + '</div></div>';
+        }).join('') +
+        (session ? '<button type="button" class="who-anon" data-hide="' + (hideNow ? '0' : '1') + '">' + (hideNow ? 'Show my name on this list' : 'Hide my name on this list') + '</button>' : '');
+    });
+    document.addEventListener('click', async function(e){
+      var b = e.target.closest && e.target.closest('.who-anon'); if(!b) return;
+      b.disabled = true;
+      await sb.rpc('set_hide_name_on_calls', { p_hide: b.getAttribute('data-hide') === '1' });
+      var card = b.closest('.predict-card'), who = card && card.querySelector('.who-btn');
+      if(who){ var l = who.parentNode.querySelector('.who-list'); l.hidden = true; who.click(); }
+    });
+  })();
+
   (function(){
     var LANES = [ ['all', 'All'], ['news', 'News'], ['pop', 'Pop Culture'], ['sports', 'Sports'] ];
     var LANE_NAME = { news: 'News', pop: 'Pop Culture', sports: 'Sports' };
