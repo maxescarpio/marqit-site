@@ -7648,7 +7648,7 @@
     }
     function imgHtml(r){
       if(r.image_url && /^https:\/\//i.test(r.image_url)){
-        return '<div class="news-img"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="var c=this.closest(\'.news-card\');if(c&&c.classList.contains(\'is-trend\')){this.parentNode.remove()}else{(c||this.parentNode).remove()}"></div>';
+        return '<div class="news-img" style="--bg:url(\'' + encodeURI(r.image_url).replace(/[()\'"]/g, escape) + '\')"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="var c=this.closest(\'.news-card\');if(c&&c.classList.contains(\'is-trend\')){this.parentNode.remove()}else{(c||this.parentNode).remove()}"></div>';
       }
       return '';
     }
@@ -7675,7 +7675,7 @@
     }
     function cardHtml(r){
       var isPost = r.kind === 'post', isTrend = r.kind === 'trend', yt = isYt(r);
-      return '<article class="news-card' + (isPost ? ' is-post' : '') + (isTrend ? ' is-trend' : '') + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+      return '<article class="news-card' + (isPost ? ' is-post' : '') + (isTrend ? ' is-trend' : '') + '" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
         ((isPost || yt) ? '' : imgHtml(r)) +
         '<div class="news-body">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div>' +
         (isTrend && r.summary ? '<p class="trend-ctx">' + escapeHtml(r.summary) + '</p>' : '') + '</div>' +
