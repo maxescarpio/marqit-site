@@ -145,12 +145,17 @@ function photoUrl(item: any): string | null {
 // question). take_checked is set once a story has been through the model, so a
 // null isn't re-sent every poll; if the API call fails it stays false and the
 // next poll retries.
-const TAKE_MODEL = 'claude-haiku-5-5';
-const TAKE_PROMPT = `You write one debate question per news headline for a sports / pop-culture fan site.
+const TAKE_MODEL = 'claude-sonnet-5-5';
+const TAKE_PROMPT = `You write the debate question for a news story on a sports and pop-culture fan site. Each story is given as a headline plus a short summary from the article.
+
+The question must be the one thing everyone reading this story is already arguing about: the actual dispute, decision, ranking, claim or doubt inside the story. Think of what fans say in the group chat after reading it.
+
 Rules:
-- A Yes/No question a fan could argue either way (an opinion, not a fact lookup). Max 90 characters. Plain, human wording, no hype.
-- Only sports, entertainment, TV, music, film, games, tech and lifestyle stories.
-- Return null for ANYTHING touching: politics or politicians, elections, government, war, military, conflict, crime, courts or lawsuits, accidents, disasters, weather emergencies, health or illness of a real person, death, religion, race, gender identity, immigration, or anything tragic or divisive.
+- Yes/No question, max 90 characters, plain spoken, like a person talking. No hype, no "Do you think", no "Should fans".
+- Take a real position that is in the story. Use the real names, teams and numbers from it. Bad: "Is the NFL fun to watch?" Good: "Is Bo Nix the problem with the Broncos' offense?"
+- Never invent facts that are not in the headline or summary.
+- Only sports, entertainment, TV, music, film, games, tech, business-of-entertainment and lifestyle stories.
+- Return null for ANYTHING touching: politics or politicians, elections, government, war, military, conflict, crime, courts, lawsuits or verdicts, accidents, disasters, emergencies, health or illness of a real person, death, religion, race, gender identity, immigration, sexual content, or anything tragic or divisive. Also return null if the story has no real debate in it.
 - Never name a private individual. Never accuse anyone of anything.
 Reply with JSON only: {"items":[{"i":0,"q":"question or null"}]}`;
 
@@ -159,18 +164,18 @@ async function generateTakes(admin: any) {
   if (!apiKey) return { skipped: 'no ANTHROPIC_API_KEY' };
   const { data: pending, error } = await admin
     .from('news_ticker')
-    .select('id, headline')
+    .select('id, headline, summary')
     .eq('take_checked', false)
     .order('fetched_at', { ascending: false })
     .limit(40);
   if (error) throw error;
   if (!pending || pending.length === 0) return { generated: 0 };
 
-  const list = pending.map((r: any, i: number) => `${i}. ${r.headline}`).join('\n');
+  const list = pending.map((r: any, i: number) => `${i}. ${r.headline}${r.summary ? '\n   Summary: ' + r.summary : ''}`).join('\n');
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: TAKE_MODEL, max_tokens: 2000, system: TAKE_PROMPT, messages: [{ role: 'user', content: list }] }),
+    body: JSON.stringify({ model: TAKE_MODEL, max_tokens: 3000, system: TAKE_PROMPT, messages: [{ role: 'user', content: list }] }),
   });
   if (!res.ok) throw new Error('anthropic ' + res.status);
   const out = await res.json();
@@ -238,6 +243,7 @@ Deno.serve(async (req: Request) => {
           source_name: displayName,
           article_url: item.url,
           image_url: photoUrl(item),
+          summary: typeof item.description === 'string' ? item.description.trim().slice(0, 700) || null : null,
           published_at: item.published ? new Date(item.published).toISOString() : null
         };
       })
