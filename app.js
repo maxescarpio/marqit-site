@@ -3251,20 +3251,26 @@
       '<text x="' + padL + '" y="' + (H - 6) + '" text-anchor="start" font-size="9" fill="var(--ink-soft)" font-family="Inter,sans-serif">' + fmtTime(startT) + '</text>' +
       '<text x="' + (W - padR) + '" y="' + (H - 6) + '" text-anchor="end" font-size="9" fill="var(--ink-soft)" font-family="Inter,sans-serif">' + fmtTime(endT) + '</text>';
 
-    // Small markers at each point the percentage actually changed, each with
-    // a native tooltip (shows on hover on desktop, on tap on most mobile
-    // browsers) giving the exact time and value — so "when it moved" is
-    // discoverable without cluttering the chart with permanent labels.
-    var moveMarkers = '';
-    for(var m = 1; m < points.length; m++){
-      if(points[m].pct === points[m - 1].pct) continue;
-      var mx = xPos(points[m].time.getTime()).toFixed(1);
-      var my = yPos(points[m].pct).toFixed(1);
-      moveMarkers += '<circle cx="' + mx + '" cy="' + my + '" r="4" fill="var(--ink)" fill-opacity="0.01" stroke="none">' +
-        '<title>' + fmtTime(points[m].time.getTime()) + ' \u2014 ' + points[m].pct + '%</title>' +
-        '</circle>' +
-        '<circle cx="' + mx + '" cy="' + my + '" r="2" fill="var(--ink)"/>';
+    // Dots at the first call, at every point the percentage changed, and at the
+    // newest call. Each has a big invisible tap target; tapping (or clicking, or
+    // pressing Enter on) a dot pops up the time that call was submitted.
+    var moveMarkers = '', hitTargets = '';
+    function addDot(pt, x, y){
+      var xs = x.toFixed(1), ys = y.toFixed(1);
+      moveMarkers += '<circle cx="' + xs + '" cy="' + ys + '" r="2.4" fill="var(--ink)" pointer-events="none"/>';
+      hitTargets += '<circle class="trend-hit" cx="' + xs + '" cy="' + ys + '" r="13" fill="transparent" tabindex="0" role="button" ' +
+        'aria-label="Call submitted at ' + fmtTime(pt.time.getTime()) + ', Yes ' + pt.pct + ' percent" ' +
+        'data-x="' + xs + '" data-y="' + ys + '" data-t="' + fmtTime(pt.time.getTime()) + '" data-p="' + pt.pct + '"/>';
     }
+    addDot(points[0], xPos(points[0].time.getTime()), yPos(points[0].pct));
+    for(var m = 1; m < points.length - 1; m++){
+      if(points[m].pct === points[m - 1].pct) continue;
+      addDot(points[m], xPos(points[m].time.getTime()), yPos(points[m].pct));
+    }
+    var lastPt = points[points.length - 1];
+    hitTargets += '<circle class="trend-hit" cx="' + endX + '" cy="' + yPos(lastPct).toFixed(1) + '" r="13" fill="transparent" tabindex="0" role="button" ' +
+      'aria-label="Latest call submitted at ' + fmtTime(lastPt.time.getTime()) + ', Yes ' + lastPct + ' percent" ' +
+      'data-x="' + endX + '" data-y="' + yPos(lastPct).toFixed(1) + '" data-t="' + fmtTime(lastPt.time.getTime()) + '" data-p="' + lastPct + '"/>';
 
     // Small "Yes 62%" bubble on the newest point (flips below the line near the top edge)
     var dotX = parseFloat(endX), dotY = parseFloat(yPos(lastPct).toFixed(1));
@@ -3274,7 +3280,7 @@
     var bubble = '<g class="trend-bubble"><rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw + '" height="' + bh + '" rx="9.5" style="fill:rgb(var(--tint))"/>' +
       '<text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (by + 13).toFixed(1) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0E1014" font-family="Inter,sans-serif">Yes ' + lastPct + '%</text></g>';
 
-    return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="trend-svg" aria-hidden="true">' +
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="trend-svg">' +
       '<defs><linearGradient id="' + gradId + '" x1="0" y1="0" x2="0" y2="1">' +
         '<stop offset="0%" style="stop-color:rgb(var(--tint));stop-opacity:.42"/>' +
         '<stop offset="100%" style="stop-color:rgb(var(--tint));stop-opacity:0"/>' +
@@ -3287,8 +3293,46 @@
       '<circle class="trend-dot" cx="' + endX + '" cy="' + yPos(lastPct).toFixed(1) + '" r="4.2" style="fill:rgb(var(--tint));stroke:var(--panel)" stroke-width="2"/>' +
       bubble +
       xLabels +
+      hitTargets +
       '</svg>';
   }
+
+  // Tap/click/Enter on a chart dot: show a small tag with the time that call was
+  // submitted. Tap the same dot again, tap elsewhere, or press Escape to close it.
+  (function(){
+    var NS = 'http://www.w3.org/2000/svg';
+    function closePop(svg){ var old = svg && svg.querySelector('.trend-pop'); if(old) old.remove(); }
+    function openPop(hit){
+      var svg = hit.ownerSVGElement; if(!svg) return;
+      var wasSame = svg.__popFor === hit;
+      closePop(svg); svg.__popFor = null;
+      if(wasSame) return;
+      var x = parseFloat(hit.getAttribute('data-x')), y = parseFloat(hit.getAttribute('data-y'));
+      var vb = svg.viewBox.baseVal, W = vb.width;
+      var g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'trend-pop'); g.setAttribute('pointer-events', 'none');
+      var rect = document.createElementNS(NS, 'rect');
+      var t1 = document.createElementNS(NS, 'text'), t2 = document.createElementNS(NS, 'text');
+      t1.textContent = 'Submitted ' + hit.getAttribute('data-t');
+      t2.textContent = 'Yes ' + hit.getAttribute('data-p') + '% at that point';
+      [t1, t2].forEach(function(t, i){ t.setAttribute('font-family', 'Inter,sans-serif'); t.setAttribute('font-size', i ? '9' : '10.5'); t.setAttribute('font-weight', i ? '500' : '700'); t.setAttribute('fill', i ? '#4B515C' : '#0E1014'); });
+      g.appendChild(rect); g.appendChild(t1); g.appendChild(t2); svg.appendChild(g);
+      var w = Math.max(t1.getComputedTextLength(), t2.getComputedTextLength()) + 16, h = 34;
+      var bx = Math.max(2, Math.min(x - w / 2, W - w - 2));
+      var by = y - h - 10 < 0 ? y + 10 : y - h - 10;
+      rect.setAttribute('x', bx); rect.setAttribute('y', by); rect.setAttribute('width', w); rect.setAttribute('height', h); rect.setAttribute('rx', 7); rect.setAttribute('fill', '#F4F4F1');
+      t1.setAttribute('x', bx + 8); t1.setAttribute('y', by + 14); t2.setAttribute('x', bx + 8); t2.setAttribute('y', by + 26);
+      svg.__popFor = hit;
+    }
+    document.addEventListener('click', function(e){
+      var hit = e.target.closest && e.target.closest('.trend-hit');
+      if(hit){ openPop(hit); return; }
+      document.querySelectorAll('.trend-svg').forEach(function(sv){ closePop(sv); sv.__popFor = null; });
+    });
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape'){ document.querySelectorAll('.trend-svg').forEach(function(sv){ closePop(sv); sv.__popFor = null; }); return; }
+      if((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('trend-hit')){ e.preventDefault(); openPop(e.target); }
+    });
+  })();
 
   // Makes a freshly-inserted trend line draw itself in instead of just
   // appearing instantly. Call this right after any trend-svg HTML is
@@ -6207,7 +6251,7 @@
   }
 
 
-  // ---- My calls: your last several resolved picks, right or wrong, plus overall hit rate ----
+  // ---- My calls: this week's (Mon-Sun) scored picks, right or wrong, plus this week's hit rate ----
   async function loadMyCalls(){
     var listEl = document.getElementById('mycalls-list'), rateEl = document.getElementById('mycalls-rate');
     if(!listEl) return;
@@ -6215,18 +6259,21 @@
     try{ var sr = await sb.auth.getSession(); session = sr && sr.data && sr.data.session; }catch(e){}
     if(!session){ listEl.innerHTML = '<p class="recap-foot" style="border:none;padding:0;">Sign in to see your calls.</p>'; return; }
 
+    // Strictly this week: Monday through Sunday (Eastern). It starts fresh every Monday.
+    var weekStart = getWeekStart(), today = getETDateInfo().dateStr;
     var res = await sb.from('predictions')
       .select('choice, daily_questions!inner(question_text, category, correct_answer, resolved, question_date)')
       .eq('user_id', session.user.id)
       .eq('daily_questions.resolved', true)
-      .order('daily_questions(question_date)', { ascending: false })
-      .limit(8);
+      .gte('daily_questions.question_date', weekStart)
+      .lte('daily_questions.question_date', today)
+      .order('daily_questions(question_date)', { ascending: false });
 
     var rows = res.data || [];
-    if(!rows.length){ listEl.innerHTML = '<p class="recap-foot" style="border:none;padding:0;">Your calls show up here once they\u2019re scored.</p>'; return; }
+    if(!rows.length){ rateEl.innerHTML = ''; listEl.innerHTML = '<p class="recap-foot" style="border:none;padding:0;">Your calls this week show up here once they\u2019re scored.</p>'; return; }
 
     var right = rows.filter(function(r){ return r.choice === r.daily_questions.correct_answer; }).length;
-    rateEl.innerHTML = '<b>' + Math.round(right / rows.length * 100) + '%</b><span>hit rate \u00b7 last ' + rows.length + '</span>';
+    rateEl.innerHTML = '<b>' + Math.round(right / rows.length * 100) + '%</b><span>hit rate \u00b7 this week</span>';
 
     function callRow(r){
       var dq = r.daily_questions, won = r.choice === dq.correct_answer;
@@ -6238,7 +6285,7 @@
         '<span class="mycall-res">' + mqIcon(won ? 'check' : 'xmark') + '</span>' +
       '</div>';
     }
-    // Your latest three stay in view; anything older sits behind a "Show earlier calls" dropdown.
+    // Your latest three stay in view; the rest of this week sits behind a "Show earlier calls" dropdown.
     var firstRows = rows.slice(0, 3), olderRows = rows.slice(3);
     var html = firstRows.map(callRow).join('');
     if(olderRows.length){
