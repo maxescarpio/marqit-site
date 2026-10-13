@@ -450,15 +450,7 @@
   .pagenav-row.has-ind .pagenav-tab{border-bottom-color:transparent !important;}
   .tab-ind{position:absolute;left:0;bottom:0;height:3px;width:var(--w,0px);transform:translateX(var(--x,0px));background:var(--yes);border-radius:3px 3px 0 0;transition:transform .38s var(--ease),width .38s var(--ease),opacity .2s;pointer-events:none;}
 
-  /* ---- hero atmosphere: two slow, soft light pools ---- */
   .hero{position:relative;overflow:hidden;isolation:isolate;}
-  .hero{--fx1:51,209,139;--fx2:84,108,250;}
-  .hero-challenge{--fx1:246,196,48;--fx2:84,108,250;}
-  .hero::before{content:"";position:absolute;z-index:-1;inset:-18% -12%;pointer-events:none;will-change:transform;
-    background:radial-gradient(55% 62% at 86% 8%,rgba(var(--fx1),0.522),transparent 70%),radial-gradient(52% 58% at 6% 78%,rgba(var(--fx2),0.45),transparent 70%);
-    -webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent 96%);mask-image:linear-gradient(to bottom,#000 55%,transparent 96%);
-    animation:fxDrift 17s ease-in-out infinite alternate;}
-  @keyframes fxDrift{from{transform:translate3d(0,0,0) scale(1);}to{transform:translate3d(-34px,22px,0) scale(1.09);}}
   .hero h1{font-size:clamp(30px,8vw,48px);line-height:.98;animation:none;max-width:none;text-wrap:balance;}
   .hero p.sub{font-size:clamp(15px,4.1vw,18px);text-wrap:pretty;}
   .streak-accent{color:#E8964A;font-weight:600;}
@@ -598,9 +590,7 @@
   .fold .policy-body ul{margin:0 0 10px 20px;}
   .fold .policy-body li{font-size:14px;color:var(--ink-soft);margin-bottom:6px;max-width:58ch;}
 
-  /* ---- final CTA band gets the same slow light ---- */
   .cta-band{position:relative;overflow:hidden;isolation:isolate;}
-  .cta-band::before{content:"";position:absolute;z-index:-1;inset:-30% -12%;background:radial-gradient(50% 65% at 88% 0%,rgba(51,209,139,.26),transparent 70%);-webkit-mask-image:linear-gradient(to bottom,#000 50%,transparent 98%);mask-image:linear-gradient(to bottom,#000 50%,transparent 98%);animation:fxDrift 19s ease-in-out infinite alternate;}
   .cta-band p{font-size:18px;}
   .cta-band h2{max-width:none;text-wrap:balance;}
 
@@ -617,7 +607,6 @@
   #page-home .section{border-top:none;padding:14px 0 36px;}
   @supports (overflow:clip){
     .hero-play{overflow-x:clip;overflow-y:visible;}
-    .hero-play::before{inset:0 -12% -140px -12%;}
   }
   .lock-card{padding:10px 16px 12px;border-radius:16px;}
   .lock-val{font-size:24px;}
@@ -652,13 +641,8 @@
   .lock-card{background:radial-gradient(120% 180% at 0% 0%,rgba(51,209,139,.13),transparent 60%),var(--panel);}
   #pending-requests-card{background:radial-gradient(120% 120% at 0% 0%,rgba(255,148,38,.18),transparent 62%),var(--panel) !important;border-color:rgba(255,148,38,.40) !important;}
 
-  /* ---- soft glow behind page titles on the other tabs ---- */
   .hero-lite{position:relative;isolation:isolate;border-top:none;padding-bottom:30px;}
-  .hero-lite::before{content:"";position:absolute;z-index:-1;inset:0 0 -110px 0;pointer-events:none;
-    background:radial-gradient(55% 95% at 88% 0%,rgba(var(--fx1),0.493),transparent 70%),radial-gradient(50% 80% at 4% 62%,rgba(var(--fx2),0.362),transparent 70%);
-    -webkit-mask-image:linear-gradient(to bottom,#000 50%,transparent 96%);mask-image:linear-gradient(to bottom,#000 50%,transparent 96%);
-    animation:fxDrift 18s ease-in-out infinite alternate;}
-  @supports (overflow:clip){.hero-lite{overflow-x:clip;}.hero-lite::before{inset:0 -12% -110px -12%;}}
+  @supports (overflow:clip){.hero-lite{overflow-x:clip;}}
 
   /* ---- "signup is quick" reassurance ---- */
   .signup-note{margin-top:10px;font-size:12.5px;color:var(--ink-soft);text-wrap:balance;}
