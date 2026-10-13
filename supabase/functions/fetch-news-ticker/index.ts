@@ -105,7 +105,7 @@ const BLOCKED_HEADLINE = new RegExp(
     'kidnap\\w*', 'abduct\\w*', 'child\\s+endangerment', 'domestic\\s+violence', 'assault\\w*',
     // deaths and funerals of real people
     'die[sd]?', 'dead', 'deaths?', 'dying', 'passed\\s+away', 'funerals?', 'obituar\\w*',
-    'late\\s+(husband|wife|father|mother|son|daughter)',
+    'late\\s+(husband|wife|father|mother|son|daughter)', 'cancer', 'tumou?rs?', 'diagnos\\w*', 'chemo\\w*', 'terminal\\s+ill\\w*', 'health\\s+(battle|scare|struggles?|crisis)', 'hospital\\w*', 'sex(ual)?', 'nude', 'naked',
   ].join('|') + ')\\b',
   'i'
 );
