@@ -1249,3 +1249,7 @@ body{overflow-x:hidden;}
 .crowd-teaser>svg{color:var(--gold);}
 .teaser-bar{background:rgba(244,244,241,.1);}
 .teaser-bar i{background:linear-gradient(90deg,transparent,rgba(242,193,78,.8),transparent);}
+
+.news-card.is-trend .news-body{padding-bottom:4px;}
+.trend-ctx{margin:8px 0 0;font-size:14px;line-height:1.4;color:var(--ink-soft);}
+.news-card.is-trend .post-embed{padding:0 16px 8px;}
