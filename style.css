@@ -1281,3 +1281,6 @@ body{overflow-x:hidden;}
 .take-split{font-size:16px;font-weight:800;}
 .feed-chip:hover{border-color:var(--gold);color:var(--ink);}
 .feed-chip.on{box-shadow:0 0 18px -2px rgba(242,193,78,.55);}
+
+:root{--c-markets:#2EE6A6;}
+.news-card[data-lane="markets"]{--lane:var(--c-markets);}

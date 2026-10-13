@@ -66,6 +66,14 @@ const ALLOWED_SOURCES: Record<string, string> = {
   'barrons.com': "Barron's",
   'investopedia.com': 'Investopedia',
   'inc.com': 'Inc.',
+  'fastcompany.com': 'Fast Company',
+  'semafor.com': 'Semafor',
+  'benzinga.com': 'Benzinga',
+  'thestreet.com': 'TheStreet',
+  'investors.com': "Investor's Business Daily",
+  'seekingalpha.com': 'Seeking Alpha',
+  'coindesk.com': 'CoinDesk',
+  'cnbc.com.au': 'CNBC',
   // Tech
   'techcrunch.com': 'TechCrunch',
   'theverge.com': 'The Verge',
@@ -76,6 +84,12 @@ const ALLOWED_SOURCES: Record<string, string> = {
   'mashable.com': 'Mashable',
   'venturebeat.com': 'VentureBeat',
   'zdnet.com': 'ZDNet',
+  'gizmodo.com': 'Gizmodo',
+  'tomshardware.com': 'Tom\'s Hardware',
+  'space.com': 'Space.com',
+  'electrek.co': 'Electrek',
+  '9to5mac.com': '9to5Mac',
+  'theinformation.com': 'The Information',
 };
 
 // Headlines matching any of these are never stored or shown. Strict on purpose
@@ -106,6 +120,8 @@ const BLOCKED_HEADLINE = new RegExp(
     // deaths and funerals of real people
     'die[sd]?', 'dead', 'deaths?', 'dying', 'passed\\s+away', 'funerals?', 'obituar\\w*',
     'late\\s+(husband|wife|father|mother|son|daughter)', 'cancer', 'tumou?rs?', 'diagnos\\w*', 'chemo\\w*', 'terminal\\s+ill\\w*', 'health\\s+(battle|scare|struggles?|crisis)', 'hospital\\w*', 'sex(ual)?', 'nude', 'naked',
+    // vulgar language
+    'ass', 'asses', 'asshole\\w*', 'bitch\\w*', 'fuck\\w*', 'shit\\w*', 'damn\\w*', 'crap', 'piss\\w*', 'dick', 'cock', 'whore\\w*', 'slut\\w*',
   ].join('|') + ')\\b',
   'i'
 );
@@ -125,10 +141,20 @@ function isBlockedHeadline(title: string): boolean {
 // the allow-list each time. 3 calls x 72 polls/day (20-min cadence) = 216
 // calls/day, still under the 250/day cap.
 const QUERY_URLS = [
+  'https://api.currentsapi.services/v1/latest-news?language=en&category=business',
+  'https://api.currentsapi.services/v1/latest-news?language=en&category=technology',
+];
+// The third call rotates so sports and entertainment still get pulled, while
+// finance and tech (the main focus of the News tab) are pulled every time.
+// Still 3 calls per poll, so the daily cap is unchanged.
+const ROTATING_URLS = [
   'https://api.currentsapi.services/v1/latest-news?language=en',
   'https://api.currentsapi.services/v1/latest-news?language=en&category=sports',
   'https://api.currentsapi.services/v1/latest-news?language=en&category=entertainment',
 ];
+// Stories older than this are dropped, so questions never debate stale news
+// (old trades, old feuds) as if it were happening today.
+const MAX_AGE_HOURS = 36;
 
 // Only stories with a photo are stored (the News tab shows a story only if it has a photo and a debate question).
 const MAX_ROWS = 100;
@@ -147,25 +173,48 @@ function photoUrl(item: any): string | null {
 // null isn't re-sent every poll; if the API call fails it stays false and the
 // next poll retries.
 const TAKE_MODEL = 'claude-sonnet-5-5';
-const TAKE_PROMPT = `You write the debate question for a news story on a sports and pop-culture fan site. Each story is given as a headline plus a short summary from the article.
+const TAKE_PROMPT = `You write the debate question for a story on Marqit, a fan site where people argue about money, tech, sports and pop culture. Each story is a headline plus a short summary.
 
-The question must be the one thing everyone reading this story is already arguing about: the actual dispute, decision, ranking, claim or doubt inside the story. Think of what fans say in the group chat after reading it.
+The main focus is finance and technology: markets, earnings, stocks, IPOs, AI, chips, Nvidia and Jensen Huang, SpaceX and Elon Musk, Tesla, Bezos and Amazon, Apple, Google, Meta, and what the biggest billionaires and companies do or say. Sports and pop culture stories are also welcome.
+
+The question must be the one thing everyone reading is already arguing about, and it must be a DEFINITIVE call that splits the room. Make people want to pick a side.
 
 Rules:
-- Yes/No question, max 90 characters, plain spoken, like a person talking. No hype, no "Do you think", no "Should fans".
-- Take a real position that is in the story. Use the real names, teams and numbers from it. Bad: "Is the NFL fun to watch?" Good: "Is Bo Nix the problem with the Broncos' offense?"
-- Never invent facts that are not in the headline or summary.
-- Only sports, entertainment, TV, music, film, games, tech, business-of-entertainment and lifestyle stories.
-- Return null for ANYTHING touching: politics or politicians, elections, government, war, military, conflict, crime, courts, lawsuits or verdicts, accidents, disasters, emergencies, health or illness of a real person, death, religion, race, gender identity, immigration, sexual content, or anything tragic or divisive. Also return null if the story has no real debate in it.
+- Yes/No question, max 90 characters, plain spoken. No "Do you think", no "Should fans".
+- Take a firm position: "Is X the best...", "Is X overrated?", "Will X win...", "Is X worth $Y?", "Is X a bubble?", "Is X the GOAT?".
+- NEVER write hedged or weak questions: no "one of the best", no "still", no "can ... win together", no spread, odds, "cover", over/under or betting framing, no "could" or "might".
+- ONLY use facts, names, teams, companies and numbers that appear in the headline or summary. Do not add rosters, current teams, records, stock prices, titles or dates from your own memory, because they may be out of date. If the story depends on a trade, roster, contract or status you are not sure is current, return null.
 - Never name a private individual. Never accuse anyone of anything.
-Reply with JSON only: {"items":[{"i":0,"q":"question or null"}]}`;
+- Return null for ANYTHING touching: politics or politicians, elections, government, war, military, conflict, crime, courts, lawsuits or verdicts, accidents, disasters, emergencies, health or illness of a real person, death, religion, race, gender identity, immigration, sexual content, or anything tragic or divisive. Also return null if there is no real debate, or the story is a routine press release.
+- Also give "lane": one of markets (stocks, earnings, finance, billionaires, business), tech, sports, pop (movies, TV, celebrities, streaming), music, news.
+Reply with JSON only: {"items":[{"i":0,"q":"question or null","lane":"markets"}]}`;
+
+// ---- question safety net -----------------------------------------------------
+const LANES_OK = ['markets', 'tech', 'sports', 'pop', 'music', 'news'];
+const WEAK_Q = /\b(one of the (best|worst|greatest)|cover the spread|the spread|over\/under|odds|do you think|should fans|could|might)\b/i;
+const SKIP_WORDS = new Set(['is','are','was','will','can','does','do','did','has','have','the','a','an','and','or','in','on','at','to','of','for','best','worst','new','top','this','that','these','who','what','why','how','when','which','it','he','she','they','we','you','i','yes','no','win','still','than','more','most','better','worse','over','under','worth']);
+// Every capitalised word or number in the question must appear in the story
+// text, so the writer cannot bring in names, teams or figures from its own memory.
+function isGrounded(q: string, source: string): boolean {
+  const src = source.toLowerCase().replace(/[’']/g, '');
+  const words = q.replace(/[?.,!]/g, ' ').split(/\s+/).filter(Boolean);
+  for (let i = 0; i < words.length; i++) {
+    const raw = words[i].replace(/[’']s$/i, '').replace(/[’']/g, '');
+    const w = raw.toLowerCase();
+    if (!w || SKIP_WORDS.has(w)) continue;
+    const proper = /^[A-Z]/.test(raw) && i > 0;
+    const num = /\d/.test(raw);
+    if ((proper || num) && !src.includes(w.replace(/[$%]/g, ''))) return false;
+  }
+  return true;
+}
 
 async function generateTakes(admin: any) {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) return { skipped: 'no ANTHROPIC_API_KEY' };
   const { data: pending, error } = await admin
     .from('news_ticker')
-    .select('id, headline, summary')
+    .select('id, headline, summary, source_name')
     .eq('take_checked', false)
     .order('fetched_at', { ascending: false })
     .limit(40);
@@ -189,8 +238,10 @@ async function generateTakes(admin: any) {
     const row = pending[it.i];
     if (!row) continue;
     let q = typeof it.q === 'string' ? it.q.trim() : null;
-    if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlockedHeadline(q))) q = null;
-    const { error: uErr } = await admin.from('news_ticker').update({ take_question: q, take_checked: true }).eq('id', row.id);
+    if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlockedHeadline(q) || WEAK_Q.test(q) || !isGrounded(q, `${row.headline} ${row.summary || ''}`))) q = null;
+    const upd: any = { take_question: q, take_checked: true };
+    if (q && LANES_OK.includes(it.lane)) upd.lane = it.lane;
+    const { error: uErr } = await admin.from('news_ticker').update(upd).eq('id', row.id);
     if (!uErr && q) n++;
   }
   return { generated: n, checked: items.length };
@@ -215,7 +266,8 @@ Deno.serve(async (req: Request) => {
 
   try {
     const allNews: any[] = [];
-    for (const baseUrl of QUERY_URLS) {
+    const slot = Math.floor(Date.now() / (20 * 60 * 1000)) % ROTATING_URLS.length;
+    for (const baseUrl of [...QUERY_URLS, ROTATING_URLS[slot]]) {
       const res = await fetch(`${baseUrl}&apiKey=${currentsApiKey}`);
       const data = await res.json();
       if (data.status === 'ok' && Array.isArray(data.news)) {
@@ -239,6 +291,8 @@ Deno.serve(async (req: Request) => {
 
         if (item.title && isBlockedHeadline(String(item.title))) return null; // too sensitive — drop it
         if (!photoUrl(item)) return null; // no photo — drop it
+        const pubMs = item.published ? new Date(item.published).getTime() : NaN;
+        if (!Number.isFinite(pubMs) || Date.now() - pubMs > MAX_AGE_HOURS * 3600 * 1000) return null; // stale or undated — drop it
 
         return {
           headline: item.title,

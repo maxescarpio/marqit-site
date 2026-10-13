@@ -7492,13 +7492,14 @@
   // comment count. Tapping a card opens its thread (the story, the debate and the full
   // discussion). Trending posts (kind = 'post') are links to social posts, added from the admin page.
   (function(){
-    var LANES = [ ['all', 'All'], ['sports', 'Sports'], ['pop', 'Pop Culture'], ['music', 'Music'], ['tech', 'Tech'], ['news', 'News'] ];
-    var LANE_NAME = { sports: 'Sports', pop: 'Pop Culture', music: 'Music', tech: 'Tech', news: 'News' };
+    var LANES = [ ['all', 'All'], ['markets', 'Markets'], ['tech', 'Tech'], ['sports', 'Sports'], ['pop', 'Pop Culture'], ['music', 'Music'], ['news', 'News'] ];
+    var LANE_NAME = { markets: 'Markets', sports: 'Sports', pop: 'Pop Culture', music: 'Music', tech: 'Tech', news: 'News' };
     var LANE_BY_SOURCE = {};
     ['ESPN', 'Yahoo Sports', 'Bleacher Report', 'CBS Sports', 'Sports Illustrated', 'The Athletic', 'NFL', 'NBA', 'MLB'].forEach(function(s){ LANE_BY_SOURCE[s] = 'sports'; });
     ['People', 'E! Online', 'Variety', 'Entertainment Weekly', 'Us Weekly', 'TMZ', 'Page Six', 'Rolling Stone', 'The Hollywood Reporter', 'Deadline', 'GQ', 'Elle'].forEach(function(s){ LANE_BY_SOURCE[s] = 'pop'; });
     LANE_BY_SOURCE['Billboard'] = 'music';
-    ['TechCrunch', 'The Verge', 'Engadget', 'Wired', 'Ars Technica', 'CNET', 'Mashable', 'VentureBeat', 'ZDNet'].forEach(function(s){ LANE_BY_SOURCE[s] = 'tech'; });
+    ['Yahoo Finance', 'Forbes', 'CNBC', 'Bloomberg', 'MarketWatch', 'Fortune', "Barron's", 'Investopedia', 'Inc.', 'Fast Company', 'Benzinga', 'TheStreet', "Investor's Business Daily", 'Seeking Alpha', 'CoinDesk', 'Business Insider', 'The Wall Street Journal'].forEach(function(s){ LANE_BY_SOURCE[s] = 'markets'; });
+    ['Gizmodo', "Tom's Hardware", 'Space.com', 'Electrek', '9to5Mac', 'The Information', 'TechCrunch', 'The Verge', 'Engadget', 'Wired', 'Ars Technica', 'CNET', 'Mashable', 'VentureBeat', 'ZDNet'].forEach(function(s){ LANE_BY_SOURCE[s] = 'tech'; });
     function laneOf(r){ return r.lane || LANE_BY_SOURCE[r.source_name] || 'news'; }
 
     var rowsById = {};      // id -> row
