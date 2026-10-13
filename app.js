@@ -7385,6 +7385,35 @@
     }
   });
 
+  // ---- News safety filter ----
+  // Used by both the news ticker and the News tab. Hides headlines about violence,
+  // sexual crimes, terrorism, deaths, self-harm and similar. Deliberately strict:
+  // hiding a harmless story is fine, showing a sensitive one is not. The server
+  // (fetch-news-ticker) applies the same kind of filter before storing anything.
+  var MQ_NEWS_BLOCK = new RegExp('\\b(' + [
+    // sexual violence and exploitation
+    'rape[ds]?', 'rapists?', 'raping', 'molest\\w*', 'pedophil\\w*', 'incest',
+    'sexual(ly)?\\s+(assault\\w*|abus\\w*|misconduct|harass\\w*|violence)', 'sex\\s+traffick\\w*', 'traffick\\w*',
+    // shootings, killings, murder
+    'serial\\s+killers?', 'shootings?', 'shooters?', 'gunm[ae]n', 'gunfire', 'shot\\s+dead', 'shot\\s+and\\s+killed',
+    'fatally\\s+shot', 'gunned\\s+down', '(was|were|been|is|being|get|gets)\\s+shot', 'shot\\s+by',
+    'murder\\w*', 'homicides?', 'manslaughter', 'slain', 'slaying', 'stabb\\w*', 'killed', 'kills', 'killings?', 'killers?',
+    'massacres?', 'mass\\s+casualt\\w*', 'death\\s+toll', 'deadly', 'fatal\\w*', 'found\\s+dead', 'dead\\s+bod\\w*', 'bod(y|ies)\\s+found',
+    // bombings, terrorism, war violence
+    'bomb\\w*', 'explosions?', 'exploded', 'terror\\w*', 'hostages?', 'behead\\w*', 'genocide', 'torture\\w*',
+    'war\\s+crimes?', 'airstrikes?', 'missile\\s+strikes?',
+    // self-harm, overdoses, abuse, kidnapping
+    'suicid\\w*', 'self-harm', 'overdos\\w*', 'child\\s+abus\\w*', 'abus\\w*\\s+(of\\s+)?(a\\s+)?(child|children|kids?|minors?)',
+    'kidnap\\w*', 'abduct\\w*', 'child\\s+endangerment', 'domestic\\s+violence', 'assault\\w*'
+  ].join('|') + ')\\b', 'i');
+  var MQ_NEWS_OK_PHRASES = /\b(shooting\s+(guard|percentage|star|touch|slump|form|stroke)|kill(s|ed|ing)?\s+(it|the\s+(game|show|stage|crowd|room)))\b/gi;
+  function mqNewsAllowed(headline){
+    var t = String(headline || '');
+    if(!t) return false;
+    if(/\brehab\b/i.test(t) && /\b(death|deaths|died|dies|dead|dying)\b/i.test(t)) return false;
+    return !MQ_NEWS_BLOCK.test(t.replace(MQ_NEWS_OK_PHRASES, ''));
+  }
+
   // News ticker — reads real, already-fetched headlines from news_ticker.
   // No fabricated content: if the table is empty, the strip stays hidden.
   (function(){
@@ -7396,7 +7425,7 @@
       .select('headline, source_name, article_url')
       .order('fetched_at', { ascending: false })
       .then(function(res){
-        var rows = (res && res.data) ? res.data : [];
+        var rows = ((res && res.data) ? res.data : []).filter(function(r){ return mqNewsAllowed(r.headline); });
         // Stay hidden until there's enough real content that the seamless-loop
         // technique (which duplicates the list once) doesn't visibly show the
         // same headline twice back-to-back \u2014 that's a symptom of too little
@@ -7434,6 +7463,59 @@
           trackEl.style.animationDuration = duration + 's';
         });
       }, function(){ /* fetch failed — stay hidden, fail silently */ });
+  })();
+
+  // News tab — the same stories as the ticker above, as cards with the photo the
+  // outlet supplied (when we have one). Loads the first time the tab is opened.
+  (function(){
+    var tab = document.querySelector('.pagenav-tab[data-page="news"]');
+    var grid = document.getElementById('news-grid');
+    if(!tab || !grid) return;
+    var loaded = false;
+
+    function ago(iso){
+      var t = iso ? new Date(iso).getTime() : NaN;
+      if(isNaN(t)) return '';
+      var m = Math.max(0, Math.round((Date.now() - t) / 60000));
+      if(m < 2) return 'just now';
+      if(m < 60) return m + ' min ago';
+      var h = Math.round(m / 60);
+      if(h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+      var d = Math.round(h / 24);
+      return d + (d === 1 ? ' day ago' : ' days ago');
+    }
+
+    function cardHtml(row){
+      var url = row.article_url || '';
+      if(!/^https?:\/\//i.test(url)) return '';
+      var domain = '';
+      try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch(e){}
+      var logo = domain ? '<img class="nt-logo" src="https://www.google.com/s2/favicons?sz=64&domain=' + escapeHtml(domain) + '" alt="" onerror="this.style.display=\'none\'">' : '';
+      var img = '';
+      if(row.image_url && /^https:\/\//i.test(row.image_url)){
+        img = '<div class="news-img"><img src="' + escapeHtml(row.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>';
+      }
+      var when = ago(row.published_at || row.fetched_at);
+      return '<a class="news-card" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" data-news-id="' + escapeHtml(row.id || '') + '">' +
+        img +
+        '<div class="news-body"><div class="news-meta">' + logo + '<span>' + escapeHtml(row.source_name || '') + '</span>' + (when ? '<span>·</span><span>' + when + '</span>' : '') + '</div>' +
+        '<div class="news-h">' + escapeHtml(row.headline || '') + '</div></div></a>';
+    }
+
+    async function load(){
+      if(loaded) return;
+      loaded = true;
+      var cols = 'id, headline, source_name, article_url, published_at, fetched_at';
+      var res = await sb.from('news_ticker').select(cols + ', image_url').order('fetched_at', { ascending: false }).limit(40);
+      // Until the photo column exists, fall back to the plain list so the tab still works.
+      if(res.error) res = await sb.from('news_ticker').select(cols).order('fetched_at', { ascending: false }).limit(40);
+      if(res.error){ loaded = false; grid.innerHTML = '<p class="news-empty">News is not loading right now. Try again in a minute.</p>'; return; }
+      var rows = (res.data || []).filter(function(r){ return mqNewsAllowed(r.headline); });
+      var html = rows.map(cardHtml).join('');
+      grid.innerHTML = html || '<p class="news-empty">No stories right now. Check back soon.</p>';
+    }
+
+    tab.addEventListener('click', load);
   })();
 
 })();

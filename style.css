@@ -263,6 +263,20 @@
   .trend-svg .trend-area{animation:trendAreaIn 1.1s ease .45s backwards;}
   .trend-svg .trend-bubble{animation:trendAreaIn .6s ease 1s backwards;}
   .trend-svg .trend-pulse{transform-box:fill-box;transform-origin:center;animation:trendRing 2.2s ease-out infinite;}
+  /* ---- News tab ---- */
+  .news-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:22px;}
+  @media (min-width:640px){.news-grid{grid-template-columns:repeat(2,1fr);}}
+  @media (min-width:960px){.news-grid{grid-template-columns:repeat(3,1fr);}}
+  .news-card{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:var(--ink);transition:border-color .15s;}
+  a.news-card:hover{border-color:var(--ink-soft);}
+  .news-img{aspect-ratio:16/9;background:#14161B;overflow:hidden;}
+  .news-img img{display:block;width:100%;height:100%;object-fit:cover;}
+  .news-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:8px;}
+  .news-meta{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--ink-soft);}
+  .news-meta .nt-logo{width:16px;height:16px;border-radius:4px;flex:none;}
+  .news-h{font-size:17px;font-weight:600;line-height:1.32;letter-spacing:-.005em;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
+  .news-empty{grid-column:1/-1;color:var(--ink-soft);font-size:15px;padding:24px 0;}
+  .news-foot{margin-top:22px;font-size:12px;color:var(--ink-soft);max-width:520px;}
   .trend-hit{cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;}
   .trend-hit:focus-visible{outline:2px solid var(--ink);outline-offset:-2px;}
   @keyframes trendAreaIn{from{opacity:0;}}
