@@ -268,6 +268,7 @@ Deno.serve(async (req: Request) => {
     const { data: keepRows, error: selError } = await admin
       .from('news_ticker')
       .select('id')
+      .eq('kind', 'news') // Marqit updates (kind = 'update') are never trimmed
       .order('fetched_at', { ascending: false })
       .limit(MAX_ROWS);
     if (selError) throw selError;
@@ -277,6 +278,7 @@ Deno.serve(async (req: Request) => {
       const { error: trimError } = await admin
         .from('news_ticker')
         .delete()
+        .eq('kind', 'news')
         .not('id', 'in', `(${keepIds.join(',')})`);
       if (trimError) throw trimError;
     }

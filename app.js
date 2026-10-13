@@ -3853,6 +3853,7 @@
       var who = el('div', 'cmt-who');
       who.appendChild(el('b', null, c.username || 'player'));
       who.appendChild(el('span', 'cmt-ago', ' · ' + ago(c.created_at)));
+      if(c.held) who.appendChild(el('span', 'cmt-held', ' · Waiting for review'));
       main.appendChild(who);
       main.appendChild(el('div', 'cmt-text', c.body));
       var acts = el('div', 'cmt-acts');
@@ -3920,6 +3921,8 @@
         var mine = all.filter(function(c){ return c.question_id === qid; });
         cnt.textContent = mine.length ? '· ' + mine.length : '';
         var tops = mine.filter(function(c){ return !c.parent_id; });
+        if(box.getAttribute('data-sort') === 'top') tops.sort(function(a, b){ return (Number(b.likes) || 0) - (Number(a.likes) || 0) || new Date(a.created_at) - new Date(b.created_at); });
+        else if(box.getAttribute('data-sort') === 'new') tops.sort(function(a, b){ return new Date(b.created_at) - new Date(a.created_at); });
         if(!tops.length) list.appendChild(el('div', 'cmt-empty', 'No comments yet. Say what you think.'));
         tops.forEach(function(c){
           var wrap = el('div', 'cmt-thread');
@@ -3929,10 +3932,16 @@
           list.appendChild(wrap);
         });
         if(session) comp.appendChild(composer(qid, null, 'Add a comment'));
-        else comp.appendChild(el('div', 'cmt-signin', 'Sign in to join the conversation.'));
+        else{ var si = el('button', 'cmt-signin-btn', 'Sign in to join the conversation'); si.type = 'button'; si.addEventListener('click', mqSignInPrompt); comp.appendChild(si); }
       });
     }
     await load(); renderAll();
+    return { rerender: renderAll, reload: async function(){ await load(); renderAll(); } };
+  }
+  function mqSignInPrompt(){
+    try{ if(window.__mqCloseThread) window.__mqCloseThread(); }catch(e){}
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    openAuthPanel('signup', 'comment');
   }
   var MQ_NEWS_COMMENT_API = { get:'get_news_comments', getArg:'p_news_ids', post:'post_news_comment', postArg:'p_news_id', like:'toggle_news_comment_like', del:'delete_my_news_comment', report:'report_news_comment', idKey:'news_id' };
   function mqCommentNote(parent, text){
@@ -7470,13 +7479,26 @@
       }, function(){ /* fetch failed — stay hidden, fail silently */ });
   })();
 
-  // News tab — the same stories as the ticker above, as cards with the photo the
-  // outlet supplied (when we have one). Loads the first time the tab is opened.
+  // ===== News + Trending feeds, and discussion threads =====
+  // Both tabs show the same kind of card: the story, an optional Yes/No debate, and a
+  // comment count. Tapping a card opens its thread (the story, the debate and the full
+  // discussion). Marqit "updates" (kind = 'update') are posted from the admin page.
   (function(){
-    var tab = document.querySelector('.pagenav-tab[data-page="news"]');
-    var grid = document.getElementById('news-grid');
-    if(!tab || !grid) return;
-    var loaded = false;
+    var LANES = [ ['all', 'All'], ['sports', 'Sports'], ['pop', 'Pop Culture'], ['music', 'Music'], ['tech', 'Tech'], ['news', 'News'] ];
+    var LANE_NAME = { sports: 'Sports', pop: 'Pop Culture', music: 'Music', tech: 'Tech', news: 'News' };
+    var LANE_BY_SOURCE = {};
+    ['ESPN', 'Yahoo Sports', 'Bleacher Report', 'CBS Sports', 'Sports Illustrated', 'The Athletic', 'NFL', 'NBA', 'MLB'].forEach(function(s){ LANE_BY_SOURCE[s] = 'sports'; });
+    ['People', 'E! Online', 'Variety', 'Entertainment Weekly', 'Us Weekly', 'TMZ', 'Page Six', 'Rolling Stone', 'The Hollywood Reporter', 'Deadline', 'GQ', 'Elle'].forEach(function(s){ LANE_BY_SOURCE[s] = 'pop'; });
+    LANE_BY_SOURCE['Billboard'] = 'music';
+    ['TechCrunch', 'The Verge', 'Engadget', 'Wired', 'Ars Technica', 'CNET', 'Mashable', 'VentureBeat', 'ZDNet'].forEach(function(s){ LANE_BY_SOURCE[s] = 'tech'; });
+    function laneOf(r){ return r.lane || LANE_BY_SOURCE[r.source_name] || 'news'; }
+
+    var rowsById = {};      // id -> row
+    var statsById = {};     // id -> { comments, votes, last_body, last_user }
+    var resultsById = {};   // id -> { yes_count, no_count, my_choice }
+    var allRows = null;     // loaded once, shared by both tabs
+    var loadingRows = null;
+    var feeds = [];
 
     function ago(iso){
       var t = iso ? new Date(iso).getTime() : NaN;
@@ -7489,108 +7511,320 @@
       var d = Math.round(h / 24);
       return d + (d === 1 ? ' day ago' : ' days ago');
     }
-
-    function cardHtml(row){
-      var url = row.article_url || '';
-      if(!/^https?:\/\//i.test(url)) return '';
-      var domain = '';
-      try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch(e){}
-      var logo = domain ? '<img class="nt-logo" src="https://www.google.com/s2/favicons?sz=64&domain=' + escapeHtml(domain) + '" alt="" onerror="this.style.display=\'none\'">' : '';
-      var img = '';
-      if(row.image_url && /^https:\/\//i.test(row.image_url)){
-        img = '<div class="news-img"><img src="' + escapeHtml(row.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>';
-      }
-      var when = ago(row.published_at || row.fetched_at);
-      var id = escapeHtml(row.id || '');
-      var take = '';
-      if(row.take_question){
-        take = '<div class="news-take" data-take-id="' + id + '">' +
-          '<div class="take-label">The debate</div>' +
-          '<div class="take-q">' + escapeHtml(row.take_question) + '</div>' +
-          '<div class="take-btns"><button type="button" class="take-btn take-yes" data-choice="yes">Yes</button><button type="button" class="take-btn take-no" data-choice="no">No</button></div>' +
-          '<div class="take-result" hidden></div>' +
-          '<div class="take-note">No points. Just the debate.</div>' +
-          '</div>' +
-          '<details class="cmt news-cmt" data-question-id="' + id + '">' +
-            '<summary class="cmt-sum"><span>Discussion <span class="cmt-count"></span></span>' +
-            '<svg class="cmt-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
-            '<div class="cmt-body"><div class="cmt-list"></div><div class="cmt-compose"></div></div>' +
-          '</details>';
-      }
-      return '<div class="news-card" data-news-id="' + id + '">' +
-        '<a class="news-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' +
-        img +
-        '<div class="news-body"><div class="news-meta">' + logo + '<span>' + escapeHtml(row.source_name || '') + '</span>' + (when ? '<span>·</span><span>' + when + '</span>' : '') + '</div>' +
-        '<div class="news-h">' + escapeHtml(row.headline || '') + '</div></div></a>' + take + '</div>';
+    function plural(n, w){ return n + ' ' + w + (n === 1 ? '' : 's'); }
+    function hot(r){
+      var s = statsById[r.id] || {};
+      var ageH = Math.max(0, (Date.now() - new Date(r.fetched_at || r.published_at || Date.now()).getTime()) / 3600000);
+      var base = (Number(s.comments) || 0) * 3 + (Number(s.votes) || 0) + (r.kind === 'update' ? 4 : 0);
+      return (base + 1) / Math.pow(ageH + 2, 1.2) + (r.pinned ? 1000 : 0);
     }
 
-    function paintResult(card, r){
-      var box = card.querySelector('.take-result');
-      if(!box) return;
-      var y = Number(r.yes_count) || 0, n = Number(r.no_count) || 0, t = y + n;
-      var yp = t ? Math.round(y * 100 / t) : 0, np = t ? 100 - yp : 0;
-      var mine = r.my_choice;
-      card.querySelectorAll('.take-btn').forEach(function(b){
-        b.classList.toggle('picked', b.getAttribute('data-choice') === mine);
-        b.disabled = !!mine;
-      });
-      card.querySelector('.take-btns').hidden = !!mine;
-      if(!mine){ box.hidden = true; return; }
-      box.hidden = false;
-      box.innerHTML = '<div class="take-bar"><i class="take-bar-y" style="width:' + yp + '%"></i><i class="take-bar-n" style="width:' + np + '%"></i></div>' +
-        '<div class="take-split"><span class="' + (mine === 'yes' ? 'me' : '') + '">Yes ' + yp + '%</span><span class="' + (mine === 'no' ? 'me' : '') + '">No ' + np + '%</span></div>' +
-        '<div class="take-count">' + t + (t === 1 ? ' vote' : ' votes') + ' · you said ' + (mine === 'yes' ? 'Yes' : 'No') + '</div>';
+    async function loadRows(){
+      if(allRows) return allRows;
+      if(loadingRows) return loadingRows;
+      loadingRows = (async function(){
+        var base = 'id, headline, source_name, article_url, published_at, fetched_at';
+        var tries = [
+          base + ', image_url, take_question, summary, kind, lane, body, pinned',
+          base + ', image_url, take_question',
+          base + ', image_url',
+          base
+        ];
+        var res = null;
+        for(var i = 0; i < tries.length; i++){
+          res = await sb.from('news_ticker').select(tries[i]).order('fetched_at', { ascending: false }).limit(120);
+          if(!res.error) break;
+        }
+        if(!res || res.error){ loadingRows = null; return null; }
+        var rows = (res.data || []).filter(function(r){ return r.kind === 'update' || mqNewsAllowed(r.headline); });
+        rows.forEach(function(r){ r.kind = r.kind || 'news'; rowsById[r.id] = r; });
+        allRows = rows;
+        return rows;
+      })();
+      return loadingRows;
     }
-
+    async function loadStats(ids){
+      if(!ids.length) return;
+      try{
+        var res = await sb.rpc('get_news_thread_stats', { p_news_ids: ids });
+        if(res.error) throw res.error;
+        (res.data || []).forEach(function(s){ statsById[s.news_id] = s; });
+      }catch(e){ /* counts are decoration; cards still work */ }
+    }
     async function loadResults(ids){
       if(!ids.length) return;
       try{
         var res = await sb.rpc('get_news_take_results', { p_news_ids: ids, p_device: mqGuestDeviceId() });
         if(res.error) throw res.error;
-        (res.data || []).forEach(function(r){
-          var card = grid.querySelector('.news-card[data-news-id="' + r.news_id + '"]');
-          if(card) paintResult(card, r);
-        });
+        (res.data || []).forEach(function(r){ resultsById[r.news_id] = r; });
       }catch(e){ /* buttons stay available; voting still tries */ }
     }
 
-    grid.addEventListener('click', async function(ev){
-      var btn = ev.target.closest && ev.target.closest('.take-btn');
-      if(!btn || btn.disabled) return;
-      var card = btn.closest('.news-card');
-      var id = card && card.getAttribute('data-news-id');
-      if(!id) return;
-      card.querySelectorAll('.take-btn').forEach(function(b){ b.disabled = true; });
-      var res = await sb.rpc('vote_news_take', { p_news_id: id, p_choice: btn.getAttribute('data-choice'), p_device: mqGuestDeviceId() });
-      if(res.error){
-        card.querySelectorAll('.take-btn').forEach(function(b){ b.disabled = false; });
-        var note = card.querySelector('.take-note'); if(note) note.textContent = 'Could not save your vote. Try again.';
-        return;
+    // ---- pieces of markup shared by cards and the thread screen ----
+    function metaHtml(r){
+      var url = r.article_url || '', domain = '';
+      try { if(url) domain = new URL(url).hostname.replace(/^www\./, ''); } catch(e){}
+      var logo = domain ? '<img class="nt-logo" src="https://www.google.com/s2/favicons?sz=64&domain=' + escapeHtml(domain) + '" alt="" onerror="this.style.display=\'none\'">' : '';
+      var when = ago(r.published_at || r.fetched_at);
+      var who = r.kind === 'update' ? '<span class="upd-badge">Marqit update</span>' : '<span>' + escapeHtml(r.source_name || '') + '</span>';
+      var src = (r.kind === 'update' && r.source_name) ? '<span>·</span><span>' + escapeHtml(r.source_name) + '</span>' : '';
+      return '<div class="news-meta">' + logo + who + src + (when ? '<span>·</span><span>' + when + '</span>' : '') + '<span class="lane-tag">' + escapeHtml(LANE_NAME[laneOf(r)] || '') + '</span></div>';
+    }
+    function imgHtml(r){
+      if(r.image_url && /^https:\/\//i.test(r.image_url)){
+        return '<div class="news-img"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>';
       }
-      await loadResults([id]);
-    });
-
-    async function load(){
-      if(loaded) return;
-      loaded = true;
-      var cols = 'id, headline, source_name, article_url, published_at, fetched_at';
-      var res = await sb.from('news_ticker').select(cols + ', image_url, take_question').order('fetched_at', { ascending: false }).limit(40);
-      // Until the newer columns exist, fall back to the plain list so the tab still works.
-      if(res.error) res = await sb.from('news_ticker').select(cols).order('fetched_at', { ascending: false }).limit(40);
-      if(res.error){ loaded = false; grid.innerHTML = '<p class="news-empty">News is not loading right now. Try again in a minute.</p>'; return; }
-      var rows = (res.data || []).filter(function(r){ return mqNewsAllowed(r.headline); });
-      var html = rows.map(cardHtml).join('');
-      grid.innerHTML = html || '<p class="news-empty">No stories right now. Check back soon.</p>';
-      var withTake = rows.filter(function(r){ return r.take_question; });
-      if(!withTake.length) return;
-      loadResults(withTake.map(function(r){ return r.id; }));
-      var session = null;
-      try{ var sr = await sb.auth.getSession(); session = sr && sr.data && sr.data.session; }catch(e){}
-      mqFillComments(grid, withTake.map(function(r){ return { q: { id: r.id } }; }), session, MQ_NEWS_COMMENT_API);
+      return '';
+    }
+    function takeHtml(r){
+      if(!r.take_question) return '';
+      return '<div class="news-take" data-take-id="' + escapeHtml(r.id) + '">' +
+        '<div class="take-label">The debate</div>' +
+        '<div class="take-q">' + escapeHtml(r.take_question) + '</div>' +
+        '<div class="take-btns"><button type="button" class="take-btn take-yes" data-choice="yes">Yes</button><button type="button" class="take-btn take-no" data-choice="no">No</button></div>' +
+        '<div class="take-result" hidden></div>' +
+        '<div class="take-note">No points. Just the debate.</div></div>';
+    }
+    function footHtml(r){
+      var s = statsById[r.id] || {};
+      var c = Number(s.comments) || 0;
+      var last = (c && s.last_body) ? '<div class="feed-last"><b>' + escapeHtml(s.last_user || 'player') + '</b> ' + escapeHtml(s.last_body) + '</div>' : '';
+      return '<div class="feed-foot" data-foot-id="' + escapeHtml(r.id) + '">' + last +
+        '<div class="feed-stats"><span class="feed-cmt">' + '<svg class="mq-ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>' + (c ? plural(c, 'comment') : 'Start the discussion') + '</span>' +
+        (Number(s.votes) ? '<span>' + plural(Number(s.votes), 'vote') + '</span>' : '') + '</div></div>';
+    }
+    function cardHtml(r){
+      var snippet = (r.kind === 'update' && r.body) ? '<div class="news-sn">' + escapeHtml(r.body) + '</div>' : '';
+      return '<article class="news-card" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+        imgHtml(r) +
+        '<div class="news-body">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div>' + snippet + '</div>' +
+        takeHtml(r) + footHtml(r) + '</article>';
     }
 
-    tab.addEventListener('click', load);
+    function paintResult(scope, id){
+      var r = resultsById[id]; if(!r) return;
+      scope.querySelectorAll('.news-take[data-take-id="' + id + '"]').forEach(function(box){
+        var res = box.querySelector('.take-result'); if(!res) return;
+        var y = Number(r.yes_count) || 0, n = Number(r.no_count) || 0, t = y + n;
+        var yp = t ? Math.round(y * 100 / t) : 0, np = t ? 100 - yp : 0, mine = r.my_choice;
+        box.querySelectorAll('.take-btn').forEach(function(b){ b.disabled = !!mine; });
+        box.querySelector('.take-btns').hidden = !!mine;
+        if(!mine){ res.hidden = true; return; }
+        res.hidden = false;
+        res.innerHTML = '<div class="take-bar"><i class="take-bar-y" style="width:' + yp + '%"></i><i class="take-bar-n" style="width:' + np + '%"></i></div>' +
+          '<div class="take-split"><span class="' + (mine === 'yes' ? 'me' : '') + '">Yes ' + yp + '%</span><span class="' + (mine === 'no' ? 'me' : '') + '">No ' + np + '%</span></div>' +
+          '<div class="take-count">' + plural(t, 'vote') + ' · you said ' + (mine === 'yes' ? 'Yes' : 'No') + '</div>';
+      });
+    }
+    function paintAll(scope){
+      scope.querySelectorAll('.news-take').forEach(function(b){ paintResult(scope, b.getAttribute('data-take-id')); });
+    }
+    function refreshFoot(id){
+      var r = rowsById[id]; if(!r) return;
+      document.querySelectorAll('.feed-foot[data-foot-id="' + id + '"]').forEach(function(f){
+        var tmp = document.createElement('div'); tmp.innerHTML = footHtml(r);
+        f.replaceWith(tmp.firstChild);
+      });
+    }
+
+    async function vote(btn){
+      var box = btn.closest('.news-take'); var id = box && box.getAttribute('data-take-id'); if(!id) return;
+      document.querySelectorAll('.news-take[data-take-id="' + id + '"] .take-btn').forEach(function(b){ b.disabled = true; });
+      var res = await sb.rpc('vote_news_take', { p_news_id: id, p_choice: btn.getAttribute('data-choice'), p_device: mqGuestDeviceId() });
+      if(res.error){
+        document.querySelectorAll('.news-take[data-take-id="' + id + '"] .take-btn').forEach(function(b){ b.disabled = false; });
+        document.querySelectorAll('.news-take[data-take-id="' + id + '"] .take-note').forEach(function(n){ n.textContent = 'Could not save your vote. Try again.'; });
+        return;
+      }
+      await Promise.all([loadResults([id]), loadStats([id])]);
+      paintAll(document); refreshFoot(id);
+    }
+
+    // ---- feed tabs ----
+    function Feed(cfg){
+      this.cfg = cfg;
+      this.grid = document.getElementById(cfg.gridId);
+      this.chips = document.getElementById(cfg.chipsId);
+      this.lane = 'all';
+      this.sort = cfg.defaultSort;
+      this.loaded = false;
+      var self = this;
+      if(this.chips){
+        this.chips.innerHTML = LANES.map(function(l){ return '<button type="button" class="feed-chip' + (l[0] === 'all' ? ' on' : '') + '" data-lane="' + l[0] + '">' + l[1] + '</button>'; }).join('') +
+          '<span class="feed-sort"><button type="button" class="feed-chip' + (cfg.defaultSort === 'hot' ? ' on' : '') + '" data-sort="hot">Hot</button><button type="button" class="feed-chip' + (cfg.defaultSort === 'new' ? ' on' : '') + '" data-sort="new">New</button></span>';
+        this.chips.addEventListener('click', function(ev){
+          var b = ev.target.closest('.feed-chip'); if(!b) return;
+          if(b.hasAttribute('data-lane')){ self.lane = b.getAttribute('data-lane'); }
+          if(b.hasAttribute('data-sort')){ self.sort = b.getAttribute('data-sort'); }
+          self.chips.querySelectorAll('.feed-chip').forEach(function(x){
+            x.classList.toggle('on', (x.hasAttribute('data-lane') && x.getAttribute('data-lane') === self.lane) || (x.hasAttribute('data-sort') && x.getAttribute('data-sort') === self.sort));
+          });
+          self.render();
+        });
+      }
+      this.grid.addEventListener('click', onGridClick);
+      this.grid.addEventListener('keydown', function(ev){
+        if((ev.key === 'Enter' || ev.key === ' ') && ev.target.classList && ev.target.classList.contains('news-card')){ ev.preventDefault(); openThread(ev.target.getAttribute('data-news-id'), true); }
+      });
+      var tab = document.querySelector('.pagenav-tab[data-page="' + cfg.page + '"]');
+      if(tab) tab.addEventListener('click', function(){ self.load(); });
+      feeds.push(this);
+    }
+    Feed.prototype.pick = function(){
+      var rows = allRows || [];
+      var self = this, lane = this.lane, list;
+      if(this.cfg.kind === 'news'){
+        list = rows.filter(function(r){ return r.kind !== 'update'; });
+      }else{
+        var updates = rows.filter(function(r){ return r.kind === 'update'; });
+        var active = rows.filter(function(r){ var s = statsById[r.id] || {}; return r.kind !== 'update' && ((Number(s.comments) || 0) > 0 || (Number(s.votes) || 0) > 0); });
+        list = updates.concat(active);
+        if(list.length < 12){
+          var have = {}; list.forEach(function(r){ have[r.id] = 1; });
+          rows.filter(function(r){ return r.kind !== 'update' && !have[r.id]; }).slice(0, 12 - list.length).forEach(function(r){ list.push(r); });
+        }
+      }
+      if(lane !== 'all') list = list.filter(function(r){ return laneOf(r) === lane; });
+      list = list.slice();
+      if(this.sort === 'hot') list.sort(function(a, b){ return hot(b) - hot(a); });
+      else list.sort(function(a, b){ return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || new Date(b.fetched_at) - new Date(a.fetched_at); });
+      return list;
+    };
+    Feed.prototype.render = function(){
+      var list = this.pick();
+      this.grid.innerHTML = list.map(cardHtml).join('') || '<p class="news-empty">' + (this.cfg.kind === 'news' ? 'No stories in this lane right now. Check back soon.' : 'Nothing here yet. Check back soon.') + '</p>';
+      paintAll(this.grid);
+    };
+    Feed.prototype.load = async function(){
+      if(this.loaded) return;
+      this.loaded = true;
+      var rows = await loadRows();
+      if(!rows){ this.loaded = false; this.grid.innerHTML = '<p class="news-empty">This is not loading right now. Try again in a minute.</p>'; return; }
+      var ids = rows.map(function(r){ return r.id; });
+      var withTake = rows.filter(function(r){ return r.take_question; }).map(function(r){ return r.id; });
+      await Promise.all([loadStats(ids), loadResults(withTake)]);
+      feeds.forEach(function(f){ if(f.loaded) f.render(); });
+      openFromUrl();
+    };
+
+    function onGridClick(ev){
+      var btn = ev.target.closest('.take-btn');
+      if(btn){ ev.stopPropagation(); if(!btn.disabled) vote(btn); return; }
+      if(ev.target.closest('a')) return;
+      var card = ev.target.closest('.news-card');
+      if(card && card.getAttribute('data-news-id')) openThread(card.getAttribute('data-news-id'), true);
+    }
+
+    // ---- thread screen ----
+    var view = document.getElementById('thread-view');
+    var inner = document.getElementById('thread-inner');
+    var openId = null, openedByUs = false, poll = null, handle = null, sortMode = 'top';
+
+    async function renderThread(id){
+      var r = rowsById[id];
+      if(!r){
+        var rows = await loadRows(); r = rowsById[id];
+        if(!r){
+          var one = await sb.from('news_ticker').select('*').eq('id', id).maybeSingle();
+          if(one && one.data){ r = one.data; r.kind = r.kind || 'news'; rowsById[id] = r; }
+        }
+      }
+      if(!r){ closeThread(); return; }
+      openId = id;
+      await Promise.all([loadStats([id]), loadResults(r.take_question ? [id] : [])]);
+      var s = statsById[id] || {};
+      var text = r.kind === 'update' ? r.body : r.summary;
+      var read = r.article_url ? '<a class="thread-read" href="' + escapeHtml(r.article_url) + '" target="_blank" rel="noopener noreferrer">Read the story' + (r.source_name && r.kind !== 'update' ? ' on ' + escapeHtml(r.source_name) : '') + ' ↗</a>' : '';
+      inner.innerHTML =
+        '<div class="thread-top"><button type="button" class="thread-back" id="thread-back" aria-label="Back">' +
+          '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Back</button>' +
+          '<button type="button" class="thread-share" id="thread-share">Share</button></div>' +
+        '<div class="thread-story">' + imgHtml(r) +
+          '<div class="news-body">' + metaHtml(r) + '<h3 class="thread-h">' + escapeHtml(r.headline || '') + '</h3>' +
+          (text ? '<p class="thread-sum">' + escapeHtml(text) + '</p>' : '') + read + '</div>' +
+          takeHtml(r) + '</div>' +
+        '<div class="thread-cmt-head"><h4>Discussion <span id="thread-count">' + (Number(s.comments) ? '· ' + Number(s.comments) : '') + '</span></h4>' +
+          '<span class="thread-sort"><button type="button" class="feed-chip on" data-tsort="top">Top</button><button type="button" class="feed-chip" data-tsort="new">New</button></span></div>' +
+        '<details class="cmt thread-cmt" open data-question-id="' + escapeHtml(id) + '" data-sort="' + sortMode + '"><summary class="cmt-sum" style="display:none"><span>Comments <span class="cmt-count"></span></span></summary>' +
+          '<div class="cmt-body"><div class="cmt-compose"></div><div class="cmt-list"></div></div></details>';
+      paintAll(inner);
+      document.getElementById('thread-back').addEventListener('click', closeThread);
+      document.getElementById('thread-share').addEventListener('click', function(){ shareThread(r); });
+      inner.querySelectorAll('[data-tsort]').forEach(function(b){
+        b.classList.toggle('on', b.getAttribute('data-tsort') === sortMode);
+        b.addEventListener('click', function(){
+          sortMode = b.getAttribute('data-tsort');
+          inner.querySelectorAll('[data-tsort]').forEach(function(x){ x.classList.toggle('on', x === b); });
+          var box = inner.querySelector('.thread-cmt'); box.setAttribute('data-sort', sortMode);
+          if(handle) handle.rerender();
+        });
+      });
+      var session = null;
+      try{ var sr = await sb.auth.getSession(); session = sr && sr.data && sr.data.session; }catch(e){}
+      handle = await mqFillComments(inner, [{ q: { id: id } }], session, MQ_NEWS_COMMENT_API);
+      clearInterval(poll);
+      poll = setInterval(function(){
+        if(!handle || document.hidden) return;
+        var box = inner.querySelector('.thread-cmt'); var inp = box && box.querySelector('input');
+        if(inp && (inp.value || document.activeElement === inp)) return;
+        handle.reload();
+      }, 20000);
+      view.scrollTop = 0;
+    }
+    function openThread(id, push){
+      if(!id) return;
+      view.hidden = false; document.body.style.overflow = 'hidden';
+      if(push){ openedByUs = true; try{ history.pushState({ thread: id }, '', '?thread=' + encodeURIComponent(id)); }catch(e){} }
+      inner.innerHTML = '<div class="thread-top"><button type="button" class="thread-back" id="thread-back">Back</button></div><p class="news-empty">Loading…</p>';
+      document.getElementById('thread-back').addEventListener('click', closeThread);
+      renderThread(id);
+    }
+    function hideThread(){
+      var id = openId; openId = null; handle = null; clearInterval(poll);
+      view.hidden = true; document.body.style.overflow = '';
+      if(id){ loadStats([id]).then(function(){ refreshFoot(id); }); }
+    }
+    function closeThread(){
+      if(view.hidden) return;
+      if(openedByUs){ openedByUs = false; try{ history.back(); return; }catch(e){} }
+      try{ history.replaceState(null, '', location.pathname); }catch(e){}
+      hideThread();
+    }
+    window.__mqCloseThread = closeThread;
+    window.addEventListener('popstate', function(){
+      var id = new URLSearchParams(location.search).get('thread');
+      if(id){ if(view.hidden || openId !== id) openThread(id, false); }
+      else hideThread();
+    });
+    function openFromUrl(){
+      var id = new URLSearchParams(location.search).get('thread');
+      if(id && view.hidden){
+        var tab = document.querySelector('.pagenav-tab[data-page="news"]'); if(tab && !document.querySelector('#page-news').offsetParent) tab.click();
+        openThread(id, false);
+      }
+    }
+    function shareThread(r){
+      var url = location.origin + '/?thread=' + encodeURIComponent(r.id);
+      var data = { title: r.headline, text: r.headline + ' — join the debate on Marqit', url: url };
+      var note = document.getElementById('thread-share');
+      if(navigator.share){ navigator.share(data).catch(function(){}); return; }
+      try{ navigator.clipboard.writeText(url).then(function(){ note.textContent = 'Link copied'; setTimeout(function(){ note.textContent = 'Share'; }, 1800); }); }catch(e){}
+    }
+    view.addEventListener('click', function(ev){
+      var btn = ev.target.closest('.take-btn'); if(btn && !btn.disabled){ vote(btn); return; }
+      if(ev.target === view) closeThread();
+    });
+    document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape' && !view.hidden) closeThread(); });
+
+    new Feed({ page: 'news', gridId: 'news-grid', chipsId: 'news-chips', kind: 'news', defaultSort: 'new' });
+    new Feed({ page: 'trending', gridId: 'trending-grid', chipsId: 'trending-chips', kind: 'trending', defaultSort: 'hot' });
+
+    // A shared link (?thread=...) opens straight into the discussion.
+    if(new URLSearchParams(location.search).get('thread')){
+      var first = feeds[0]; first.load();
+    }
   })();
+
 
 })();
 

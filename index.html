@@ -50,7 +50,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261013g">
+<link rel="stylesheet" href="style.css?v=20261014a">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -274,6 +274,7 @@
   <div class="wrap pagenav-row">
     <button class="pagenav-tab active" data-page="home">Play</button>
     <button class="pagenav-tab" data-page="news">News</button>
+    <button class="pagenav-tab" data-page="trending">Trending</button>
     <button class="pagenav-tab" data-page="how">How to play</button>
     <button class="pagenav-tab" data-page="leaderboard">Leaderboard</button>
     <button class="pagenav-tab" data-page="challenge">Challenge</button>
@@ -427,12 +428,28 @@
 <section class="section hero-lite">
   <div class="wrap">
     <h2>News</h2>
-    <p style="font-size:16px; margin-top:12px; max-width:520px; color:var(--ink-soft);">What's happening today, from outlets you know. Every story opens on the original site.</p>
+    <p style="font-size:16px; margin-top:12px; max-width:520px; color:var(--ink-soft);">The stories everyone is talking about in sports, pop culture and more. Tap one to join the discussion.</p>
+    <div class="feed-chips" id="news-chips"></div>
     <div class="news-grid" id="news-grid" aria-live="polite">
       <div class="news-card news-skel"><i class="sk" style="height:150px;border-radius:0;"></i><div class="news-body"><i class="sk" style="width:40%;"></i><i class="sk" style="width:92%;margin-top:10px;"></i><i class="sk" style="width:70%;margin-top:6px;"></i></div></div>
       <div class="news-card news-skel"><i class="sk" style="height:150px;border-radius:0;"></i><div class="news-body"><i class="sk" style="width:40%;"></i><i class="sk" style="width:92%;margin-top:10px;"></i><i class="sk" style="width:70%;margin-top:6px;"></i></div></div>
     </div>
-    <p class="news-foot">Headlines and photos come from third-party news sources. We hide stories on sensitive topics.</p>
+    <p class="news-foot">Headlines and photos come from third-party news sources. We hide stories on sensitive topics. Comments must follow the Marqit rules: no slurs, threats, links or personal info.</p>
+  </div>
+</section>
+</div>
+
+<div id="page-trending" class="page" style="display:none;">
+<section class="section hero-lite">
+  <div class="wrap">
+    <h2>Trending</h2>
+    <p style="font-size:16px; margin-top:12px; max-width:520px; color:var(--ink-soft);">Updates from Marqit and the stories with the most going on right now. Weigh in on the debate and talk it out with other fans.</p>
+    <div class="feed-chips" id="trending-chips"></div>
+    <div class="news-grid" id="trending-grid" aria-live="polite">
+      <div class="news-card news-skel"><i class="sk" style="height:150px;border-radius:0;"></i><div class="news-body"><i class="sk" style="width:40%;"></i><i class="sk" style="width:92%;margin-top:10px;"></i><i class="sk" style="width:70%;margin-top:6px;"></i></div></div>
+      <div class="news-card news-skel"><i class="sk" style="height:150px;border-radius:0;"></i><div class="news-body"><i class="sk" style="width:40%;"></i><i class="sk" style="width:92%;margin-top:10px;"></i><i class="sk" style="width:70%;margin-top:6px;"></i></div></div>
+    </div>
+    <p class="news-foot">Updates are written by Marqit. Headlines and photos on news stories come from third-party sources. Comments must follow the Marqit rules.</p>
   </div>
 </section>
 </div>
@@ -942,11 +959,12 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261013g" defer></script>
+<script src="app.js?v=20261014a" defer></script>
 
 
 
 
 
+<div id="thread-view" class="thread-view" hidden role="dialog" aria-modal="true" aria-label="Discussion"><div class="thread-inner" id="thread-inner"></div></div>
 </body>
 </html>
