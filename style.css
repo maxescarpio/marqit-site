@@ -1118,3 +1118,43 @@ body{overflow-x:hidden;}
 .gvg-vs{font-family:'Big Shoulders Display',sans-serif;font-size:20px;color:var(--ink-soft);}
 .gvg-bye{margin-top:10px;font-size:14px;color:var(--ink-soft);}
 .gvg-note{margin-top:12px;font-size:12px;color:var(--ink-soft);line-height:1.4;}
+
+/* ---- Round 2 layout: My calls dropdown, This week strip, buddies | rivals side by side, smaller Request + Share ---- */
+.mycalls-more>summary{list-style:none;display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;margin-top:6px;border-top:1px solid var(--line);cursor:pointer;font-size:13.5px;font-weight:600;color:var(--yes);-webkit-tap-highlight-color:transparent;}
+.mycalls-more>summary::-webkit-details-marker{display:none;}
+.mycalls-more>summary:focus-visible{outline:2px solid rgba(70,140,255,.7);outline-offset:2px;border-radius:10px;}
+.mycalls-more .mm-open{display:none;}
+.mycalls-more[open] .mm-open{display:inline;}
+.mycalls-more[open] .mm-closed{display:none;}
+.mycalls-more .mm-chev{transition:transform .2s ease;}
+.mycalls-more[open] .mm-chev{transform:rotate(180deg);}
+.mycalls-more[open]>summary{margin-bottom:6px;}
+@media (prefers-reduced-motion:reduce){.mycalls-more .mm-chev{transition:none;}}
+
+.recap-strip{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;margin-bottom:14px;}
+.rs-streak{flex:none;min-width:84px;text-align:center;}
+.rs-streak strong{display:block;font-family:'Big Shoulders Display',sans-serif;font-size:34px;font-weight:700;line-height:1;}
+.rs-streak span{font-size:11px;color:var(--ink-soft);}
+.rs-days{flex:1 1 220px;min-width:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;}
+.rs-day{display:flex;flex-direction:column;align-items:center;gap:5px;}
+.rs-dot{width:100%;max-width:38px;aspect-ratio:1;box-sizing:border-box;border-radius:50%;border:2px dashed rgba(128,136,150,.45);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--ink);}
+.rs-day.has .rs-dot{border-style:solid;border-color:var(--yes);background:rgba(51,209,139,.2);}
+.rs-day.today .rs-dot{border-style:solid;border-color:var(--yes);}
+.rs-name{font-size:11px;color:var(--ink-soft);}
+.rs-day.today .rs-name{color:var(--yes);font-weight:700;}
+
+#play-friends.play-friends-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;align-items:start;}
+#play-friends.play-friends-grid>.mq-fold{max-width:none;margin-top:0;}
+@media (max-width:740px){#play-friends.play-friends-grid{grid-template-columns:1fr;gap:10px;}}
+
+.play-extras{gap:24px;}
+.play-extras #share-section{padding:18px 20px;}
+.play-extras #share-section .share-card-lg .share-head strong{font-size:21px;}
+.play-extras #share-section .share-date{margin-bottom:10px;}
+.play-extras #share-section .share-card-lg .share-row{gap:10px;justify-content:flex-start;}
+.play-extras #share-section .share-cell{flex:0 0 64px;}
+.play-extras #share-section .share-card-lg .share-icon svg{width:24px;height:24px;}
+.play-extras #share-section .share-card-lg .share-icon{border-radius:14px;}
+.play-extras #share-section .share-card-lg .share-cell-label{font-size:12px;margin-top:5px;}
+.play-extras #share-section .share-card-lg .share-foot{margin-top:12px;}
+.play-extras #share-section .share-actions{padding-top:12px;}
