@@ -163,28 +163,31 @@ async function youtube(key: string): Promise<Candidate[]> {
 // is rate-limited, Claude is tried when ANTHROPIC_API_KEY has credits. If both fail the
 // caller gets an error, and the never-empty floor keeps every tab filled with generic
 // questions until the next run.
-const GEMINI_MODEL = 'gemini-flash-latest';
+// Tried in order; a busy (503/429) or missing model just moves on to the next one.
+const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
 async function askModel(system: string, user: string, maxTokens: number, claudeModel: string): Promise<{ text: string; via: string }> {
   const errors: string[] = [];
   const gKey = Deno.env.get('GEMINI_API_KEY');
   if (gKey) {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
-        method: 'POST',
-        headers: { 'x-goog-api-key': gKey, 'content-type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: system }] },
-          contents: [{ role: 'user', parts: [{ text: user }] }],
-          generationConfig: { maxOutputTokens: Math.max(maxTokens, 8192), temperature: 0.6, responseMimeType: 'application/json' },
-        }),
-        signal: AbortSignal.timeout(60000),
-      });
-      if (!res.ok) throw new Error('gemini ' + res.status + ' ' + (await res.text()).slice(0, 200));
-      const out = await res.json();
-      const text = (out.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('');
-      if (!text) throw new Error('gemini empty reply');
-      return { text, via: 'gemini' };
-    } catch (e) { errors.push(String(e)); }
+    for (const model of GEMINI_MODELS) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: 'POST',
+          headers: { 'x-goog-api-key': gKey, 'content-type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: system }] },
+            contents: [{ role: 'user', parts: [{ text: user }] }],
+            generationConfig: { maxOutputTokens: Math.max(maxTokens, 8192), temperature: 0.6, responseMimeType: 'application/json' },
+          }),
+          signal: AbortSignal.timeout(25000),
+        });
+        if (!res.ok) throw new Error(model + ' ' + res.status + ' ' + (await res.text()).replace(/\s+/g, ' ').slice(0, 120));
+        const out = await res.json();
+        const text = (out.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('');
+        if (!text) throw new Error(model + ' empty reply');
+        return { text, via: model };
+      } catch (e) { errors.push(String(e)); }
+    }
   }
   const aKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (aKey) {
