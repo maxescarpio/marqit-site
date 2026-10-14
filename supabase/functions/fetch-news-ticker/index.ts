@@ -283,10 +283,14 @@ const TAKE_PROMPT = `You write the debate question for a story on Marqit, a fan 
 
 The main focus is finance and technology: markets, earnings, stocks, IPOs, AI, chips, Nvidia and Jensen Huang, SpaceX and Elon Musk, Tesla, Bezos and Amazon, Apple, Google, Meta, and what the biggest billionaires and companies do or say. Sports and pop culture stories are also welcome.
 
-The question must be the one thing everyone reading is already arguing about, and it must be a DEFINITIVE call that splits the room. Make people want to pick a side.
+The question must be a real DEBATE built from THIS story: use the actual names, companies, teams, numbers or events in the headline, so a reader instantly knows which story it is about and has a side to pick. It has to be something fans would genuinely fight about in the comments, with a reasonable case for both Yes and No. Never write a question that could be pasted under any other story.
+
+Good (specific, two-sided): "Is Nvidia's $5 trillion valuation a bubble?", "Did Apple overpay for this deal?", "Is Taylor Swift's new album her best yet?", "Is Tesla stock worth $400 after this?", "Is the Lakers' new trade a win?".
+Pick a side people can defend, not a forecast. Prefer judgment questions ("Is X a buy?", "Was X the right call?", "Is X overpaid?", "Is X the best Y?", "Did X just win the week?") over "Will X happen?" questions, which have no argument in them. Use "Will" only when fans would truly split on the outcome (a game, a title, a stock holding a level).
+Bad (generic, never write these): "Is this a big deal?", "Is this story overhyped?", "Does this change anything?", "Are people overreacting?".
 
 Rules:
-- Yes/No question, max 90 characters, plain spoken. No "Do you think", no "Should fans".
+- Yes/No question, max 90 characters, plain spoken, and it must name the subject of the story. No "Do you think", no "Should fans".
 - Take a firm position: "Is X the best...", "Is X overrated?", "Will X win...", "Is X worth $Y?", "Is X a bubble?", "Is X the GOAT?".
 - NEVER write hedged or weak questions: no "one of the best", no "still", no "can ... win together", no spread, odds, "cover", over/under or betting framing, no "could" or "might".
 - ONLY use facts, names, teams, companies and numbers that appear in the headline or summary. Do not add rosters, current teams, records, stock prices, titles or dates from your own memory, because they may be out of date. If the story depends on a trade, roster, contract or status you are not sure is current, return null.
@@ -419,6 +423,17 @@ async function askModel(system: string, user: string, maxTokens: number, claudeM
   throw new Error(errors.join(' | ') || 'no AI key set (GEMINI_API_KEY or ANTHROPIC_API_KEY)');
 }
 
+// Tolerant parse: whole-JSON first, then salvage individual {"i":..,"q":..} objects.
+function parseItems(text: string): any[] {
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) { try { const it = JSON.parse(m[0]).items; if (Array.isArray(it)) return it; } catch (_) { /* salvage below */ } }
+  const out: any[] = [];
+  const re = /\{\s*"i"\s*:\s*(\d+)\s*,\s*"q"\s*:\s*(null|"(?:[^"\\]|\\.)*")\s*(?:,\s*"lane"\s*:\s*"([a-z]*)")?\s*\}/g;
+  let x: RegExpExecArray | null;
+  while ((x = re.exec(text))) out.push({ i: Number(x[1]), q: x[2] === 'null' ? null : JSON.parse(x[2]), lane: x[3] });
+  return out;
+}
+
 async function generateTakes(admin: any) {
   if (!Deno.env.get('GEMINI_API_KEY') && !Deno.env.get('ANTHROPIC_API_KEY')) return { skipped: 'no GEMINI_API_KEY or ANTHROPIC_API_KEY' };
   // Up to 25 waiting stories per tab, so one busy tab cannot starve the others.
@@ -433,23 +448,41 @@ async function generateTakes(admin: any) {
   }
   if (pending.length === 0) return { generated: 0 };
 
-  const list = pending.map((r: any, i: number) => `${i}. ${r.headline}${r.summary ? '\n   Summary: ' + r.summary : ''}`).join('\n');
-  const { text, via } = await askModel(TAKE_PROMPT, list, 6000, TAKE_MODEL);
-  const m = text.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('no JSON from model');
-  const items = JSON.parse(m[0]).items || [];
-  let n = 0;
-  for (const it of items) {
-    const row = pending[it.i];
-    if (!row) continue;
-    let q = typeof it.q === 'string' ? it.q.trim() : null;
-    if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlockedHeadline(q) || WEAK_Q.test(q) || !isGrounded(q, `${row.headline} ${row.summary || ''}`))) q = null;
-    const upd: any = { take_question: q, take_checked: true };
-    if (q && TAB_OF[it.lane] && (!row.lane || row.lane === 'news')) upd.lane = TAB_OF[it.lane]; // only general outlets are re-sorted by the model
-    const { error: uErr } = await admin.from('news_ticker').update(upd).eq('id', row.id);
-    if (!uErr && q) n++;
+  // Small batches, run side by side, so one bad reply only loses a few stories.
+  const CHUNK = 12;
+  const chunks: any[][] = [];
+  for (let k = 0; k < pending.length; k += CHUNK) chunks.push(pending.slice(k, k + CHUNK));
+  let n = 0, checked = 0, via = '';
+  const errs: string[] = [];
+  const results = await Promise.allSettled(chunks.map(async (rows) => {
+    const list = rows.map((r: any, i: number) => `${i}. ${r.headline}${r.summary ? '\n   Summary: ' + r.summary : ''}`).join('\n');
+    let items: any[] = [];
+    let used = '';
+    for (let attempt = 0; attempt < 2 && !items.length; attempt++) {
+      const r = await askModel(TAKE_PROMPT, list, 6000, TAKE_MODEL);
+      used = r.via;
+      items = parseItems(r.text);
+    }
+    if (!items.length) throw new Error('no usable JSON from model');
+    return { rows, items, used };
+  }));
+  for (const res of results) {
+    if (res.status === 'rejected') { errs.push(String(res.reason).slice(0, 160)); continue; }
+    const { rows, items, used } = res.value;
+    via = used;
+    for (const it of items) {
+      const row = rows[it.i];
+      if (!row) continue;
+      let q = typeof it.q === 'string' ? it.q.trim() : null;
+      if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlockedHeadline(q) || WEAK_Q.test(q) || !isGrounded(q, `${row.headline} ${row.summary || ''}`))) q = null;
+      const upd: any = { take_question: q, take_checked: true };
+      if (q && TAB_OF[it.lane] && (!row.lane || row.lane === 'news')) upd.lane = TAB_OF[it.lane];
+      const { error: uErr } = await admin.from('news_ticker').update(upd).eq('id', row.id);
+      if (!uErr) { checked++; if (q) n++; }
+    }
   }
-  return { generated: n, checked: items.length, via };
+  if (!checked && errs.length) throw new Error(errs.join(' | '));
+  return { generated: n, checked, via, errors: errs.length ? errs : undefined };
 }
 
 Deno.serve(async (req: Request) => {
