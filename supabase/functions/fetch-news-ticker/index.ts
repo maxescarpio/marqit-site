@@ -339,25 +339,32 @@ function floorQuestion(id: string): string {
   for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return FLOOR_QUESTIONS[h % FLOOR_QUESTIONS.length];
 }
+// Second tier, for stories the AI already passed on (take_checked = true, no question).
+// The AI says no for good reasons (politics, crime, health) but also for weak ones (no
+// angle, wording it could not ground), and it cannot be asked why. So these only
+// qualify when they also clear this much stricter word list.
+const FLOOR_STRICT = /\b(court|judge|judges|crime|criminal|fbi|dea|cia|sued|sues|fraud|scam\w*|protest\w*|riots?|church|religio\w*|muslim|christian|jewish|islam\w*|racis\w*|racial|transgender|lgbt\w*|gender|illness|disease|virus|pandemic|death|died|dies|killed|injur\w*|accident|disaster|tragedy|tragic|abuse|harass\w*|affair|divorce|rehab|addict\w*|overdose|mental\s+health|allegations?|alleged|investigation)\b/i;
 async function floorFill(admin: any) {
   const counts = await tabCounts(admin);
   const filled: Record<string, number> = {};
   for (const t of TABS) {
     if (counts[t] >= MIN_PER_TAB) continue;
     const need = FLOOR_TARGET - counts[t];
-    const { data, error } = await inTab(
-      admin.from('news_ticker').select('id, headline, summary').eq('kind', 'news').eq('take_checked', false).is('take_question', null).not('image_url', 'is', null),
-      t,
-    ).order('published_at', { ascending: false }).limit(150);
-    if (error) throw error;
-    const ok = (data || []).filter((r: any) => {
-      const text = `${r.headline} ${r.summary || ''}`;
-      return !isBlockedHeadline(text) && !FLOOR_POLITICS.test(text);
-    }).slice(0, need);
     let n = 0;
-    for (const r of ok) {
-      const { error: uErr } = await admin.from('news_ticker').update({ take_question: floorQuestion(r.id) }).eq('id', r.id).is('take_question', null);
-      if (!uErr) n++;
+    for (const tier of [1, 2]) {
+      if (n >= need) break;
+      let q = admin.from('news_ticker').select('id, headline, summary').eq('kind', 'news').eq('take_checked', tier === 2).is('take_question', null).not('image_url', 'is', null);
+      const { data, error } = await inTab(q, t).order('published_at', { ascending: false }).limit(150);
+      if (error) throw error;
+      const ok = (data || []).filter((r: any) => {
+        const text = `${r.headline} ${r.summary || ''}`;
+        if (isBlockedHeadline(text) || FLOOR_POLITICS.test(text)) return false;
+        return tier === 1 || !FLOOR_STRICT.test(text);
+      }).slice(0, need - n);
+      for (const r of ok) {
+        const { error: uErr } = await admin.from('news_ticker').update({ take_question: floorQuestion(r.id) }).eq('id', r.id).is('take_question', null);
+        if (!uErr) n++;
+      }
     }
     filled[t] = n;
   }
