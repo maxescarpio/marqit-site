@@ -337,7 +337,7 @@ async function generateTakes(admin: any) {
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({ model: TAKE_MODEL, max_tokens: 6000, system: TAKE_PROMPT, messages: [{ role: 'user', content: list }] }),
   });
-  if (!res.ok) throw new Error('anthropic ' + res.status);
+  if (!res.ok) throw new Error('anthropic ' + res.status + ' ' + (await res.text()).slice(0, 300));
   const out = await res.json();
   const text = (out.content || []).map((c: any) => c.text || '').join('');
   const m = text.match(/\{[\s\S]*\}/);
