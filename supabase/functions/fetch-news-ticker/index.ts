@@ -364,9 +364,53 @@ async function floorFill(admin: any) {
   return filled;
 }
 
+// ---- the question writer: free Gemini key first, Claude as a backup ----------------
+// Set GEMINI_API_KEY (Google AI Studio, free) as a Supabase secret. If Gemini fails or
+// is rate-limited, Claude is tried when ANTHROPIC_API_KEY has credits. If both fail the
+// caller gets an error, and the never-empty floor keeps every tab filled with generic
+// questions until the next run.
+const GEMINI_MODEL = 'gemini-flash-latest';
+async function askModel(system: string, user: string, maxTokens: number, claudeModel: string): Promise<{ text: string; via: string }> {
+  const errors: string[] = [];
+  const gKey = Deno.env.get('GEMINI_API_KEY');
+  if (gKey) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+        method: 'POST',
+        headers: { 'x-goog-api-key': gKey, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: 'user', parts: [{ text: user }] }],
+          generationConfig: { maxOutputTokens: Math.max(maxTokens, 8192), temperature: 0.6, responseMimeType: 'application/json' },
+        }),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!res.ok) throw new Error('gemini ' + res.status + ' ' + (await res.text()).slice(0, 200));
+      const out = await res.json();
+      const text = (out.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('');
+      if (!text) throw new Error('gemini empty reply');
+      return { text, via: 'gemini' };
+    } catch (e) { errors.push(String(e)); }
+  }
+  const aKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (aKey) {
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': aKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: claudeModel, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!res.ok) throw new Error('anthropic ' + res.status + ' ' + (await res.text()).slice(0, 200));
+      const out = await res.json();
+      return { text: (out.content || []).map((c: any) => c.text || '').join(''), via: 'claude' };
+    } catch (e) { errors.push(String(e)); }
+  }
+  throw new Error(errors.join(' | ') || 'no AI key set (GEMINI_API_KEY or ANTHROPIC_API_KEY)');
+}
+
 async function generateTakes(admin: any) {
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!apiKey) return { skipped: 'no ANTHROPIC_API_KEY' };
+  if (!Deno.env.get('GEMINI_API_KEY') && !Deno.env.get('ANTHROPIC_API_KEY')) return { skipped: 'no GEMINI_API_KEY or ANTHROPIC_API_KEY' };
   // Up to 25 waiting stories per tab, so one busy tab cannot starve the others.
   const pending: any[] = [];
   for (const t of TABS) {
@@ -380,14 +424,7 @@ async function generateTakes(admin: any) {
   if (pending.length === 0) return { generated: 0 };
 
   const list = pending.map((r: any, i: number) => `${i}. ${r.headline}${r.summary ? '\n   Summary: ' + r.summary : ''}`).join('\n');
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: TAKE_MODEL, max_tokens: 6000, system: TAKE_PROMPT, messages: [{ role: 'user', content: list }] }),
-  });
-  if (!res.ok) throw new Error('anthropic ' + res.status + ' ' + (await res.text()).slice(0, 300));
-  const out = await res.json();
-  const text = (out.content || []).map((c: any) => c.text || '').join('');
+  const { text, via } = await askModel(TAKE_PROMPT, list, 6000, TAKE_MODEL);
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) throw new Error('no JSON from model');
   const items = JSON.parse(m[0]).items || [];
@@ -402,7 +439,7 @@ async function generateTakes(admin: any) {
     const { error: uErr } = await admin.from('news_ticker').update(upd).eq('id', row.id);
     if (!uErr && q) n++;
   }
-  return { generated: n, checked: items.length };
+  return { generated: n, checked: items.length, via };
 }
 
 Deno.serve(async (req: Request) => {
