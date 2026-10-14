@@ -4376,6 +4376,7 @@
   }
   // One real number at the top of the Play page: how many calls have been made today.
   async function mqShowCallCount(container){
+    return; // removed: the live count row is gone
     try{
       var el = document.getElementById('play-status'); if(!el) return;
       var ids = Array.prototype.slice.call(container.querySelectorAll('.predict-card[data-question-id]')).map(function(c){ return c.getAttribute('data-question-id'); });
