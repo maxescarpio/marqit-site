@@ -4380,10 +4380,22 @@
       var el = document.getElementById('play-status'); if(!el) return;
       var ids = Array.prototype.slice.call(container.querySelectorAll('.predict-card[data-question-id]')).map(function(c){ return c.getAttribute('data-question-id'); });
       if(!ids.length) return;
-      var r = await sb.from('predictions').select('id', { count: 'exact', head: true }).in('question_id', ids);
-      var n = r && r.count;
-      if(!n){ el.style.display = 'none'; return; }
-      el.innerHTML = '<i class="live-dot"></i><b>' + n.toLocaleString('en-US') + '</b> ' + (n === 1 ? 'call' : 'calls') + ' made today';
+      // Count people, not picks: each player makes up to 3 calls a day.
+      var r = await sb.from('predictions').select('user_id').in('question_id', ids).limit(5000);
+      var label = null;
+      if(r && !r.error && r.data){
+        var people = {}, anon = 0;
+        r.data.forEach(function(x){ if(x.user_id) people[x.user_id] = 1; else anon++; });
+        var np = Object.keys(people).length;
+        if(!anon && np) label = [np, np === 1 ? 'player' : 'players'];
+      }
+      if(!label){
+        var c = await sb.from('predictions').select('id', { count: 'exact', head: true }).in('question_id', ids);
+        var n = c && c.count;
+        if(!n){ el.style.display = 'none'; return; }
+        label = [n, n === 1 ? 'call' : 'calls'];
+      }
+      el.innerHTML = '<i class="live-dot"></i><b>' + label[0].toLocaleString('en-US') + '</b> ' + label[1] + ' made today';
       el.style.display = 'flex';
     }catch(e){}
   }
@@ -5242,6 +5254,7 @@
     __mqPreResultData = prepared
       .filter(function(p){ return p.isLocked && p.myVote; })
       .map(function(p){ return { category: p.q.category, questionText: p.q.question_text, choice: p.myVote }; });
+    var __mqShareBtn = null;
     if(session && __mqPreResultData.length){
       const preResultBtn = document.createElement('button');
       preResultBtn.type = 'button';
@@ -5249,7 +5262,8 @@
       preResultBtn.style.cssText = 'margin-bottom:16px; background:var(--panel); color:var(--ink); border:1px solid var(--line);';
       preResultBtn.textContent = 'Share my picks';
       preResultBtn.addEventListener('click', function(){ mqSharePreResultCard(); });
-      container.insertBefore(preResultBtn, slateEl || container.firstChild);
+      preResultBtn.style.cssText = 'margin:4px 0 16px; background:var(--panel); color:var(--ink); border:1px solid var(--line);';
+      __mqShareBtn = preResultBtn;
     }
 
     let allLocked = true;
@@ -5264,6 +5278,7 @@
       container.appendChild(card);
       animateTrendLine(card);
     }
+    if(__mqShareBtn) container.appendChild(__mqShareBtn);
     mqApplyVisuals(container);
     mqShowCallCount(container);
 
@@ -7756,6 +7771,23 @@
         if(!res || res.error){ loadingRows = null; return null; }
         var rows = (res.data || []).filter(function(r){ return r.kind === 'post' || ((!r.kind || r.kind === 'news' || r.kind === 'trend') && mqNewsAllowed(r.headline)); });
         rows.forEach(function(r){ r.kind = r.kind || 'news'; rowsById[r.id] = r; });
+        // Load each tab's finished stories on their own, so a busy tab (or the
+        // Trending rows) can never crowd another tab out of the newest 120.
+        try{
+          var cols = 'id, headline, source_name, article_url, published_at, fetched_at, image_url, take_question, summary, kind, lane, pinned';
+          var tabQ = function(f){ return f(sb.from('news_ticker').select(cols).eq('kind', 'news').not('take_question', 'is', null).not('image_url', 'is', null)).order('fetched_at', { ascending: false }).limit(60); };
+          var extra = await Promise.all([
+            tabQ(function(q){ return q.eq('lane', 'sports'); }),
+            tabQ(function(q){ return q.in('lane', ['pop', 'music']); }),
+            tabQ(function(q){ return q.or('lane.is.null,lane.not.in.(sports,pop,music)'); })
+          ]);
+          extra.forEach(function(x){
+            (x.data || []).forEach(function(r){
+              if(rowsById[r.id] || !mqNewsAllowed(r.headline)) return;
+              r.kind = r.kind || 'news'; rowsById[r.id] = r; rows.push(r);
+            });
+          });
+        }catch(e){}
         allRows = rows;
         return rows;
       })();
