@@ -286,6 +286,7 @@ The main focus is finance and technology: markets, earnings, stocks, IPOs, AI, c
 The question must be a real DEBATE built from THIS story: use the actual names, companies, teams, numbers or events in the headline, so a reader instantly knows which story it is about and has a side to pick. It has to be something fans would genuinely fight about in the comments, with a reasonable case for both Yes and No. Never write a question that could be pasted under any other story.
 
 Good (specific, two-sided): "Is Nvidia's $5 trillion valuation a bubble?", "Did Apple overpay for this deal?", "Is Taylor Swift's new album her best yet?", "Is Tesla stock worth $400 after this?", "Is the Lakers' new trade a win?".
+Pick a side people can defend, not a forecast. Prefer judgment questions ("Is X a buy?", "Was X the right call?", "Is X overpaid?", "Is X the best Y?", "Did X just win the week?") over "Will X happen?" questions, which have no argument in them. Use "Will" only when fans would truly split on the outcome (a game, a title, a stock holding a level).
 Bad (generic, never write these): "Is this a big deal?", "Is this story overhyped?", "Does this change anything?", "Are people overreacting?".
 
 Rules:
