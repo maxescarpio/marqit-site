@@ -316,6 +316,54 @@ function isGrounded(q: string, source: string): boolean {
   return true;
 }
 
+// ---- the floor: a tab is never empty, even when the question writer is down ----
+// If the AI call fails (out of credits, outage, bad reply) stories stay
+// unchecked and would never be shown. When a tab drops under MIN_PER_TAB
+// finished stories, the newest UNCHECKED stories in it get a generic question
+// written by code. It names nothing, so it cannot be wrong or out of date.
+// Stories the AI already rejected (take_checked = true) are never touched, and
+// because these stay unchecked, the AI replaces the generic question with a
+// real one as soon as it is working again. Politics and conflict are screened
+// here too, since no model looked at these stories.
+const FLOOR_TARGET = 20;
+const FLOOR_POLITICS = /\b(trump|biden|harris|vance|obama|election|elections|senate|senator|congress|congressional|democrat\w*|republican\w*|gop|white\s+house|supreme\s+court|shutdown|impeach\w*|immigration|deport\w*|border|israel\w*|gaza|hamas|hezbollah|ukrain\w*|russia\w*|putin|zelensky\w*|iran\w*|china|taiwan|north\s+korea|nato|war|invasion|troops|military|pentagon|police|arrest\w*|indict\w*|lawsuit|trial|verdict|sentenc\w*|prison|jail|charged|accused|scandal|abortion|vaccine|covid|flood\w*|earthquake|hurricane|wildfire|tornado|storm|evacuat\w*|crash|outbreak|tariffs?|sanctions?)\b/i;
+const FLOOR_QUESTIONS = [
+  'Is this a big deal?',
+  'Is this story overhyped?',
+  'Is this the story of the day?',
+  'Does this change anything?',
+  'Are people overreacting to this?',
+];
+function floorQuestion(id: string): string {
+  let h = 0;
+  for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return FLOOR_QUESTIONS[h % FLOOR_QUESTIONS.length];
+}
+async function floorFill(admin: any) {
+  const counts = await tabCounts(admin);
+  const filled: Record<string, number> = {};
+  for (const t of TABS) {
+    if (counts[t] >= MIN_PER_TAB) continue;
+    const need = FLOOR_TARGET - counts[t];
+    const { data, error } = await inTab(
+      admin.from('news_ticker').select('id, headline, summary').eq('kind', 'news').eq('take_checked', false).is('take_question', null).not('image_url', 'is', null),
+      t,
+    ).order('published_at', { ascending: false }).limit(150);
+    if (error) throw error;
+    const ok = (data || []).filter((r: any) => {
+      const text = `${r.headline} ${r.summary || ''}`;
+      return !isBlockedHeadline(text) && !FLOOR_POLITICS.test(text);
+    }).slice(0, need);
+    let n = 0;
+    for (const r of ok) {
+      const { error: uErr } = await admin.from('news_ticker').update({ take_question: floorQuestion(r.id) }).eq('id', r.id).is('take_question', null);
+      if (!uErr) n++;
+    }
+    filled[t] = n;
+  }
+  return filled;
+}
+
 async function generateTakes(admin: any) {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) return { skipped: 'no ANTHROPIC_API_KEY' };
@@ -457,6 +505,10 @@ Deno.serve(async (req: Request) => {
     let takes: any = null;
     try { takes = await generateTakes(admin); } catch (e) { takes = { error: String(e) }; }
 
+    // Never-empty floor: top up any tab under MIN_PER_TAB with unchecked stories.
+    let floor: any = null;
+    try { floor = await floorFill(admin); } catch (e) { floor = { error: String(e) }; }
+
     // Trim, per tab: keep the newest KEEP_PER_TAB finished stories and the
     // newest waiting ones in every tab, plus the newest MAX_ROWS overall, so one
     // busy tab can never push another tab's stories out.
@@ -476,7 +528,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const after = await tabCounts(admin);
-    return new Response(JSON.stringify({ currents_scanned: currentsScanned, feed_items: feeds.items.length, feeds_failed: feeds.failed, new_rows: inserted, takes, finished_per_tab: after, lenient: [...lenient] }), { status: 200 });
+    return new Response(JSON.stringify({ currents_scanned: currentsScanned, feed_items: feeds.items.length, feeds_failed: feeds.failed, new_rows: inserted, takes, floor, finished_per_tab: after, lenient: [...lenient] }), { status: 200 });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }

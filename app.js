@@ -7777,10 +7777,14 @@
         try{
           var cols = 'id, headline, source_name, article_url, published_at, fetched_at, image_url, take_question, summary, kind, lane, pinned';
           var tabQ = function(f){ return f(sb.from('news_ticker').select(cols).eq('kind', 'news').not('take_question', 'is', null).not('image_url', 'is', null)).order('fetched_at', { ascending: false }).limit(60); };
+          // Trending is loaded on its own too: the newest 120 rows are mostly News
+          // (RSS feeds add dozens an hour), so trends would otherwise get pushed out.
+          var trendQ = sb.from('news_ticker').select(cols + ', trend_rank').eq('kind', 'trend').not('take_question', 'is', null).order('fetched_at', { ascending: false }).limit(60);
           var extra = await Promise.all([
             tabQ(function(q){ return q.eq('lane', 'sports'); }),
             tabQ(function(q){ return q.in('lane', ['pop', 'music']); }),
-            tabQ(function(q){ return q.or('lane.is.null,lane.not.in.(sports,pop,music)'); })
+            tabQ(function(q){ return q.or('lane.is.null,lane.not.in.(sports,pop,music)'); }),
+            trendQ
           ]);
           extra.forEach(function(x){
             (x.data || []).forEach(function(r){
