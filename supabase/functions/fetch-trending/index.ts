@@ -158,7 +158,55 @@ async function youtube(key: string): Promise<Candidate[]> {
   return out;
 }
 
-// ---- Claude: keep, rewrite, ask ----
+// ---- the question writer: free Gemini key first, Claude as a backup ----------------
+// Set GEMINI_API_KEY (Google AI Studio, free) as a Supabase secret. If Gemini fails or
+// is rate-limited, Claude is tried when ANTHROPIC_API_KEY has credits. If both fail the
+// caller gets an error, and the never-empty floor keeps every tab filled with generic
+// questions until the next run.
+// Tried in order; a busy (503/429) or missing model just moves on to the next one.
+const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
+async function askModel(system: string, user: string, maxTokens: number, claudeModel: string): Promise<{ text: string; via: string }> {
+  const errors: string[] = [];
+  const gKey = Deno.env.get('GEMINI_API_KEY');
+  if (gKey) {
+    for (const model of GEMINI_MODELS) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: 'POST',
+          headers: { 'x-goog-api-key': gKey, 'content-type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: system }] },
+            contents: [{ role: 'user', parts: [{ text: user }] }],
+            generationConfig: { maxOutputTokens: Math.max(maxTokens, 8192), temperature: 0.6, responseMimeType: 'application/json' },
+          }),
+          signal: AbortSignal.timeout(25000),
+        });
+        if (!res.ok) throw new Error(model + ' ' + res.status + ' ' + (await res.text()).replace(/\s+/g, ' ').slice(0, 120));
+        const out = await res.json();
+        const text = (out.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('');
+        if (!text) throw new Error(model + ' empty reply');
+        return { text, via: model };
+      } catch (e) { errors.push(String(e)); }
+    }
+  }
+  const aKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (aKey) {
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': aKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: claudeModel, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!res.ok) throw new Error('anthropic ' + res.status + ' ' + (await res.text()).slice(0, 200));
+      const out = await res.json();
+      return { text: (out.content || []).map((c: any) => c.text || '').join(''), via: 'claude' };
+    } catch (e) { errors.push(String(e)); }
+  }
+  throw new Error(errors.join(' | ') || 'no AI key set (GEMINI_API_KEY or ANTHROPIC_API_KEY)');
+}
+
+// ---- the model: keep, rewrite, ask ----
 const PROMPT = `You curate the Trending tab of Marqit, a fun daily-predictions site for finance, tech, sports, pop culture and music fans. Below is a numbered list of things trending right now from public sources.
 
 For each item decide whether to KEEP it. Keep at most ${MAX_KEEP} in total, favoring finance and tech first (markets, big companies, AI, chips, billionaires), then sports, pop culture and music, and favoring things fans would actually argue about.
@@ -174,21 +222,12 @@ For each KEPT item return:
 
 Reply with JSON only: {"items":[{"i":0,"keep":false},{"i":1,"keep":true,"title":"...","context":"...","lane":"sports","q":"..."}]}`;
 
-async function curate(cands: Candidate[]): Promise<any[]> {
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!apiKey) throw new Error('no ANTHROPIC_API_KEY');
+async function curate(cands: Candidate[]): Promise<{ items: any[]; via: string }> {
   const list = cands.map((c) => `${c.id}. [${c.source}] ${c.title} :: ${c.info}`).join('\n');
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: TREND_MODEL, max_tokens: 8000, system: PROMPT, messages: [{ role: 'user', content: list }] }),
-  });
-  if (!res.ok) throw new Error('anthropic ' + res.status);
-  const out = await res.json();
-  const text = (out.content || []).map((c: any) => c.text || '').join('');
+  const { text, via } = await askModel(PROMPT, list, 8000, TREND_MODEL);
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) throw new Error('no JSON from model');
-  return JSON.parse(m[0]).items || [];
+  return { items: JSON.parse(m[0]).items || [], via };
 }
 
 // ---- the floor: no-AI fallback --------------------------------------------------
@@ -272,7 +311,7 @@ Deno.serve(async (req: Request) => {
     if (all.length === 0) return new Response(JSON.stringify({ error: 'No candidates from any source', report }), { status: 502 });
 
     let decisions: any[] = [];
-    try { decisions = await curate(all); } catch (e) { report.ai = 'failed: ' + String(e).slice(0, 200); }
+    try { const c = await curate(all); decisions = c.items; report.ai = 'ok via ' + c.via; } catch (e) { report.ai = 'failed: ' + String(e).slice(0, 300); }
     const today = dayStr(new Date());
     const rows: any[] = [];
     const seen = new Set<string>();

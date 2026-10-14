@@ -339,34 +339,88 @@ function floorQuestion(id: string): string {
   for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return FLOOR_QUESTIONS[h % FLOOR_QUESTIONS.length];
 }
+// Second tier, for stories the AI already passed on (take_checked = true, no question).
+// The AI says no for good reasons (politics, crime, health) but also for weak ones (no
+// angle, wording it could not ground), and it cannot be asked why. So these only
+// qualify when they also clear this much stricter word list.
+const FLOOR_STRICT = /\b(court|judge|judges|crime|criminal|fbi|dea|cia|sued|sues|fraud|scam\w*|protest\w*|riots?|church|religio\w*|muslim|christian|jewish|islam\w*|racis\w*|racial|transgender|lgbt\w*|gender|illness|disease|virus|pandemic|death|died|dies|killed|injur\w*|accident|disaster|tragedy|tragic|abuse|harass\w*|affair|divorce|rehab|addict\w*|overdose|mental\s+health|allegations?|alleged|investigation)\b/i;
 async function floorFill(admin: any) {
   const counts = await tabCounts(admin);
   const filled: Record<string, number> = {};
   for (const t of TABS) {
     if (counts[t] >= MIN_PER_TAB) continue;
     const need = FLOOR_TARGET - counts[t];
-    const { data, error } = await inTab(
-      admin.from('news_ticker').select('id, headline, summary').eq('kind', 'news').eq('take_checked', false).is('take_question', null).not('image_url', 'is', null),
-      t,
-    ).order('published_at', { ascending: false }).limit(150);
-    if (error) throw error;
-    const ok = (data || []).filter((r: any) => {
-      const text = `${r.headline} ${r.summary || ''}`;
-      return !isBlockedHeadline(text) && !FLOOR_POLITICS.test(text);
-    }).slice(0, need);
     let n = 0;
-    for (const r of ok) {
-      const { error: uErr } = await admin.from('news_ticker').update({ take_question: floorQuestion(r.id) }).eq('id', r.id).is('take_question', null);
-      if (!uErr) n++;
+    for (const tier of [1, 2]) {
+      if (n >= need) break;
+      let q = admin.from('news_ticker').select('id, headline, summary').eq('kind', 'news').eq('take_checked', tier === 2).is('take_question', null).not('image_url', 'is', null);
+      const { data, error } = await inTab(q, t).order('published_at', { ascending: false }).limit(150);
+      if (error) throw error;
+      const ok = (data || []).filter((r: any) => {
+        const text = `${r.headline} ${r.summary || ''}`;
+        if (isBlockedHeadline(text) || FLOOR_POLITICS.test(text)) return false;
+        return tier === 1 || !FLOOR_STRICT.test(text);
+      }).slice(0, need - n);
+      for (const r of ok) {
+        const { error: uErr } = await admin.from('news_ticker').update({ take_question: floorQuestion(r.id) }).eq('id', r.id).is('take_question', null);
+        if (!uErr) n++;
+      }
     }
     filled[t] = n;
   }
   return filled;
 }
 
+// ---- the question writer: free Gemini key first, Claude as a backup ----------------
+// Set GEMINI_API_KEY (Google AI Studio, free) as a Supabase secret. If Gemini fails or
+// is rate-limited, Claude is tried when ANTHROPIC_API_KEY has credits. If both fail the
+// caller gets an error, and the never-empty floor keeps every tab filled with generic
+// questions until the next run.
+// Tried in order; a busy (503/429) or missing model just moves on to the next one.
+const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
+async function askModel(system: string, user: string, maxTokens: number, claudeModel: string): Promise<{ text: string; via: string }> {
+  const errors: string[] = [];
+  const gKey = Deno.env.get('GEMINI_API_KEY');
+  if (gKey) {
+    for (const model of GEMINI_MODELS) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: 'POST',
+          headers: { 'x-goog-api-key': gKey, 'content-type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: system }] },
+            contents: [{ role: 'user', parts: [{ text: user }] }],
+            generationConfig: { maxOutputTokens: Math.max(maxTokens, 8192), temperature: 0.6, responseMimeType: 'application/json' },
+          }),
+          signal: AbortSignal.timeout(25000),
+        });
+        if (!res.ok) throw new Error(model + ' ' + res.status + ' ' + (await res.text()).replace(/\s+/g, ' ').slice(0, 120));
+        const out = await res.json();
+        const text = (out.candidates?.[0]?.content?.parts || []).map((p: any) => p.text || '').join('');
+        if (!text) throw new Error(model + ' empty reply');
+        return { text, via: model };
+      } catch (e) { errors.push(String(e)); }
+    }
+  }
+  const aKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (aKey) {
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': aKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: claudeModel, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!res.ok) throw new Error('anthropic ' + res.status + ' ' + (await res.text()).slice(0, 200));
+      const out = await res.json();
+      return { text: (out.content || []).map((c: any) => c.text || '').join(''), via: 'claude' };
+    } catch (e) { errors.push(String(e)); }
+  }
+  throw new Error(errors.join(' | ') || 'no AI key set (GEMINI_API_KEY or ANTHROPIC_API_KEY)');
+}
+
 async function generateTakes(admin: any) {
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!apiKey) return { skipped: 'no ANTHROPIC_API_KEY' };
+  if (!Deno.env.get('GEMINI_API_KEY') && !Deno.env.get('ANTHROPIC_API_KEY')) return { skipped: 'no GEMINI_API_KEY or ANTHROPIC_API_KEY' };
   // Up to 25 waiting stories per tab, so one busy tab cannot starve the others.
   const pending: any[] = [];
   for (const t of TABS) {
@@ -380,14 +434,7 @@ async function generateTakes(admin: any) {
   if (pending.length === 0) return { generated: 0 };
 
   const list = pending.map((r: any, i: number) => `${i}. ${r.headline}${r.summary ? '\n   Summary: ' + r.summary : ''}`).join('\n');
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: TAKE_MODEL, max_tokens: 6000, system: TAKE_PROMPT, messages: [{ role: 'user', content: list }] }),
-  });
-  if (!res.ok) throw new Error('anthropic ' + res.status + ' ' + (await res.text()).slice(0, 300));
-  const out = await res.json();
-  const text = (out.content || []).map((c: any) => c.text || '').join('');
+  const { text, via } = await askModel(TAKE_PROMPT, list, 6000, TAKE_MODEL);
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) throw new Error('no JSON from model');
   const items = JSON.parse(m[0]).items || [];
@@ -402,7 +449,7 @@ async function generateTakes(admin: any) {
     const { error: uErr } = await admin.from('news_ticker').update(upd).eq('id', row.id);
     if (!uErr && q) n++;
   }
-  return { generated: n, checked: items.length };
+  return { generated: n, checked: items.length, via };
 }
 
 Deno.serve(async (req: Request) => {
