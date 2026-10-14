@@ -53,6 +53,11 @@ function isBlocked(text: string): boolean {
 const TREND_MODEL = 'claude-sonnet-5-5';
 const MAX_KEEP = 30;
 const KEEP_HOURS = 48;
+// Never-empty floor: the tab always keeps at least MIN_TREND trends. If the AI
+// is down, generic (code-written) topics fill it; the newest FLOOR_TARGET trends
+// are never retired, however old.
+const MIN_TREND = 15;
+const FLOOR_TARGET = 20;
 
 type Candidate = { id: number; source: string; title: string; info: string; url: string | null; image: string | null; rank: number };
 
@@ -186,6 +191,60 @@ async function curate(cands: Candidate[]): Promise<any[]> {
   return JSON.parse(m[0]).items || [];
 }
 
+// ---- the floor: no-AI fallback --------------------------------------------------
+// Candidates already passed the word and politics filters. Without the model there
+// is no relevance pass, so the topic title itself is the only thing the question uses.
+const FLOOR_QS: Array<(t: string) => string> = [
+  (t) => `Is ${t} the biggest story right now?`,
+  (t) => `Is ${t} overhyped?`,
+  (t) => `Does ${t} deserve all the attention?`,
+  (t) => `Will ${t} be trending again tomorrow?`,
+  (t) => `Is ${t} worth the hype?`,
+];
+// No model looked at these topics, so be stricter than the normal filter: skip anything
+// that hints at an incident, injury, legal trouble or a fight, in the title or the
+// related headline.
+const FLOOR_EXTRA = /\b(shot|shoots?|attack\w*|injur\w*|hurt|victims?|missing|sued|sues|court|allegations?|alleged|fires?|burn\w*|collaps\w*|rescue\w*|emergency|threat\w*|riots?|protests?|strikes?|recall\w*|banned|fraud|scam\w*|feud|beef)\b/i;
+const SOURCE_PRIORITY = ['Google Trends', 'YouTube', 'Wikipedia', 'Apple Music', 'Bluesky'];
+function floorLane(c: Candidate): string {
+  if (c.source === 'Apple Music') return 'music';
+  const yt = c.info.match(/^(music|sports|entertainment|tech) video/i);
+  if (yt) { const l = yt[1].toLowerCase(); return l === 'entertainment' ? 'pop' : l; }
+  const text = c.title + ' ' + c.info.replace(/Related headline:/i, '');
+  if (/\b(nfl|nba|mlb|nhl|wnba|ufc|ncaa|mls|fc|vs\.?|playoffs?|world series|super bowl|finals?|grand prix|f1|tennis|golf|quarterback|touchdown|home run|season)\b/i.test(text)) return 'sports';
+  if (/\b(stocks?|shares|earnings|ipo|nasdaq|s&p|dow|fed|bitcoin|crypto|nvidia|tesla|spacex|musk|bezos|jensen|apple|google|microsoft|meta|amazon|openai|ai|chips?)\b/i.test(text)) return 'tech';
+  return 'pop';
+}
+function floorContext(c: Candidate): string {
+  let ctx = c.info.trim();
+  if (isBlocked(ctx)) ctx = ctx.replace(/Related headline:.*/i, '').trim();
+  if (ctx.length < 5 || isBlocked(ctx)) ctx = `Trending on ${c.source} right now.`;
+  if (ctx.length > 110) ctx = ctx.slice(0, 110).replace(/\s+\S*$/, '').replace(/[,;:]$/, '') + '...';
+  return ctx;
+}
+function floorRows(all: Candidate[], need: number, taken: Set<string>, today: string): any[] {
+  const ordered = [...all].sort((a, b) => (SOURCE_PRIORITY.indexOf(a.source) - SOURCE_PRIORITY.indexOf(b.source)) || (a.rank - b.rank));
+  const out: any[] = [];
+  const titles = new Set<string>();
+  for (const c of ordered) {
+    if (out.length >= need) break;
+    const title = c.title.trim().slice(0, 60);
+    if (title.length < 3 || isBlocked(title) || FLOOR_EXTRA.test(c.title + ' ' + c.info)) continue;
+    const tk = slug(title);
+    if (!tk || titles.has(tk)) continue;
+    const key = c.url || `trend:${slug(c.source)}:${tk}:${today}`;
+    if (taken.has(key)) continue;
+    const q = FLOOR_QS[(tk.length + c.rank) % FLOOR_QS.length](title);
+    if (q.length > 100 || isBlocked(q)) continue;
+    titles.add(tk); taken.add(key);
+    out.push({
+      headline: title, summary: floorContext(c), source_name: c.source, article_url: key, image_url: c.image,
+      kind: 'trend', lane: floorLane(c), take_question: q, take_checked: false, trend_rank: Math.min(c.rank, 100), published_at: new Date().toISOString(),
+    });
+  }
+  return out;
+}
+
 Deno.serve(async (req: Request) => {
   const token = (req.headers.get('Authorization') || '').replace('Bearer ', '');
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -212,7 +271,8 @@ Deno.serve(async (req: Request) => {
     all.forEach((c, i) => { c.id = i; });
     if (all.length === 0) return new Response(JSON.stringify({ error: 'No candidates from any source', report }), { status: 502 });
 
-    const decisions = await curate(all);
+    let decisions: any[] = [];
+    try { decisions = await curate(all); } catch (e) { report.ai = 'failed: ' + String(e).slice(0, 200); }
     const today = dayStr(new Date());
     const rows: any[] = [];
     const seen = new Set<string>();
@@ -236,17 +296,38 @@ Deno.serve(async (req: Request) => {
       if (rows.length >= MAX_KEEP) break;
     }
 
+    // AI rows replace the generic ones, but only once the AI alone fills the tab.
+    if (rows.length >= MIN_TREND) {
+      await admin.from('news_ticker').delete().eq('kind', 'trend').eq('take_checked', false).eq('pinned', false);
+    }
     let inserted = 0;
     if (rows.length) {
       const { data: ins, error } = await admin.from('news_ticker').upsert(rows, { onConflict: 'article_url', ignoreDuplicates: true }).select('id');
       if (error) throw error;
       inserted = (ins || []).length;
     }
-    // Retire old trends so the tab stays about right now.
-    const cutoff = new Date(Date.now() - KEEP_HOURS * 3600 * 1000).toISOString();
-    await admin.from('news_ticker').delete().eq('kind', 'trend').lt('fetched_at', cutoff).eq('pinned', false);
 
-    return new Response(JSON.stringify({ candidates: all.length, kept: rows.length, inserted, report }), { status: 200 });
+    // Never-empty floor: under MIN_TREND fresh trends, top up from the filtered candidates.
+    const freshCutoff = new Date(Date.now() - KEEP_HOURS * 3600 * 1000).toISOString();
+    const { count: fresh } = await admin.from('news_ticker').select('id', { count: 'exact', head: true }).eq('kind', 'trend').not('take_question', 'is', null).gte('fetched_at', freshCutoff);
+    let floored = 0;
+    if ((fresh || 0) < MIN_TREND) {
+      const fill = floorRows(all, FLOOR_TARGET - (fresh || 0), new Set(seen), today);
+      if (fill.length) {
+        const { data: fIns, error: fErr } = await admin.from('news_ticker').upsert(fill, { onConflict: 'article_url', ignoreDuplicates: true }).select('id');
+        if (fErr) throw fErr;
+        floored = (fIns || []).length;
+      }
+    }
+
+    // Retire old trends so the tab stays about right now, but never the newest FLOOR_TARGET.
+    const { data: newest } = await admin.from('news_ticker').select('id').eq('kind', 'trend').not('take_question', 'is', null).order('fetched_at', { ascending: false }).limit(FLOOR_TARGET);
+    let del = admin.from('news_ticker').delete().eq('kind', 'trend').lt('fetched_at', freshCutoff).eq('pinned', false);
+    const protect = (newest || []).map((r: any) => r.id);
+    if (protect.length) del = del.not('id', 'in', `(${protect.join(',')})`);
+    await del;
+
+    return new Response(JSON.stringify({ candidates: all.length, kept: rows.length, inserted, floored, fresh_before_floor: fresh, report }), { status: 200 });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
