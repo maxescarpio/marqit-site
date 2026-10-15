@@ -1522,13 +1522,11 @@
         pmsg.className = 'form-msg';
         if(!/^image\/(jpeg|png|webp|heic|heif)$/i.test(f.type) && f.type.indexOf('image/') !== 0){ pmsg.className = 'form-msg err'; pmsg.textContent = 'Pick an image file.'; return; }
         if(f.size > 12 * 1024 * 1024){ pmsg.className = 'form-msg err'; pmsg.textContent = 'That photo is too big. Try one under 12 MB.'; return; }
-        pmsg.textContent = 'Uploading…'; upBtn.disabled = true;
+        upBtn.disabled = true;
         try{
-          var bmp = await createImageBitmap(f);
-          var side = Math.min(bmp.width, bmp.height), SZ = 256;
-          var cv = document.createElement('canvas'); cv.width = SZ; cv.height = SZ;
-          cv.getContext('2d').drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, SZ, SZ);
-          var blob = await new Promise(function(res){ cv.toBlob(res, 'image/jpeg', 0.86); });
+          var blob = await mqCropPhoto(f);
+          if(!blob){ pmsg.textContent = ''; upBtn.disabled = false; return; }
+          pmsg.textContent = 'Uploading…';
           if(!blob) throw new Error('Could not read that photo.');
           var path = session.user.id + '/avatar-' + Date.now() + '.jpg';
           var up = await sb.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
@@ -2704,6 +2702,55 @@
     return canvas;
   }
 
+
+
+  // Crop dialog for profile photos: drag to move, slider to zoom. Resolves with a 256px square JPEG blob (or null if cancelled).
+  function mqCropPhoto(file){
+    return new Promise(function(resolve){
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onerror = function(){ URL.revokeObjectURL(url); resolve(null); };
+      img.onload = function(){
+        var wrap = document.createElement('div');
+        wrap.className = 'mq-crop';
+        wrap.innerHTML = '<div class="mq-crop-card" role="dialog" aria-modal="true" aria-label="Adjust photo">' +
+          '<h4>Adjust your photo</h4><p>Drag to move it. Use the slider to zoom.</p>' +
+          '<div class="mq-crop-view"></div>' +
+          '<div class="mq-crop-zoom"><span aria-hidden="true">&minus;</span><input type="range" min="1" max="4" step="0.01" value="1" aria-label="Zoom"><span aria-hidden="true">+</span></div>' +
+          '<div class="mq-crop-btns"><button type="button" class="mq-crop-cancel">Cancel</button><button type="button" class="mq-crop-ok">Use photo</button></div></div>';
+        document.body.appendChild(wrap);
+        var view = wrap.querySelector('.mq-crop-view'), slider = wrap.querySelector('input');
+        view.appendChild(img);
+        var V = view.clientWidth || 280, w = img.naturalWidth, h = img.naturalHeight;
+        var base = V / Math.min(w, h), zoom = 1, x = 0, y = 0;
+        function clamp(){ var sc = base * zoom; x = Math.min(0, Math.max(V - w * sc, x)); y = Math.min(0, Math.max(V - h * sc, y)); }
+        function paint(){ clamp(); var sc = base * zoom; img.style.width = (w * sc) + 'px'; img.style.height = (h * sc) + 'px'; img.style.transform = 'translate(' + x + 'px,' + y + 'px)'; }
+        x = (V - w * base) / 2; y = (V - h * base) / 2; paint();
+        var drag = null;
+        view.addEventListener('pointerdown', function(e){ drag = { px: e.clientX, py: e.clientY, x: x, y: y }; try{ view.setPointerCapture(e.pointerId); }catch(err){} });
+        view.addEventListener('pointermove', function(e){ if(!drag) return; x = drag.x + (e.clientX - drag.px); y = drag.y + (e.clientY - drag.py); paint(); });
+        function end(){ drag = null; }
+        view.addEventListener('pointerup', end); view.addEventListener('pointercancel', end);
+        view.addEventListener('wheel', function(e){ e.preventDefault(); slider.value = String(Math.min(4, Math.max(1, zoom - e.deltaY * 0.002))); slider.dispatchEvent(new Event('input')); }, { passive: false });
+        slider.addEventListener('input', function(){
+          var old = base * zoom, cx = (V / 2 - x) / old, cy = (V / 2 - y) / old; // keep the centre point steady
+          zoom = parseFloat(slider.value) || 1;
+          var sc = base * zoom; x = V / 2 - cx * sc; y = V / 2 - cy * sc; paint();
+        });
+        function close(val){ document.removeEventListener('keydown', onKey); wrap.remove(); URL.revokeObjectURL(url); resolve(val); }
+        function onKey(e){ if(e.key === 'Escape') close(null); }
+        document.addEventListener('keydown', onKey);
+        wrap.querySelector('.mq-crop-cancel').addEventListener('click', function(){ close(null); });
+        wrap.addEventListener('click', function(e){ if(e.target === wrap) close(null); });
+        wrap.querySelector('.mq-crop-ok').addEventListener('click', function(){
+          var sc = base * zoom, SZ = 256, cv = document.createElement('canvas'); cv.width = SZ; cv.height = SZ;
+          cv.getContext('2d').drawImage(img, -x / sc, -y / sc, V / sc, V / sc, 0, 0, SZ, SZ);
+          cv.toBlob(function(b){ close(b); }, 'image/jpeg', 0.86);
+        });
+      };
+      img.src = url;
+    });
+  }
 
   // ===== One share sheet for everything =====
   // opts: { title, text, url, packaged?: {file, blob}, filename? }
@@ -4206,6 +4253,43 @@
     await load(); renderAll();
     return { rerender: renderAll, reload: async function(){ await load(); renderAll(); } };
   }
+
+  // ===== Hearts on the question card (next to Comments) =====
+  // Uses get_question_likes / toggle_question_like from supabase/migrations/20261016_question_likes.sql.
+  // If that migration isn't applied yet the hearts simply stay hidden.
+  async function mqFillQuestionLikes(container, prepared, session){
+    var btns = container.querySelectorAll('.q-heart');
+    if(!btns.length) return;
+    var ids = prepared.map(function(p){ return p.q.id; });
+    var state = {};
+    try{
+      var res = await sb.rpc('get_question_likes', { p_question_ids: ids });
+      if(res.error) throw res.error;
+      (res.data || []).forEach(function(r){ state[r.question_id] = { n: Number(r.likes) || 0, mine: !!r.mine }; });
+    }catch(e){ return; }
+    btns.forEach(function(btn){
+      var qid = btn.getAttribute('data-q');
+      var st = state[qid] || { n: 0, mine: false };
+      function paint(){
+        btn.classList.toggle('on', st.mine);
+        btn.setAttribute('aria-pressed', st.mine ? 'true' : 'false');
+        btn.setAttribute('aria-label', st.mine ? 'Unlike this question' : 'Like this question');
+        btn.querySelector('.q-heart-n').textContent = st.n > 0 ? String(st.n) : '';
+      }
+      paint();
+      btn.style.display = 'inline-flex';
+      btn.addEventListener('click', async function(ev){
+        ev.preventDefault(); ev.stopPropagation(); // don't open/close the comments dropdown
+        if(!session){ mqSignInPrompt(); return; }
+        var was = st.mine;
+        st.mine = !was; st.n = Math.max(0, st.n + (was ? -1 : 1)); paint();
+        if(!was){ btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop'); try{ mqHaptic('tap'); }catch(e){} }
+        var r = await sb.rpc('toggle_question_like', { p_question_id: qid });
+        if(r.error){ st.mine = was; st.n = Math.max(0, st.n + (was ? 1 : -1)); paint(); }
+      });
+    });
+  }
+
   function mqSignInPrompt(){
     try{ if(window.__mqCloseThread) window.__mqCloseThread(); }catch(e){}
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4864,6 +4948,7 @@
       '<div class="ticket-foot"><div class="foot-left"><div class="foot-players"></div><span class="foot-count">' + total + ' voted</span></div>' + latestHtml + '</div>' +
       '<details class="cmt" data-question-id="' + q.id + '">' +
         '<summary class="cmt-sum"><span>Comments <span class="cmt-count"></span></span>' +
+          '<button type="button" class="q-heart" data-q="' + q.id + '" aria-label="Like this question" aria-pressed="false"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8C3 6.2 5 4.3 7.4 4.3c1.8 0 3.4 1 4.6 2.8 1.2-1.8 2.8-2.8 4.6-2.8C19 4.3 21 6.2 21 8.8 21 15 12 20.5 12 20.5z"/></svg><span class="q-heart-n"></span></button>' +
           '<svg class="cmt-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
         '<div class="cmt-body"><div class="cmt-list"></div><div class="cmt-compose"></div></div>' +
       '</details>' +
@@ -5740,6 +5825,7 @@
     if(slateEl){ mqFillSlate(slateEl, session, prepared.filter(function(p){ return !p.isLocked; }).every(function(p){ return !!p.myVote; })); }
     mqFillPlayers(container, prepared);
     mqFillComments(container, prepared, session);
+    mqFillQuestionLikes(container, prepared, session);
     if(!session) mqLoadGuestShareCard();
 
     // Buddy Bonus achievement: fires the first time any buddy's pick on a
