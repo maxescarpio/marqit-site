@@ -64,11 +64,28 @@
     if(MQ_AVATAR_GLYPHS[v]) return v;
     return MQ_AVATAR_LEGACY[v] || null;
   }
+  // Accent colour for each icon: used for the colourful tiles in the picker.
+  var MQ_AVATAR_ACCENT = {
+    target:'#FF5A5F', flame:'#FF8A1F', bolt:'#FFD21F', dice:'#B07CFF', brain:'#FF7EB6', film:'#FFA94D', trophy:'#F5C336',
+    star:'#FFD84D', rocket:'#5AA0FF', phones:'#2EC4B6', chart:'#33D18B', pad:'#7C8CFF', owl:'#C99A6B', wolf:'#9AA7BD',
+    wing:'#4CC9F0', turtle:'#5BD17F', clover:'#3DDC84', coffee:'#D9A066', moon:'#9FA8FF', wave:'#38BDF8'
+  };
+  // Photo avatars are stored in the same free-text column as "photo:<public url>".
+  // Only images from this project's own storage are ever rendered.
+  function mqAvatarPhoto(raw){
+    var v = String(raw == null ? '' : raw);
+    if(v.indexOf('photo:') !== 0) return null;
+    var u = v.slice(6);
+    if(u.indexOf(SUPABASE_URL + '/storage/v1/object/public/avatars/') !== 0) return null;
+    return u;
+  }
   function mqAvatarSvg(key){
     return '<svg class="av-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (MQ_AVATAR_GLYPHS[key] || '') + '</svg>';
   }
   // Inner HTML for any avatar circle: the glyph if there is one, else the initial.
   function mqAvatarInner(raw, username){
+    var photo = mqAvatarPhoto(raw);
+    if(photo) return '<img class="av-photo" src="' + escapeHtml(photo) + '" alt="" loading="lazy" decoding="async">';
     var k = mqAvatarKey(raw);
     if(k) return mqAvatarSvg(k);
     var ch = String(username || '?').trim().charAt(0).toUpperCase() || '?';
@@ -873,12 +890,7 @@
     const url = 'https://playmarqit.com/';
     const text = 'My Marqit picks today:\n' + lines + '\nThink I\u2019m wrong? Pick yours.';
     mqTrack('guest_share_click');
-    if(navigator.share){
-      try{ await navigator.share({ text: text, url: url }); }catch(e){ /* canceled */ }
-      return;
-    }
-    try{ await navigator.clipboard.writeText(text + ' ' + url); msgEl.className = 'form-msg ok'; msgEl.textContent = 'Copied. Paste it anywhere.'; }
-    catch(e){ msgEl.className = 'form-msg err'; msgEl.textContent = 'Could not copy \u2014 try again.'; }
+    mqOpenShareSheet({ title: 'Share your picks', text: text, url: url });
   }
 
   // Runs when someone lands back on the site after clicking their magic link,
@@ -1072,7 +1084,7 @@
       heroMsg.className = 'form-msg ok';
       heroMsg.textContent = needsUsername ? 'Pick a username to finish setting up your account.' : 'You\'re signed in as ' + username + '.';
     }
-    const playFriends = document.getElementById('play-friends'); if(playFriends) playFriends.style.display = 'grid';
+    const playFriends = document.getElementById('play-friends'); if(playFriends) playFriends.style.display = 'flex';
     if(needsUsername) promptUsernameChoice();
     loadMyStats();
     loadShareCard(username);
@@ -1316,7 +1328,7 @@
     }
   }
 
-    const AVATAR_COLORS = ['#17191D','#128A50','#C2372A','#2D5FA6','#8A4FBF','#C77D2E','#3B8C8C','#6B7280'];
+    const AVATAR_COLORS = ['#17191D','#128A50','#C2372A','#2D5FA6','#8A4FBF','#C77D2E','#3B8C8C','#6B7280','#E8458B','#2F7BFF','#FF8A1F','#14B8A6','#8B5CF6','#E6B800'];
   let selectedAvatarEmoji = null;
   let selectedAvatarColor = null;
 
@@ -1358,7 +1370,7 @@
     const { data: streakRow } = await sb.from('streaks').select('*').eq('user_id', session.user.id).maybeSingle();
     if(!profileRow) return;
 
-    selectedAvatarEmoji = mqAvatarKey(profileRow.avatar_emoji) || 'target';
+    selectedAvatarEmoji = mqAvatarPhoto(profileRow.avatar_emoji) ? profileRow.avatar_emoji : (mqAvatarKey(profileRow.avatar_emoji) || 'target');
     selectedAvatarColor = profileRow.avatar_color || '#17191D';
 
     const profileStateInput = document.getElementById('profile-state-input');
@@ -1449,19 +1461,23 @@
     const emojiPicker = document.getElementById('avatar-emoji-picker');
     emojiPicker.innerHTML = '';
     function paintGlyphBorders(){
-      emojiPicker.querySelectorAll('button').forEach(function(b){ b.style.borderColor = (b.getAttribute('data-key') === selectedAvatarEmoji) ? 'var(--ink)' : 'var(--line)'; });
+      emojiPicker.querySelectorAll('button').forEach(function(b){ b.classList.toggle('sel', b.getAttribute('data-key') === selectedAvatarEmoji); });
     }
-    MQ_AVATAR_KEYS.forEach(function(key){
+    MQ_AVATAR_KEYS.forEach(function(key, idx){
       const btn = document.createElement('button');
       btn.type = 'button';
+      btn.className = 'av-tile';
       btn.setAttribute('data-key', key);
       btn.setAttribute('aria-label', 'Avatar ' + key);
+      btn.style.setProperty('--ac', MQ_AVATAR_ACCENT[key] || '#8FB4FF');
+      btn.style.animationDelay = (idx * 28) + 'ms';
       btn.innerHTML = mqAvatarSvg(key);
-      btn.style.cssText = 'width:38px; height:38px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; color:var(--ink); border:2px solid var(--line); background:var(--panel);';
       btn.addEventListener('click', function(){
         selectedAvatarEmoji = key;
         document.getElementById('profile-modal-avatar').innerHTML = mqAvatarSvg(key);
         paintGlyphBorders();
+        btn.classList.remove('picked'); void btn.offsetWidth; btn.classList.add('picked');
+        try{ mqHaptic('tap'); }catch(e){}
       });
       emojiPicker.appendChild(btn);
     });
@@ -1483,6 +1499,52 @@
       colorPicker.appendChild(btn);
     });
     document.getElementById('profile-customization-msg').textContent = '';
+
+    // Photo upload: pick, crop to a square, shrink, upload to the avatars bucket.
+    (function(){
+      var fileInput = document.getElementById('avatar-photo-input');
+      var upBtn = document.getElementById('avatar-photo-btn');
+      var rmBtn = document.getElementById('avatar-photo-remove');
+      var pmsg = document.getElementById('avatar-photo-msg');
+      if(!fileInput || !upBtn) return;
+      function syncRemove(){ if(rmBtn) rmBtn.style.display = mqAvatarPhoto(selectedAvatarEmoji) ? '' : 'none'; }
+      syncRemove();
+      upBtn.onclick = function(){ fileInput.click(); };
+      if(rmBtn) rmBtn.onclick = function(){
+        selectedAvatarEmoji = 'target';
+        document.getElementById('profile-modal-avatar').innerHTML = mqAvatarSvg('target');
+        paintGlyphBorders(); syncRemove(); pmsg.textContent = 'Photo removed. Press Save to keep it.'; pmsg.className = 'form-msg';
+      };
+      fileInput.onchange = async function(){
+        var f = fileInput.files && fileInput.files[0];
+        fileInput.value = '';
+        if(!f) return;
+        pmsg.className = 'form-msg';
+        if(!/^image\/(jpeg|png|webp|heic|heif)$/i.test(f.type) && f.type.indexOf('image/') !== 0){ pmsg.className = 'form-msg err'; pmsg.textContent = 'Pick an image file.'; return; }
+        if(f.size > 12 * 1024 * 1024){ pmsg.className = 'form-msg err'; pmsg.textContent = 'That photo is too big. Try one under 12 MB.'; return; }
+        pmsg.textContent = 'Uploading…'; upBtn.disabled = true;
+        try{
+          var bmp = await createImageBitmap(f);
+          var side = Math.min(bmp.width, bmp.height), SZ = 256;
+          var cv = document.createElement('canvas'); cv.width = SZ; cv.height = SZ;
+          cv.getContext('2d').drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, SZ, SZ);
+          var blob = await new Promise(function(res){ cv.toBlob(res, 'image/jpeg', 0.86); });
+          if(!blob) throw new Error('Could not read that photo.');
+          var path = session.user.id + '/avatar-' + Date.now() + '.jpg';
+          var up = await sb.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
+          if(up.error) throw up.error;
+          var pub = sb.storage.from('avatars').getPublicUrl(path);
+          selectedAvatarEmoji = 'photo:' + pub.data.publicUrl;
+          document.getElementById('profile-modal-avatar').innerHTML = mqAvatarInner(selectedAvatarEmoji, '');
+          paintGlyphBorders(); syncRemove();
+          pmsg.className = 'form-msg ok'; pmsg.textContent = 'Looking good. Press Save to keep it.';
+        }catch(err){
+          pmsg.className = 'form-msg err';
+          pmsg.textContent = (err && /bucket|not found/i.test(err.message || '')) ? 'Photo uploads are not switched on yet.' : ((err && err.message) || 'Could not upload that photo.');
+        }
+        upBtn.disabled = false;
+      };
+    })();
 
     // Picks history — all-time accuracy computed from the full set, most recent 30 shown
     const { data: picks } = await sb
@@ -1585,7 +1647,7 @@
       msg.textContent = 'Saved!';
       const circleEmoji = document.getElementById('profile-circle-emoji');
       const circleBtn = document.getElementById('profile-circle-btn');
-      if(circleEmoji) circleEmoji.innerHTML = mqAvatarSvg(selectedAvatarEmoji);
+      if(circleEmoji) circleEmoji.innerHTML = mqAvatarInner(selectedAvatarEmoji, '');
       if(circleBtn) circleBtn.style.background = selectedAvatarColor;
     });
   }
@@ -1865,6 +1927,7 @@
         return;
       }
       list.innerHTML = rows.map(mqFeedRowHtml).join('');
+      mqFoldList(list, 3, { one: 'more result', many: 'more results' });
       if(badge){ badge.textContent = String(rows.length); badge.style.display = ''; }
     }catch(e){ fold.style.display = 'none'; }
   }
@@ -1906,6 +1969,7 @@
       '</div>';
     }).join('');
 
+    mqFoldList(pendingListEl, 3, { one: 'more request', many: 'more requests' });
     mqFoldList(activeListEl, 3, { one: 'more buddy', many: 'more buddies' });
   }
 
@@ -2093,6 +2157,7 @@
       '</div>';
     }).join('');
 
+    mqFoldList(pendingListEl, 3, { one: 'more request', many: 'more requests' });
     activeListEl.innerHTML = '';
     for(const r of (rivalRows || [])){
       const name = r.profiles ? r.profiles.username : 'your rival';
@@ -2639,6 +2704,81 @@
     return canvas;
   }
 
+
+  // ===== One share sheet for everything =====
+  // opts: { title, text, url, packaged?: {file, blob}, filename? }
+  // Big, friendly tiles: Messages, WhatsApp, X, Email, Copy link, Save image, plus the device's own share sheet.
+  function mqOpenShareSheet(opts){
+    var old = document.getElementById('mq-share-sheet'); if(old) old.remove();
+    var url = opts.url || 'https://playmarqit.com/';
+    var text = opts.text || '';
+    var full = (text + ' ' + url).trim();
+    var packaged = opts.packaged || null;
+    var previewUrl = packaged ? URL.createObjectURL(packaged.blob) : null;
+    function done(){ if(previewUrl) setTimeout(function(){ URL.revokeObjectURL(previewUrl); }, 500); wrap.classList.remove('open'); setTimeout(function(){ wrap.remove(); }, 220); document.removeEventListener('keydown', onKey); }
+    function onKey(e){ if(e.key === 'Escape') done(); }
+    var ico = {
+      sms:'<path d="M4 5h16v11H9l-5 4z"/>',
+      wa:'<path d="M12 3.5a8.5 8.5 0 0 0-7.3 12.9L3.5 20.5l4.2-1.1A8.5 8.5 0 1 0 12 3.5z"/><path d="M9 8.5c.3 2.700 2.800 5.200 5.700 5.900l1.100-1.400-2-1-.9.9c-.9-.4-1.800-1.300-2.200-2.200l.9-.9-1-2z"/>',
+      x:'<path d="M5 5l14 14M19 5L5 19"/>',
+      mail:'<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>',
+      copy:'<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.500 8.500v-2a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>',
+      save:'<path d="M12 4v11M7.500 10.500L12 15l4.500-4.500M5 19.500h14"/>',
+      more:'<circle cx="6" cy="12" r="1.400" fill="currentColor"/><circle cx="12" cy="12" r="1.400" fill="currentColor"/><circle cx="18" cy="12" r="1.400" fill="currentColor"/>'
+    };
+    function svg(k){ return '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ico[k] + '</svg>'; }
+    var tiles = [
+      { k:'sms',  label:'Messages',  c:'#34C759', href:'sms:?&body=' + encodeURIComponent(full) },
+      { k:'wa',   label:'WhatsApp',  c:'#25D366', href:'https://wa.me/?text=' + encodeURIComponent(full) },
+      { k:'x',    label:'X',         c:'#9AA3B2', href:'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url) },
+      { k:'mail', label:'Email',     c:'#4C8DFF', href:'mailto:?subject=' + encodeURIComponent(opts.title || 'Marqit') + '&body=' + encodeURIComponent(full) },
+      { k:'copy', label:'Copy link', c:'#B07CFF', act:'copy' }
+    ];
+    if(packaged) tiles.push({ k:'save', label:'Save image', c:'#FFB020', act:'save' });
+    var canNative = !!navigator.share;
+    if(canNative) tiles.push({ k:'more', label:'More', c:'#8A93A6', act:'native' });
+
+    var wrap = document.createElement('div');
+    wrap.id = 'mq-share-sheet'; wrap.className = 'mq-ss';
+    wrap.innerHTML = '<div class="mq-ss-bg"></div><div class="mq-ss-card" role="dialog" aria-modal="true" aria-label="Share">' +
+      '<button type="button" class="mq-ss-x" aria-label="Close">&times;</button>' +
+      '<div class="mq-ss-head">' + (previewUrl ? '<img class="mq-ss-prev" alt="" src="' + previewUrl + '">' : '') +
+        '<div class="mq-ss-ht"><b>' + escapeHtml(opts.title || 'Share') + '</b><span>' + escapeHtml(url.replace(/^https?:\/\//, '').slice(0, 44)) + '</span></div></div>' +
+      '<div class="mq-ss-grid"></div><div class="mq-ss-msg" role="status"></div></div>';
+    var grid = wrap.querySelector('.mq-ss-grid'), msg = wrap.querySelector('.mq-ss-msg');
+    function say(t){ msg.textContent = t; }
+    tiles.forEach(function(t){
+      var b = document.createElement(t.href ? 'a' : 'button');
+      b.className = 'mq-ss-tile'; b.style.setProperty('--tc', t.c);
+      b.innerHTML = '<span class="mq-ss-ic">' + svg(t.k) + '</span><span class="mq-ss-lb">' + t.label + '</span>';
+      if(t.href){ b.href = t.href; if(t.href.indexOf('http') === 0){ b.target = '_blank'; b.rel = 'noopener'; } b.addEventListener('click', function(){ setTimeout(done, 150); }); }
+      else{
+        b.type = 'button';
+        b.addEventListener('click', async function(){
+          if(t.act === 'copy'){
+            try{ await navigator.clipboard.writeText(full); say('Link copied. Paste it anywhere.'); }catch(e){ say('Could not copy. Long-press the link to copy it.'); }
+          }else if(t.act === 'save' && packaged){
+            var a = document.createElement('a'); a.href = URL.createObjectURL(packaged.blob); a.download = opts.filename || 'marqit.png';
+            document.body.appendChild(a); a.click(); a.remove(); say('Image saved.');
+          }else if(t.act === 'native'){
+            try{
+              if(packaged && navigator.canShare && navigator.canShare({ files: [packaged.file] })) await navigator.share({ files: [packaged.file], text: text, url: url });
+              else await navigator.share({ title: opts.title || 'Marqit', text: text, url: url });
+              done();
+            }catch(e){ /* canceled */ }
+          }
+        });
+      }
+      grid.appendChild(b);
+    });
+    document.body.appendChild(wrap);
+    requestAnimationFrame(function(){ wrap.classList.add('open'); });
+    wrap.querySelector('.mq-ss-bg').addEventListener('click', done);
+    wrap.querySelector('.mq-ss-x').addEventListener('click', done);
+    document.addEventListener('keydown', onKey);
+    var first = grid.querySelector('.mq-ss-tile'); if(first) first.focus();
+  }
+
   function mqShareCanvasToFileAndCaption(canvas, filename){
     return new Promise(function(resolve){
       canvas.toBlob(function(blob){
@@ -2669,27 +2809,7 @@
 
     if(session) mqLogCardShare(session.user.id, 'daily_results', triggerName);
 
-    if(navigator.canShare && navigator.canShare({ files: [packaged.file] })){
-      try{ await navigator.share({ files: [packaged.file], text: shareText, url: shareUrl }); }
-      catch(e){ /* person canceled the share sheet -- not an error */ }
-      return;
-    }
-
-    const blobUrl = URL.createObjectURL(packaged.blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = 'marqit-results.png';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 1000);
-
-    if(msgEl){
-      msgEl.className = 'form-msg ok';
-      try{ await navigator.clipboard.writeText(shareText); msgEl.textContent = 'Image downloaded and caption copied \u2014 ready to post.'; }
-      catch(e){ msgEl.textContent = 'Image downloaded \u2014 ready to post.'; }
-      setTimeout(function(){ msgEl.textContent = ''; }, 4000);
-    }
+    mqOpenShareSheet({ title: data.guest ? 'Share your picks' : 'Share your results', text: shareText.replace(' ' + shareUrl, ''), url: shareUrl, packaged: packaged, filename: 'marqit-results.png' });
   }
 
   document.getElementById('share-results-btn').addEventListener('click', function(){ mqShareResultsCard(null); });
@@ -2807,20 +2927,7 @@
 
     mqLogCardShare(session.user.id, 'pre_result', null);
 
-    if(navigator.canShare && navigator.canShare({ files: [packaged.file] })){
-      try{ await navigator.share({ files: [packaged.file], text: shareText, url: shareUrl }); }
-      catch(e){ /* canceled -- not an error */ }
-      return;
-    }
-    const blobUrl = URL.createObjectURL(packaged.blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = 'marqit-picks.png';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 1000);
-    try{ await navigator.clipboard.writeText(shareText); }catch(e){}
+    mqOpenShareSheet({ title: 'Share your picks', text: shareText.replace(' ' + shareUrl, ''), url: shareUrl, packaged: packaged, filename: 'marqit-picks.png' });
   }
 
   // --- Change 5: when to prompt sharing (post-result) ---------------------
@@ -3959,8 +4066,9 @@
   // ===== Comments (replaces the emoji reaction row) =====
   // Reads/writes go through RPCs from supabase/migrations/20261012_question_comments.sql.
   // If that migration isn't applied yet the dropdowns simply say comments are coming soon.
+  var MQ_ADMIN_EMAIL = 'maxescarpio3@gmail.com';
   async function mqFillComments(container, prepared, session, api){
-    api = api || { get:'get_question_comments', getArg:'p_question_ids', post:'post_question_comment', postArg:'p_question_id', like:'toggle_comment_like', del:'delete_my_comment', report:'report_question_comment', idKey:'question_id' };
+    api = api || { get:'get_question_comments', getArg:'p_question_ids', post:'post_question_comment', postArg:'p_question_id', like:'toggle_comment_like', del:'delete_my_comment', report:'report_question_comment', pin:'admin_pin_comment', idKey:'question_id' };
     var boxes = container.querySelectorAll('.cmt');
     if(!boxes.length) return;
     var ids = prepared.map(function(p){ return p.q.id; });
@@ -3989,14 +4097,28 @@
       who.appendChild(el('b', null, c.username || 'player'));
       who.appendChild(el('span', 'cmt-ago', ' · ' + ago(c.created_at)));
       if(c.held) who.appendChild(el('span', 'cmt-held', ' · Waiting for review'));
+      if(c.pinned){ var pb = el('span', 'cmt-pinned'); pb.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z"/></svg>Pinned'; who.appendChild(pb); }
       main.appendChild(who);
       main.appendChild(el('div', 'cmt-text', c.body));
       var acts = el('div', 'cmt-acts');
-      var like = el('button', 'cmt-act' + (c.mine ? ' on' : ''), 'Like' + (Number(c.likes) > 0 ? ' · ' + c.likes : ''));
+      var like = el('button', 'cmt-heart' + (c.mine ? ' on' : ''));
       like.type = 'button';
+      like.setAttribute('aria-label', c.mine ? 'Unlike' : 'Like');
+      like.setAttribute('aria-pressed', c.mine ? 'true' : 'false');
+      like.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8C3 6.2 5 4.3 7.4 4.3c1.8 0 3.4 1 4.6 2.8 1.2-1.8 2.8-2.8 4.6-2.8C19 4.3 21 6.2 21 8.8 21 15 12 20.5 12 20.5z"/></svg><span class="cmt-heart-n">' + (Number(c.likes) > 0 ? Number(c.likes) : '') + '</span>';
       like.addEventListener('click', async function(){
         if(!session){ mqCommentNote(main, 'Sign in to like.'); return; }
-        await sb.rpc(api.like, { p_comment_id: c.id }); await load(); renderAll();
+        // Instant feedback first, then sync with the server.
+        var was = like.classList.contains('on'), n = Math.max(0, (Number(c.likes) || 0) + (was ? -1 : 1));
+        c.likes = n; c.mine = !was;
+        like.classList.toggle('on', !was);
+        like.setAttribute('aria-pressed', !was ? 'true' : 'false');
+        like.querySelector('.cmt-heart-n').textContent = n > 0 ? String(n) : '';
+        if(!was){ like.classList.remove('pop'); void like.offsetWidth; like.classList.add('pop'); try{ mqHaptic('tap'); }catch(e){} }
+        like.disabled = true;
+        await sb.rpc(api.like, { p_comment_id: c.id });
+        like.disabled = false;
+        await load(); renderAll();
       });
       acts.appendChild(like);
       if(!isReply){
@@ -4022,6 +4144,16 @@
           rp.addEventListener('click', async function(){ await sb.rpc(api.report, { p_comment_id: c.id }); rp.textContent = 'Reported'; rp.disabled = true; });
           acts.appendChild(rp);
         }
+      }
+      if(api.pin && !isReply && session && session.user && session.user.email === MQ_ADMIN_EMAIL){
+        var pin = el('button', 'cmt-act cmt-pin-btn' + (c.pinned ? ' on' : ''), c.pinned ? 'Unpin' : 'Pin'); pin.type = 'button';
+        pin.addEventListener('click', async function(){
+          pin.disabled = true;
+          var pr = await sb.rpc(api.pin, { p_comment_id: c.id });
+          if(pr.error){ pin.disabled = false; mqCommentNote(main, pr.error.message || 'Could not pin'); return; }
+          await load(); renderAll();
+        });
+        acts.appendChild(pin);
       }
       main.appendChild(acts);
       row.appendChild(av); row.appendChild(main);
@@ -4058,9 +4190,10 @@
         var tops = mine.filter(function(c){ return !c.parent_id; });
         if(box.getAttribute('data-sort') === 'top') tops.sort(function(a, b){ return (Number(b.likes) || 0) - (Number(a.likes) || 0) || new Date(a.created_at) - new Date(b.created_at); });
         else if(box.getAttribute('data-sort') === 'new') tops.sort(function(a, b){ return new Date(b.created_at) - new Date(a.created_at); });
+        tops.sort(function(a, b){ return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); }); // stable: pinned comment first, rest keep their order
         if(!tops.length) list.appendChild(el('div', 'cmt-empty', 'No comments yet. Say what you think.'));
         tops.forEach(function(c){
-          var wrap = el('div', 'cmt-thread');
+          var wrap = el('div', 'cmt-thread' + (c.pinned ? ' is-pinned' : ''));
           wrap.appendChild(oneComment(c, qid, false));
           var kids = mine.filter(function(k){ return k.parent_id === c.id; });
           if(kids.length){ var rl = el('div', 'cmt-replies'); kids.forEach(function(k){ rl.appendChild(oneComment(k, qid, true)); }); wrap.appendChild(rl); }
@@ -4123,11 +4256,6 @@
   // once it is big enough to be a draw rather than a sign of an empty room.
   var MQ_SHOW_PLAYERS_MIN = 10;
   function mqUpdateTodayStrip(maxTotal){
-    var d = document.getElementById('ts-date');
-    if(d){
-      try{ d.textContent = new Date(getETDateInfo().dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
-      catch(e){ d.textContent = 'Today'; }
-    }
     var live = document.getElementById('ts-live');
     var n = document.getElementById('ts-players');
     if(!live || !n) return;
@@ -4141,12 +4269,6 @@
     }
   }
   (function(){
-    var how = document.getElementById('ts-how');
-    if(how) how.addEventListener('click', function(){
-      var tab = document.querySelector('.pagenav-tab[data-page="how"]');
-      if(tab) tab.click();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
     mqUpdateTodayStrip(0);
   })();
 
@@ -6592,9 +6714,12 @@
       var dq = r.daily_questions, won = r.choice === dq.correct_answer;
       var icon = CATEGORY_ICONS[dq.category] || '';
       var qtext = (dq.question_text || '').length > 46 ? dq.question_text.slice(0, 44) + '\u2026' : (dq.question_text || '');
+      var dayTxt = '';
+      try{ dayTxt = dq.question_date === today ? 'Today' : new Date(dq.question_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' }); }catch(e){}
       return '<div class="mycall-row ' + (won ? 'win' : 'loss') + '">' +
         '<span class="mycall-cat">' + icon + '</span>' +
         '<span class="mycall-q">' + escapeHtml(qtext) + '</span>' +
+        '<span class="mycall-day' + (dq.question_date === today ? ' today' : '') + '" title="' + escapeHtml(dq.question_date || '') + '">' + escapeHtml(dayTxt) + '</span>' +
         '<span class="mycall-res">' + mqIcon(won ? 'check' : 'xmark') + '</span>' +
       '</div>';
     }
@@ -7908,8 +8033,7 @@
       var link = location.origin + '/?' + mqGetReferralTag(uid, 'invite', 'profile');
       var inv = document.getElementById('mq-invite-btn');
       inv.onclick = function(){
-        if(navigator.share){ navigator.share({ title: 'Marqit', text: 'Make 3 daily calls with me on Marqit', url: link }).catch(function(){}); }
-        else if(navigator.clipboard){ navigator.clipboard.writeText(link).then(function(){ inv.textContent = 'Link copied'; setTimeout(function(){ inv.textContent = 'Invite friends: +200 points each'; }, 2000); }); }
+        mqOpenShareSheet({ title: 'Invite friends: +200 points each', text: 'Make 3 daily calls with me on Marqit', url: link });
       };
       sb.rpc('get_my_referrals').then(function(r){
         var row = r.data && r.data[0]; var n = row ? Number(row.friends) : 0;
@@ -8384,8 +8508,7 @@
       var url = location.origin + '/?thread=' + encodeURIComponent(r.id);
       var data = { title: r.headline, text: r.headline + ' — join the debate on Marqit', url: url };
       var note = document.getElementById('thread-share');
-      if(navigator.share){ navigator.share(data).catch(function(){}); return; }
-      try{ navigator.clipboard.writeText(url).then(function(){ note.textContent = 'Link copied'; setTimeout(function(){ note.textContent = 'Share'; }, 1800); }); }catch(e){}
+      mqOpenShareSheet({ title: r.headline, text: r.headline + ' \u2014 join the debate on Marqit', url: url });
     }
     view.addEventListener('click', function(ev){
       var btn = ev.target.closest('.take-btn'); if(btn && !btn.disabled){ vote(btn); return; }
