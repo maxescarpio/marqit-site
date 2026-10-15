@@ -1322,7 +1322,7 @@
 
     const tierRow = document.getElementById('tier-row');
     if(tierRow){
-      tierRow.querySelectorAll('.tier-chip').forEach(function(chip){
+      tierRow.querySelectorAll('[data-tier]').forEach(function(chip){
         chip.classList.toggle('active', chip.getAttribute('data-tier') === myTier);
       });
     }
@@ -5149,6 +5149,7 @@
       start();
     }
   }
+  (function(){ var b = document.getElementById('hw-start'); if(b) b.addEventListener('click', function(){ var t = document.querySelector('.pagenav-tab[data-page="home"]'); if(t) t.click(); window.scrollTo(0, 0); }); })();
   try{ mqInitHowDemo(); }catch(e){ /* demo is decoration only; never block the site */ }
 
   async function getVoteData(questionId){
@@ -7146,20 +7147,7 @@
 
     mqLogCardShare(session.user.id, 'group', null);
 
-    if(navigator.canShare && navigator.canShare({ files: [packaged.file] })){
-      try{ await navigator.share({ files: [packaged.file], text: shareText, url: shareUrl }); }
-      catch(e){ /* canceled -- not an error */ }
-      return;
-    }
-    const blobUrl = URL.createObjectURL(packaged.blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = 'marqit-group.png';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 1000);
-    try{ await navigator.clipboard.writeText(shareText); }catch(e){}
+    mqOpenShareSheet({ title: group.name, text: group.name + ', Week ' + weekData.weekNumber + '. Join our league.', url: shareUrl, packaged: packaged, filename: 'marqit-group.png' });
   }
 
   // ---- Champion card: the one non-monetary prize asset. Shareable graphic
@@ -7235,20 +7223,7 @@
 
     mqLogCardShare(session.user.id, 'champion', kind);
 
-    if(navigator.canShare && navigator.canShare({ files: [packaged.file] })){
-      try{ await navigator.share({ files: [packaged.file], text: shareText, url: 'https://playmarqit.com' }); }
-      catch(e){ /* canceled -- not an error */ }
-      return;
-    }
-    const blobUrl = URL.createObjectURL(packaged.blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = 'marqit-champion.png';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 1000);
-    try{ await navigator.clipboard.writeText(shareText); }catch(e){}
+    mqOpenShareSheet({ title: name, text: name + ' \u2014 Marqit Champion.', url: 'https://playmarqit.com', packaged: packaged, filename: 'marqit-champion.png' });
   }
 
   // Shows a "Share Champion card" button in the group section if (and only
@@ -7268,8 +7243,8 @@
 
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.textContent = '\u{1F451} Share Champion card';
-    btn.style.cssText = 'margin-top:12px; padding:11px 22px; border:none; border-radius:10px; background:#DB6653; color:#fff; font-family:inherit; font-weight:600; font-size:14px; cursor:pointer;';
+    btn.textContent = 'Share Champion card';
+    btn.className = 'lb-share-btn';
     btn.addEventListener('click', function(){
       if(isChapterChamp){
         mqShareChampionCard('chapter', membershipGroup.name, info.champion_group_symbol, membershipGroup.school || 'Marqit Chapter Champion');
@@ -8507,7 +8482,8 @@
         this.chips.parentNode.insertBefore(this.srcChips, this.chips.nextSibling);
         this.srcChips.addEventListener('click', function(ev){
           var b = ev.target.closest('.feed-chip'); if(!b) return;
-          self.source = b.getAttribute('data-source');
+          var sv = b.getAttribute('data-source');
+          self.source = (sv === self.source && sv !== 'all') ? 'all' : sv;
           self.srcChips.querySelectorAll('.feed-chip').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-source') === self.source); });
           self.render();
         });
@@ -8516,8 +8492,8 @@
         this.chips.innerHTML = LANES.map(function(l){ return '<button type="button" class="feed-chip' + (l[0] === 'all' ? ' on' : '') + '" data-lane="' + l[0] + '">' + l[1] + '</button>'; }).join('');
         this.chips.addEventListener('click', function(ev){
           var b = ev.target.closest('.feed-chip'); if(!b) return;
-          if(b.hasAttribute('data-lane')){ self.lane = b.getAttribute('data-lane'); }
-          if(b.hasAttribute('data-sort')){ self.sort = b.getAttribute('data-sort'); }
+          if(b.hasAttribute('data-lane')){ var lv = b.getAttribute('data-lane'); self.lane = (lv === self.lane && lv !== 'all') ? 'all' : lv; }
+          if(b.hasAttribute('data-sort')){ var sv2 = b.getAttribute('data-sort'); self.sort = (sv2 === self.sort && sv2 !== 'new') ? 'new' : sv2; }
           self.chips.querySelectorAll('.feed-chip').forEach(function(x){
             x.classList.toggle('on', (x.hasAttribute('data-lane') && x.getAttribute('data-lane') === self.lane) || (x.hasAttribute('data-sort') && x.getAttribute('data-sort') === self.sort));
           });
@@ -8595,7 +8571,7 @@
         var hottest = list.slice().sort(function(a, b){ return hot(b) - hot(a); }).slice(0, 3);
         var topIds = {}; hottest.forEach(function(r){ topIds[r.id] = 1; });
         list = list.filter(function(r){ return !topIds[r.id]; });
-        topHtml = '<div class="news-top3"><div class="nt3-h">Trending now</div>' + hottest.map(function(r, i){ return topRowHtml(r, i + 1); }).join('') + '</div>';
+        topHtml = '<div class="news-top3"><div class="nt3-h">Trending</div>' + hottest.map(function(r, i){ return topRowHtml(r, i + 1); }).join('') + '</div>';
       }else if(this.cfg.kind === 'trending' && this.source !== 'all'){
         // One source selected: show its chart in rank order, top 10.
         chartMode = true;

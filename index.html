@@ -46,7 +46,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261016f">
+<link rel="stylesheet" href="style.css?v=20261016g">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -472,107 +472,97 @@
 </div>
 
 <div id="page-how" class="page" style="display:none;">
-<section class="section hero-lite" style="--fx1:51,209,139;--fx2:84,108,250;">
+<section class="section hero-lite">
   <div class="wrap">
     <h2>How to play</h2>
-    <p style="font-size:15px; margin-top:10px;">See who is calling it right.</p>
+    <p style="font-size:15px; margin-top:10px;">Three calls a day. Yes or No.</p>
   </div>
 </section>
 
 <section class="section">
-  <div class="wrap">
-    <div class="rule-grid"><div class="rule-card" style="--rc:51,209,139;"><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16.5 9"/></svg></span><div class="rule-head">Pick</div><div class="rule-body">Yes or No on 3 daily calls.</div></div><div class="rule-card" style="--rc:70,140,255;"><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><div class="rule-head">Lock</div><div class="rule-body">Each call locks before its event starts.</div></div><div class="rule-card" style="--rc:246,196,48;"><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></span><div class="rule-head">Score</div><div class="rule-body">100 points per correct call.</div></div></div>
-    <div class="how-demo"><div id="how-demo"></div><p class="how-demo-cap" id="how-demo-cap"></p></div>
-  </div>
-</section>
+  <div class="wrap hw">
+    <ol class="hw-steps">
+      <li><span class="hw-n">1</span><div><b>Pick</b><p>Answer Yes or No on 3 daily calls.</p></div></li>
+      <li><span class="hw-n">2</span><div><b>Lock</b><p>Each call locks before its event starts.</p></div></li>
+      <li><span class="hw-n">3</span><div><b>Score</b><p>100 points for every correct call.</p></div></li>
+    </ol>
 
-<section class="section">
-  <div class="wrap">
-    <div class="sec-head"><span class="sec-ico" style="--rc:255,148,38;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.8 3.2 5 4.8 5 9.6A5 5 0 0 1 7 12.6c0-1.9.9-3.1 2-3.9.2 1.3.8 2 1.7 2.2C10.4 8.4 10.7 5.6 12 3z"/></svg></span><h3 class="ex-title">Streaks</h3></div>
-    <p class="ex-sub">Go 3-for-3 for a Perfect Day. One free Streak Freeze covers a miss.</p>
-    <div class="streak-card">
-      <div class="streak-row">
-        <div class="streak-day done">M</div>
-        <div class="streak-day done">T</div>
-        <div class="streak-day done">W</div>
-        <div class="streak-day frozen">T</div>
-        <div class="streak-day perfect">F</div>
-        <div class="streak-day today">S</div>
-        <div class="streak-day">S</div>
+    <h3 class="hw-h">What a call looks like</h3>
+    <div class="hw-card" aria-label="Example question card">
+      <div class="hw-card-meta"><span>1 of 3 &middot; Sports</span><span>Locks in 12m</span></div>
+      <p class="hw-card-q">Will the Eagles beat the 49ers on Sunday Night Football?</p>
+      <div class="hw-card-opts"><span class="hw-opt picked">Yes &middot; 62%</span><span class="hw-opt">No &middot; 38%</span></div>
+      <div class="hw-bar"><i style="width:62%"></i></div>
+      <p class="hw-card-note">You&rsquo;re with 62% of players.</p>
+      <div class="hw-after">
+        <div><b>After you pick</b><span>The crowd split appears and you can comment.</span></div>
+        <div><b>At lock</b><span>Your call is set and can&rsquo;t be changed.</span></div>
+        <div><b>After the event</b><span>Correct calls score 100 points.</span></div>
       </div>
-      <div class="streak-caption">6-day streak · Thu frozen · Fri perfect</div>
     </div>
-    <p class="ex-sub" style="margin-top:16px;">Badges at 7, 30 and 100 days.</p>
-  </div>
-</section>
 
-<section class="section">
-  <div class="wrap">
-    <div class="sec-head"><span class="sec-ico" style="--rc:246,196,48;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="14" width="4.5" height="6" rx="1"/><rect x="9.75" y="9.5" width="4.5" height="10.5" rx="1"/><rect x="16" y="4" width="4.5" height="16" rx="1"/></svg></span><h3 class="ex-title">Tiers</h3></div>
-    <p class="ex-sub">Every correct call moves you up.</p>
-    <div class="tier-chip-row" id="tier-row">
-      <div class="tier-chip" data-tier="Rookie">Rookie<span>0</span></div>
-      <div class="tier-chip" data-tier="Analyst">Analyst<span>1,000</span></div>
-      <div class="tier-chip" data-tier="Pro">Pro<span>5,000</span></div>
-      <div class="tier-chip" data-tier="Expert">Expert<span>15,000</span></div>
-      <div class="tier-chip" data-tier="Legend">Legend<span>50,000</span></div>
+    <h3 class="hw-h">The details</h3>
+    <div class="hw-folds">
+      <details class="hw-fold">
+        <summary>Points and tiers</summary>
+        <div class="hw-fold-body">
+          <table class="hw-table">
+            <tr><td>Correct call</td><td>100</td></tr>
+            <tr><td>Boosted call</td><td>200</td></tr>
+            <tr><td>Perfect day (3 for 3)</td><td>+100</td></tr>
+            <tr><td>Buddy bonus, per matching call</td><td>+25</td></tr>
+          </table>
+          <div id="tier-row" class="hw-tiers">
+            <div data-tier="Rookie"><span>Rookie</span><span>0</span></div>
+            <div data-tier="Analyst"><span>Analyst</span><span>1,000</span></div>
+            <div data-tier="Pro"><span>Pro</span><span>5,000</span></div>
+            <div data-tier="Expert"><span>Expert</span><span>15,000</span></div>
+            <div data-tier="Legend"><span>Legend</span><span>50,000</span></div>
+          </div>
+        </div>
+      </details>
+      <details class="hw-fold">
+        <summary>Streaks</summary>
+        <div class="hw-fold-body">
+          <p>Play every day to build a streak. Go 3 for 3 for a Perfect Day.</p>
+          <p>One free Streak Freeze covers a missed day.</p>
+          <p>Badges at 7, 30 and 100 days.</p>
+        </div>
+      </details>
+      <details class="hw-fold">
+        <summary>Buddies</summary>
+        <div class="hw-fold-body">
+          <p>Add a buddy from the Play tab.</p>
+          <p>When you both make the same pick and it&rsquo;s correct, you each get +25.</p>
+          <p>Opposite picks earn no bonus.</p>
+        </div>
+      </details>
+      <details class="hw-fold">
+        <summary>Rivals</summary>
+        <div class="hw-fold-body">
+          <p>Add a rival from the Play tab. You each start with 5 golden stars.</p>
+          <p>Whoever gets more of the day&rsquo;s calls right takes a star from the other.</p>
+          <p>A tie changes nothing. A 5-day streak earns an extra star.</p>
+        </div>
+      </details>
+      <details class="hw-fold">
+        <summary>Challenge</summary>
+        <div class="hw-fold-body">
+          <p>The 2026 Marqit Challenge is one big call a week, from Nov 16 to Dec 31.</p>
+          <p>Climb the board to No. 1. Sign up on the Challenge tab.</p>
+        </div>
+      </details>
     </div>
-  </div>
-</section>
 
-<section class="section">
-  <div class="wrap">
-    <div class="sec-head"><span class="sec-ico" style="--rc:51,209,139;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><h3 class="ex-title">Buddy Bonus</h3></div>
-    <p class="ex-sub">Same pick as your buddy: +25 each.</p>
-    <div class="duel-card">
-      <div class="duel-q">Will the Eagles beat the 49ers on Sunday Night Football?</div>
-      <div class="duel-row">
-        <div class="duel-side">
-          <div class="duel-avatar">D</div>
-          <div class="duel-name">dmarshall_23</div>
-          <div class="duel-pick yes">Picked YES</div>
-          <div class="duel-result win">Correct</div>
-          <div class="duel-points">+100 <span>call</span> · +25 <span>buddy</span></div>
-          <div class="duel-total">125 pts</div>
-        </div>
-        <div class="duel-vs">&amp;</div>
-        <div class="duel-side">
-          <div class="duel-avatar">J</div>
-          <div class="duel-name">jmartinez</div>
-          <div class="duel-pick yes">Picked YES</div>
-          <div class="duel-result win">Correct</div>
-          <div class="duel-points">+100 <span>call</span> · +25 <span>buddy</span></div>
-          <div class="duel-total">125 pts</div>
-        </div>
-      </div>
-      <div class="duel-note">Same pick, both get +25. Opposite picks, no bonus.</div>
+    <h3 class="hw-h">Questions</h3>
+    <div class="hw-folds">
+      <details class="hw-fold"><summary>Is it free?</summary><div class="hw-fold-body"><p>Yes. Marqit is free to play.</p></div></details>
+      <details class="hw-fold"><summary>Is money involved?</summary><div class="hw-fold-body"><p>No. No wagering, no cash prizes.</p></div></details>
+      <details class="hw-fold"><summary>What if I miss a day?</summary><div class="hw-fold-body"><p>Your streak resets unless you have a Streak Freeze. Your points stay.</p></div></details>
+      <details class="hw-fold"><summary>What about ties?</summary><div class="hw-fold-body"><p>A tied Rival day changes nothing. No stars move.</p></div></details>
     </div>
-    <p class="ex-sub" style="margin-top:14px;">Add buddies from the Play tab.</p>
 
-    <div class="sec-head" style="margin-top:32px;"><span class="sec-ico" style="--rc:245,100,79;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 2.8v5.4c0 4.4-2.9 7.6-7 9.3-4.1-1.7-7-4.9-7-9.3V5.8z"/><path d="M12.8 7.5l-3 4.6h3.4l-1.2 4.4"/></svg></span><h3 class="ex-title">Rival Showdown</h3></div>
-    <p class="ex-sub">Everyone starts with 5 golden stars. Earn more with 5-day streaks. Beat your rival on a day and take a star.</p>
-    <div class="duel-card" style="--tint:245,100,79;">
-      <div class="duel-q">Today's 3 calls, head-to-head.</div>
-      <div class="duel-row">
-        <div class="duel-side">
-          <div class="duel-avatar">R</div>
-          <div class="duel-name">rgomez41</div>
-          <div class="duel-result win">2/3 correct</div>
-          <div class="duel-points">+200 <span>pts</span> · +1 <span>star</span></div>
-          <div class="duel-total">6 <svg class="mq-star" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 3.5l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17.4l-5.4 2.8 1.1-6.1L3.2 9.9l6.1-.8z" fill="#ECB82C" stroke="#ECB82C" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
-        </div>
-        <div class="duel-vs">VS</div>
-        <div class="duel-side">
-          <div class="duel-avatar">T</div>
-          <div class="duel-name">tking09</div>
-          <div class="duel-result loss">1/3 correct</div>
-          <div class="duel-points">+100 <span>pts</span> · −1 <span>star</span></div>
-          <div class="duel-total">4 <svg class="mq-star" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 3.5l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17.4l-5.4 2.8 1.1-6.1L3.2 9.9l6.1-.8z" fill="#ECB82C" stroke="#ECB82C" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
-        </div>
-      </div>
-      <div class="duel-note">Winner steals a star. A tie changes nothing.</div>
-    </div>
-    <p class="ex-sub" style="margin-top:14px;">Add rivals from the Play tab.</p>
+    <button type="button" class="hw-cta" id="hw-start">Start playing</button>
   </div>
 </section>
 
@@ -699,7 +689,7 @@
         <p style="font-size:11.5px; color:var(--ink-soft); margin:0 0 8px;">Your chapter's points depend on everyone answering &mdash; chase down whoever hasn't yet.</p>
         <div id="board-group-participation"><div class="skel-rows"><i class="sk"></i><i class="sk"></i></div></div>
       </div>
-      <button type="button" id="share-group-card-btn" style="display:none; margin-top:14px; padding:11px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:14px; cursor:pointer;">Share this week's group card</button>
+      <button type="button" id="share-group-card-btn" class="lb-share-btn" style="display:none;">Share this week's group card</button>
       <div id="champion-card-btn-wrap"></div>
     </div>
 
@@ -750,23 +740,7 @@
       <div id="h2h-result" style="display:none; max-width:560px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 20px;"></div>
     </div>
 
-    <h3 class="ex-title" style="margin-top:30px;">Category</h3>
-    <div class="boards">
-      <div class="board" style="--tint:255,148,38;">
-        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#C77D2E" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.5 5.5c3 3 3 10 0 13M18.5 5.5c-3 3-3 10 0 13"/></svg>Sports</div>
-        <div class="board-rows" id="board-sports"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
-      </div>
-      <div class="board" style="--tint:170,112,255;">
-        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#8A4FBF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l1.5-4h4L7 8M9 8l1.5-4h4L13 8M15 8l1.5-4h3.5L19 8"/><rect x="3" y="8" width="18" height="12" rx="1.5"/></svg>Pop culture</div>
-        <div class="board-rows" id="board-pop_culture"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
-      </div>
-      <div class="board" style="--tint:70,140,255;">
-        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#2D5FA6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h13a2 2 0 0 1 2 2v13a1 1 0 0 1-1.7.7L4 19V4z"/><path d="M8 8h7M8 12h7M8 16h4"/></svg>News</div>
-        <div class="board-rows" id="board-news"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
-      </div>
-    </div>
-
-    <div class="boards one" style="margin-top:30px;">
+    <div class="boards lb-big" style="margin-top:30px;">
       <div class="board" style="--tint:246,196,48;">
         <div class="bb-head"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#F5C336" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg><h3 class="ex-title">Marqit Big Board</h3></div>
         <div class="scope-tab-row" id="lb-scope-tabs">
@@ -782,6 +756,23 @@
         </div>
       </div>
     </div>
+
+    <h3 class="ex-title" style="margin-top:30px;">Category</h3>
+    <div class="boards lb-cats">
+      <div class="board">
+        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#C77D2E" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.5 5.5c3 3 3 10 0 13M18.5 5.5c-3 3-3 10 0 13"/></svg>Sports</div>
+        <div class="board-rows" id="board-sports"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
+      </div>
+      <div class="board">
+        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#8A4FBF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l1.5-4h4L7 8M9 8l1.5-4h4L13 8M15 8l1.5-4h3.5L19 8"/><rect x="3" y="8" width="18" height="12" rx="1.5"/></svg>Pop culture</div>
+        <div class="board-rows" id="board-pop_culture"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
+      </div>
+      <div class="board">
+        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#2D5FA6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h13a2 2 0 0 1 2 2v13a1 1 0 0 1-1.7.7L4 19V4z"/><path d="M8 8h7M8 12h7M8 16h4"/></svg>News</div>
+        <div class="board-rows" id="board-news"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
+      </div>
+    </div>
+
   </div>
 </section>
 </div>
@@ -941,7 +932,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261016f" defer></script>
+<script src="app.js?v=20261016g" defer></script>
 
 
 
