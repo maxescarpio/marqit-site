@@ -1583,3 +1583,13 @@ button,input,select,textarea{font-family:inherit;}
 .play-extras #share-section .share-btn-primary:hover{opacity:1;filter:brightness(1.08);transform:translateY(-1px);}
 .play-extras #share-section .share-btn-secondary{width:100%;min-height:44px;border-radius:14px;display:inline-flex;}
 .mq-invite{background:linear-gradient(135deg,#2F7BFF,#8B5CF6) !important;color:#fff !important;}
+
+/* ---- Heart on the question card ---- */
+.q-heart{display:none;align-items:center;gap:6px;margin-left:auto;margin-right:14px;min-height:40px;min-width:40px;padding:0 6px;background:none;border:0;color:var(--ink-soft);font:inherit;font-size:14px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.q-heart svg{fill:none;stroke:currentColor;stroke-width:1.9;stroke-linejoin:round;transition:transform .15s ease;}
+.q-heart:hover{color:#FF6B81;}
+.q-heart.on{color:#FF4D6A;}
+.q-heart.on svg{fill:#FF4D6A;stroke:#FF4D6A;}
+.q-heart.pop svg{animation:cmtHeartPop .42s cubic-bezier(.2,1.6,.4,1);}
+.q-heart:focus-visible{outline:2px solid rgba(70,140,255,.7);outline-offset:2px;border-radius:10px;}
+@media (prefers-reduced-motion:reduce){.q-heart.pop svg{animation:none;}}

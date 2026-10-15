@@ -4206,6 +4206,43 @@
     await load(); renderAll();
     return { rerender: renderAll, reload: async function(){ await load(); renderAll(); } };
   }
+
+  // ===== Hearts on the question card (next to Comments) =====
+  // Uses get_question_likes / toggle_question_like from supabase/migrations/20261016_question_likes.sql.
+  // If that migration isn't applied yet the hearts simply stay hidden.
+  async function mqFillQuestionLikes(container, prepared, session){
+    var btns = container.querySelectorAll('.q-heart');
+    if(!btns.length) return;
+    var ids = prepared.map(function(p){ return p.q.id; });
+    var state = {};
+    try{
+      var res = await sb.rpc('get_question_likes', { p_question_ids: ids });
+      if(res.error) throw res.error;
+      (res.data || []).forEach(function(r){ state[r.question_id] = { n: Number(r.likes) || 0, mine: !!r.mine }; });
+    }catch(e){ return; }
+    btns.forEach(function(btn){
+      var qid = btn.getAttribute('data-q');
+      var st = state[qid] || { n: 0, mine: false };
+      function paint(){
+        btn.classList.toggle('on', st.mine);
+        btn.setAttribute('aria-pressed', st.mine ? 'true' : 'false');
+        btn.setAttribute('aria-label', st.mine ? 'Unlike this question' : 'Like this question');
+        btn.querySelector('.q-heart-n').textContent = st.n > 0 ? String(st.n) : '';
+      }
+      paint();
+      btn.style.display = 'inline-flex';
+      btn.addEventListener('click', async function(ev){
+        ev.preventDefault(); ev.stopPropagation(); // don't open/close the comments dropdown
+        if(!session){ mqSignInPrompt(); return; }
+        var was = st.mine;
+        st.mine = !was; st.n = Math.max(0, st.n + (was ? -1 : 1)); paint();
+        if(!was){ btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop'); try{ mqHaptic('tap'); }catch(e){} }
+        var r = await sb.rpc('toggle_question_like', { p_question_id: qid });
+        if(r.error){ st.mine = was; st.n = Math.max(0, st.n + (was ? 1 : -1)); paint(); }
+      });
+    });
+  }
+
   function mqSignInPrompt(){
     try{ if(window.__mqCloseThread) window.__mqCloseThread(); }catch(e){}
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4864,6 +4901,7 @@
       '<div class="ticket-foot"><div class="foot-left"><div class="foot-players"></div><span class="foot-count">' + total + ' voted</span></div>' + latestHtml + '</div>' +
       '<details class="cmt" data-question-id="' + q.id + '">' +
         '<summary class="cmt-sum"><span>Comments <span class="cmt-count"></span></span>' +
+          '<button type="button" class="q-heart" data-q="' + q.id + '" aria-label="Like this question" aria-pressed="false"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8C3 6.2 5 4.3 7.4 4.3c1.8 0 3.4 1 4.6 2.8 1.2-1.8 2.8-2.8 4.6-2.8C19 4.3 21 6.2 21 8.8 21 15 12 20.5 12 20.5z"/></svg><span class="q-heart-n"></span></button>' +
           '<svg class="cmt-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
         '<div class="cmt-body"><div class="cmt-list"></div><div class="cmt-compose"></div></div>' +
       '</details>' +
@@ -5740,6 +5778,7 @@
     if(slateEl){ mqFillSlate(slateEl, session, prepared.filter(function(p){ return !p.isLocked; }).every(function(p){ return !!p.myVote; })); }
     mqFillPlayers(container, prepared);
     mqFillComments(container, prepared, session);
+    mqFillQuestionLikes(container, prepared, session);
     if(!session) mqLoadGuestShareCard();
 
     // Buddy Bonus achievement: fires the first time any buddy's pick on a
