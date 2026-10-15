@@ -1620,3 +1620,37 @@ button,input,select,textarea{font-family:inherit;}
 .play-extras #play-suggest > div > div{border:1px solid var(--line) !important;background:var(--panel) !important;border-radius:16px !important;}
 .challenge-banner{margin-top:36px;}
 .pagenav-tab.active{box-shadow:none;}
+
+/* ---- News: top three trending rows ---- */
+.news-top3{grid-column:1 / -1;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden;}
+.nt3-h{padding:12px 16px;font-family:'Big Shoulders Display',sans-serif;font-size:19px;font-weight:700;letter-spacing:.01em;color:var(--ink);}
+.news-card.top-row{flex-direction:row;align-items:center;gap:14px;padding:12px 16px;border:0;border-top:1px solid var(--line);border-radius:0;border-top-width:1px;background:none;}
+.news-card.top-row:hover{background:rgba(128,136,150,.07);}
+.top-row .tr-n{flex:none;width:28px;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-size:34px;font-weight:700;line-height:1;color:var(--ink-soft);}
+.top-row:nth-child(2) .tr-n{color:#F2C14E;}
+.top-row .tr-img{flex:none;width:72px;height:54px;border-radius:10px;object-fit:cover;}
+.top-row .tr-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+.top-row .news-h{font-size:15.5px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.top-row .tr-c{flex:none;font-size:12.5px;color:var(--ink-soft);}
+@media (max-width:520px){.top-row .tr-img{display:none;}.top-row .tr-c{display:none;}}
+
+/* ---- Trending: chart rank + movement ---- */
+.trend-rank{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);}
+.trend-rank b{font-family:'Big Shoulders Display',sans-serif;font-size:26px;font-weight:700;line-height:1;color:var(--ink);}
+.trend-rank .mv{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:999px;font-size:12px;font-weight:700;}
+.mv-up{background:rgba(51,209,139,.16);color:var(--yes);}
+.mv-down{background:rgba(245,100,79,.16);color:#F5644F;}
+.mv-new{background:rgba(70,140,255,.18);color:#8FB4FF;}
+.mv-flat{background:rgba(128,136,150,.18);color:var(--ink-soft);}
+
+/* ---- Freshness + source chips + risers ---- */
+.feed-updated{margin:12px 0 0;font-size:12.5px;color:var(--ink-soft);}
+.feed-updated:empty{display:none;}
+.feed-chips.src-chips{margin-top:8px;}
+.feed-chips.src-chips .feed-chip{font-size:13px;}
+.pagenav-tab.has-new::after{content:'';display:inline-block;width:7px;height:7px;margin-left:6px;border-radius:50%;background:#F5644F;vertical-align:3px;}
+.top-row .tr-n.up{width:auto;min-width:40px;font-size:22px;color:var(--yes);}
+.top-row .tr-img.sq{width:54px;height:54px;}
+.top-row .tr-sub{font-size:12.5px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.news-top3.chart .top-row .tr-n{width:34px;}
+.news-top3 .mycalls-more>summary{border-top:1px solid var(--line);margin-top:0;}

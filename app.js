@@ -8215,6 +8215,7 @@
 
     var rowsById = {};      // id -> row
     var statsById = {};     // id -> { comments, votes, last_body, last_user }
+    var movesById = {};     // trending id -> { now, prev, hist } (rank change since the last day we have data for)
     var resultsById = {};   // id -> { yes_count, no_count, my_choice }
     var allRows = null;     // loaded once, shared by both tabs
     var loadingRows = null;
@@ -8294,6 +8295,36 @@
         if(res.error) throw res.error;
         (res.data || []).forEach(function(s){ statsById[s.news_id] = s; });
       }catch(e){ /* counts are decoration; cards still work */ }
+    }
+    async function loadMoves(ids){
+      if(!ids.length) return;
+      try{
+        var res = await sb.rpc('get_trend_moves', { p_news_ids: ids });
+        if(res.error) throw res.error;
+        (res.data || []).forEach(function(m){ movesById[m.news_id] = { now: Number(m.rank_now), prev: m.rank_prev == null ? null : Number(m.rank_prev), hist: !!m.has_history }; });
+      }catch(e){ /* moves are decoration; cards still work */ }
+    }
+    // Movement chip: green up arrow, red down arrow, NEW, flat dash, or nothing until a previous day exists.
+    function mvHtml(r){
+      var m = movesById[r.id], now = Number(r.trend_rank);
+      if(!m || !m.hist) return '';
+      if(m.prev == null) return '<span class="mv mv-new">NEW</span>';
+      if(m.prev > now) return '<span class="mv mv-up"><svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M6 2l4.500 6.500h-9z" fill="currentColor"/></svg>' + (m.prev - now) + '</span>';
+      if(m.prev < now) return '<span class="mv mv-down"><svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M6 10L1.500 3.500h9z" fill="currentColor"/></svg>' + (now - m.prev) + '</span>';
+      return '<span class="mv mv-flat">&ndash;</span>';
+    }
+    // Chart rank plus movement: #3 with an arrow.
+    function rankHtml(r){
+      if(r.kind !== 'trend' || !r.trend_rank) return '';
+      return '<div class="trend-rank"><b>#' + Number(r.trend_rank) + '</b>' + mvHtml(r) + '<span class="tr-on">on ' + escapeHtml(r.source_name || 'the chart') + '</span></div>';
+    }
+    // "2 min ago" style text for the Updated line.
+    function freshText(ts){
+      var m = Math.max(0, Math.floor((Date.now() - ts) / 60000));
+      if(m < 1) return 'just now';
+      if(m < 60) return m + ' min ago';
+      var h = Math.floor(m / 60);
+      return h < 24 ? h + (h === 1 ? ' hour ago' : ' hours ago') : Math.floor(h / 24) + 'd ago';
     }
     async function loadResults(ids){
       if(!ids.length) return;
@@ -8410,7 +8441,7 @@
       var isPost = r.kind === 'post', isTrend = r.kind === 'trend', yt = isYt(r);
       return '<article class="news-card' + (isPost ? ' is-post' : '') + (isTrend ? ' is-trend' : '') + '" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
         ((isPost || yt) ? '' : imgHtml(r)) +
-        '<div class="news-body">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div>' +
+        '<div class="news-body">' + (isTrend ? rankHtml(r) : '') + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div>' +
         (isTrend && r.summary ? '<p class="trend-ctx">' + escapeHtml(r.summary) + '</p>' : '') + '</div>' +
         ((isPost || yt) ? embedHtml(r) : '') +
         takeHtml(r) + footHtml(r) + '</article>';
@@ -8462,8 +8493,25 @@
       this.chips = document.getElementById(cfg.chipsId);
       this.lane = 'all';
       this.sort = 'new';
+      this.source = 'all';
       this.loaded = false;
       var self = this;
+      // "Updated X ago" line under the chips
+      this.updEl = document.createElement('p');
+      this.updEl.className = 'feed-updated';
+      this.grid.parentNode.insertBefore(this.updEl, this.grid);
+      // Trending only: a second chip row to filter by source (Google, YouTube, Music...)
+      if(cfg.kind === 'trending' && this.chips){
+        this.srcChips = document.createElement('div');
+        this.srcChips.className = 'feed-chips src-chips';
+        this.chips.parentNode.insertBefore(this.srcChips, this.chips.nextSibling);
+        this.srcChips.addEventListener('click', function(ev){
+          var b = ev.target.closest('.feed-chip'); if(!b) return;
+          self.source = b.getAttribute('data-source');
+          self.srcChips.querySelectorAll('.feed-chip').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-source') === self.source); });
+          self.render();
+        });
+      }
       if(this.chips){
         this.chips.innerHTML = LANES.map(function(l){ return '<button type="button" class="feed-chip' + (l[0] === 'all' ? ' on' : '') + '" data-lane="' + l[0] + '">' + l[1] + '</button>'; }).join('');
         this.chips.addEventListener('click', function(ev){
@@ -8494,14 +8542,77 @@
         list = rows.filter(function(r){ return (r.kind === 'post' || r.kind === 'trend') && r.take_question; });
       }
       if(lane !== 'all') list = list.filter(function(r){ return laneOf(r) === lane; });
+      var src = this.source;
+      if(this.cfg.kind === 'trending' && src !== 'all') list = list.filter(function(r){ return r.kind === 'trend' && r.source_name === src; });
       list = list.slice();
       if(this.sort === 'hot') list.sort(function(a, b){ return hot(b) - hot(a); });
       else list.sort(function(a, b){ return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || new Date(b.fetched_at) - new Date(a.fetched_at); });
       return list;
     };
+    // Compact numbered row for the three hottest stories at the top of News.
+    function topRowHtml(r, n){
+      var s = statsById[r.id] || {}, c = Number(s.comments) || 0;
+      var img = (r.image_url && /^https:\/\//i.test(r.image_url)) ? '<img class="tr-img" src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">' : '';
+      return '<article class="news-card top-row" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+        '<span class="tr-n">' + n + '</span>' + img +
+        '<div class="tr-main">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div></div>' +
+        (c ? '<span class="tr-c">' + plural(c, 'comment') + '</span>' : '') + '</article>';
+    }
+    var SRC_CHIPS = [ ['Google Trends', 'Google'], ['YouTube', 'YouTube'], ['Apple Music', 'Music'], ['Wikipedia', 'Wikipedia'], ['Bluesky', 'Bluesky'] ];
+    // One row of a source's chart: rank number, picture, title, movement.
+    function chartRowHtml(r){
+      var s = statsById[r.id] || {}, c = Number(s.comments) || 0;
+      var img = (r.image_url && /^https:\/\//i.test(r.image_url)) ? '<img class="tr-img sq" src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">' : '';
+      return '<article class="news-card top-row" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+        '<span class="tr-n">' + Number(r.trend_rank) + '</span>' + img +
+        '<div class="tr-main"><div class="news-h">' + escapeHtml(r.headline || '') + '</div>' + (r.summary ? '<div class="tr-sub">' + escapeHtml(r.summary) + '</div>' : '') + '</div>' +
+        mvHtml(r) + (c ? '<span class="tr-c">' + plural(c, 'comment') + '</span>' : '') + '</article>';
+    }
+    // Biggest risers: the largest jumps up a source's chart since the last day we have data for.
+    function risersHtml(rows){
+      var ups = rows.filter(function(r){ var m = movesById[r.id]; return r.kind === 'trend' && m && m.hist && m.prev != null && m.prev > Number(r.trend_rank); })
+        .sort(function(a, b){ var ma = movesById[a.id], mb = movesById[b.id]; return (mb.prev - Number(b.trend_rank)) - (ma.prev - Number(a.trend_rank)) || Number(a.trend_rank) - Number(b.trend_rank); })
+        .slice(0, 3);
+      if(!ups.length) return '';
+      return '<div class="news-top3"><div class="nt3-h">Biggest risers today</div>' + ups.map(function(r){
+        var m = movesById[r.id], d = m.prev - Number(r.trend_rank);
+        return '<article class="news-card top-row" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+          '<span class="tr-n up">+' + d + '</span><div class="tr-main"><div class="news-h">' + escapeHtml(r.headline || '') + '</div><div class="tr-sub">#' + m.prev + ' to #' + Number(r.trend_rank) + ' on ' + escapeHtml(r.source_name || 'the chart') + '</div></div></article>';
+      }).join('') + '</div>';
+    }
     Feed.prototype.render = function(){
       var list = this.pick();
-      this.grid.innerHTML = list.map(cardHtml).join('') || '<p class="news-empty">' + (this.cfg.kind === 'news' ? 'No stories in this lane right now. Check back soon.' : 'Nothing trending in this lane right now. Check back soon.') + '</p>';
+      var topHtml = '', chartMode = false;
+      // Source chips: only sources that actually have rows right now
+      if(this.srcChips){
+        var have = {}; (allRows || []).forEach(function(r){ if(r.kind === 'trend' && r.take_question) have[r.source_name] = 1; });
+        var self = this;
+        this.srcChips.innerHTML = '<button type="button" class="feed-chip' + (this.source === 'all' ? ' on' : '') + '" data-source="all">All sources</button>' +
+          SRC_CHIPS.filter(function(c){ return have[c[0]]; }).map(function(c){ return '<button type="button" class="feed-chip' + (self.source === c[0] ? ' on' : '') + '" data-source="' + c[0] + '">' + c[1] + '</button>'; }).join('');
+      }
+      if(this.cfg.kind === 'news' && list.length > 3){
+        // "Most trending" = the same hot score as the Hot sort: comments and votes, fading with age.
+        var hottest = list.slice().sort(function(a, b){ return hot(b) - hot(a); }).slice(0, 3);
+        var topIds = {}; hottest.forEach(function(r){ topIds[r.id] = 1; });
+        list = list.filter(function(r){ return !topIds[r.id]; });
+        topHtml = '<div class="news-top3"><div class="nt3-h">Trending now</div>' + hottest.map(function(r, i){ return topRowHtml(r, i + 1); }).join('') + '</div>';
+      }else if(this.cfg.kind === 'trending' && this.source !== 'all'){
+        // One source selected: show its chart in rank order, top 10.
+        chartMode = true;
+        var chart = list.filter(function(r){ return r.trend_rank; }).sort(function(a, b){ return Number(a.trend_rank) - Number(b.trend_rank); }).slice(0, 10);
+        var label = (SRC_CHIPS.filter(function(c){ return c[0] === this.source; }, this)[0] || [0, this.source])[1];
+        topHtml = chart.length ? '<div class="news-top3 chart"><div class="nt3-h">Top ' + chart.length + ' on ' + escapeHtml(this.source) + '</div><div class="nt3-rows">' + chart.map(chartRowHtml).join('') + '</div></div>' : '';
+        list = [];
+      }else if(this.cfg.kind === 'trending'){
+        topHtml = risersHtml(list);
+      }
+      this.grid.innerHTML = topHtml + list.map(cardHtml).join('') || '<p class="news-empty">' + (this.cfg.kind === 'news' ? 'No stories in this lane right now. Check back soon.' : 'Nothing trending in this lane right now. Check back soon.') + '</p>';
+      if(chartMode){ var cr = this.grid.querySelector('.nt3-rows'); if(cr) mqFoldList(cr, 5, { one: 'more', many: 'more' }); }
+      // Updated line: newest row of this tab's kind
+      var kinds = this.cfg.kind === 'news' ? ['news'] : ['trend', 'post'];
+      var newest = 0; (allRows || []).forEach(function(r){ if(kinds.indexOf(r.kind) >= 0 && r.take_question){ var t = new Date(r.fetched_at || r.published_at || 0).getTime(); if(t > newest) newest = t; } });
+      this.updEl.textContent = newest ? 'Updated ' + freshText(newest) : '';
+      this.updEl.setAttribute('data-ts', String(newest || ''));
       paintAll(this.grid);
       wireEmbeds(this.grid);
     };
@@ -8512,7 +8623,8 @@
       if(!rows){ this.loaded = false; this.grid.innerHTML = '<p class="news-empty">This is not loading right now. Try again in a minute.</p>'; return; }
       var ids = rows.map(function(r){ return r.id; });
       var withTake = rows.filter(function(r){ return r.take_question; }).map(function(r){ return r.id; });
-      await Promise.all([loadStats(ids), loadResults(withTake)]);
+      var trendIds = rows.filter(function(r){ return r.kind === 'trend' && r.trend_rank; }).map(function(r){ return r.id; });
+      await Promise.all([loadStats(ids), loadResults(withTake), loadMoves(trendIds)]);
       feeds.forEach(function(f){ if(f.loaded) f.render(); });
       openFromUrl();
     };
@@ -8628,6 +8740,47 @@
 
     new Feed({ page: 'news', gridId: 'news-grid', chipsId: 'news-chips', kind: 'news', defaultSort: 'new' });
     new Feed({ page: 'trending', gridId: 'trending-grid', chipsId: 'trending-chips', kind: 'trending', defaultSort: 'hot' });
+
+    // ---- Freshness: "Updated X ago" ticks along, and a small dot on the News / Trending tab when there is something new since you last opened it ----
+    setInterval(function(){
+      feeds.forEach(function(f){
+        var ts = Number(f.updEl && f.updEl.getAttribute('data-ts'));
+        if(ts) f.updEl.textContent = 'Updated ' + freshText(ts);
+      });
+    }, 60000);
+    (function(){
+      var TABS = [
+        { page: 'news', key: 'mq_seen_news', q: function(){ return sb.from('news_ticker').select('fetched_at').eq('kind', 'news').not('take_question', 'is', null).not('image_url', 'is', null).order('fetched_at', { ascending: false }).limit(1); } },
+        { page: 'trending', key: 'mq_seen_trending', q: function(){ return sb.from('news_ticker').select('fetched_at').in('kind', ['trend', 'post']).not('take_question', 'is', null).order('fetched_at', { ascending: false }).limit(1); } }
+      ];
+      function getSeen(k){ try{ return Number(localStorage.getItem(k)) || 0; }catch(e){ return 0; } }
+      function setSeen(k, v){ try{ localStorage.setItem(k, String(v)); }catch(e){} }
+      TABS.forEach(function(t){
+        var tab = document.querySelector('.pagenav-tab[data-page="' + t.page + '"]');
+        if(!tab) return;
+        t.tab = tab; t.newest = 0;
+        // Opening the tab marks everything as seen.
+        tab.addEventListener('click', function(){ if(t.newest) setSeen(t.key, t.newest); tab.classList.remove('has-new'); });
+      });
+      async function check(){
+        for(var i = 0; i < TABS.length; i++){
+          var t = TABS[i]; if(!t.tab) continue;
+          try{
+            var res = await t.q();
+            var row = res && res.data && res.data[0];
+            if(!row) continue;
+            t.newest = new Date(row.fetched_at).getTime();
+            var seen = getSeen(t.key);
+            if(!seen){ setSeen(t.key, t.newest); continue; }          // first visit: no dot, just remember where they are
+            var open = t.tab.classList.contains('active');
+            if(open){ setSeen(t.key, t.newest); t.tab.classList.remove('has-new'); }
+            else t.tab.classList.toggle('has-new', t.newest > seen);
+          }catch(e){}
+        }
+      }
+      check();
+      setInterval(check, 300000);
+    })();
 
     // A shared link (?thread=...) opens straight into the discussion.
     if(new URLSearchParams(location.search).get('thread')){
