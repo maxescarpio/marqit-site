@@ -1642,3 +1642,15 @@ button,input,select,textarea{font-family:inherit;}
 .mv-down{background:rgba(245,100,79,.16);color:#F5644F;}
 .mv-new{background:rgba(70,140,255,.18);color:#8FB4FF;}
 .mv-flat{background:rgba(128,136,150,.18);color:var(--ink-soft);}
+
+/* ---- Freshness + source chips + risers ---- */
+.feed-updated{margin:12px 0 0;font-size:12.5px;color:var(--ink-soft);}
+.feed-updated:empty{display:none;}
+.feed-chips.src-chips{margin-top:8px;}
+.feed-chips.src-chips .feed-chip{font-size:13px;}
+.pagenav-tab.has-new::after{content:'';display:inline-block;width:7px;height:7px;margin-left:6px;border-radius:50%;background:#F5644F;vertical-align:3px;}
+.top-row .tr-n.up{width:auto;min-width:40px;font-size:22px;color:var(--yes);}
+.top-row .tr-img.sq{width:54px;height:54px;}
+.top-row .tr-sub{font-size:12.5px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.news-top3.chart .top-row .tr-n{width:34px;}
+.news-top3 .mycalls-more>summary{border-top:1px solid var(--line);margin-top:0;}
