@@ -1522,13 +1522,11 @@
         pmsg.className = 'form-msg';
         if(!/^image\/(jpeg|png|webp|heic|heif)$/i.test(f.type) && f.type.indexOf('image/') !== 0){ pmsg.className = 'form-msg err'; pmsg.textContent = 'Pick an image file.'; return; }
         if(f.size > 12 * 1024 * 1024){ pmsg.className = 'form-msg err'; pmsg.textContent = 'That photo is too big. Try one under 12 MB.'; return; }
-        pmsg.textContent = 'Uploading…'; upBtn.disabled = true;
+        upBtn.disabled = true;
         try{
-          var bmp = await createImageBitmap(f);
-          var side = Math.min(bmp.width, bmp.height), SZ = 256;
-          var cv = document.createElement('canvas'); cv.width = SZ; cv.height = SZ;
-          cv.getContext('2d').drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, SZ, SZ);
-          var blob = await new Promise(function(res){ cv.toBlob(res, 'image/jpeg', 0.86); });
+          var blob = await mqCropPhoto(f);
+          if(!blob){ pmsg.textContent = ''; upBtn.disabled = false; return; }
+          pmsg.textContent = 'Uploading…';
           if(!blob) throw new Error('Could not read that photo.');
           var path = session.user.id + '/avatar-' + Date.now() + '.jpg';
           var up = await sb.storage.from('avatars').upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
@@ -2704,6 +2702,55 @@
     return canvas;
   }
 
+
+
+  // Crop dialog for profile photos: drag to move, slider to zoom. Resolves with a 256px square JPEG blob (or null if cancelled).
+  function mqCropPhoto(file){
+    return new Promise(function(resolve){
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onerror = function(){ URL.revokeObjectURL(url); resolve(null); };
+      img.onload = function(){
+        var wrap = document.createElement('div');
+        wrap.className = 'mq-crop';
+        wrap.innerHTML = '<div class="mq-crop-card" role="dialog" aria-modal="true" aria-label="Adjust photo">' +
+          '<h4>Adjust your photo</h4><p>Drag to move it. Use the slider to zoom.</p>' +
+          '<div class="mq-crop-view"></div>' +
+          '<div class="mq-crop-zoom"><span aria-hidden="true">&minus;</span><input type="range" min="1" max="4" step="0.01" value="1" aria-label="Zoom"><span aria-hidden="true">+</span></div>' +
+          '<div class="mq-crop-btns"><button type="button" class="mq-crop-cancel">Cancel</button><button type="button" class="mq-crop-ok">Use photo</button></div></div>';
+        document.body.appendChild(wrap);
+        var view = wrap.querySelector('.mq-crop-view'), slider = wrap.querySelector('input');
+        view.appendChild(img);
+        var V = view.clientWidth || 280, w = img.naturalWidth, h = img.naturalHeight;
+        var base = V / Math.min(w, h), zoom = 1, x = 0, y = 0;
+        function clamp(){ var sc = base * zoom; x = Math.min(0, Math.max(V - w * sc, x)); y = Math.min(0, Math.max(V - h * sc, y)); }
+        function paint(){ clamp(); var sc = base * zoom; img.style.width = (w * sc) + 'px'; img.style.height = (h * sc) + 'px'; img.style.transform = 'translate(' + x + 'px,' + y + 'px)'; }
+        x = (V - w * base) / 2; y = (V - h * base) / 2; paint();
+        var drag = null;
+        view.addEventListener('pointerdown', function(e){ drag = { px: e.clientX, py: e.clientY, x: x, y: y }; try{ view.setPointerCapture(e.pointerId); }catch(err){} });
+        view.addEventListener('pointermove', function(e){ if(!drag) return; x = drag.x + (e.clientX - drag.px); y = drag.y + (e.clientY - drag.py); paint(); });
+        function end(){ drag = null; }
+        view.addEventListener('pointerup', end); view.addEventListener('pointercancel', end);
+        view.addEventListener('wheel', function(e){ e.preventDefault(); slider.value = String(Math.min(4, Math.max(1, zoom - e.deltaY * 0.002))); slider.dispatchEvent(new Event('input')); }, { passive: false });
+        slider.addEventListener('input', function(){
+          var old = base * zoom, cx = (V / 2 - x) / old, cy = (V / 2 - y) / old; // keep the centre point steady
+          zoom = parseFloat(slider.value) || 1;
+          var sc = base * zoom; x = V / 2 - cx * sc; y = V / 2 - cy * sc; paint();
+        });
+        function close(val){ document.removeEventListener('keydown', onKey); wrap.remove(); URL.revokeObjectURL(url); resolve(val); }
+        function onKey(e){ if(e.key === 'Escape') close(null); }
+        document.addEventListener('keydown', onKey);
+        wrap.querySelector('.mq-crop-cancel').addEventListener('click', function(){ close(null); });
+        wrap.addEventListener('click', function(e){ if(e.target === wrap) close(null); });
+        wrap.querySelector('.mq-crop-ok').addEventListener('click', function(){
+          var sc = base * zoom, SZ = 256, cv = document.createElement('canvas'); cv.width = SZ; cv.height = SZ;
+          cv.getContext('2d').drawImage(img, -x / sc, -y / sc, V / sc, V / sc, 0, 0, SZ, SZ);
+          cv.toBlob(function(b){ close(b); }, 'image/jpeg', 0.86);
+        });
+      };
+      img.src = url;
+    });
+  }
 
   // ===== One share sheet for everything =====
   // opts: { title, text, url, packaged?: {file, blob}, filename? }
