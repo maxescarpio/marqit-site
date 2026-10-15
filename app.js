@@ -8215,6 +8215,7 @@
 
     var rowsById = {};      // id -> row
     var statsById = {};     // id -> { comments, votes, last_body, last_user }
+    var movesById = {};     // trending id -> { now, prev, hist } (rank change since the last day we have data for)
     var resultsById = {};   // id -> { yes_count, no_count, my_choice }
     var allRows = null;     // loaded once, shared by both tabs
     var loadingRows = null;
@@ -8294,6 +8295,26 @@
         if(res.error) throw res.error;
         (res.data || []).forEach(function(s){ statsById[s.news_id] = s; });
       }catch(e){ /* counts are decoration; cards still work */ }
+    }
+    async function loadMoves(ids){
+      if(!ids.length) return;
+      try{
+        var res = await sb.rpc('get_trend_moves', { p_news_ids: ids });
+        if(res.error) throw res.error;
+        (res.data || []).forEach(function(m){ movesById[m.news_id] = { now: Number(m.rank_now), prev: m.rank_prev == null ? null : Number(m.rank_prev), hist: !!m.has_history }; });
+      }catch(e){ /* moves are decoration; cards still work */ }
+    }
+    // Chart rank plus movement: #3 with an up/down arrow, NEW, or nothing until a previous day exists.
+    function rankHtml(r){
+      if(r.kind !== 'trend' || !r.trend_rank) return '';
+      var m = movesById[r.id], now = Number(r.trend_rank), mv = '';
+      if(m && m.hist){
+        if(m.prev == null) mv = '<span class="mv mv-new">NEW</span>';
+        else if(m.prev > now) mv = '<span class="mv mv-up"><svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M6 2l4.500 6.500h-9z" fill="currentColor"/></svg>' + (m.prev - now) + '</span>';
+        else if(m.prev < now) mv = '<span class="mv mv-down"><svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M6 10L1.500 3.500h9z" fill="currentColor"/></svg>' + (now - m.prev) + '</span>';
+        else mv = '<span class="mv mv-flat">&ndash;</span>';
+      }
+      return '<div class="trend-rank"><b>#' + now + '</b>' + mv + '<span class="tr-on">on ' + escapeHtml(r.source_name || 'the chart') + '</span></div>';
     }
     async function loadResults(ids){
       if(!ids.length) return;
@@ -8410,7 +8431,7 @@
       var isPost = r.kind === 'post', isTrend = r.kind === 'trend', yt = isYt(r);
       return '<article class="news-card' + (isPost ? ' is-post' : '') + (isTrend ? ' is-trend' : '') + '" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
         ((isPost || yt) ? '' : imgHtml(r)) +
-        '<div class="news-body">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div>' +
+        '<div class="news-body">' + (isTrend ? rankHtml(r) : '') + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div>' +
         (isTrend && r.summary ? '<p class="trend-ctx">' + escapeHtml(r.summary) + '</p>' : '') + '</div>' +
         ((isPost || yt) ? embedHtml(r) : '') +
         takeHtml(r) + footHtml(r) + '</article>';
@@ -8499,9 +8520,26 @@
       else list.sort(function(a, b){ return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || new Date(b.fetched_at) - new Date(a.fetched_at); });
       return list;
     };
+    // Compact numbered row for the three hottest stories at the top of News.
+    function topRowHtml(r, n){
+      var s = statsById[r.id] || {}, c = Number(s.comments) || 0;
+      var img = (r.image_url && /^https:\/\//i.test(r.image_url)) ? '<img class="tr-img" src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">' : '';
+      return '<article class="news-card top-row" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+        '<span class="tr-n">' + n + '</span>' + img +
+        '<div class="tr-main">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div></div>' +
+        (c ? '<span class="tr-c">' + plural(c, 'comment') + '</span>' : '') + '</article>';
+    }
     Feed.prototype.render = function(){
       var list = this.pick();
-      this.grid.innerHTML = list.map(cardHtml).join('') || '<p class="news-empty">' + (this.cfg.kind === 'news' ? 'No stories in this lane right now. Check back soon.' : 'Nothing trending in this lane right now. Check back soon.') + '</p>';
+      var topHtml = '';
+      if(this.cfg.kind === 'news' && list.length > 3){
+        // "Most trending" = the same hot score as the Hot sort: comments and votes, fading with age.
+        var hottest = list.slice().sort(function(a, b){ return hot(b) - hot(a); }).slice(0, 3);
+        var topIds = {}; hottest.forEach(function(r){ topIds[r.id] = 1; });
+        list = list.filter(function(r){ return !topIds[r.id]; });
+        topHtml = '<div class="news-top3"><div class="nt3-h">Trending now</div>' + hottest.map(function(r, i){ return topRowHtml(r, i + 1); }).join('') + '</div>';
+      }
+      this.grid.innerHTML = topHtml + list.map(cardHtml).join('') || '<p class="news-empty">' + (this.cfg.kind === 'news' ? 'No stories in this lane right now. Check back soon.' : 'Nothing trending in this lane right now. Check back soon.') + '</p>';
       paintAll(this.grid);
       wireEmbeds(this.grid);
     };
@@ -8512,7 +8550,8 @@
       if(!rows){ this.loaded = false; this.grid.innerHTML = '<p class="news-empty">This is not loading right now. Try again in a minute.</p>'; return; }
       var ids = rows.map(function(r){ return r.id; });
       var withTake = rows.filter(function(r){ return r.take_question; }).map(function(r){ return r.id; });
-      await Promise.all([loadStats(ids), loadResults(withTake)]);
+      var trendIds = rows.filter(function(r){ return r.kind === 'trend' && r.trend_rank; }).map(function(r){ return r.id; });
+      await Promise.all([loadStats(ids), loadResults(withTake), loadMoves(trendIds)]);
       feeds.forEach(function(f){ if(f.loaded) f.render(); });
       openFromUrl();
     };
