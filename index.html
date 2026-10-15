@@ -22,25 +22,21 @@
 <meta property="og:description" content="A free daily prediction game — call sports, pop culture, and news outcomes. Three calls a day, same three worldwide.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://playmarqit.com/">
-<meta property="og:image" content="https://playmarqit.com/og-icon.png">
-<meta property="og:image:width" content="512">
-<meta property="og:image:height" content="512">
+<meta property="og:image" content="https://playmarqit.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Marqit: a free daily prediction game. Today's call: will the Eagles beat the 49ers, with Yes and No buttons.">
 
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Marqit: Free Daily Prediction Game">
 <meta name="twitter:description" content="A free daily prediction game — call sports, pop culture, and news outcomes. Three calls a day, same three worldwide.">
-<meta name="twitter:image" content="https://playmarqit.com/og-icon.png">
+<meta name="twitter:image" content="https://playmarqit.com/og-image.png">
+<meta name="twitter:image:alt" content="Marqit: a free daily prediction game. Today's call: will the Eagles beat the 49ers, with Yes and No buttons.">
 
 <link rel="canonical" href="https://playmarqit.com/">
 
-<!-- Display fonts used only for the generated share/story cards (canvas) --
-     a bolder, more distinctive pairing than the system font so the cards
-     don't read as plain/default. -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="apple-touch-icon" href="https://playmarqit.com/og-icon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -49,8 +45,8 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261015g">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=20261015h">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -88,7 +84,7 @@
         </div>
         <div id="nav-profile-pill" style="display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:100px; padding:4px 12px 4px 4px;">
           <button type="button" id="profile-circle-btn" title="Your profile" style="width:30px; height:30px; border-radius:50%; border:1px solid var(--line); background:var(--panel); font-size:15px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; flex-shrink:0; position:relative;">
-            <span id="profile-circle-emoji">🎯</span>
+            <span id="profile-circle-emoji" class="av-face"></span>
             <span id="profile-notif-dot" style="display:none; position:absolute; top:-2px; right:-2px; width:9px; height:9px; border-radius:50%; background:var(--no); border:1.5px solid var(--paper);"></span>
           </button>
           <span id="nav-username" style="font-size:13px; font-weight:700; color:var(--ink); white-space:nowrap;"></span>
@@ -165,7 +161,7 @@
     </div>
     <div id="reset-password-step" style="display:none; flex-direction:column; gap:10px;">
       <p style="font-size:13px; color:var(--ink-soft); margin:0;">Enter your email and we'll send a link to reset your password.</p>
-      <input type="email" id="reset-email-input" placeholder="you@email.com" autocomplete="email" style="width:100%; padding:14px 16px; border:1.5px solid var(--line); border-radius:10px; font-family:'Inter',sans-serif; font-size:15px; background:var(--panel); color:var(--ink); box-sizing:border-box;">
+      <input type="email" id="reset-email-input" placeholder="you@email.com" autocomplete="email" style="width:100%; padding:14px 16px; border:1.5px solid var(--line); border-radius:10px; font-family:'Barlow',sans-serif; font-size:15px; background:var(--panel); color:var(--ink); box-sizing:border-box;">
       <button type="button" id="send-reset-btn" style="width:100%; padding:14px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Send reset link</button>
       <button type="button" id="reset-back-btn" style="background:none; border:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline; padding:4px; align-self:center;">&larr; Back to log in</button>
     </div>
@@ -237,7 +233,7 @@
 
     <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--line);">
       <div style="font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:15px; margin-bottom:10px;">Customize your profile</div>
-      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Pick an emoji</div>
+      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Pick an icon</div>
       <div id="avatar-emoji-picker" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;"></div>
       <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Pick a color</div>
       <div id="avatar-color-picker" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
@@ -296,6 +292,14 @@
 <div id="page-home" class="page">
 <header class="hero hero-play">
   <div class="wrap">
+    <div class="today-strip" id="today-strip">
+      <div class="ts-main">
+        <span class="ts-date" id="ts-date"></span>
+        <span class="ts-calls">3 calls today</span>
+      </div>
+      <div class="ts-live" id="ts-live" hidden><i class="live-dot"></i><b id="ts-players">0</b><span id="ts-players-label">people have called today</span></div>
+      <button type="button" class="ts-how" id="ts-how">How it works</button>
+    </div>
     <p id="play-status" class="play-status" style="display:none;"></p>
     <p class="form-msg" id="hero-status-msg"></p>
     <p class="count-line" id="count-line" style="display:none;"></p>
@@ -304,8 +308,8 @@
 
 <section class="section">
   <div class="wrap">
-    <div id="drop-banner" style="display:none; align-items:center; gap:12px; max-width:480px; margin-bottom:16px; background:linear-gradient(135deg, rgba(255,148,38,0.18), rgba(255,80,80,0.12)); border:1.5px solid rgba(255,148,38,0.55); border-radius:14px; padding:14px 16px;">
-      <span style="font-size:22px; line-height:1;">🔥</span>
+    <div id="drop-banner" style="display:none; align-items:center; gap:12px; max-width:480px; margin-bottom:16px; background:rgba(255,148,38,0.10); border:1px solid rgba(255,148,38,0.5); border-radius:10px; padding:14px 16px;">
+      <span style="display:flex; line-height:1;"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#FF9426" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.8 3.2 5 4.8 5 9.6A5 5 0 0 1 7 12.6c0-1.9.9-3.1 2-3.9.2 1.3.8 2 1.7 2.2C10.4 8.4 10.7 5.6 12 3z"/></svg></span>
       <div style="flex:1; min-width:0;">
         <div style="font-weight:800; font-size:14.5px; color:var(--ink);">Drop bonus live — answer now</div>
         <div style="font-size:12.5px; color:var(--ink-soft); margin-top:2px;">Correct calls made right now score extra. <span id="drop-banner-countdown" style="font-weight:700; color:var(--ink);"></span></div>
@@ -323,6 +327,14 @@
 
     <!-- Buddies, rivals and recent activity: collapsed by default so the Play tab stays about the three questions. Tap a row to open it. Shown once signed in. -->
     <div id="play-friends" class="play-friends-grid" style="display:none; margin-top:28px;">
+      <details class="mq-fold" id="fold-feed" style="display:none;">
+      <summary><span class="sec-ico" style="--rc:70,140,255;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2.5-6 5 12L17 12h4"/></svg></span><h3 class="ex-title">Friends&rsquo; results</h3><span class="mq-fold-count" id="feed-fold-count" style="display:none;"></span><svg class="mq-fold-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="mq-fold-body">
+        <p class="ex-sub">How the people you follow and your buddies did on scored calls this week.</p>
+        <div id="feed-list" class="feed-list"></div>
+      </div>
+      </details>
+
       <details class="mq-fold" id="fold-buddies">
       <summary><span class="sec-ico" style="--rc:51,209,139;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><h3 class="ex-title">Your buddies</h3><span class="mq-fold-count" id="buddy-fold-count" style="display:none;"></span><svg class="mq-fold-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
       <div class="mq-fold-body">
@@ -403,7 +415,7 @@
         <div class="share-head">
           <strong id="share-card-title">Marqit</strong>
           <div class="share-streak">
-            <span id="share-card-streak">Sign in to see yours</span>
+            <span id="share-card-streak"></span>
           </div>
         </div>
         <div class="share-date" id="share-card-date"></div>
@@ -590,7 +602,7 @@
     <div class="recap-card record-card" id="record-card">
       <div class="recap-head">Your record · last 5 weeks</div>
       <div class="rec-rings" id="rec-rings"></div>
-      <div class="recap-foot" id="rec-foot">Sign in to see your record.</div>
+      <div class="recap-foot" id="rec-foot"></div>
       <div class="rec-cal-wrap">
         <div class="rec-dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
         <div class="rec-cal" id="rec-cal"></div>
@@ -600,15 +612,15 @@
     <div class="recap-card" id="recap-card" style="margin-top:14px; border-top:3px solid #128A50;">
       <div class="recap-head">This week</div>
       <div class="recap-strip" id="recap-strip" style="display:none;">
-        <div class="rs-streak"><strong id="recap-strip-streak" style="color:#128A50;">—</strong><span>Day streak</span></div>
+        <div class="rs-streak"><strong id="recap-strip-streak" style="color:#128A50;">0</strong><span>Day streak</span></div>
         <div class="rs-days" id="recap-strip-days"></div>
       </div>
       <div class="recap-stats" id="recap-stats">
-        <div><strong id="recap-accuracy" style="color:#128A50;">—</strong><span>Accuracy</span></div>
-        <div><strong id="recap-predictions" style="color:#128A50;">—</strong><span>Predictions</span></div>
-        <div><strong id="recap-streak" style="color:#128A50;">—</strong><span>Day streak</span></div>
+        <div><strong id="recap-accuracy" style="color:#128A50;">0%</strong><span>Accuracy</span></div>
+        <div><strong id="recap-predictions" style="color:#128A50;">0</strong><span>Predictions</span></div>
+        <div><strong id="recap-streak" style="color:#128A50;">0</strong><span>Day streak</span></div>
       </div>
-      <div class="recap-foot" id="recap-foot">Sign in to see your recap.</div>
+      <div class="recap-foot" id="recap-foot"></div>
     </div>
     <div class="recap-card mycalls-card" id="mycalls-card" style="margin-top:14px;">
       <div class="recap-head">My calls</div>
@@ -624,8 +636,11 @@
     <h3 class="ex-title" style="margin-top:0;">Groups</h3>
     <p class="ex-sub">Your own leaderboard. Same 3 daily calls.</p>
 
-    <div id="group-signed-out" style="max-width:420px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px 18px;">
-      <p style="font-size:13px; color:var(--ink-soft); margin:0;">Sign in to create or join a group.</p>
+    <div id="group-signed-out" class="empty-state empty-inline">
+      <span class="es-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3.2"/><circle cx="17" cy="10" r="2.5"/><path d="M3 19c.6-3 3-4.5 6-4.5s5.4 1.5 6 4.5M15.5 14.6c2.6-.3 4.6.9 5.5 3.4"/></svg></span>
+      <div class="es-title">Play with your people</div>
+      <p class="es-sub">Create a group, share the invite link and compete on the same three calls every day.</p>
+      <button type="button" class="es-btn" data-open-signup="groups">Sign up free</button>
     </div>
 
     <div id="group-no-group" style="display:none; max-width:420px;">
@@ -700,12 +715,12 @@
     </div>
 
     <div id="greek-section" style="display:none;">
-      <div id="chapter-cup-banner" style="margin-top:30px; padding:14px 18px; border-radius:14px; background:linear-gradient(120deg, rgba(219,102,83,.14), rgba(74,158,255,.10)); border:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+      <div id="chapter-cup-banner" style="margin-top:30px; padding:14px 18px; border-radius:14px; background:var(--panel); border:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
         <div>
-          <div style="font-weight:800; font-size:14.5px;">🏆 Fall Chapter Cup</div>
+          <div style="font-weight:800; font-size:14.5px; display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#F2C14E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5.5a4 4 0 0 1-8 0z"/><path d="M8 6H5.2c0 2.6 1 3.9 3 4.3M16 6h2.8c0 2.6-1 3.9-3 4.3"/><path d="M12 13.5V17M10 17h4v3h-4zM8.5 20h7"/></svg>Fall Chapter Cup</div>
           <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">Top chapter and top national org when it ends are crowned.</div>
         </div>
-        <div id="chapter-cup-countdown" style="font-weight:800; font-size:16px; white-space:nowrap;">—</div>
+        <div id="chapter-cup-countdown" style="font-weight:800; font-size:16px; white-space:nowrap;">Nov 30</div>
       </div>
 
       <h3 class="ex-title" style="margin-top:30px;">Top Chapters</h3>
@@ -788,7 +803,7 @@
     <div class="trophy-wrap" aria-hidden="true"><span class="trophy-glow"></span><svg class="trophy" viewBox="0 0 24 24" fill="rgba(246,196,48,0.14)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></div>
     <h1>Who will be crowned No.&nbsp;1?</h1>
     <p class="sub">The 2026 Marqit Challenge: one big call a week, Nov 16 to Dec 31. Climb to No. 1.</p>
-    <div id="challenge-countdown-wrap" class="cd-wrap"><span class="cd-label">Kicks off in</span><strong id="challenge-countdown" class="cd">—</strong></div>
+    <div id="challenge-countdown-wrap" class="cd-wrap"><span class="cd-label">Kicks off in</span><strong id="challenge-countdown" class="cd">Nov 16</strong></div>
     <p class="form-msg" id="challenge-hero-status-msg" style="margin-top:14px;"></p>
     <div style="margin-top:18px;">
       <button type="button" id="cta-open-signup-challenge" style="padding:12px 24px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Sign up now</button>
@@ -882,30 +897,11 @@
 
 <section class="section">
   <div class="wrap">
-    <details class="fold">
-      <summary>Privacy policy</summary>
-      <div class="policy-body">
-      <p>We collect your email, a username, your self-reported state, and confirmation that you're 18 or older when you sign up.</p>
-      <p>We use your results on the daily calls to run streaks, leaderboards, and reminders. We don't sell your personal data to third parties.</p>
-      <p>Your username, streak, points, and tier are visible to other users on leaderboards. If you set a buddy, rival, or join a group, your results on shared questions become visible to them as part of how the Buddy Bonus, Rival Showdowns, and group leaderboards work.</p>
-      <p>Push notifications require your explicit permission through your browser or device. You can opt out of personalized notifications at any time.</p>
-      </div>
-    </details>
-
-    <details class="fold">
-      <summary>Terms &amp; conditions</summary>
-      <div class="policy-body">
-      <ul>
-        <li>You must be 18 or older to use Marqit.</li>
-        <li>Marqit is free to play. No purchase is ever necessary to participate.</li>
-        <li>Points and in-app tokens have no cash value and cannot be redeemed, transferred, or exchanged for money or prizes.</li>
-        <li>Marqit is not gambling and does not involve wagering for real-world value.</li>
-        <li>One account per person. Availability may vary by state.</li>
-        <li>Group invite links are not access-controlled beyond the code itself — anyone with the code can join. Don't share it publicly if you want to keep your group private. You can also invite someone to your group by username, which they must approve.</li>
-        <li>You may belong to one group at a time. Setting a buddy requires the other person to approve your request before it takes effect.</li>
-      </ul>
-      </div>
-    </details>
+    <div class="about-legal">
+      <a class="about-legal-row" href="/privacy.html"><span>Privacy policy</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+      <a class="about-legal-row" href="/terms.html"><span>Terms &amp; conditions</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+      <a class="about-legal-row" href="mailto:help@playmarqit.com"><span>Contact us</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+    </div>
   </div>
 </section>
 </div>
@@ -919,42 +915,33 @@
   </div>
 </section>
 
-<footer>
-  <div class="wrap" style="justify-content:center;gap:40px;">
-    <span>© 2026 Grand Media Group LLC. All rights reserved. Marqit™</span>
-    <a href="/privacy.html" style="color:inherit;text-decoration:none;">Privacy</a>
-    <a href="/terms.html" style="color:inherit;text-decoration:none;">Terms</a>
-    <span style="display:inline-flex;align-items:center;gap:18px;">
-      <a href="https://www.tiktok.com/@playmarqit" target="_blank" rel="noopener noreferrer" aria-label="Marqit on TikTok" title="TikTok" style="color:inherit;display:inline-flex;">
+<footer class="site-foot">
+  <div class="wrap site-foot-grid">
+    <div class="sf-brand">
+      <span class="word">Marqit</span>
+      <p>A free daily prediction game. Three calls a day, the same three for everyone. No wagering, no cash prizes.</p>
+    </div>
+    <nav class="sf-links" aria-label="Footer">
+      <button type="button" id="footer-about-link">About</button>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="mailto:help@playmarqit.com">Contact</a>
+    </nav>
+    <div class="sf-social">
+      <a href="https://www.tiktok.com/@playmarqit" target="_blank" rel="noopener noreferrer" aria-label="Marqit on TikTok" title="TikTok">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.6 6.7a5.4 5.4 0 0 1-3.3-2.2 5.4 5.4 0 0 1-.9-2.5h-3.2v12.6a2.7 2.7 0 1 1-2.7-2.7c.3 0 .5 0 .8.1V8.7a6 6 0 0 0-.8-.1 5.9 5.9 0 1 0 5.9 5.9V9.3a8.5 8.5 0 0 0 4.9 1.5V7.6c-.3 0-.5-.1-.7-.9z"/></svg>
       </a>
-      <a href="https://x.com/playmarqit" target="_blank" rel="noopener noreferrer" aria-label="Marqit on X" title="X" style="color:inherit;display:inline-flex;">
+      <a href="https://x.com/playmarqit" target="_blank" rel="noopener noreferrer" aria-label="Marqit on X" title="X">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.2 2h3.4l-7.4 8.5L23 22h-6.8l-5.3-6.9L4.8 22H1.4l7.9-9.1L1 2h7l4.8 6.3L18.2 2zm-1.2 18h1.9L7.1 3.9H5.1L17 20z"/></svg>
       </a>
-      <a href="https://www.facebook.com/playmarqit" target="_blank" rel="noopener noreferrer" aria-label="Marqit on Facebook" title="Facebook" style="color:inherit;display:inline-flex;">
+      <a href="https://www.facebook.com/playmarqit" target="_blank" rel="noopener noreferrer" aria-label="Marqit on Facebook" title="Facebook">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 22v-8.2h2.8l.5-3.3h-3.3V8.4c0-.9.4-1.7 1.8-1.7h1.6V3.9s-1.3-.2-2.5-.2c-2.6 0-4.2 1.5-4.2 4.3v2.5H7.4v3.3h2.8V22h3.3z"/></svg>
       </a>
-    </span>
+    </div>
   </div>
-  <div style="text-align:center;margin:14px 0 4px;">
-    <a href="https://letslaunch.today/product/marqit" target="_blank" rel="noopener"><img src="https://letslaunch.today/badge/marqit.svg" alt="Marqit on LetsLaunch" height="40" style="height:40px;width:auto;" loading="lazy"></a>
-  </div>
+  <div class="wrap sf-legal">&copy; 2026 Grand Media Group LLC. Marqit is a trademark of Grand Media Group LLC.</div>
 </footer>
 
-<div id="welcome-sheet" class="welcome-sheet" role="dialog" aria-modal="true" aria-labelledby="welcome-title" hidden>
-  <div class="welcome-panel">
-    <div class="welcome-grab" aria-hidden="true"></div>
-    <div class="welcome-kicker">Welcome to Marqit</div>
-    <h2 id="welcome-title">Here&rsquo;s how it works</h2>
-    <ol class="welcome-steps">
-      <li><b>Pick</b><span>Yes or No on 3 daily calls.</span></li>
-      <li><b>Lock</b><span>Each call locks before its event starts.</span></li>
-      <li><b>Score</b><span>100 points per correct call. Go 3-for-3 for a Perfect Day.</span></li>
-    </ol>
-    <button type="button" id="welcome-go" class="welcome-go">Make your first call</button>
-    <p class="welcome-note">No account needed to play.</p>
-  </div>
-</div>
 <div id="results-sheet" class="welcome-sheet" role="dialog" aria-modal="true" aria-labelledby="results-title" hidden>
   <div class="welcome-panel">
     <div class="welcome-grab" aria-hidden="true"></div>
@@ -965,7 +952,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261015g" defer></script>
+<script src="app.js?v=20261015h" defer></script>
 
 
 

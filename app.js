@@ -27,6 +27,54 @@
   var SUPABASE_ANON_KEY = 'sb_publishable_S1DZQXDDpffETdJh2xJONQ_QSNjnunn';
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // ---- Avatars: drawn glyphs, not emoji ----------------------------------
+  // profiles.avatar_emoji is a free-text column. New picks store a short glyph
+  // key ("target"); older rows still hold an emoji, which we map to the nearest
+  // glyph. Anything unknown falls back to the person's initial.
+  var MQ_AVATAR_GLYPHS = {
+    target:  '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+    flame:   '<path d="M12 3c.8 3.2 5 4.8 5 9.6A5 5 0 0 1 7 12.6c0-1.9.9-3.1 2-3.9.2 1.3.8 2 1.7 2.2C10.4 8.4 10.7 5.6 12 3z"/>',
+    bolt:    '<path d="M13 3L5.5 13.5H11L10 21l7.5-10.5H12z"/>',
+    dice:    '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="15" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/>',
+    brain:   '<path d="M9.5 5A3 3 0 0 0 6.6 8 3 3 0 0 0 5.5 13.4 3 3 0 0 0 8.5 18a3 3 0 0 0 3.5 1V6a2.4 2.4 0 0 0-2.5-1z"/><path d="M14.5 5a3 3 0 0 1 2.9 3 3 3 0 0 1 1.1 5.4 3 3 0 0 1-3 4.6 3 3 0 0 1-3.5 1"/>',
+    film:    '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 5v14M16 5v14M4 9.5h4M4 14.5h4M16 9.5h4M16 14.5h4"/>',
+    trophy:  '<path d="M8 4h8v5.5a4 4 0 0 1-8 0z"/><path d="M8 6H5.2c0 2.6 1 3.9 3 4.3M16 6h2.8c0 2.6-1 3.9-3 4.3"/><path d="M12 13.5V17M10 17h4v3h-4zM8.5 20h7"/>',
+    star:    '<path d="M12 3.5l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17.4l-5.4 2.8 1.1-6.1L3.2 9.9l6.1-.8z"/>',
+    rocket:  '<path d="M12 3c3 2 4.5 5 4.5 8.5L12 17l-4.5-5.5C7.5 8 9 5 12 3z"/><circle cx="12" cy="9.5" r="1.6"/><path d="M8 15l-3 1 1.5-3M16 15l3 1-1.5-3M10.5 19l1.5 2 1.5-2"/>',
+    phones:  '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
+    chart:   '<path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/>',
+    pad:     '<rect x="3" y="8" width="18" height="10" rx="5"/><path d="M8 11v4M6 13h4"/><circle cx="15.5" cy="12" r=".9" fill="currentColor"/><circle cx="17.5" cy="14" r=".9" fill="currentColor"/>',
+    owl:     '<path d="M6 8c0-2 1.5-4 3-4 1 0 2 .6 3 .6s2-.6 3-.6c1.5 0 3 2 3 4v6a6 6 0 0 1-12 0z"/><circle cx="9.5" cy="10" r="1.8"/><circle cx="14.5" cy="10" r="1.8"/><path d="M12 12.6l-.8 1.4h1.6z"/>',
+    wolf:    '<path d="M4 4l4 3h8l4-3v8a8 8 0 0 1-16 0z"/><path d="M9 12h.01M15 12h.01M10 16l2 1.5 2-1.5"/>',
+    wing:    '<path d="M3 8l6 2 3-4 3 4 6-2-3 7-6 5-6-5z"/>',
+    turtle:  '<path d="M5 15a7 7 0 0 1 14 0z"/><path d="M9 15l1.5-5M15 15l-1.5-5M5 15l-2 2M19 15l2 2M12 15v3"/>',
+    clover:  '<circle cx="9" cy="9" r="3.2"/><circle cx="15" cy="9" r="3.2"/><circle cx="9" cy="15" r="3.2"/><circle cx="15" cy="15" r="3.2"/><path d="M12 12l5 8"/>',
+    coffee:  '<path d="M5 9h11v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2"/><path d="M8 4v2M12 4v2"/>',
+    moon:    '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+    wave:    '<path d="M3 11c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2M3 15c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2M3 19c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2"/>'
+  };
+  var MQ_AVATAR_KEYS = Object.keys(MQ_AVATAR_GLYPHS);
+  function mqAchIcon(name){
+    var d = (typeof MQ_ICON_PATHS !== 'undefined' && MQ_ICON_PATHS[name]) || MQ_AVATAR_GLYPHS[name] || '';
+    return '<svg class="mq-ach-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+  }
+  var MQ_AVATAR_LEGACY = {'🎯':'target','🔥':'flame','⚡':'bolt','🎲':'dice','🧠':'brain','🎬':'film','🏆':'trophy','⭐':'star','🚀':'rocket','🎧':'phones','📈':'chart','🎮':'pad','🦉':'owl','🐺':'wolf','🦅':'wing','🐢':'turtle','🍀':'clover','☕':'coffee','🌙':'moon','🌊':'wave'};
+  function mqAvatarKey(raw){
+    var v = String(raw == null ? '' : raw).replace(/️/g, '').trim();
+    if(MQ_AVATAR_GLYPHS[v]) return v;
+    return MQ_AVATAR_LEGACY[v] || null;
+  }
+  function mqAvatarSvg(key){
+    return '<svg class="av-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (MQ_AVATAR_GLYPHS[key] || '') + '</svg>';
+  }
+  // Inner HTML for any avatar circle: the glyph if there is one, else the initial.
+  function mqAvatarInner(raw, username){
+    var k = mqAvatarKey(raw);
+    if(k) return mqAvatarSvg(k);
+    var ch = String(username || '?').trim().charAt(0).toUpperCase() || '?';
+    return '<span class="av-initial">' + escapeHtml(ch) + '</span>';
+  }
+
   // Real Web Push (arrives even with the tab/browser closed). Public key is
   // safe to ship client-side -- that's the point of VAPID's public/private
   // split. If this key is ever rotated, every existing subscription breaks
@@ -756,6 +804,30 @@
     if(!clickedInsidePanel && !clickedNavButton){ authPanel.style.display = 'none'; }
   });
 
+
+  // ---- Empty states: a real prompt instead of dashes and "sign in to see" ----
+  function mqEmptyState(card, o){
+    if(!card) return;
+    card.classList.add('is-empty');
+    var box = card.querySelector(':scope > .empty-state');
+    if(!box){ box = document.createElement('div'); box.className = 'empty-state'; card.appendChild(box); }
+    box.innerHTML = '<span class="es-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (MQ_AVATAR_GLYPHS[o.icon] || MQ_AVATAR_GLYPHS.target) + '</svg></span>' +
+      '<div class="es-title">' + escapeHtml(o.title) + '</div><p class="es-sub">' + escapeHtml(o.sub) + '</p>' +
+      '<button type="button" class="es-btn" data-open-signup="' + escapeHtml(o.source || 'empty_state') + '">Sign up free</button>';
+  }
+  function mqClearEmptyState(card){
+    if(!card) return;
+    card.classList.remove('is-empty');
+    var box = card.querySelector(':scope > .empty-state');
+    if(box) box.remove();
+  }
+  document.addEventListener('click', function(e){
+    var t = e.target.closest && e.target.closest('[data-open-signup]');
+    if(!t) return;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    openAuthPanel('signup', t.getAttribute('data-open-signup') || 'empty_state');
+  });
+
   // Analytics helper: fire a GA4 event if gtag is there, never throw.
   // Set once a visitor's pre-signup picks have been saved, so the welcome note
   // survives the second render that sign-in triggers.
@@ -1008,6 +1080,7 @@
     loadStateBoard();
     loadBuddySection();
     loadRivalSection();
+    loadFriendsFeed();
     loadNotificationSettings();
     loadPendingRequests();
     loadDailyQuestions();
@@ -1046,24 +1119,24 @@
   // (see mqAwardAchievement call sites), not backfilled from full history,
   // same philosophy as the existing streak-milestone celebration.
   const ACHIEVEMENTS = {
-    perfect_day:   { icon: '\ud83c\udfaf', label: 'Perfect Day',   desc: 'Went 3-for-3 on a single day\u2019s calls.' },
-    buddy_bonus:   { icon: '\ud83e\udd1d', label: 'Buddy Bonus',   desc: 'Matched a pick with a buddy.' },
-    rival_win:     { icon: '\ud83c\udfc6', label: 'Showdown Winner', desc: 'Won a Rival Showdown.' },
+    perfect_day:   { icon: 'target', label: 'Perfect Day',   desc: 'Went 3-for-3 on a single day\u2019s calls.' },
+    buddy_bonus:   { icon: 'link', label: 'Buddy Bonus',   desc: 'Matched a pick with a buddy.' },
+    rival_win:     { icon: 'trophy', label: 'Showdown Winner', desc: 'Won a Rival Showdown.' },
     // Starter badges: quick wins in the first days, when people drop off.
-    first_pick:    { icon: '\ud83c\udf31', label: 'First Call',    desc: 'Locked in your first pick.' },
-    first_correct: { icon: '\u2705',       label: 'On the Board',  desc: 'Got your first call right.' },
-    streak_3:      { icon: '\ud83d\udd25', label: 'Three in a Row', desc: 'Played 3 days in a row.' },
+    first_pick:    { icon: 'sprout', label: 'First Call',    desc: 'Locked in your first pick.' },
+    first_correct: { icon: 'check', label: 'On the Board',  desc: 'Got your first call right.' },
+    streak_3:      { icon: 'flame', label: 'Three in a Row', desc: 'Played 3 days in a row.' },
     // Tiered achievements: times_earned isn't a raw count of events, it's the
     // tier reached (RPC divides the underlying count by the tier size), so
     // "\u00d73" here really means "3rd tier" -- 30 correct calls, 300
     // predictions, a 42-day streak, etc. See award_achievement in Supabase.
-    sharp_shooter: { icon: '\ud83c\udff9', label: 'Sharp Shooter', desc: 'Every 10 lifetime correct calls earns another tier.', tiered: true, tierSize: 10, tierUnit: 'correct calls' },
-    century_club:  { icon: '\ud83d\udcaf', label: 'Century Club',  desc: 'Every 100 lifetime predictions earns another tier.', tiered: true, tierSize: 100, tierUnit: 'predictions' },
-    iron_streak:   { icon: '\u26d3\ufe0f', label: 'Iron Streak',   desc: 'Every 14-day streak milestone your best-ever streak passes earns another tier.', tiered: true, tierSize: 14, tierUnit: 'day streak' },
-    golden_touch:  { icon: '\u2b50',       label: 'Golden Touch',  desc: 'Every golden star you earn is its own tier.', tiered: true, tierSize: 1, tierUnit: 'golden star' },
-    speed_demon:   { icon: '\u26a1',       label: 'Speed Demon',   desc: 'Every 5 correct calls made during a drop bonus window earns another tier.', tiered: true, tierSize: 5, tierUnit: 'drop-bonus calls' },
-    point_baron:   { icon: '\ud83d\udc51', label: 'Point Baron',   desc: 'Every 1,000 lifetime points earns another tier.', tiered: true, tierSize: 1000, tierUnit: 'points' },
-    regular:       { icon: '\ud83d\udcc5', label: 'Regular',       desc: 'Every 30 days you\u2019ve made a pick earns another tier.', tiered: true, tierSize: 30, tierUnit: 'days played' }
+    sharp_shooter: { icon: 'crosshair', label: 'Sharp Shooter', desc: 'Every 10 lifetime correct calls earns another tier.', tiered: true, tierSize: 10, tierUnit: 'correct calls' },
+    century_club:  { icon: 'stack', label: 'Century Club',  desc: 'Every 100 lifetime predictions earns another tier.', tiered: true, tierSize: 100, tierUnit: 'predictions' },
+    iron_streak:   { icon: 'link', label: 'Iron Streak',   desc: 'Every 14-day streak milestone your best-ever streak passes earns another tier.', tiered: true, tierSize: 14, tierUnit: 'day streak' },
+    golden_touch:  { icon: 'star', label: 'Golden Touch',  desc: 'Every golden star you earn is its own tier.', tiered: true, tierSize: 1, tierUnit: 'golden star' },
+    speed_demon:   { icon: 'bolt', label: 'Speed Demon',   desc: 'Every 5 correct calls made during a drop bonus window earns another tier.', tiered: true, tierSize: 5, tierUnit: 'drop-bonus calls' },
+    point_baron:   { icon: 'crown', label: 'Point Baron',   desc: 'Every 1,000 lifetime points earns another tier.', tiered: true, tierSize: 1000, tierUnit: 'points' },
+    regular:       { icon: 'calendar', label: 'Regular',       desc: 'Every 30 days you\u2019ve made a pick earns another tier.', tiered: true, tierSize: 30, tierUnit: 'days played' }
   };
   var TIERED_ACHIEVEMENT_KEYS = Object.keys(ACHIEVEMENTS).filter(function(k){ return ACHIEVEMENTS[k].tiered; });
   var __mqEarnedAchievementsCache = {}; // userId -> { key: times_earned }, avoids a re-check query per hook
@@ -1128,7 +1201,7 @@
     toast.className = 'mq-achievement-toast';
     var titleText = (meta.tiered && timesEarned > 1) ? 'Achievement upgraded' : 'Achievement unlocked';
     toast.innerHTML =
-      '<span class="mq-ach-icon">' + meta.icon + '</span>' +
+      '<span class="mq-ach-icon">' + mqAchIcon(meta.icon) + '</span>' +
       '<div><div class="mq-ach-title"></div><div class="mq-ach-label"></div></div>';
     toast.querySelector('.mq-ach-title').textContent = titleText;
     toast.querySelector('.mq-ach-label').textContent = meta.label + (timesEarned > 1 ? ' ×' + timesEarned : '');
@@ -1209,7 +1282,7 @@
       const circleBtn = document.getElementById('profile-circle-btn');
       const circleEmoji = document.getElementById('profile-circle-emoji');
       const usernameLabel = document.getElementById('nav-username');
-      if(circleEmoji) circleEmoji.textContent = profileRow.avatar_emoji || '🎯';
+      if(circleEmoji) circleEmoji.innerHTML = mqAvatarInner(profileRow.avatar_emoji || 'target', profileRow.username);
       if(circleBtn) circleBtn.style.background = profileRow.avatar_color || 'var(--panel)';
       if(usernameLabel) usernameLabel.textContent = profileRow.username || '';
       mqApplyFrame(circleBtn, session.user.id);
@@ -1243,8 +1316,7 @@
     }
   }
 
-  const AVATAR_EMOJIS = ['🎯','🔥','⚡','🎲','🧠','🎬','🏆','⭐','🚀','🎧','📈','🎮','🦉','🐺','🦅','🐢','🍀','☕','🌙','🌊'];
-  const AVATAR_COLORS = ['#17191D','#128A50','#C2372A','#2D5FA6','#8A4FBF','#C77D2E','#3B8C8C','#6B7280'];
+    const AVATAR_COLORS = ['#17191D','#128A50','#C2372A','#2D5FA6','#8A4FBF','#C77D2E','#3B8C8C','#6B7280'];
   let selectedAvatarEmoji = null;
   let selectedAvatarColor = null;
 
@@ -1286,7 +1358,7 @@
     const { data: streakRow } = await sb.from('streaks').select('*').eq('user_id', session.user.id).maybeSingle();
     if(!profileRow) return;
 
-    selectedAvatarEmoji = profileRow.avatar_emoji || '🎯';
+    selectedAvatarEmoji = mqAvatarKey(profileRow.avatar_emoji) || 'target';
     selectedAvatarColor = profileRow.avatar_color || '#17191D';
 
     const profileStateInput = document.getElementById('profile-state-input');
@@ -1314,14 +1386,14 @@
         const badge = document.createElement('div');
         badge.className = 'mq-achievement-badge' + (earned ? ' earned' : '');
         badge.title = meta.desc + (earned ? (meta.tiered ? ' Tier ' + times + ' (' + (times * meta.tierSize) + '+ ' + meta.tierUnit + ').' : '') : ' (not yet earned)');
-        badge.innerHTML = '<span class="mq-ach-badge-icon">' + meta.icon + '</span><span class="mq-ach-badge-label"></span>' +
+        badge.innerHTML = '<span class="mq-ach-badge-icon">' + mqAchIcon(meta.icon) + '</span><span class="mq-ach-badge-label"></span>' +
           (earned && times > 1 ? '<span class="mq-ach-badge-count">×' + times + '</span>' : '');
         badge.querySelector('.mq-ach-badge-label').textContent = meta.label;
         achievementsGrid.appendChild(badge);
       });
     }
 
-    document.getElementById('profile-modal-avatar').textContent = selectedAvatarEmoji;
+    document.getElementById('profile-modal-avatar').innerHTML = mqAvatarInner(selectedAvatarEmoji, profileRow.username);
     document.getElementById('profile-modal-avatar').style.background = selectedAvatarColor;
     document.getElementById('profile-modal-username').textContent = profileRow.username;
     mqApplyFrame(document.getElementById('profile-modal-avatar'), session.user.id);
@@ -1373,21 +1445,27 @@
       });
     }
 
-    // Emoji picker
+    // Avatar glyph picker
     const emojiPicker = document.getElementById('avatar-emoji-picker');
     emojiPicker.innerHTML = '';
-    AVATAR_EMOJIS.forEach(function(emoji){
+    function paintGlyphBorders(){
+      emojiPicker.querySelectorAll('button').forEach(function(b){ b.style.borderColor = (b.getAttribute('data-key') === selectedAvatarEmoji) ? 'var(--ink)' : 'var(--line)'; });
+    }
+    MQ_AVATAR_KEYS.forEach(function(key){
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.textContent = emoji;
-      btn.style.cssText = 'width:36px; height:36px; border-radius:50%; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; border:2px solid ' + (emoji === selectedAvatarEmoji ? 'var(--ink)' : 'var(--line)') + '; background:var(--panel);';
+      btn.setAttribute('data-key', key);
+      btn.setAttribute('aria-label', 'Avatar ' + key);
+      btn.innerHTML = mqAvatarSvg(key);
+      btn.style.cssText = 'width:38px; height:38px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; color:var(--ink); border:2px solid var(--line); background:var(--panel);';
       btn.addEventListener('click', function(){
-        selectedAvatarEmoji = emoji;
-        document.getElementById('profile-modal-avatar').textContent = emoji;
-        emojiPicker.querySelectorAll('button').forEach(function(b){ b.style.borderColor = (b.textContent === emoji) ? 'var(--ink)' : 'var(--line)'; });
+        selectedAvatarEmoji = key;
+        document.getElementById('profile-modal-avatar').innerHTML = mqAvatarSvg(key);
+        paintGlyphBorders();
       });
       emojiPicker.appendChild(btn);
     });
+    paintGlyphBorders();
 
     // Color picker
     const colorPicker = document.getElementById('avatar-color-picker');
@@ -1507,7 +1585,7 @@
       msg.textContent = 'Saved!';
       const circleEmoji = document.getElementById('profile-circle-emoji');
       const circleBtn = document.getElementById('profile-circle-btn');
-      if(circleEmoji) circleEmoji.textContent = selectedAvatarEmoji;
+      if(circleEmoji) circleEmoji.innerHTML = mqAvatarSvg(selectedAvatarEmoji);
       if(circleBtn) circleBtn.style.background = selectedAvatarColor;
     });
   }
@@ -1738,6 +1816,57 @@
       '<svg class="mm-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>';
     extra.forEach(function(c){ d.appendChild(c); });
     listEl.appendChild(d);
+  }
+
+
+  // ===== Friends' results feed =====
+  // One row per person per day for the people you follow plus your buddies. Comes from
+  // get_friends_feed (see supabase/migrations/20261015_friends_feed.sql); if that function
+  // isn't deployed yet the section simply stays hidden.
+  function mqFeedDayLabel(ymd){
+    try{
+      var today = getETDateInfo().dateStr;
+      if(ymd === today) return 'Today';
+      var y = new Date(today + 'T12:00:00Z'); y.setUTCDate(y.getUTCDate() - 1);
+      if(ymd === y.toISOString().slice(0, 10)) return 'Yesterday';
+      return new Date(ymd + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+    }catch(e){ return ymd; }
+  }
+  function mqFeedRowHtml(r){
+    var color = /^#[0-9A-Fa-f]{6}$/.test(r.avatar_color || '') ? r.avatar_color : '#2C2F37';
+    var calls = Number(r.calls) || 0, right = Number(r.correct) || 0;
+    var perfect = calls >= 3 && right === calls;
+    var pips = '';
+    for(var i = 0; i < calls; i++) pips += '<i class="' + (i < right ? 'on' : 'off') + '"></i>';
+    var streak = Number(r.streak) || 0;
+    return '<div class="feed-item' + (perfect ? ' perfect' : '') + '">' +
+      '<i class="lb-av" style="background:' + color + ';">' + mqAvatarInner(r.avatar_emoji, r.username) + '</i>' +
+      '<div class="fi-main">' +
+        '<div class="fi-top"><b>' + escapeHtml(r.username || 'player') + '</b>' + (r.is_buddy ? '<em class="fi-tag">Buddy</em>' : '') + '<span class="fi-day">' + escapeHtml(mqFeedDayLabel(r.qdate)) + '</span></div>' +
+        '<div class="fi-line">' + (perfect ? '<span class="fi-perfect">' + mqIcon('star') + 'Perfect Day</span>' : '<span>' + right + ' of ' + calls + ' right</span>') +
+          (streak >= 3 ? '<span class="fi-streak">' + mqIcon('flame') + streak + '</span>' : '') + '</div>' +
+      '</div>' +
+      '<span class="fi-pips" aria-hidden="true">' + pips + '</span>' +
+    '</div>';
+  }
+  async function loadFriendsFeed(){
+    var fold = document.getElementById('fold-feed'), list = document.getElementById('feed-list'), badge = document.getElementById('feed-fold-count');
+    if(!fold || !list) return;
+    try{
+      var res = await sb.rpc('get_friends_feed', { p_limit: 30 });
+      if(res.error){ fold.style.display = 'none'; return; }
+      var rows = res.data || [];
+      fold.style.display = '';
+      if(!rows.length){
+        list.innerHTML = '<div class="feed-empty"><b>Nobody to show yet</b><span>Follow strong callers or add a buddy and their scored days land here.</span><button type="button" id="feed-find-btn" class="es-btn">Find people to follow</button></div>';
+        if(badge) badge.style.display = 'none';
+        var fb = document.getElementById('feed-find-btn');
+        if(fb) fb.addEventListener('click', function(){ var pc = document.getElementById('profile-circle-btn'); if(pc) pc.click(); });
+        return;
+      }
+      list.innerHTML = rows.map(mqFeedRowHtml).join('');
+      if(badge){ badge.textContent = String(rows.length); badge.style.display = ''; }
+    }catch(e){ fold.style.display = 'none'; }
   }
 
   async function loadBuddySection(){
@@ -2329,14 +2458,13 @@
     ctx.closePath();
   }
 
-  // One typeface for the whole card -- Plus Jakarta Sans, same as every
-  // other stat/label on the card, just heavier (800) for the one hero
-  // number/symbol. No separate serif display face. Loaded via a <link>
+  // Same two faces as the site: Barlow for labels, Big Shoulders Display for
+  // the hero number and wordmark. Loaded via a <link>
   // in index.html's <head>; canvas won't pick up a webfont until the
   // browser has actually fetched it, so every share handler awaits this
   // before drawing (falls back to Arial if blocked).
-  const MQ_HEAD_FONT = "'Plus Jakarta Sans', Arial, sans-serif";
-  const MQ_DISPLAY_FONT = MQ_HEAD_FONT;
+  const MQ_HEAD_FONT = "'Barlow', Arial, sans-serif";
+  const MQ_DISPLAY_FONT = "'Big Shoulders Display', 'Barlow', Arial, sans-serif";
   let __mqCardFontsReady = null;
   function mqEnsureCardFonts(){
     if(__mqCardFontsReady) return __mqCardFontsReady;
@@ -2345,7 +2473,9 @@
         if(document.fonts && document.fonts.load){
           await Promise.all([
             document.fonts.load("700 100px " + MQ_HEAD_FONT),
-            document.fonts.load("800 100px " + MQ_HEAD_FONT)
+            document.fonts.load("600 100px " + MQ_HEAD_FONT),
+            document.fonts.load("800 100px " + MQ_DISPLAY_FONT),
+            document.fonts.load("700 100px " + MQ_DISPLAY_FONT)
           ]);
         }
       }catch(e){ /* card still renders, just with the fallback font */ }
@@ -2369,11 +2499,11 @@
     ctx.textAlign = prevAlign;
   }
 
-  // Navy background, matching the og-image and the app's own dark UI --
+  // Charcoal ground, the same #111318 as the site and the og-image --
   // and only the app's actual green/red (the same --yes/--no used for YES
   // and NO everywhere else on the site) ever show up as accent color, so
   // the cards read as the same product rather than a separate palette.
-  const MQ_CARD_BG = '#0B1A3D';
+  const MQ_CARD_BG = '#111318';
   const MQ_YES = '#33D18B';
   const MQ_NO = '#F5644F';
   const MQ_INK = '#FFFFFF';
@@ -2401,7 +2531,7 @@
   function mqCardLogoRow(ctx, width, y){
     ctx.textAlign = 'left';
     ctx.fillStyle = MQ_INK;
-    ctx.font = "800 " + Math.round(width * 0.034) + "px " + MQ_HEAD_FONT;
+    ctx.font = "800 " + Math.round(width * 0.046) + "px " + MQ_DISPLAY_FONT;
     ctx.fillText('Marqit', width * 0.075, y);
     const tw = ctx.measureText('Marqit').width;
     ctx.fillStyle = MQ_YES;
@@ -2825,7 +2955,7 @@
     }
     var d = res.data || {};
     if(d.status === 'sent'){
-      btn.textContent = 'Sent ✓';
+      btn.textContent = 'Sent';
       say('Reminder sent to ' + name + '.', true);
       mqTrack('friend_remind_sent');
       try{
@@ -2836,7 +2966,7 @@
       btn.textContent = 'Reminded today';
       say('You already reminded ' + name + ' today.', false);
     }else if(d.status === 'already_picked'){
-      btn.textContent = 'Already picked ✓';
+      btn.textContent = 'Already picked';
       say(name + ' already made their picks today.', true);
     }else if(d.status === 'limit'){
       btn.textContent = 'Reminded today';
@@ -3241,15 +3371,15 @@
     var gridLines = [0, 25, 50, 75, 100].map(function(pct){
       var y = yPos(pct).toFixed(1);
       return '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y + '" stroke="var(--line)" stroke-width="1" stroke-dasharray="2,3"/>' +
-        '<text x="' + (padL - 6) + '" y="' + (parseFloat(y) + 3) + '" text-anchor="end" font-size="9" fill="var(--ink-soft)" font-family="Inter,sans-serif">' + pct + '%</text>';
+        '<text x="' + (padL - 6) + '" y="' + (parseFloat(y) + 3) + '" text-anchor="end" font-size="9" fill="var(--ink-soft)" font-family="Barlow,sans-serif">' + pct + '%</text>';
     }).join('');
 
     function fmtTime(t){
       return new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     }
     var xLabels =
-      '<text x="' + padL + '" y="' + (H - 6) + '" text-anchor="start" font-size="9" fill="var(--ink-soft)" font-family="Inter,sans-serif">' + fmtTime(startT) + '</text>' +
-      '<text x="' + (W - padR) + '" y="' + (H - 6) + '" text-anchor="end" font-size="9" fill="var(--ink-soft)" font-family="Inter,sans-serif">' + fmtTime(endT) + '</text>';
+      '<text x="' + padL + '" y="' + (H - 6) + '" text-anchor="start" font-size="9" fill="var(--ink-soft)" font-family="Barlow,sans-serif">' + fmtTime(startT) + '</text>' +
+      '<text x="' + (W - padR) + '" y="' + (H - 6) + '" text-anchor="end" font-size="9" fill="var(--ink-soft)" font-family="Barlow,sans-serif">' + fmtTime(endT) + '</text>';
 
     // Dots at the first call, at every point the percentage changed, and at the
     // newest call. Each has a big invisible tap target; tapping (or clicking, or
@@ -3278,7 +3408,7 @@
     var bx = Math.max(padL, Math.min(dotX - bw + 6, W - padR - bw));
     var by = dotY - bh - 9 < padT ? dotY + 10 : dotY - bh - 9;
     var bubble = '<g class="trend-bubble"><rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw + '" height="' + bh + '" rx="9.5" style="fill:rgb(var(--tint))"/>' +
-      '<text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (by + 13).toFixed(1) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0E1014" font-family="Inter,sans-serif">Yes ' + lastPct + '%</text></g>';
+      '<text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (by + 13).toFixed(1) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0E1014" font-family="Barlow,sans-serif">Yes ' + lastPct + '%</text></g>';
 
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="trend-svg">' +
       '<defs><linearGradient id="' + gradId + '" x1="0" y1="0" x2="0" y2="1">' +
@@ -3314,7 +3444,7 @@
       var t1 = document.createElementNS(NS, 'text'), t2 = document.createElementNS(NS, 'text');
       t1.textContent = 'Submitted ' + hit.getAttribute('data-t');
       t2.textContent = 'Yes ' + hit.getAttribute('data-p') + '% at that point';
-      [t1, t2].forEach(function(t, i){ t.setAttribute('font-family', 'Inter,sans-serif'); t.setAttribute('font-size', i ? '9' : '10.5'); t.setAttribute('font-weight', i ? '500' : '700'); t.setAttribute('fill', i ? '#4B515C' : '#0E1014'); });
+      [t1, t2].forEach(function(t, i){ t.setAttribute('font-family', 'Barlow,sans-serif'); t.setAttribute('font-size', i ? '9' : '10.5'); t.setAttribute('font-weight', i ? '500' : '700'); t.setAttribute('fill', i ? '#4B515C' : '#0E1014'); });
       g.appendChild(rect); g.appendChild(t1); g.appendChild(t2); svg.appendChild(g);
       var w = Math.max(t1.getComputedTextLength(), t2.getComputedTextLength()) + 16, h = 34;
       var bx = Math.max(2, Math.min(x - w / 2, W - w - 2));
@@ -3388,7 +3518,12 @@
     rocket: '<path d="M12 3c3 2 4.5 5 4.5 8.5L12 17l-4.5-5.5C7.5 8 9 5 12 3z"/><circle cx="12" cy="9.5" r="1.6"/><path d="M8 15l-3 1 1.5-3M16 15l3 1-1.5-3M10.5 19l1.5 2 1.5-2"/>',
     golf: '<path d="M8 21V4l9 4-9 4"/><path d="M5 21h6"/>',
     tennis: '<circle cx="12" cy="12" r="9"/><path d="M5.2 5.6c3.2 2.6 3.2 10.2 0 12.8M18.8 5.6c-3.2 2.6-3.2 10.2 0 12.8"/>',
-    flag: '<path d="M6 21V4M6 5h12l-2 4 2 4H6"/>'
+    flag: '<path d="M6 21V4M6 5h12l-2 4 2 4H6"/>',
+    sprout: '<path d="M12 20v-8"/><path d="M12 12c0-3.5-2.5-5.5-6-5.5 0 3.5 2.5 5.5 6 5.5z"/><path d="M12 14c0-3 2.2-5 5.5-5 0 3-2.2 5-5.5 5z"/>',
+    crown: '<path d="M3.5 8l4.3 4L12 5.5 16.2 12l4.3-4-1.8 11H5.3z"/>',
+    calendar: '<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16"/>',
+    crosshair: '<circle cx="12" cy="12" r="7.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/>',
+    stack: '<path d="M12 4l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4M4 16l8 4 8-4"/>'
   };
   // Filled gold star for golden-star counts (drawn, not an emoji).
   function mqStarGold(px){
@@ -3542,7 +3677,7 @@
     var fs = abbr.length <= 3 ? 12.5 : (abbr.length === 4 ? 10.5 : 9);
     return '<svg class="mq-badge" viewBox="0 0 40 40" aria-hidden="true">' +
       '<g fill="rgba(' + c + ',.2)" stroke="rgb(' + c + ')" stroke-width="1.7" stroke-linejoin="round">' + shape + '</g>' +
-      '<text x="20" y="' + (fs > 11 ? 23.6 : 23) + '" text-anchor="middle" font-size="' + fs + '" font-weight="700" letter-spacing=".4" fill="rgb(' + c + ')" style="font-family:\'Big Shoulders Display\',Inter,sans-serif">' + abbr + '</text>' +
+      '<text x="20" y="' + (fs > 11 ? 23.6 : 23) + '" text-anchor="middle" font-size="' + fs + '" font-weight="700" letter-spacing=".4" fill="rgb(' + c + ')" style="font-family:\'Big Shoulders Display\',Barlow,sans-serif">' + abbr + '</text>' +
       '<path d="M14 28.2h12" stroke="rgba(' + c + ',.55)" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>';
   }
 
@@ -3809,7 +3944,7 @@
         var html = (byQ[p.q.id] || []).map(function(uid){
           var u = prof[uid]; if(!u) return '';
           var color = /^#[0-9A-Fa-f]{6}$/.test(u.avatar_color || '') ? u.avatar_color : '#2C2F37';
-          return '<i class="av" title="' + escapeHtml(u.username || '') + '" style="background:' + color + ';">' + escapeHtml(u.avatar_emoji || '') + '</i>';
+          return '<i class="av" title="' + escapeHtml(u.username || '') + '" style="background:' + color + ';">' + mqAvatarInner(u.avatar_emoji, u.username) + '</i>';
         }).join('');
         var extra = p.total - (byQ[p.q.id] || []).length;
         if(html && extra > 0) html += '<i class="av av-more">+' + extra + '</i>';
@@ -3847,7 +3982,7 @@
     function el(tag, cls, text){ var n = document.createElement(tag); if(cls) n.className = cls; if(text != null) n.textContent = text; return n; }
     function oneComment(c, qid, isReply){
       var row = el('div', 'cmt-item' + (isReply ? ' is-reply' : ''));
-      var av = el('div', 'cmt-av', c.avatar_emoji || (c.username || '?').charAt(0).toUpperCase());
+      var av = el('div', 'cmt-av'); av.innerHTML = mqAvatarInner(c.avatar_emoji, c.username);
       if(c.avatar_color) av.style.background = c.avatar_color;
       var main = el('div', 'cmt-main');
       var who = el('div', 'cmt-who');
@@ -3950,35 +4085,128 @@
     setTimeout(function(){ if(n.parentNode) n.remove(); }, 2500);
   }
 
-  // ===== First-visit welcome sheet =====
-  (function(){
-    var sheet = document.getElementById('welcome-sheet');
-    if(!sheet) return;
-    var seen = false;
-    try{ seen = localStorage.getItem('marqit_welcome_seen') === '1'; }catch(e){}
-    function close(){
-      sheet.hidden = true;
-      document.body.style.overflow = '';
-      try{ localStorage.setItem('marqit_welcome_seen', '1'); }catch(e){}
+  // ===== Haptics =====
+  // Tiny, optional feedback on the moments that matter. Silent where the
+  // browser has no vibration support (iOS Safari) or motion is reduced.
+  var MQ_HAPTIC = { tap: 8, lock: [10, 30, 16], win: [14, 40, 14, 40, 26], miss: 28 };
+  function mqHaptic(kind){
+    try{
+      if(!navigator.vibrate) return;
+      if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      navigator.vibrate(MQ_HAPTIC[kind] || MQ_HAPTIC.tap);
+    }catch(e){}
+  }
+  document.addEventListener('click', function(ev){
+    var t = ev.target;
+    if(!t || !t.closest) return;
+    if(t.closest('.predict-card .opt')) mqHaptic('tap');
+    else if(t.closest('#guest-submit-btn, #submit-all-btn')) mqHaptic('lock');
+  }, true);
+
+  // Counts a number up (or down) to a target and lets CSS flag it as "ticking".
+  function mqTickTo(el, from, to, ms){
+    if(!el) return;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduce || from === to){ el.textContent = String(to); return; }
+    var start = performance.now();
+    el.classList.add('ticking');
+    (function step(now){
+      var t = Math.min((now - start) / (ms || 900), 1), e = 1 - Math.pow(1 - t, 3);
+      el.textContent = String(Math.round(from + (to - from) * e));
+      if(t < 1) requestAnimationFrame(step); else el.classList.remove('ticking');
+    })(start);
+  }
+
+  // ===== Today strip: the date, what's on the slate, and how many people have called =====
+  // The player count is the highest vote total on any of today's questions, so it is
+  // a floor on real people (nobody is counted twice), never an estimate. It only shows
+  // once it is big enough to be a draw rather than a sign of an empty room.
+  var MQ_SHOW_PLAYERS_MIN = 10;
+  function mqUpdateTodayStrip(maxTotal){
+    var d = document.getElementById('ts-date');
+    if(d){
+      try{ d.textContent = new Date(getETDateInfo().dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
+      catch(e){ d.textContent = 'Today'; }
     }
-    sheet.addEventListener('click', function(ev){ if(ev.target === sheet) close(); });
-    document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape' && !sheet.hidden) close(); });
-    var go = document.getElementById('welcome-go');
-    if(go) go.addEventListener('click', function(){
-      close();
-      var first = document.querySelector('.predict-card');
-      if(first && first.scrollIntoView) first.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    var live = document.getElementById('ts-live');
+    var n = document.getElementById('ts-players');
+    if(!live || !n) return;
+    if(maxTotal >= MQ_SHOW_PLAYERS_MIN){
+      var prev = parseInt(n.getAttribute('data-n') || '0', 10) || 0;
+      n.setAttribute('data-n', String(maxTotal));
+      live.hidden = false;
+      mqTickTo(n, prev, maxTotal, 700);
+    }else{
+      live.hidden = true;
+    }
+  }
+  (function(){
+    var how = document.getElementById('ts-how');
+    if(how) how.addEventListener('click', function(){
+      var tab = document.querySelector('.pagenav-tab[data-page="how"]');
+      if(tab) tab.click();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
-    if(seen) return;
-    setTimeout(async function(){
-      try{
-        var r = await sb.auth.getSession();
-        if(r && r.data && r.data.session){ try{ localStorage.setItem('marqit_welcome_seen', '1'); }catch(e){} return; }
-      }catch(e){}
+    mqUpdateTodayStrip(0);
+  })();
+
+  // ===== First-pick coach mark =====
+  // New visitors learn by doing: no modal, no numbered steps. One small callout
+  // sits on the first open call and points at Yes / No, then follows them to the
+  // submit button. It never blocks the game and goes away for good after the first submit.
+  (function(){
+    var KEY = 'mq_coach_done';
+    var done = false;
+    try{ done = localStorage.getItem(KEY) === '1'; }catch(e){}
+    if(done) return;
+    var tip = null, step = 0, dismissed = false;
+    function finish(){
+      dismissed = true;
+      try{ localStorage.setItem(KEY, '1'); }catch(e){}
+      if(tip){ tip.remove(); tip = null; }
+      if(mo) mo.disconnect();
+    }
+    function make(title, body, where){
+      if(tip) tip.remove();
+      tip = document.createElement('div');
+      tip.className = 'coach';
+      tip.setAttribute('role', 'status');
+      tip.innerHTML = '<div class="coach-text"><b>' + title + '</b><span>' + body + '</span></div><button type="button" class="coach-x" aria-label="Dismiss tip"><svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 3l12 12M15 3L3 15"/></svg></button>';
+      tip.querySelector('.coach-x').addEventListener('click', finish);
+      where(tip);
+    }
+    function place(){
+      if(dismissed) return;
+      var container = document.getElementById('daily-questions-container');
+      if(!container) return;
       var home = document.getElementById('page-home');
       if(home && home.offsetParent === null) return;
-      sheet.hidden = false; document.body.style.overflow = 'hidden';
-    }, 1200);
+      var picked = container.querySelectorAll('.predict-card .opt.picked').length;
+      var open = container.querySelectorAll('.predict-card.awaiting, .predict-card .opt.picked');
+      var dock = container.querySelector('.pick-dock');
+      if(!open.length || !dock){ return; }          // nothing to play (locked / signed in with calls made)
+      if(step === 0 && picked === 0){
+        var first = container.querySelector('.predict-card.awaiting .ticket-row');
+        if(first && !(tip && tip.parentNode)){
+          make('Make your call', 'Tap Yes or No. Each call locks when its event starts.', function(t){ t.classList.add('coach-down'); first.parentNode.insertBefore(t, first); });
+        }
+      }else if(picked > 0 && picked < 3 && step < 2){
+        if(step === 0 || !(tip && tip.parentNode)){
+          step = 1;
+          make('Nice. Keep going', 'Pick all three, then submit. Every correct call is worth 100 points.', function(t){ t.classList.add('coach-down'); dock.parentNode.insertBefore(t, dock); });
+        }
+      }else if(picked >= 3){
+        if(tip){ tip.remove(); tip = null; }
+        step = 2;
+      }
+    }
+    var mo = new MutationObserver(function(){ clearTimeout(place._t); place._t = setTimeout(place, 120); });
+    var cont = document.getElementById('daily-questions-container');
+    if(cont) mo.observe(cont, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    document.addEventListener('click', function(ev){
+      if(ev.target.closest && ev.target.closest('#guest-submit-btn, #submit-all-btn')) finish();
+    }, true);
+    setTimeout(place, 600);
   })();
 
   // ===== Yesterday's results sheet =====
@@ -4048,7 +4276,7 @@
         var right = scored.filter(function(q){ return String(picks[q.id]).toLowerCase() === q.correct_answer; }).length;
         var partial = scored.length < mine.length;
         var html = '<div class="rs-tiles"><div class="rs-tile"><b>' + right + ' of ' + scored.length + '</b><span>right' + (partial ? ' so far' : '') + '</span></div>';
-        if(session) html += '<div class="rs-tile"><b>' + streak + '</b><span>day streak</span></div>';
+        if(session) html += '<div class="rs-tile"><b data-tick="' + streak + '" data-from="' + Math.max(0, streak - 1) + '">' + streak + '</b><span>day streak</span></div>';
         html += '</div>';
         mine.forEach(function(q){
           var pick = String(picks[q.id]).toLowerCase();
@@ -4076,6 +4304,14 @@
         if(welcome && !welcome.hidden) return;
         sheet.hidden = false;
         document.body.style.overflow = 'hidden';
+        try{
+          bodyEl.querySelectorAll('[data-tick]').forEach(function(b){
+            var to = parseInt(b.getAttribute('data-tick'), 10) || 0, from = parseInt(b.getAttribute('data-from'), 10) || 0;
+            b.textContent = String(from);
+            setTimeout(function(){ mqTickTo(b, from, to, 900); }, 450);
+          });
+          mqHaptic(right === scored.length ? 'win' : (right ? 'tap' : 'miss'));
+        }catch(e){}
       }catch(e){ /* results sheet is a nicety: never get in the way of the page */ }
     }
     setTimeout(run, 1800);
@@ -5094,6 +5330,7 @@
     // Only badge a strict, unique leader — a tie or an all-zero day shouldn't get one.
     let mostCalledId = null;
     const maxTotal = Math.max.apply(null, prepared.map(function(p){ return p.total; }));
+    mqUpdateTodayStrip(isFinite(maxTotal) ? maxTotal : 0);
     if(maxTotal > 0){
       const leaders = prepared.filter(function(p){ return p.total === maxTotal; });
       if(leaders.length === 1) mostCalledId = leaders[0].q.id;
@@ -5612,7 +5849,7 @@
           function settle(){
             var dropBannerEl = document.getElementById('drop-banner');
             var dropActive = dropBannerEl && dropBannerEl.style.display === 'flex';
-            msgEl.textContent = n + ' of ' + n + ' locked in.' + (dropActive ? ' 🔥 Bonus window — correct calls score extra.' : '');
+            msgEl.textContent = n + ' of ' + n + ' locked in.' + (dropActive ? ' Bonus window: correct calls score extra.' : '');
             sb.auth.getSession().then(function(sr){
               var uid = sr && sr.data && sr.data.session && sr.data.session.user.id;
               if(!uid) return;
@@ -5824,14 +6061,14 @@
       var rank = i + 1;
       var color = /^#[0-9A-Fa-f]{6}$/.test(r.avatar_color || '') ? r.avatar_color : '#2C2F37';
       var mine = !!(myId && r.user_id === myId);
-      var face = r.avatar_emoji || String(r.username || '?').charAt(0).toUpperCase();
+      var face = mqAvatarInner(r.avatar_emoji, r.username);
       var framed = !!(r.user_id && frameSet.has(r.user_id));
       var champ = !!(r.user_id && championSet.has(r.user_id));
       var streak = (r.streak || 0) >= 3 ? '<span class="lb-streak fl-' + mqStreakFlameTier(r.streak) + '">' + mqIcon('flame') + r.streak + '</span>' : '';
       var rankChg = (rankMap && r.user_id) ? mqRankArrowHtml(rankMap.has(r.user_id) ? rankMap.get(r.user_id) : null, rank) : '';
       return '<div class="brow lb' + (rank <= 3 ? ' medal m' + rank : '') + (mine ? ' mine' : '') + '">' +
         '<span class="lb-rank">' + rank + '</span>' +
-        '<i class="lb-av' + (framed ? ' has-frame' : '') + (champ ? ' has-champion-frame' : '') + '" style="background:' + color + ';" title="' + (champ ? 'Marqit Champion' : '') + '">' + escapeHtml(face) + (champ ? '<span class="champ-crown" aria-hidden="true">&#128081;</span>' : '') + '</i>' +
+        '<i class="lb-av' + (framed ? ' has-frame' : '') + (champ ? ' has-champion-frame' : '') + '" style="background:' + color + ';" title="' + (champ ? 'Marqit Champion' : '') + '">' + face + (champ ? '<span class="champ-crown" aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg></span>' : '') + '</i>' +
         '<span class="lb-name"><span class="lb-name-text">' + escapeHtml(r.username || 'player') + '</span>' + (mine ? '<em class="lb-you">You</em>' : '') + streak + rankChg + '</span>' +
         '<span class="lb-pts"><b>' + Number(r.points || 0).toLocaleString() + '</b><small>pts</small></span>' +
         ((!mine && remindIds && r.user_id && remindIds.has(r.user_id)) ? '<button type="button" class="remind-btn lb-remind-btn" data-user-id="' + escapeHtml(r.user_id) + '" data-username="' + escapeHtml(r.username || 'your friend') + '">Remind</button>' : '') +
@@ -6252,7 +6489,7 @@
     return '<div class="rec-ring">' +
       '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" fill="none" stroke="var(--line)" stroke-width="6"/>' +
       '<circle class="rec-arc" cx="32" cy="32" r="26" fill="none" stroke="rgb(' + rgb + ')" stroke-width="6" stroke-linecap="round" transform="rotate(-90 32 32)" stroke-dasharray="0 ' + C.toFixed(1) + '" data-dash="' + dash.toFixed(1) + '" data-c="' + C.toFixed(1) + '"/>' +
-      '<text x="32" y="37" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ink)" style="font-family:\'Big Shoulders Display\',Inter,sans-serif">' + (has ? pct + '%' : '\u2014') + '</text></svg>' +
+      '<text x="32" y="37" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ink)" style="font-family:\'Big Shoulders Display\',Barlow,sans-serif">' + (has ? pct + '%' : 'New') + '</text></svg>' +
       '<b>' + escapeHtml(label) + '</b><span>' + escapeHtml(sub) + '</span></div>';
   }
   async function loadRecord(){
@@ -6308,13 +6545,18 @@
     var defs = [['sports', 'Sports', '255,148,38'], ['pop_culture', 'Pop culture', '170,112,255'], ['news', 'News', '70,140,255']];
     ringsEl.innerHTML = defs.map(function(x){
       var c = cat[x[0]];
-      return mqRing(c.t ? Math.round(c.c / c.t * 100) : null, x[2], x[1], c.t ? (c.c + ' of ' + c.t + ' right') : 'no results yet');
+      return mqRing(c.t ? Math.round(c.c / c.t * 100) : null, x[2], x[1], c.t ? (c.c + ' of ' + c.t + ' right') : 'first results soon');
     }).join('');
     requestAnimationFrame(function(){ requestAnimationFrame(function(){
       ringsEl.querySelectorAll('.rec-arc').forEach(function(a){ a.setAttribute('stroke-dasharray', a.getAttribute('data-dash') + ' ' + a.getAttribute('data-c')); });
     }); });
 
-    if(!session) foot.textContent = 'Sign in to see your record.';
+    var recCard = document.getElementById('record-card');
+    if(!session){
+      mqEmptyState(recCard, { icon: 'chart', title: 'Your record starts with one call', sub: 'Make a free account and every call you make builds a streak, a hit rate and a 5-week history.', source: 'record' });
+      foot.textContent = '';
+    }else{ mqClearEmptyState(recCard); }
+    if(!session){ /* handled above */ }
     else if(!played) foot.textContent = 'Your record fills in as your calls get scored.';
     else foot.textContent = played + (played === 1 ? ' day' : ' days') + ' played in the last 5 weeks.';
   }
@@ -6326,7 +6568,9 @@
     if(!listEl) return;
     var session = null;
     try{ var sr = await sb.auth.getSession(); session = sr && sr.data && sr.data.session; }catch(e){}
-    if(!session){ listEl.innerHTML = '<p class="recap-foot" style="border:none;padding:0;">Sign in to see your calls.</p>'; return; }
+    var myCallsCard = document.getElementById('mycalls-card');
+    if(!session){ if(myCallsCard) myCallsCard.style.display = 'none'; return; }
+    if(myCallsCard) myCallsCard.style.display = '';
 
     // Strictly this week: Monday through Sunday (Eastern). It starts fresh every Monday.
     var weekStart = getWeekStart(), today = getETDateInfo().dateStr;
@@ -6370,7 +6614,9 @@
   async function loadWeeklyRecap(){
     const { data: sessionRes } = await sb.auth.getSession();
     const session = sessionRes && sessionRes.session;
-    if(!session) return;
+    const recapCardEl = document.getElementById('recap-card');
+    if(!session){ if(recapCardEl) recapCardEl.style.display = 'none'; return; }
+    if(recapCardEl) recapCardEl.style.display = '';
 
     const weekStart = getWeekStart();
     const today = getETDateInfo().dateStr;
@@ -6584,7 +6830,7 @@
         const m = memberMap[r.user_id];
         const prof = (m && m.profiles) || {};
         const showAsPlayer = !!(m && m.share_as_player);
-        return { username: showAsPlayer ? 'Player' : (prof.username || 'player'), emoji: prof.avatar_emoji || '\ud83c\udfaf', points: r.points };
+        return { username: showAsPlayer ? 'Player' : (prof.username || 'player'), emoji: mqAvatarKey(prof.avatar_emoji) || 'target', points: r.points };
       });
 
     return { weekNumber: weekNumber, memberCount: members.length, top3: ranked };
@@ -6927,7 +7173,7 @@
       const answered = Number(m.answered_count || 0);
       const done = answered >= total;
       return '<div class="brow" style="padding:6px 0;"><span style="font-size:13px;">' + escapeHtml(m.username || 'player') + '</span>' +
-        '<span style="font-size:12px; font-weight:700; color:' + (done ? 'var(--yes)' : 'var(--no)') + ';">' + (done ? 'Done &#10003;' : (answered + '/' + total)) + '</span></div>';
+        '<span style="font-size:12px; font-weight:700; color:' + (done ? 'var(--yes)' : 'var(--no)') + ';">' + (done ? 'Done' : (answered + '/' + total)) + '</span></div>';
     }).join('');
   }
 
@@ -7149,8 +7395,8 @@
       const rank = i + 1;
       const mine = !!(myGroupId && g.group_id === myGroupId);
       const symbolBadge = g.symbol ? '<span style="display:inline-block; min-width:22px; padding:1px 5px; margin-right:6px; border-radius:6px; background:var(--yes-bg); color:var(--yes); font-weight:800; font-size:11.5px; text-align:center; vertical-align:1px;">' + escapeHtml(g.symbol) + '</span>' : '';
-      const trendingTag = (trendingMax > 0 && g.group_id === trendingGroupId) ? '<span style="margin-left:6px; font-size:11px; font-weight:700; color:#DB6653;">&#128293; Trending</span>' : '';
-      const championTag = g.is_champion ? '<span style="margin-left:6px; font-size:11px; font-weight:700; color:#DB6653;">&#128081; Champion</span>' : '';
+      const trendingTag = (trendingMax > 0 && g.group_id === trendingGroupId) ? '<span style="margin-left:6px; font-size:11px; font-weight:700; color:#DB6653; display:inline-flex; align-items:center; gap:3px;">' + mqIcon('flame') + 'Trending</span>' : '';
+      const championTag = g.is_champion ? '<span style="margin-left:6px; font-size:11px; font-weight:700; color:#DB6653; display:inline-flex; align-items:center; gap:3px;">' + mqIcon('crown') + 'Champion</span>' : '';
       const foundingTag = g.founding_chapter ? '<span style="margin-left:6px; font-size:11px; font-weight:700; color:var(--ink-soft);">Founding Chapter</span>' : '';
       // Gap-to-next-rank: how many points to overtake the chapter directly above -- the competitive nudge.
       let gapLine = '';
@@ -7181,7 +7427,7 @@
     el.innerHTML = data.map(function(o, i){
       const rank = i + 1;
       const symbolBadge = o.symbol ? '<span style="display:inline-block; min-width:22px; padding:1px 5px; margin-right:6px; border-radius:6px; background:var(--yes-bg); color:var(--yes); font-weight:800; font-size:11.5px; text-align:center; vertical-align:1px;">' + escapeHtml(o.symbol) + '</span>' : '';
-      const championTag = o.is_champion ? '<span style="margin-left:6px; font-size:11px; font-weight:700; color:#DB6653;">&#128081; Champion</span>' : '';
+      const championTag = o.is_champion ? '<span style="margin-left:6px; font-size:11px; font-weight:700; color:#DB6653; display:inline-flex; align-items:center; gap:3px;">' + mqIcon('crown') + 'Champion</span>' : '';
       let gapLine = '';
       if(rank > 1){
         const above = data[i - 1];
@@ -7448,6 +7694,16 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
     hamburgerMenu.style.display = 'none';
   });
+  (function(){
+    var fa = document.getElementById('footer-about-link');
+    if(!fa) return;
+    fa.addEventListener('click', function(){
+      document.querySelectorAll('.pagenav-tab').forEach(function(t){ t.classList.remove('active'); });
+      document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
+      document.getElementById('page-about').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  })();
   document.addEventListener('click', function(e){
     if(hamburgerMenu.style.display === 'block' && !hamburgerMenu.contains(e.target) && e.target !== hamburgerBtn && !hamburgerBtn.contains(e.target)){
       hamburgerMenu.style.display = 'none';
@@ -7569,8 +7825,7 @@
       return parts.length ? parts.join(' · ') : '';
     }
     function avatar(c, size){
-      var face = c.avatar_emoji || String(c.username || '?').charAt(0).toUpperCase();
-      return '<i class="mq-av" style="width:' + size + 'px;height:' + size + 'px;background:' + escapeHtml(c.avatar_color || '#2B3140') + ';">' + escapeHtml(face) + '</i>';
+      return '<i class="mq-av" style="width:' + size + 'px;height:' + size + 'px;background:' + escapeHtml(c.avatar_color || '#2B3140') + ';">' + mqAvatarInner(c.avatar_emoji, c.username) + '</i>';
     }
 
     // record badge next to every name in comment threads
