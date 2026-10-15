@@ -46,7 +46,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261015h">
+<link rel="stylesheet" href="style.css?v=20261016a">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -233,7 +233,14 @@
 
     <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--line);">
       <div style="font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:15px; margin-bottom:10px;">Customize your profile</div>
-      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Pick an icon</div>
+      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Use your own photo</div>
+      <div class="av-photo-row">
+        <button type="button" id="avatar-photo-btn" class="av-photo-btn"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.6-2.4h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg>Upload a photo</button>
+        <button type="button" id="avatar-photo-remove" class="av-photo-rm" style="display:none;">Remove photo</button>
+        <input type="file" id="avatar-photo-input" accept="image/*" hidden>
+      </div>
+      <p class="form-msg" id="avatar-photo-msg" style="margin:6px 0 14px;"></p>
+      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Or pick an icon</div>
       <div id="avatar-emoji-picker" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;"></div>
       <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Pick a color</div>
       <div id="avatar-color-picker" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
@@ -292,14 +299,6 @@
 <div id="page-home" class="page">
 <header class="hero hero-play">
   <div class="wrap">
-    <div class="today-strip" id="today-strip">
-      <div class="ts-main">
-        <span class="ts-date" id="ts-date"></span>
-        <span class="ts-calls">3 calls today</span>
-      </div>
-      <div class="ts-live" id="ts-live" hidden><i class="live-dot"></i><b id="ts-players">0</b><span id="ts-players-label">people have called today</span></div>
-      <button type="button" class="ts-how" id="ts-how">How it works</button>
-    </div>
     <p id="play-status" class="play-status" style="display:none;"></p>
     <p class="form-msg" id="hero-status-msg"></p>
     <p class="count-line" id="count-line" style="display:none;"></p>
@@ -952,7 +951,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261015h" defer></script>
+<script src="app.js?v=20261016a" defer></script>
 
 
 
