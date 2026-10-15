@@ -1879,6 +1879,25 @@
   }
 
 
+  // Five-item rule for lists that are rebuilt by other code (leaderboards, group boards):
+  // whenever one of them changes, show the first five rows and tuck the rest into a dropdown.
+  function mqAutoFold(id, keep, words){
+    var el = document.getElementById(id);
+    if(!el || typeof MutationObserver === 'undefined') return;
+    var obs;
+    function run(){
+      obs.disconnect();
+      try{ mqFoldList(el, keep, words); }catch(e){}
+      obs.observe(el, { childList: true });
+    }
+    obs = new MutationObserver(run);
+    run();
+  }
+  mqAutoFold('big-board-rows', 5, { one: 'more player', many: 'more players' });
+  mqAutoFold('board-state', 5, { one: 'more player', many: 'more players' });
+  mqAutoFold('board-group', 5, { one: 'more member', many: 'more members' });
+  mqAutoFold('board-group-participation', 5, { one: 'more member', many: 'more members' });
+
   // ===== Friends' results feed =====
   // One row per person per day for the people you follow plus your buddies. Comes from
   // get_friends_feed (see supabase/migrations/20261015_friends_feed.sql); if that function
@@ -4230,6 +4249,7 @@
         var qid = box.getAttribute('data-question-id');
         var list = box.querySelector('.cmt-list'), comp = box.querySelector('.cmt-compose'), cnt = box.querySelector('.cmt-count');
         var mineOpen = box.querySelector('.cmt-reply-box');
+        var wasMoreOpen = !!list.querySelector('.mq-list-more[open]');
         list.textContent = ''; comp.textContent = '';
         if(!ok){ cnt.textContent = ''; list.appendChild(el('div', 'cmt-empty', 'Comments are coming soon.')); return; }
         var mine = all.filter(function(c){ return c.question_id === qid; });
@@ -4246,6 +4266,8 @@
           if(kids.length){ var rl = el('div', 'cmt-replies'); kids.forEach(function(k){ rl.appendChild(oneComment(k, qid, true)); }); wrap.appendChild(rl); }
           list.appendChild(wrap);
         });
+        mqFoldList(list, 5, { one: 'more comment', many: 'more comments' });
+        if(wasMoreOpen){ var mo = list.querySelector('.mq-list-more'); if(mo) mo.open = true; }
         if(session) comp.appendChild(composer(qid, null, 'Add a comment'));
         else{ var si = el('button', 'cmt-signin-btn', 'Sign in to join the conversation'); si.type = 'button'; si.addEventListener('click', mqSignInPrompt); comp.appendChild(si); }
       });
@@ -8130,11 +8152,13 @@
       anon.onchange = function(){ sb.rpc('set_hide_name_on_calls', { p_hide: anon.checked }); };
       sb.rpc('get_my_followers', { p_limit: 10 }).then(function(r){
         var list = r.data || [], el = document.getElementById('mq-newfollowers');
-        el.innerHTML = list.length ? '<div class="mq-soc-h">Your followers</div>' + list.map(rowHtml).join('') : '';
+        el.innerHTML = list.length ? '<div class="mq-soc-h">Your followers</div><div class="mq-rows">' + list.map(rowHtml).join('') + '</div>' : '';
+        mqFoldList(el.querySelector('.mq-rows'), 5, { one: 'more follower', many: 'more followers' });
       });
       sb.rpc('get_suggested_callers', { p_limit: 6 }).then(function(r){
         var list = r.data || [], el = document.getElementById('mq-suggested');
-        el.innerHTML = list.length ? '<div class="mq-soc-h">Top callers to follow</div>' + list.map(rowHtml).join('') : '';
+        el.innerHTML = list.length ? '<div class="mq-soc-h">Top callers to follow</div><div class="mq-rows">' + list.map(rowHtml).join('') + '</div>' : '';
+        mqFoldList(el.querySelector('.mq-rows'), 5, { one: 'more caller', many: 'more callers' });
       });
       claimBonus(uid);
     }
