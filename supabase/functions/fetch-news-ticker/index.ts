@@ -294,6 +294,10 @@ Rules:
 - Take a firm position: "Is X the best...", "Is X overrated?", "Will X win...", "Is X worth $Y?", "Is X a bubble?", "Is X the GOAT?".
 - NEVER write hedged or weak questions: no "one of the best", no "still", no "can ... win together", no spread, odds, "cover", over/under or betting framing, no "could" or "might".
 - ONLY use facts, names, teams, companies and numbers that appear in the headline or summary. Do not add rosters, current teams, records, stock prices, titles or dates from your own memory, because they may be out of date. If the story depends on a trade, roster, contract or status you are not sure is current, return null.
+- SPORTS: debate what already happened or what the headline itself says is coming. Good: "Was the Broncos' overtime win a fluke?", "Is Sam Darnold the problem in Seattle?", "Did the Brewers just become the team to beat?". Never claim or imply a future game, rematch or schedule that the text does not state: no "again", "rematch", "next game", "next week", "this season" unless those exact ideas are in the headline or summary. Teams do not replay each other on demand.
+- SPORTS: never say which team a player plays for, or what role he has, unless the headline or summary says so in this very story. Players transfer; your memory of rosters is out of date. If the question would only work with a roster fact you are unsure of, return null.
+- Previews, scouting reports, predictions, odds, fantasy advice, "keys to victory" and injury reports: write a judgment question about what the story actually argues, or return null. Do not turn them into "Will [player] lead [team] past [team]?".
+- INJURIES: return null for any story about an injury, surgery, recovery, return from injury or a player being out. Do not ask "will he return" or "will they miss him".
 - Never name a private individual. Never accuse anyone of anything.
 - Return null for ANYTHING touching: politics or politicians, elections, government, war, military, conflict, crime, courts, lawsuits or verdicts, accidents, disasters, emergencies, health or illness of a real person, death, religion, race, gender identity, immigration, sexual content, or anything tragic or divisive. Also return null if there is no real debate, or the story is a routine press release.
 - Write a question for EVERY story that is not on the null list above, even a business or sports story with a mild angle: find the one call people would argue about (Is it a buy? Will it last? Is it the best?). Return null only for the banned topics, a routine press release, or a story where every question would need facts that are not in the text.
@@ -303,6 +307,17 @@ Reply with JSON only: {"items":[{"i":0,"q":"question or null","lane":"markets"}]
 // ---- question safety net -----------------------------------------------------
 const TAB_OF: Record<string, Tab> = { markets: 'news', tech: 'news', news: 'news', sports: 'sports', pop: 'pop', music: 'pop' };
 const WEAK_Q = /\b(one of the (best|worst|greatest)|cover the spread|the spread|over\/under|odds|do you think|should fans|could|might)\b/i;
+// Questions that assume a future game, a rematch or an injury comeback. The writer has
+// no schedule or injury feed, so these tend to be wrong ("beat the Seahawks again").
+// "again", "rematch" and "another" are only allowed when the story itself uses the word.
+const FUTURE_ASSUMPTION_Q = /\b(again|rematch|another|next (game|match|week|round|season|meeting|time)|return(s|ing|ed)?|comeback|recover(s|y|ed|ing)?|back from)\b/i;
+const INJURY_TEXT = /\b(injur\w*|surgery|surgical|hamstring|acl|mcl|meniscus|concussion|sidelined|ruled out|out for the (season|year)|knee (issue|problem|injury)|ankle|fracture\w*|broken (arm|leg|foot|wrist|collarbone|forearm)|torn|strain(ed)?|day-to-day|questionable|doubtful)\b/i;
+function badQuestion(q: string, source: string): boolean {
+  if (INJURY_TEXT.test(q) || INJURY_TEXT.test(source)) return true;
+  const m = q.match(FUTURE_ASSUMPTION_Q);
+  if (m && !new RegExp('\\b' + m[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(source)) return true;
+  return false;
+}
 const SKIP_WORDS = new Set(['is','are','was','will','can','does','do','did','has','have','the','a','an','and','or','in','on','at','to','of','for','best','worst','new','top','this','that','these','who','what','why','how','when','which','it','he','she','they','we','you','i','yes','no','win','still','than','more','most','better','worse','over','under','worth']);
 // Every capitalised word or number in the question must appear in the story
 // text, so the writer cannot bring in names, teams or figures from its own memory.
@@ -474,7 +489,8 @@ async function generateTakes(admin: any) {
       const row = rows[it.i];
       if (!row) continue;
       let q = typeof it.q === 'string' ? it.q.trim() : null;
-      if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlockedHeadline(q) || WEAK_Q.test(q) || !isGrounded(q, `${row.headline} ${row.summary || ''}`))) q = null;
+      const storyText = `${row.headline} ${row.summary || ''}`;
+      if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlockedHeadline(q) || WEAK_Q.test(q) || badQuestion(q, storyText) || !isGrounded(q, storyText))) q = null;
       const upd: any = { take_question: q, take_checked: true };
       if (q && TAB_OF[it.lane] && (!row.lane || row.lane === 'news')) upd.lane = TAB_OF[it.lane];
       const { error: uErr } = await admin.from('news_ticker').update(upd).eq('id', row.id);
