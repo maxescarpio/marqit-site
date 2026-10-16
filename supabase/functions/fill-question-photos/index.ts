@@ -129,7 +129,7 @@ async function wikiPhoto(title: string): Promise<string | null> {
   if (!t || typeof t.source !== 'string') return null;
   if (!/^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\//.test(t.source)) return null;
   const ratio = Number(t.width) / Number(t.height);
-  if (!Number.isFinite(ratio) || ratio > 1.8 || ratio < 0.5) return null; // wide wordmarks do not crop to a circle
+  if (!Number.isFinite(ratio) || ratio > 2.4 || ratio < 0.3) return null; // very wide wordmarks do not crop to a circle; tall photos (rockets, standing people) do
   return t.source;
 }
 
@@ -161,17 +161,30 @@ async function tmdbPoster(kind: 'tv' | 'movie', title: string): Promise<string |
 // ---- TheSportsDB: team badges and player photos ----
 function sportsBase(): string { return `https://www.thesportsdb.com/api/v1/json/${Deno.env.get('THESPORTSDB_API_KEY') || '123'}`; }
 function sized(url: string): string { return /\.(png|jpe?g)$/i.test(url) ? url + '/small' : url; }
+// TheSportsDB answers some searches with a 404 instead of an empty list, and is picky about
+// spaces, so try the name a few ways. A 404 on every try means "not found"; any other failure
+// (rate limit, outage) is thrown so the question is retried later.
+async function sportsSearch(endpoint: string, param: string, name: string): Promise<any> {
+  const words = name.trim().split(/\s+/);
+  const variants = [name.trim(), words.join('_'), ...(words.length > 1 ? [words.slice(1).join(' ')] : [])];
+  for (const v of variants) {
+    try { return await getJson(`${sportsBase()}/${endpoint}?${param}=${encodeURIComponent(v)}`); }
+    catch (e) { if (!String(e).includes(' 404')) throw e; }
+  }
+  return null;
+}
 async function sportsBadge(team: string): Promise<string | null> {
-  const data = await getJson(`${sportsBase()}/searchteams.php?t=${encodeURIComponent(team)}`);
+  const data = await sportsSearch('searchteams.php', 't', team);
   const teams: any[] = data?.teams || [];
   if (!teams.length) return null;
   const norm = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const hit = teams.find((t) => norm(t.strTeam) === norm(team)) || teams[0];
+  const hit = teams.find((t) => norm(t.strTeam) === norm(team));
+  if (!hit) return null; // exact team name only: a wrong badge is worse than the drawn one
   const badge = hit.strBadge || hit.strTeamBadge;
   return typeof badge === 'string' && /^https:\/\//.test(badge) ? sized(badge) : null;
 }
 async function sportsPlayerPhoto(name: string): Promise<string | null> {
-  const data = await getJson(`${sportsBase()}/searchplayers.php?p=${encodeURIComponent(name)}`);
+  const data = await sportsSearch('searchplayers.php', 'p', name);
   const players: any[] = data?.player || [];
   if (!players.length) return null;
   const norm = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
