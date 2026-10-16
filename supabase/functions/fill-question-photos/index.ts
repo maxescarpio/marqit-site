@@ -44,10 +44,12 @@ What "search" should be:
 - company or product: the English Wikipedia article most likely to have a real photograph, for example "Falcon 9" for a SpaceX launch question, "Tesla Cybertruck" for a Cybertruck question. "name" stays what the question is about.
 
 Rules:
-- Use only names that are written in the question text. Never add a person or team from your own memory.
-- If the question is not really about a specific team, person, show, movie or company (for example an event or a summit with no named subject), return subject null.
+- Use only names that are written in the question text, with the one exception in the next rule.
+- A question about a company or product with no person named gets the company's best-known current leader or founder as a person: SpaceX or Tesla -> "Elon Musk", Nvidia -> "Jensen Huang", Meta -> "Mark Zuckerberg", Apple -> "Tim Cook", and the same for Sony, Google, Microsoft, OpenAI and so on. Only do this when you are sure who it is today; if not sure, use the company or product as type "company" instead.
+- An event (a summit, a keynote, an awards show) with no named person: use the most prominent organization or speaker that is named in the question, or the leader of the company hosting it. If nothing at all is named, return subject null.
+- Politicians and government figures are allowed (official portraits are free to use).
+- Return null for private individuals, and for anything about death, crime or tragedy.
 - If you are not sure of the exact title or name, return null for that side.
-- Return null for politicians, government figures, private individuals, and anything about death, crime or tragedy.
 - If a question has two sides but you can only name one, return it as subject and vs null.
 
 Reply with JSON only: {"items":[{"i":0,"subject":{"name":"Cowboys","type":"team","search":"Dallas Cowboys"},"vs":{"name":"Packers","type":"team","search":"Green Bay Packers"}}]}`;
