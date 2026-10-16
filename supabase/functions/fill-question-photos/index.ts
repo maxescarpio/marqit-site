@@ -44,10 +44,12 @@ What "search" should be:
 - company or product: the English Wikipedia article most likely to have a real photograph, for example "Falcon 9" for a SpaceX launch question, "Tesla Cybertruck" for a Cybertruck question. "name" stays what the question is about.
 
 Rules:
-- Use only names that are written in the question text. Never add a person or team from your own memory.
-- If the question is not really about a specific team, person, show, movie or company (for example an event or a summit with no named subject), return subject null.
+- Use only names that are written in the question text, with the one exception in the next rule.
+- A question about a company, or about a product, launch, console or event run by a company, with no person named, MUST use that company's best-known current leader or founder as a person (type "person"), never the company or the product: SpaceX, Starlink or a Falcon 9 or Starship launch -> "Elon Musk"; Tesla -> "Elon Musk"; Nvidia -> "Jensen Huang"; Meta -> "Mark Zuckerberg"; Apple -> "Tim Cook"; Sony or PlayStation -> Sony's current CEO; and the same for Google, Microsoft, Amazon, OpenAI and so on. Use type "company" only when you truly do not know who leads it.
+- An event (a summit, a keynote, an awards show) with no named person: use the most prominent organization or speaker that is named in the question, or the leader of the company hosting it. If nothing at all is named, return subject null.
+- Politicians and government figures are allowed (official portraits are free to use).
+- Return null for private individuals, and for anything about death, crime or tragedy.
 - If you are not sure of the exact title or name, return null for that side.
-- Return null for politicians, government figures, private individuals, and anything about death, crime or tragedy.
 - If a question has two sides but you can only name one, return it as subject and vs null.
 
 Reply with JSON only: {"items":[{"i":0,"subject":{"name":"Cowboys","type":"team","search":"Dallas Cowboys"},"vs":{"name":"Packers","type":"team","search":"Green Bay Packers"}}]}`;
@@ -127,7 +129,9 @@ async function wikiPhoto(title: string): Promise<string | null> {
   if (page.pageprops && 'disambiguation' in page.pageprops) return null;
   const t = page.thumbnail;
   if (!t || typeof t.source !== 'string') return null;
-  if (!/^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\//.test(t.source)) return null;
+  // Wikipedia hands out thumbnails from either host; both serve the same free Commons files.
+  if (/\.svg/i.test(t.source)) return null; // drawn logos are not photos
+  if (!/^https:\/\/(upload|thumb)\.wikimedia\.org\/wikipedia\/commons\//.test(t.source)) return null;
   const ratio = Number(t.width) / Number(t.height);
   if (!Number.isFinite(ratio) || ratio > 2.4 || ratio < 0.3) return null; // very wide wordmarks do not crop to a circle; tall photos (rockets, standing people) do
   return t.source;
@@ -205,7 +209,7 @@ async function findPhoto(side: Side, category: string): Promise<string | null> {
     case 'team': url = await sportsBadge(side.search); break;
     case 'person': {
       url = await wikiPhoto(side.search);
-      if (!url && category === 'sports') url = await sportsPlayerPhoto(side.search);
+      if (!url && category === 'sports') { try { url = await sportsPlayerPhoto(side.search); } catch (_) { url = null; } }
       break;
     }
     default: url = await wikiPhoto(side.search);
