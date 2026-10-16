@@ -206,6 +206,18 @@ async function askModel(system: string, user: string, maxTokens: number, claudeM
   throw new Error(errors.join(' | ') || 'no AI key set (GEMINI_API_KEY or ANTHROPIC_API_KEY)');
 }
 
+// ---- question safety net ----
+// Same rule as the news writer: the model has no schedule or injury feed, so questions that
+// assume a future game, a rematch or an injury comeback are dropped unless the item says so.
+const FUTURE_ASSUMPTION_Q = /\b(again|rematch|another|next (game|match|week|round|season|meeting|time)|return(s|ing|ed)?|comeback|recover(s|y|ed|ing)?|back from)\b/i;
+const INJURY_TEXT = /\b(injur\w*|surgery|surgical|hamstring|acl|mcl|meniscus|concussion|sidelined|ruled out|out for the (season|year)|knee (issue|problem|injury)|ankle|fracture\w*|broken (arm|leg|foot|wrist|collarbone|forearm)|torn|strain(ed)?|day-to-day|questionable|doubtful)\b/i;
+function badQuestion(q: string, source: string): boolean {
+  if (INJURY_TEXT.test(q) || INJURY_TEXT.test(source)) return true;
+  const m = q.match(FUTURE_ASSUMPTION_Q);
+  if (m && !new RegExp('\\b' + m[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(source)) return true;
+  return false;
+}
+
 // ---- the model: keep, rewrite, ask ----
 const PROMPT = `You curate the Trending tab of Marqit, a fun daily-predictions site for finance, tech, sports, pop culture and music fans. Below is a numbered list of things trending right now from public sources.
 
@@ -218,7 +230,7 @@ For each KEPT item return:
 - "title": a short, clear topic name a fan would recognize (max 60 characters). For a YouTube video, a clean version of the video title. For a song, "Song Title - Artist".
 - "context": ONE plain sentence (max 110 characters) saying why it is trending, using only the information given. No hype. Never invent facts.
 - "lane": one of markets (stocks, earnings, finance, billionaires), tech, sports, pop (movies, TV, celebrities, streaming), music, news.
-- "q": a Yes/No debate question (max 90 characters) that names the topic and makes a DEFINITIVE call fans will split on. Prefer judgment over forecast: "Is Micron a buy here?", "Is GTA 6 worth the wait?", "Is this the best Drake song of the year?" beat "Will X happen?" or "Will X get good reviews?", which have no argument in them. Never write a question that could sit under any other topic. Examples of the call: "Is X the best...", "Will X win...", "Is X overrated?", "Is X a bubble?". Never hedge: no "one of the best", no spread, odds or "cover", no "could" or "might", no "still". Use only names, teams and numbers given in the item, never facts from your own memory (rosters, teams, prices, titles may be out of date). If there is no real debate, or you are unsure it is current, use null.
+- "q": a Yes/No debate question (max 90 characters) that names the topic and makes a DEFINITIVE call fans will split on. Prefer judgment over forecast: "Is Micron a buy here?", "Is GTA 6 worth the wait?", "Is this the best Drake song of the year?" beat "Will X happen?" or "Will X get good reviews?", which have no argument in them. Never write a question that could sit under any other topic. Examples of the call: "Is X the best...", "Will X win...", "Is X overrated?", "Is X a bubble?". Never hedge: no "one of the best", no spread, odds or "cover", no "could" or "might", no "still". Use only names, teams and numbers given in the item, never facts from your own memory (rosters, teams, prices, titles may be out of date). If there is no real debate, or you are unsure it is current, use null. For sports, never imply a future game, rematch or schedule the item does not state (no "again", "next game", "next match", "this week" unless given), never say which team a player is on unless the item says so, and use null for anything about an injury, surgery or a return from injury. For a trending player or team with no result in the item, ask a judgment ("Is X the best...?", "Is X overrated?") instead of "Will X win...?".
 
 Reply with JSON only: {"items":[{"i":0,"keep":false},{"i":1,"keep":true,"title":"...","context":"...","lane":"sports","q":"..."}]}`;
 
@@ -323,7 +335,7 @@ Deno.serve(async (req: Request) => {
       if (title.length < 3 || title.length > 80 || context.length < 5) continue;
       if (isBlocked(title) || isBlocked(context)) continue;
       let q: string | null = typeof d.q === 'string' ? d.q.trim() : null;
-      if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlocked(q))) q = null;
+      if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlocked(q) || badQuestion(q, `${title} ${context} ${c.info}`))) q = null;
       const lane = ['sports', 'pop', 'music', 'tech', 'news', 'markets'].includes(d.lane) ? d.lane : 'news';
       const key = c.url || `trend:${slug(c.source)}:${slug(title)}:${today}`;
       if (seen.has(key)) continue;

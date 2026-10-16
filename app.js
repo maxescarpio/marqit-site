@@ -1062,11 +1062,9 @@
     document.getElementById('username-prompt-backdrop').style.display = 'none';
     const navUsername = document.getElementById('nav-username');
     if(navUsername) navUsername.textContent = newUsername;
+    // The Play page starts with the timer, so there is no "signed in as" line here any more.
     const heroMsg = document.getElementById('hero-status-msg');
-    if(heroMsg){
-      heroMsg.className = 'form-msg ok';
-      heroMsg.textContent = 'You\u2019re signed in as ' + newUsername + '.';
-    }
+    if(heroMsg){ heroMsg.className = 'form-msg'; heroMsg.textContent = ''; }
     mqMaybeAskPassword(session.user, false);
   });
 
@@ -1081,8 +1079,9 @@
     if(navUsername) navUsername.textContent = needsUsername ? '' : (username || '');
     const heroMsg = document.getElementById('hero-status-msg');
     if(heroMsg){
-      heroMsg.className = 'form-msg ok';
-      heroMsg.textContent = needsUsername ? 'Pick a username to finish setting up your account.' : 'You\'re signed in as ' + username + '.';
+      // Only speak up when something is needed from the player; a signed-in player sees the timer first.
+      heroMsg.className = needsUsername ? 'form-msg ok' : 'form-msg';
+      heroMsg.textContent = needsUsername ? 'Pick a username to finish setting up your account.' : '';
     }
     const playFriends = document.getElementById('play-friends'); if(playFriends) playFriends.style.display = 'flex';
     if(needsUsername) promptUsernameChoice();
@@ -5006,7 +5005,7 @@
     var host = document.getElementById('how-demo');
     if(!host) return;
     var cap = document.getElementById('how-demo-cap');
-    var rules = document.querySelectorAll('#page-how .rule-grid .rule-card');
+    var rules = document.querySelectorAll('#page-how .hw-step');
     var qtext = 'Will the Eagles beat the 49ers on Sunday Night Football?';
     var vis = mqDetectVisual({ question_text: qtext, category: 'sports' }) || {};
     var matchup = (vis.kind === 'matchup') ? mqMatchupHtml(vis.teams, vis.icon) : '';
@@ -5124,7 +5123,7 @@
     rules.forEach(function(r, i){
       r.setAttribute('tabindex', '0');
       r.setAttribute('role', 'button');
-      r.setAttribute('aria-label', 'Show the ' + (r.querySelector('.rule-head') ? r.querySelector('.rule-head').textContent : 'step') + ' step');
+      r.setAttribute('aria-label', 'Show the ' + (r.querySelector('.hw-step-h') ? r.querySelector('.hw-step-h').textContent : 'step') + ' step');
       r.addEventListener('click', function(){ showStep(i); });
       r.addEventListener('keydown', function(e){
         if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); showStep(i); }

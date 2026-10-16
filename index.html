@@ -46,7 +46,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261016g">
+<link rel="stylesheet" href="style.css?v=20261016h">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -474,95 +474,91 @@
 <div id="page-how" class="page" style="display:none;">
 <section class="section hero-lite">
   <div class="wrap">
-    <h2>How to play</h2>
-    <p style="font-size:15px; margin-top:10px;">Three calls a day. Yes or No.</p>
+    <p class="hw-eyebrow hw-eyebrow-hero">The rules</p>
+    <h2 class="hw-title">How to play</h2>
+    <p class="hw-lede">Three calls a day. Yes or No.</p>
   </div>
 </section>
 
-<section class="section">
-  <div class="wrap hw">
-    <ol class="hw-steps">
-      <li><span class="hw-n">1</span><div><b>Pick</b><p>Answer Yes or No on 3 daily calls.</p></div></li>
-      <li><span class="hw-n">2</span><div><b>Lock</b><p>Each call locks before its event starts.</p></div></li>
-      <li><span class="hw-n">3</span><div><b>Score</b><p>100 points for every correct call.</p></div></li>
-    </ol>
+<section class="section hw2">
+  <div class="wrap hw2-grid">
 
-    <h3 class="hw-h">What a call looks like</h3>
-    <div class="hw-card" aria-label="Example question card">
-      <div class="hw-card-meta"><span>1 of 3 &middot; Sports</span><span>Locks in 12m</span></div>
-      <p class="hw-card-q">Will the Eagles beat the 49ers on Sunday Night Football?</p>
-      <div class="hw-card-opts"><span class="hw-opt picked">Yes &middot; 62%</span><span class="hw-opt">No &middot; 38%</span></div>
-      <div class="hw-bar"><i style="width:62%"></i></div>
-      <p class="hw-card-note">You&rsquo;re with 62% of players.</p>
-      <div class="hw-after">
-        <div><b>After you pick</b><span>The crowd split appears and you can comment.</span></div>
-        <div><b>At lock</b><span>Your call is set and can&rsquo;t be changed.</span></div>
-        <div><b>After the event</b><span>Correct calls score 100 points.</span></div>
-      </div>
+    <div class="hw2-demo">
+      <div class="how-demo" id="how-demo" aria-label="Example call"></div>
+      <p class="how-demo-cap" id="how-demo-cap"></p>
     </div>
 
-    <h3 class="hw-h">The details</h3>
-    <div class="hw-folds">
-      <details class="hw-fold">
-        <summary>Points and tiers</summary>
-        <div class="hw-fold-body">
-          <table class="hw-table">
-            <tr><td>Correct call</td><td>100</td></tr>
-            <tr><td>Boosted call</td><td>200</td></tr>
-            <tr><td>Perfect day (3 for 3)</td><td>+100</td></tr>
-            <tr><td>Buddy bonus, per matching call</td><td>+25</td></tr>
-          </table>
-          <div id="tier-row" class="hw-tiers">
-            <div data-tier="Rookie"><span>Rookie</span><span>0</span></div>
-            <div data-tier="Analyst"><span>Analyst</span><span>1,000</span></div>
-            <div data-tier="Pro"><span>Pro</span><span>5,000</span></div>
-            <div data-tier="Expert"><span>Expert</span><span>15,000</span></div>
-            <div data-tier="Legend"><span>Legend</span><span>50,000</span></div>
-          </div>
-        </div>
-      </details>
-      <details class="hw-fold">
-        <summary>Streaks</summary>
-        <div class="hw-fold-body">
+    <div class="hw2-main">
+      <div class="hw-steps2">
+        <button type="button" class="hw-step" style="--rc:70,140,255;">
+          <span class="hw-step-n">1</span>
+          <span class="hw-step-t"><b class="hw-step-h">Pick</b><span>Answer Yes or No on 3 daily calls. Once you pick, the crowd split appears and you can comment.</span></span>
+        </button>
+        <button type="button" class="hw-step" style="--rc:224,160,60;">
+          <span class="hw-step-n">2</span>
+          <span class="hw-step-t"><b class="hw-step-h">Lock</b><span>Each call locks before its event starts. At lock your call is set and can&rsquo;t be changed.</span></span>
+        </button>
+        <button type="button" class="hw-step" style="--rc:51,209,139;">
+          <span class="hw-step-n">3</span>
+          <span class="hw-step-t"><b class="hw-step-h">Score</b><span>100 points for every correct call, added after the event.</span></span>
+        </button>
+      </div>
+
+      <h3 class="hw-eyebrow">Points</h3>
+      <div class="hw-pts">
+        <div><b>100</b><span>Correct call</span></div>
+        <div><b>200</b><span>Boosted call</span></div>
+        <div><b>+100</b><span>Perfect day (3 for 3)</span></div>
+        <div><b>+25</b><span>Buddy bonus, per matching call</span></div>
+      </div>
+
+      <h3 class="hw-eyebrow">Tiers</h3>
+      <div id="tier-row" class="hw-tiers">
+        <div data-tier="Rookie"><span>Rookie</span><b>0</b></div>
+        <div data-tier="Analyst"><span>Analyst</span><b>1,000</b></div>
+        <div data-tier="Pro"><span>Pro</span><b>5,000</b></div>
+        <div data-tier="Expert"><span>Expert</span><b>15,000</b></div>
+        <div data-tier="Legend"><span>Legend</span><b>50,000</b></div>
+      </div>
+
+      <h3 class="hw-eyebrow">Play with others</h3>
+      <div class="hw-facts">
+        <div class="hw-fact" style="--rc:255,148,38;">
+          <h4>Streaks</h4>
           <p>Play every day to build a streak. Go 3 for 3 for a Perfect Day.</p>
           <p>One free Streak Freeze covers a missed day.</p>
           <p>Badges at 7, 30 and 100 days.</p>
         </div>
-      </details>
-      <details class="hw-fold">
-        <summary>Buddies</summary>
-        <div class="hw-fold-body">
+        <div class="hw-fact" style="--rc:51,209,139;">
+          <h4>Buddies</h4>
           <p>Add a buddy from the Play tab.</p>
           <p>When you both make the same pick and it&rsquo;s correct, you each get +25.</p>
           <p>Opposite picks earn no bonus.</p>
         </div>
-      </details>
-      <details class="hw-fold">
-        <summary>Rivals</summary>
-        <div class="hw-fold-body">
+        <div class="hw-fact" style="--rc:245,100,79;">
+          <h4>Rivals</h4>
           <p>Add a rival from the Play tab. You each start with 5 golden stars.</p>
           <p>Whoever gets more of the day&rsquo;s calls right takes a star from the other.</p>
           <p>A tie changes nothing. A 5-day streak earns an extra star.</p>
         </div>
-      </details>
-      <details class="hw-fold">
-        <summary>Challenge</summary>
-        <div class="hw-fold-body">
+        <div class="hw-fact" style="--rc:242,193,78;">
+          <h4>Challenge</h4>
           <p>The 2026 Marqit Challenge is one big call a week, from Nov 16 to Dec 31.</p>
           <p>Climb the board to No. 1. Sign up on the Challenge tab.</p>
         </div>
-      </details>
+      </div>
+
+      <h3 class="hw-eyebrow">Good to know</h3>
+      <dl class="hw-faq">
+        <div><dt>Is it free?</dt><dd>Yes. Marqit is free to play.</dd></div>
+        <div><dt>Is money involved?</dt><dd>No. No wagering, no cash prizes.</dd></div>
+        <div><dt>What if I miss a day?</dt><dd>Your streak resets unless you have a Streak Freeze. Your points stay.</dd></div>
+        <div><dt>What about ties?</dt><dd>A tied Rival day changes nothing. No stars move.</dd></div>
+      </dl>
+
+      <button type="button" class="hw-cta" id="hw-start">Start playing</button>
     </div>
 
-    <h3 class="hw-h">Questions</h3>
-    <div class="hw-folds">
-      <details class="hw-fold"><summary>Is it free?</summary><div class="hw-fold-body"><p>Yes. Marqit is free to play.</p></div></details>
-      <details class="hw-fold"><summary>Is money involved?</summary><div class="hw-fold-body"><p>No. No wagering, no cash prizes.</p></div></details>
-      <details class="hw-fold"><summary>What if I miss a day?</summary><div class="hw-fold-body"><p>Your streak resets unless you have a Streak Freeze. Your points stay.</p></div></details>
-      <details class="hw-fold"><summary>What about ties?</summary><div class="hw-fold-body"><p>A tied Rival day changes nothing. No stars move.</p></div></details>
-    </div>
-
-    <button type="button" class="hw-cta" id="hw-start">Start playing</button>
   </div>
 </section>
 
@@ -932,7 +928,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261016g" defer></script>
+<script src="app.js?v=20261016h" defer></script>
 
 
 
