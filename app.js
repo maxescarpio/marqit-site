@@ -4821,21 +4821,24 @@
       var res = await sb.rpc('get_question_visuals', { p_ids: cards.map(function(c){ return c.getAttribute('data-question-id'); }) });
       if(res.error || !res.data) return;
       var by = {}; res.data.forEach(function(v){ by[v.question_id] = v; });
-      function photo(url, name){
-        // Team badges and show posters are artwork, not portraits: they get their own treatment.
-        var kind = /thesportsdb\.com\/.*\/team\//i.test(url) ? ' is-badge' : (/image\.tmdb\.org/i.test(url) ? ' is-poster' : '');
-        return '<div class="mq-photo' + kind + '"><div class="mq-photo-img"><img src="' + escapeHtml(url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest(\'.mq-photo\').remove()"></div>' +
-          (name ? '<span>' + escapeHtml(name) + '</span>' : '') + '</div>';
+      function photo(url, side){
+        // A small round photo with no caption: the question says who or what it is.
+        var kind = /image\.tmdb\.org/i.test(url) ? ' is-poster' : '';
+        return '<div class="mq-photo ' + side + kind + '"><div class="mq-photo-img"><img src="' + escapeHtml(url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest(\'.mq-photo\').remove()"></div></div>';
       }
       cards.forEach(function(card){
         var v = by[card.getAttribute('data-question-id')];
         if(!v || !/^https:\/\//i.test(v.subject_image_url || '')) return;
         var row = card.querySelector('.mq-qrow'); if(!row) return;
-        var old = card.querySelector('.mq-subject, .mq-matchup'); if(old) old.remove();
-        var face = /^https:\/\//i.test(v.vs_image_url || '');
-        var html = '<div class="mq-photos' + (face ? ' face-off' : '') + '">' + photo(v.subject_image_url, v.subject_name) +
-          (face ? '<b class="mq-vs-mark">VS</b>' + photo(v.vs_image_url, v.vs_name) : '') + '</div>';
-        row.insertAdjacentHTML('beforebegin', html);
+        if(row.querySelector('.mq-photo')) return;
+        var old = card.querySelector('.mq-subject, .mq-matchup, .mq-photos'); if(old) old.remove();
+        var tile = row.querySelector('.mq-tile'); if(tile) tile.remove();
+        row.insertAdjacentHTML('afterbegin', photo(v.subject_image_url, 'is-left'));
+        // A face-off puts one side on each end of the question.
+        if(/^https:\/\//i.test(v.vs_image_url || '')){
+          row.classList.add('has-vs');
+          row.insertAdjacentHTML('beforeend', photo(v.vs_image_url, 'is-right'));
+        }
       });
     }catch(e){}
   }
