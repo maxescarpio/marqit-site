@@ -1339,6 +1339,10 @@ body{overflow-x:hidden;}
 .mq-photo-img img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 20%;mix-blend-mode:luminosity;filter:contrast(1.08);}
 .mq-photo span{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:24px;letter-spacing:.03em;text-transform:uppercase;text-align:left;line-height:1.05;}
 .mq-vs-mark{display:none;}
+/* Team badges sit whole on a light disc; show posters keep their colour. Portraits keep the site's muted look. */
+.mq-photo.is-badge .mq-photo-img{background:#F1F2F4;}
+.mq-photo.is-badge .mq-photo-img img{object-fit:contain;padding:9px;mix-blend-mode:normal;filter:none;}
+.mq-photo.is-poster .mq-photo-img img{object-position:center 30%;mix-blend-mode:normal;filter:none;}
 
 /* ---- Yes/No: calmer and smaller ---- */
 :root{--yes:#2E8B67;--no:#B5493D;}
