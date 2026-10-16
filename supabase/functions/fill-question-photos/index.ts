@@ -38,7 +38,7 @@ Return, per question:
 - "vs": only when the question is a head-to-head between two sides of the same kind (two teams, two fighters, two players, two companies), the other side in the same shape. Otherwise null.
 
 What "search" should be:
-- team: the full official team name as written in the question, for example "Dallas Cowboys", "Tampa Bay Rays".
+- team: the full official team name as written in the question, for example "Dallas Cowboys", "Tampa Bay Rays". (Teams are shown as their head coach, which is looked up for you.)
 - person: the full name, for example "Bo Nix".
 - show: the TV series title, for example "The Diplomat". movie: the film title, for example "Street Fighter".
 - company or product: the English Wikipedia article most likely to have a real photograph, for example "Falcon 9" for a SpaceX launch question, "Tesla Cybertruck" for a Cybertruck question. "name" stays what the question is about.
@@ -46,7 +46,7 @@ What "search" should be:
 Rules:
 - Use only names that are written in the question text, with the one exception in the next rule.
 - A question about a company, or about a product, launch, console or event run by a company, with no person named, MUST use that company's best-known current leader or founder as a person (type "person"), never the company or the product: SpaceX, Starlink or a Falcon 9 or Starship launch -> "Elon Musk"; Tesla -> "Elon Musk"; Nvidia -> "Jensen Huang"; Meta -> "Mark Zuckerberg"; Apple -> "Tim Cook"; Sony or PlayStation -> Sony's current CEO; and the same for Google, Microsoft, Amazon, OpenAI and so on. Use type "company" only when you truly do not know who leads it.
-- An event (a summit, a keynote, an awards show) with no named person: use the most prominent organization or speaker that is named in the question, or the leader of the company hosting it. If nothing at all is named, return subject null.
+- Every news question gets a face. If no person or company is named, pick the single most prominent, recognizable person tied to the topic, such as the leader of the company or organization hosting the event, or the best-known leader in that field, and use that person (type "person"). Choose a famous, household-name person who certainly has a Wikipedia article with a photo (for a tech or AI event: the best-known leader in that field, such as Sam Altman, Jensen Huang, Elon Musk, Mark Zuckerberg or Sundar Pichai; for a startup event: Y Combinator's or the host's best-known head), never an obscure editor, researcher or spokesperson. Only choose someone you are sure currently holds that role. Return subject null only if you cannot name anyone with confidence.
 - Politicians and government figures are allowed (official portraits are free to use).
 - Return null for private individuals, and for anything about death, crime or tragedy.
 - If you are not sure of the exact title or name, return null for that side.
@@ -201,20 +201,35 @@ async function sportsPlayerPhoto(name: string): Promise<string | null> {
 // Finds one photo for one side. Returns null when there is no usable photo, and THROWS when the
 // source could not be asked (missing key, network), so that question is retried next run
 // instead of being marked as done.
-async function findPhoto(side: Side, category: string): Promise<string | null> {
-  let url: string | null = null;
+// A team is shown as its head coach or manager, read from the team's own Wikipedia page (so it is
+// current, not from the AI's memory). Team logos are protected, so they are not used.
+async function coachPhoto(team: string): Promise<{ url: string; label: string } | null> {
+  const data = await getJson(`${WIKI_API}?action=query&titles=${encodeURIComponent(team)}&prop=revisions&rvprop=content&rvslots=main&redirects=1&format=json&formatversion=2`);
+  const text: string = (data?.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content || '').slice(0, 15000);
+  const m = text.match(/\|\s*(?:head[ _]?coach|manager|coach)\s*=\s*(?:\{\{[^\[\]{}]*?\|\s*)?(?:\{\{[^}]*\}\}\s*)*\[\[([^\]|#]+)/i);
+  if (!m) return null;
+  const article = m[1].trim();
+  const url = await wikiPhoto(article);
+  const label = article.replace(/\s*\(.*\)\s*$/, '');
+  return url ? { url, label } : null;
+}
+
+async function findPhoto(side: Side, category: string): Promise<{ url: string; label?: string } | null> {
+  let found: { url: string; label?: string } | null = null;
+  const plain = (u: string | null) => (u ? { url: u } : null);
   switch (side.type) {
-    case 'show': url = await tmdbPoster('tv', side.search); break;
-    case 'movie': url = await tmdbPoster('movie', side.search); break;
-    case 'team': url = await sportsBadge(side.search); break;
+    case 'show': found = plain(await tmdbPoster('tv', side.search)); break;
+    case 'movie': found = plain(await tmdbPoster('movie', side.search)); break;
+    case 'team': found = await coachPhoto(side.search); break;
     case 'person': {
-      url = await wikiPhoto(side.search);
-      if (!url && category === 'sports') { try { url = await sportsPlayerPhoto(side.search); } catch (_) { url = null; } }
+      let u = await wikiPhoto(side.search);
+      if (!u && category === 'sports') { try { u = await sportsPlayerPhoto(side.search); } catch (_) { u = null; } }
+      found = plain(u);
       break;
     }
-    default: url = await wikiPhoto(side.search);
+    default: found = plain(await wikiPhoto(side.search));
   }
-  return url && (await imageLoads(url)) ? url : null;
+  return found && (await imageLoads(found.url)) ? found : null;
 }
 
 const TYPES = new Set(['person', 'team', 'show', 'movie', 'company', 'other']);
@@ -271,9 +286,9 @@ Deno.serve(async (req: Request) => {
           if (vs) {
             const vsImg = subImg ? await findPhoto(vs, q.category) : null;
             // A face-off needs both faces, otherwise save nothing so the drawn matchup stays.
-            if (subImg && vsImg) row = { ...row, subject_name: subject.name, subject_image_url: subImg, vs_name: vs.name, vs_image_url: vsImg };
+            if (subImg && vsImg) row = { ...row, subject_name: subImg.label || subject.name, subject_image_url: subImg.url, vs_name: vsImg.label || vs.name, vs_image_url: vsImg.url };
           } else if (subImg) {
-            row = { ...row, subject_name: subject.name, subject_image_url: subImg };
+            row = { ...row, subject_name: subImg.label || subject.name, subject_image_url: subImg.url };
           }
         }
       } catch (e) {
