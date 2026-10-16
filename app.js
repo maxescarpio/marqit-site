@@ -4822,7 +4822,9 @@
       if(res.error || !res.data) return;
       var by = {}; res.data.forEach(function(v){ by[v.question_id] = v; });
       function photo(url, name){
-        return '<div class="mq-photo"><div class="mq-photo-img"><img src="' + escapeHtml(url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest(\'.mq-photo\').remove()"></div>' +
+        // Team badges and show posters are artwork, not portraits: they get their own treatment.
+        var kind = /thesportsdb\.com\/.*\/team\//i.test(url) ? ' is-badge' : (/image\.tmdb\.org/i.test(url) ? ' is-poster' : '');
+        return '<div class="mq-photo' + kind + '"><div class="mq-photo-img"><img src="' + escapeHtml(url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest(\'.mq-photo\').remove()"></div>' +
           (name ? '<span>' + escapeHtml(name) + '</span>' : '') + '</div>';
       }
       cards.forEach(function(card){
