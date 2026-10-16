@@ -127,7 +127,8 @@ async function wikiPhoto(title: string): Promise<string | null> {
   if (page.pageprops && 'disambiguation' in page.pageprops) return null;
   const t = page.thumbnail;
   if (!t || typeof t.source !== 'string') return null;
-  if (!/^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\//.test(t.source)) return null;
+  // Wikipedia hands out thumbnails from either host; both serve the same free Commons files.
+  if (!/^https:\/\/(upload|thumb)\.wikimedia\.org\/wikipedia\/commons\//.test(t.source)) return null;
   const ratio = Number(t.width) / Number(t.height);
   if (!Number.isFinite(ratio) || ratio > 2.4 || ratio < 0.3) return null; // very wide wordmarks do not crop to a circle; tall photos (rockets, standing people) do
   return t.source;
@@ -205,7 +206,7 @@ async function findPhoto(side: Side, category: string): Promise<string | null> {
     case 'team': url = await sportsBadge(side.search); break;
     case 'person': {
       url = await wikiPhoto(side.search);
-      if (!url && category === 'sports') url = await sportsPlayerPhoto(side.search);
+      if (!url && category === 'sports') { try { url = await sportsPlayerPhoto(side.search); } catch (_) { url = null; } }
       break;
     }
     default: url = await wikiPhoto(side.search);
