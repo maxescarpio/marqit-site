@@ -45,7 +45,7 @@ What "search" should be:
 
 Rules:
 - Use only names that are written in the question text, with the one exception in the next rule.
-- A question about a company or product with no person named gets the company's best-known current leader or founder as a person: SpaceX or Tesla -> "Elon Musk", Nvidia -> "Jensen Huang", Meta -> "Mark Zuckerberg", Apple -> "Tim Cook", and the same for Sony, Google, Microsoft, OpenAI and so on. Only do this when you are sure who it is today; if not sure, use the company or product as type "company" instead.
+- A question about a company, or about a product, launch, console or event run by a company, with no person named, MUST use that company's best-known current leader or founder as a person (type "person"), never the company or the product: SpaceX, Starlink or a Falcon 9 or Starship launch -> "Elon Musk"; Tesla -> "Elon Musk"; Nvidia -> "Jensen Huang"; Meta -> "Mark Zuckerberg"; Apple -> "Tim Cook"; Sony or PlayStation -> Sony's current CEO; and the same for Google, Microsoft, Amazon, OpenAI and so on. Use type "company" only when you truly do not know who leads it.
 - An event (a summit, a keynote, an awards show) with no named person: use the most prominent organization or speaker that is named in the question, or the leader of the company hosting it. If nothing at all is named, return subject null.
 - Politicians and government figures are allowed (official portraits are free to use).
 - Return null for private individuals, and for anything about death, crime or tragedy.
@@ -130,6 +130,7 @@ async function wikiPhoto(title: string): Promise<string | null> {
   const t = page.thumbnail;
   if (!t || typeof t.source !== 'string') return null;
   // Wikipedia hands out thumbnails from either host; both serve the same free Commons files.
+  if (/\.svg/i.test(t.source)) return null; // drawn logos are not photos
   if (!/^https:\/\/(upload|thumb)\.wikimedia\.org\/wikipedia\/commons\//.test(t.source)) return null;
   const ratio = Number(t.width) / Number(t.height);
   if (!Number.isFinite(ratio) || ratio > 2.4 || ratio < 0.3) return null; // very wide wordmarks do not crop to a circle; tall photos (rockets, standing people) do
