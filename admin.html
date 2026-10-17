@@ -36,6 +36,9 @@
   .resolved-tag{font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;}
   .resolved-tag.yes{background:var(--yes-bg);color:var(--yes);}
   .resolved-tag.no{background:var(--no-bg);color:var(--no);}
+  .btn-void{background:var(--panel);border:1.5px solid var(--line);color:var(--ink-soft);}
+  .resolved-tag.void{background:var(--panel);border:1px solid var(--line);color:var(--ink-soft);}
+  .void-reason{font-size:12px;color:var(--ink-soft);margin-left:8px;}
   .edit-form{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:none;}
 
   .sug{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
@@ -388,13 +391,18 @@
           suggestionHtml = '<div class="sug sug-human"><span class="sug-detail"></span></div>';
         }
       }
-      if(q.resolved){
+      if(q.resolved && q.voided){
+        // Voided: nobody is right or wrong. The reason is filled in below with textContent.
+        actionsHtml = '<span class="resolved-tag void">Voided</span><span class="void-reason"></span>' +
+          '<button class="btn-undo" data-undo-id="' + q.id + '">Undo</button>';
+      }else if(q.resolved){
         actionsHtml = '<span class="resolved-tag ' + q.correct_answer + '">Resolved: ' + q.correct_answer.toUpperCase() + '</span>' +
           '<button class="btn-undo" data-undo-id="' + q.id + '">Undo</button>';
       }else{
         actionsHtml =
           '<button class="btn-yes" data-id="' + q.id + '" data-answer="yes">Mark YES correct</button>' +
           '<button class="btn-no" data-id="' + q.id + '" data-answer="no">Mark NO correct</button>' +
+          '<button class="btn-void" data-void-id="' + q.id + '">Void</button>' +
           '<button class="btn-edit" data-edit-id="' + q.id + '">Edit</button>' +
           '<button class="btn-delete" data-delete-id="' + q.id + '">Delete</button>' +
           '<button class="btn-boost' + (q.is_boosted ? ' on' : '') + '" data-boost-id="' + q.id + '" data-boosted="' + (!q.is_boosted) + '">' + (q.is_boosted ? '\u26A1 2X (on)' : '2X boost') + '</button>';
@@ -418,6 +426,8 @@
         );
       row.querySelector('.qtext').textContent = q.question_text;
       if(q.resolution_criteria) row.querySelector('.qresolution').textContent = 'Resolves: ' + q.resolution_criteria;
+      var voidReasonEl = row.querySelector('.void-reason');
+      if(voidReasonEl) voidReasonEl.textContent = q.void_reason || '';
       var sugDetail = row.querySelector('.sug-detail');
       if(sugDetail && sug) sugDetail.textContent = (sug.detail || '') + (sug.source ? '  (' + sug.source + ')' : '');
       if(!q.resolved){
@@ -434,6 +444,22 @@
         const { error } = await sb.rpc('admin_resolve_question', {
           p_question_id: btn.getAttribute('data-id'),
           p_correct_answer: btn.getAttribute('data-answer')
+        });
+        if(error){ alert('Error: ' + error.message); btn.disabled = false; return; }
+        loadQuestionsForDate();
+      });
+    });
+
+    // Void: no points, no right/wrong, no streak or accuracy impact. Players see "Void" and this reason on their results.
+    list.querySelectorAll('button[data-void-id]').forEach(function(btn){
+      btn.addEventListener('click', async function(){
+        const reason = prompt('Void this question? Nobody gets it right or wrong.\n\nWhy is it being voided? Players will see this on their results:', 'The game was postponed.');
+        if(reason === null) return;
+        if(!reason.trim()){ alert('Add a short reason so players know why.'); return; }
+        btn.disabled = true;
+        const { error } = await sb.rpc('admin_void_question', {
+          p_question_id: btn.getAttribute('data-void-id'),
+          p_reason: reason.trim()
         });
         if(error){ alert('Error: ' + error.message); btn.disabled = false; return; }
         loadQuestionsForDate();
