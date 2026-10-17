@@ -1546,7 +1546,7 @@
     // Picks history — all-time accuracy computed from the full set, most recent 30 shown
     const { data: picks } = await sb
       .from('predictions')
-      .select('choice, created_at, daily_questions!inner(question_text, category, question_date, correct_answer, resolved)')
+      .select('choice, created_at, daily_questions!inner(question_text, category, question_date, correct_answer, resolved, voided, void_reason)')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false });
 
@@ -1588,7 +1588,9 @@
         const row = document.createElement('div');
         row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--panel); border:1px solid var(--line); border-radius:10px;';
         let resultBadge = '<span style="font-size:11px; color:var(--ink-soft);">Pending</span>';
-        if(q.resolved){
+        if(q.voided){
+          resultBadge = '<span style="font-size:11px; font-weight:700; color:var(--ink-soft);">Void</span>';
+        }else if(q.resolved){
           const wasCorrect = p.choice === q.correct_answer;
           resultBadge = '<span style="font-size:11px; font-weight:700; color:' + (wasCorrect ? 'var(--yes)' : 'var(--no)') + ';">' + (wasCorrect ? 'Correct' : 'Missed') + '</span>';
         }
@@ -1598,8 +1600,11 @@
           '<div style="flex:1; min-width:0;">' +
             '<div class="q-text" style="font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>' +
             '<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">' + dateLabel + ' · ' + catLabel + ' · Called ' + p.choice.toUpperCase() + '</div>' +
+            (q.voided ? '<div class="void-why" style="font-size:11px; color:var(--ink-soft); margin-top:2px;"></div>' : '') +
           '</div>' + resultBadge;
         row.querySelector('.q-text').textContent = q.question_text;
+        var voidWhy = row.querySelector('.void-why');
+        if(voidWhy) voidWhy.textContent = 'Voided' + (q.void_reason ? ' — ' + q.void_reason : '') + '. No points either way.';
         picksList.appendChild(row);
       });
       // Your latest three stay in view; the rest sit behind a dropdown.
@@ -2429,7 +2434,8 @@
     // of them right. Fires for every Perfect Day (not just the first ever),
     // once per result date so revisiting the page doesn't re-prompt.
     const perfectDay = questions.length >= 3 && questions.every(function(q){
-      return q.resolved && predMap[q.id] && predMap[q.id] === q.correct_answer;
+      // A voided question can't cost anyone a Perfect Day.
+      return q.resolved && predMap[q.id] && (q.voided || predMap[q.id] === q.correct_answer);
     });
     if(perfectDay) mqMaybePromptShare(session.user.id, 'perfect_day', date);
     if(calledIt) mqMaybePromptShare(session.user.id, 'called_it', date);
@@ -2505,7 +2511,7 @@
       const dateEl = document.getElementById('share-card-date');
       if(dateEl){ try{ dateEl.textContent = 'Results for ' + new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }catch(e){ dateEl.textContent = ''; } }
       const shareSec = document.getElementById('share-section'); if(shareSec) shareSec.style.display = 'flex';
-      document.getElementById('share-card-streak').textContent = correct + '/' + questions.length + ' correct';
+      document.getElementById('share-card-streak').textContent = correct + '/' + questions.filter(function(q){ return !q.voided; }).length + ' correct';
       const calledItEl = document.getElementById('share-card-calledit'); if(calledItEl) calledItEl.style.display = 'none';
       const row = document.getElementById('share-card-row');
       row.innerHTML = '';
@@ -2693,10 +2699,11 @@
     let ly = height * 0.575;
     data.questions.forEach(function(q){
       const myChoice = data.predMap[q.id];
-      const correct = !!myChoice && q.resolved && myChoice === q.correct_answer;
-      const incorrect = !!myChoice && q.resolved && myChoice !== q.correct_answer;
+      const isVoid = !!q.voided;
+      const correct = !isVoid && !!myChoice && q.resolved && myChoice === q.correct_answer;
+      const incorrect = !isVoid && !!myChoice && q.resolved && myChoice !== q.correct_answer;
       const color = correct ? MQ_YES : (incorrect ? MQ_NO : MQ_INK_MUTED);
-      const word = correct ? 'Correct' : (incorrect ? 'Incorrect' : 'Pending');
+      const word = isVoid ? 'Void' : (correct ? 'Correct' : (incorrect ? 'Incorrect' : 'Pending'));
       const rawLabel = CATEGORY_LABELS[q.category] || q.category;
       const label = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1).toLowerCase() + '  \u2014  ';
 
@@ -2865,7 +2872,7 @@
     const correctCount = data.questions.filter(function(q){ return data.predMap[q.id] && q.resolved && data.predMap[q.id] === q.correct_answer; }).length;
     const refTag = mqGetReferralTag(session ? session.user.id : 'guest', 'daily_results', triggerName);
     const shareUrl = 'https://playmarqit.com/?' + refTag;
-    const shareText = (data.guest ? 'Think you can beat me? ' : 'Beat my ' + data.standing.streakDays + '-day streak. ') + correctCount + '/' + data.questions.length + ' correct. ' + shareUrl;
+    const shareText = (data.guest ? 'Think you can beat me? ' : 'Beat my ' + data.standing.streakDays + '-day streak. ') + correctCount + '/' + data.questions.filter(function(q){ return !q.voided; }).length + ' correct. ' + shareUrl;
 
     await mqEnsureCardFonts();
     const canvas = mqDrawResultsCard(1080, 1920, data); // story ratio is the default share
@@ -4478,7 +4485,7 @@
         var welcome = document.getElementById('welcome-sheet');
         if(welcome && !welcome.hidden) return;
 
-        var qres = await sb.from('daily_questions').select('id, question_text, category, correct_answer, resolved').eq('question_date', yDate).order('category');
+        var qres = await sb.from('daily_questions').select('id, question_text, category, correct_answer, resolved, voided, void_reason').eq('question_date', yDate).order('category');
         var questions = qres.data || [];
         if(!questions.length) return;
         var ids = questions.map(function(q){ return q.id; });
@@ -4501,14 +4508,19 @@
         if(!scored.length) return;
 
         var right = scored.filter(function(q){ return String(picks[q.id]).toLowerCase() === q.correct_answer; }).length;
-        var partial = scored.length < mine.length;
+        // A voided call isn't "pending" -- it just doesn't count either way.
+        var partial = scored.length < mine.filter(function(q){ return !q.voided; }).length;
         var html = '<div class="rs-tiles"><div class="rs-tile"><b>' + right + ' of ' + scored.length + '</b><span>right' + (partial ? ' so far' : '') + '</span></div>';
         if(session) html += '<div class="rs-tile"><b data-tick="' + streak + '" data-from="' + Math.max(0, streak - 1) + '">' + streak + '</b><span>day streak</span></div>';
         html += '</div>';
         mine.forEach(function(q){
           var pick = String(picks[q.id]).toLowerCase();
           var pill = '<span class="rs-pill">Pending</span>';
-          if(q.resolved && q.correct_answer){
+          var voidNote = '';
+          if(q.voided){
+            pill = '<span class="rs-pill">Void</span>';
+            voidNote = '<div style="font-size:12px; color:var(--ink-soft); margin-top:6px;">' + escapeHtml(q.void_reason || 'This question was voided.') + ' No points either way.</div>';
+          }else if(q.resolved && q.correct_answer){
             pill = pick === q.correct_answer
               ? '<span class="rs-pill win">Correct</span>'
               : '<span class="rs-pill loss">Missed · answer: ' + (q.correct_answer === 'yes' ? 'Yes' : 'No') + '</span>';
@@ -4517,6 +4529,7 @@
             '<div class="rs-cat"><span class="rs-dot" style="background:' + (DOT[q.category] || '#A8ABB3') + ';"></span>' + escapeHtml(CATEGORY_LABELS[q.category] || q.category || '') + '</div>' +
             '<div class="rs-q">' + escapeHtml(q.question_text || '') + '</div>' +
             '<div class="rs-meta"><span>Your pick: <b style="color:' + (pick === 'yes' ? 'var(--yes)' : 'var(--no)') + ';">' + (pick === 'yes' ? 'Yes' : 'No') + '</b></span>' + pill + '</div>' +
+            voidNote +
           '</div>';
         });
         if(partial) html += '<p class="rs-note">Pending calls get scored once they settle.</p>';
@@ -4919,13 +4932,18 @@
       ? (mqSubjectHtml(vis.subject, vis.icon || CATEGORY_ICONS[q.category] || '') + '<div class="mq-qrow"><p class="ticket-q"></p></div>')
       : ('<div class="mq-qrow"><div class="mq-tile">' + (vis.icon || CATEGORY_ICONS[q.category] || '') + '</div><p class="ticket-q"></p></div>');
     var isFinal = !!(q.resolved && q.correct_answer);
-    var statusHtml = isFinal
+    var isVoid = !!q.voided;
+    var statusHtml = isVoid
+      ? '<span class="status-pill final">Void</span>'
+      : isFinal
       ? '<span class="status-pill final">Final</span>'
       : isLocked
         ? '<span class="status-pill inplay"><span class="live-dot"></span>In play</span>'
         : '<span class="status-pill live"><span class="live-dot"></span>Live</span>';
     var resultHtml = '';
-    if(isFinal){
+    if(isVoid){
+      resultHtml = '<div class="result-tag final">' + mqIcon('clock') + '<span>Void — ' + escapeHtml(q.void_reason || 'this question was voided') + '. No points either way.</span></div>';
+    }else if(isFinal){
       if(myVote){
         var won = myVote === q.correct_answer;
         resultHtml = '<div class="result-tag ' + (won ? 'win' : 'loss') + '">' + mqIcon(won ? 'check' : 'xmark') + '<span>' +
@@ -4937,7 +4955,7 @@
     var crowdHtml = '<div class="crowd-bar' + ((showPct && total > 0) ? ' on' : '') + '"><i style="width:0"></i></div>';
     var crowdTagHtml = mqCrowdTagsHtml(myVote, yesPct, noPct, total, trend, showPct);
     var chipsHtml = '';
-    if(!isLocked && q.lock_time){
+    if(!isLocked && q.lock_time && !isVoid){
       chipsHtml = '<div class="mq-chips">' +
         '<span class="lock-chip" data-lock="' + escapeHtml(q.lock_time) + '">' + mqIcon('clock') + '<span class="lock-chip-text">' + mqLockText(new Date(q.lock_time).getTime() - Date.now()) + '</span></span>' +
         '<span class="pts-chip' + (q.is_boosted ? ' boost' : '') + '">' + mqIcon('star') + 'Worth ' + (q.is_boosted ? '200' : '100') + ' points</span>' +
@@ -5557,7 +5575,8 @@
         myVote = existingVote ? existingVote.choice : null;
       }
       const voteData = await getVoteData(q.id);
-      const isLocked = new Date() >= new Date(q.lock_time);
+      // A voided question is closed to new picks no matter what its lock time says.
+      const isLocked = !!q.voided || new Date() >= new Date(q.lock_time);
       prepared.push({ q: q, myVote: myVote, voteData: voteData, isLocked: isLocked, total: voteData.counts.yes + voteData.counts.no });
     }
 
@@ -6744,15 +6763,17 @@
     try{ var sr = await sb.auth.getSession(); session = sr && sr.data && sr.data.session; }catch(e){}
     if(session){
       var res = await sb.from('predictions')
-        .select('choice, daily_questions!inner(category, correct_answer, resolved, question_date)')
+        .select('choice, daily_questions!inner(category, correct_answer, resolved, voided, question_date)')
         .eq('user_id', session.user.id)
         .gte('daily_questions.question_date', days[0])
         .lte('daily_questions.question_date', today);
       (res.data || []).forEach(function(r){
         var dq = r.daily_questions; if(!dq) return;
-        var d = byDay[dq.question_date] = byDay[dq.question_date] || { total: 0, resolved: 0, correct: 0 };
+        var d = byDay[dq.question_date] = byDay[dq.question_date] || { total: 0, resolved: 0, correct: 0, voided: 0 };
         d.total++;
-        if(dq.resolved){
+        if(dq.voided){
+          d.voided++; // voided: not right, not wrong, and left out of every count
+        }else if(dq.resolved){
           d.resolved++;
           var ok = r.choice === dq.correct_answer;
           if(ok) d.correct++;
@@ -6767,8 +6788,9 @@
       else if(!v){ cls += ' none'; tip += ': missed'; }
       else{
         played++;
-        if(v.resolved === 0){ cls += ' pend'; tip += ': waiting on results'; }
-        else if(v.total >= 3 && v.correct === v.total){ cls += ' perfect'; tip += ': Perfect Day'; if(session) mqAwardAchievement(session.user.id, 'perfect_day'); }
+        if(v.resolved === 0 && v.voided > 0 && v.voided === v.total){ cls += ' pend'; tip += ': voided'; }
+        else if(v.resolved === 0){ cls += ' pend'; tip += ': waiting on results'; }
+        else if(v.total >= 3 && v.correct + v.voided === v.total){ cls += ' perfect'; tip += ': Perfect Day'; if(session) mqAwardAchievement(session.user.id, 'perfect_day'); }
         else if(v.correct === 0){ cls += ' l0'; tip += ': 0 of ' + v.resolved + ' right'; }
         else if(v.correct === 1){ cls += ' l1'; tip += ': 1 of ' + v.resolved + ' right'; }
         else{ cls += ' l2'; tip += ': ' + v.correct + ' of ' + v.resolved + ' right'; }
@@ -6813,6 +6835,7 @@
       .select('choice, daily_questions!inner(question_text, category, correct_answer, resolved, question_date)')
       .eq('user_id', session.user.id)
       .eq('daily_questions.resolved', true)
+      .eq('daily_questions.voided', false) // voided calls aren't right or wrong, so they stay out of the hit rate
       .gte('daily_questions.question_date', weekStart)
       .lte('daily_questions.question_date', today)
       .order('daily_questions(question_date)', { ascending: false });
@@ -6865,7 +6888,8 @@
       .eq('user_id', session.user.id)
       .gte('daily_questions.question_date', weekStart)
       .lte('daily_questions.question_date', today)
-      .eq('daily_questions.resolved', true);
+      .eq('daily_questions.resolved', true)
+      .eq('daily_questions.voided', false); // voided calls stay out of the weekly accuracy
 
     const { data: myStreak } = await sb.from('streaks').select('current_streak').eq('user_id', session.user.id).maybeSingle();
 
