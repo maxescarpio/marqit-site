@@ -5073,6 +5073,19 @@
   // percentages and buddy lines on the cards themselves -- a person's pick
   // on question q only appears here once the signed-in user has voted on
   // q themselves (or q is locked), so this can't be used to peek ahead.
+  // Buddy lines for one question: de-duplicated, first two shown, the rest behind a "more" toggle.
+  function mqBuddyBlockHtml(buddyList, qid, myVote){
+    var seen = {}, lines = [];
+    (buddyList || []).forEach(function(b){
+      if(!b || seen[b.id] || !b.picks || !b.picks[qid]) return;
+      seen[b.id] = 1;
+      var pick = b.picks[qid], same = !!myVote && pick === myVote;
+      lines.push('<div class="ticket-meta buddy-line" data-buddy-id="' + b.id + '" style="color:var(' + (same ? '--yes' : '--no') + ');">' + mqBuddyInner(b.username, pick, same) + '</div>');
+    });
+    if(!lines.length) return '';
+    var head = lines.slice(0, 2).join(''), rest = lines.slice(2);
+    return '<div class="buddy-wrap">' + head + (rest.length ? '<details class="buddy-more"><summary>+ ' + rest.length + ' more buddies</summary>' + rest.join('') + '</details>' : '') + '</div>';
+  }
   function mqBuddyInner(name, pick, sameSide){
     var who = escapeHtml(name);
     return sameSide
@@ -5168,15 +5181,7 @@
     // shows a buddy's pick as a way to peek before committing your own.
     // One line per buddy who has a pick on this question -- there's no cap
     // on how many buddies someone can have.
-    var buddyHtml = '';
-    if(showPct && buddyList && buddyList.length){
-      buddyHtml = buddyList.map(function(b){
-        if(!b.picks || !b.picks[q.id]) return '';
-        var buddyPick = b.picks[q.id];
-        var sameSide = myVote && buddyPick === myVote;
-        return '<div class="ticket-meta buddy-line" data-buddy-id="' + b.id + '" style="color:var(' + (sameSide ? '--yes' : '--no') + ');">' + mqBuddyInner(b.username, buddyPick, !!sameSide) + '</div>';
-      }).join('');
-    }
+    var buddyHtml = showPct ? mqBuddyBlockHtml(buddyList, q.id, myVote) : '';
 
     var vis = mqDetectVisual(q);
     var iconHtml = CATEGORY_ICONS[q.category] || '';
@@ -5804,8 +5809,10 @@
     let buddyList = [];
     if(session){
       const questionIds = questions.map(function(q){ return q.id; });
-      const { data: buddyRows } = await sb.from('buddies').select('buddy_id, profiles!buddies_buddy_id_fkey(username)').eq('user_id', session.user.id);
+      let { data: buddyRows } = await sb.from('buddies').select('buddy_id, profiles!buddies_buddy_id_fkey(username)').eq('user_id', session.user.id);
       if(buddyRows && buddyRows.length){
+        var seenBuddy = {};
+        buddyRows = buddyRows.filter(function(b){ if(seenBuddy[b.buddy_id]) return false; seenBuddy[b.buddy_id] = 1; return true; });
         buddyList = await Promise.all(buddyRows.map(async function(b){
           const { data: buddyPreds } = await sb.from('predictions').select('question_id, choice, created_at').eq('user_id', b.buddy_id).in('question_id', questionIds);
           const buddyPickMap = {};
@@ -6401,19 +6408,10 @@
           if(yesLabel2) yesLabel2.style.display = '';
           if(noLabel2) noLabel2.style.display = '';
           mqAnimateFootCount(card.querySelector('.ticket-foot .foot-count'), total2);
-          for(const b of buddyList){
-            if(!b.picks || !b.picks[p.q.id]) continue;
-            if(card.querySelector('.buddy-vs-line[data-buddy-id="' + b.id + '"]')) continue;
-            const buddyPick = b.picks[p.q.id];
-            const sameSide = p.myVote === buddyPick;
-            const buddyDiv = document.createElement('div');
-            buddyDiv.className = 'ticket-meta buddy-line buddy-vs-line';
-            buddyDiv.setAttribute('data-buddy-id', b.id);
-            buddyDiv.style.color = sameSide ? 'var(--yes)' : 'var(--no)';
-            buddyDiv.innerHTML = mqBuddyInner(b.username, buddyPick, sameSide);
-            const trendAnchor = card.querySelector('.trend-wrap');
-            if(trendAnchor) card.insertBefore(buddyDiv, trendAnchor);
-          }
+          card.querySelectorAll('.buddy-wrap, .buddy-line').forEach(function(n){ n.remove(); });
+          const buddyBlock = mqBuddyBlockHtml(buddyList, p.q.id, p.myVote);
+          const trendAnchor = card.querySelector('.trend-wrap');
+          if(buddyBlock && trendAnchor) trendAnchor.insertAdjacentHTML('beforebegin', buddyBlock);
           const trendWrap2 = card.querySelector('.trend-wrap');
           if(trendWrap2){ trendWrap2.innerHTML = buildTrendSVG(voteData2.trend); animateTrendLine(trendWrap2); }
           card.querySelectorAll('.opt').forEach(function(o){ o.style.cursor = 'default'; });
@@ -9071,6 +9069,15 @@
     hamburgerMenu.style.display = 'none';
   });
   (function(){
+    var fc = document.getElementById('footer-credits-link');
+    if(fc) fc.addEventListener('click', function(){
+      document.querySelectorAll('.pagenav-tab').forEach(function(t){ t.classList.remove('active'); });
+      document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
+      document.getElementById('page-about').style.display = 'block';
+      var c = document.getElementById('about-credits'); if(c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  })();
+  (function(){
     var fa = document.getElementById('footer-about-link');
     if(!fa) return;
     fa.addEventListener('click', function(){
@@ -9673,6 +9680,43 @@
       paintAll(document); refreshFoot(id);
     }
 
+    // Sub-topics inside each lane (Sports > NBA, Pop Culture > Music, News > Tech ...). Matched on the headline,
+    // summary and source; first match wins, anything left over lands in "More".
+    var NFL_T = 'Chiefs|Cowboys|Eagles|49ers|Packers|Bills|Ravens|Bengals|Lions|Dolphins|Patriots|Jets|Giants|Commanders|Steelers|Browns|Texans|Colts|Jaguars|Titans|Broncos|Raiders|Chargers|Seahawks|Rams|Cardinals|Saints|Falcons|Panthers|Buccaneers|Vikings|Bears';
+    var NBA_T = 'Lakers|Celtics|Knicks|Warriors|Bucks|Nuggets|Suns|Heat|Sixers|76ers|Mavericks|Thunder|Timberwolves|Cavaliers|Pacers|Magic|Hawks|Nets|Raptors|Clippers|Kings|Pelicans|Grizzlies|Spurs|Rockets|Jazz|Trail Blazers|Hornets|Pistons|Wizards|Bulls';
+    var MLB_T = 'Yankees|Dodgers|Red Sox|Mets|Braves|Astros|Phillies|Padres|Cubs|Guardians|Orioles|Mariners|Blue Jays|Brewers|Twins|Rays|Rangers|Tigers|Royals|Cardinals|Giants|Diamondbacks|Reds|Pirates|Rockies|Marlins|Nationals|Athletics|White Sox|Angels';
+    var NHL_T = 'Bruins|Rangers|Maple Leafs|Canadiens|Oilers|Avalanche|Panthers|Lightning|Golden Knights|Stars|Hurricanes|Devils|Kraken|Flames|Canucks|Jets|Wild|Blues|Predators|Penguins|Capitals|Islanders|Flyers|Red Wings|Blackhawks|Senators|Sabres|Sharks|Ducks|Kings|Blue Jackets|Utah';
+    var TOPICS = {
+      sports: [
+        ['nfl', 'NFL', new RegExp('\\bNFL\\b|quarterback|touchdown|Super Bowl|' + NFL_T.replace(/\|/g, '\\b|\\b'), '')],
+        ['nba', 'NBA', new RegExp('\\bNBA\\b|WNBA|basketball|' + NBA_T.replace(/\|/g, '\\b|\\b'), '')],
+        ['mlb', 'MLB', new RegExp('\\bMLB\\b|baseball|World Series|home run|' + MLB_T.replace(/\|/g, '\\b|\\b'), '')],
+        ['nhl', 'NHL', new RegExp('\\bNHL\\b|hockey|Stanley Cup|' + NHL_T.replace(/\|/g, '\\b|\\b'), '')],
+        ['soccer', 'Soccer', /soccer|Premier League|\bMLS\b|Champions League|FIFA|World Cup|La Liga|Bundesliga|Messi|Ronaldo|Arsenal|Liverpool|Man(chester)? (United|City)|Chelsea|Tottenham|Real Madrid|Barcelona/i],
+        ['college', 'College', /\bNCAA\b|college football|college basketball|March Madness|Heisman|Crimson Tide|Bulldogs|Buckeyes|Wolverines|Longhorns/i],
+        ['more', 'More sports', /./]
+      ],
+      pop: [
+        ['music', 'Music', /\b(song|songs|album|albums|single|singer|rapper|rap|tour|concert|Billboard|Grammy|Grammys|Spotify|Apple Music|Hot 100|band|hip-hop|country music|lyrics|music video|festival|chart)\b/i],
+        ['screen', 'Movies & TV', /\b(movie|movies|film|films|box office|trailer|series|Netflix|HBO|Disney|Hulu|streaming|season|episode|Emmy|Emmys|Oscar|Oscars|sequel|actor|actress|director|premiere|sitcom|show)\b/i],
+        ['gaming', 'Gaming', /\b(video game|gaming|PlayStation|Xbox|Nintendo|Steam|Fortnite|Minecraft|esports|Twitch|GTA)\b/i],
+        ['celeb', 'Celebrity', /./]
+      ],
+      news: [
+        ['politics', 'Politics', /\b(president|Trump|Biden|Congress|Senate|House|election|vote|voters|governor|mayor|Democrat|Democrats|Republican|Republicans|White House|Supreme Court|campaign|bill|lawmakers|policy|GOP)\b/i],
+        ['business', 'Business', /\b(stock|stocks|market|markets|earnings|economy|inflation|Fed|Wall Street|CEO|shares|IPO|tariff|tariffs|jobs|unemployment|bank|sales|revenue|billion|trillion|profit|company|merger|investors)\b/i],
+        ['tech', 'Tech', /\b(AI|OpenAI|Apple|Google|Microsoft|Meta|Nvidia|Amazon|chip|chips|software|iPhone|Tesla|app|cyber|hack|robot|startup|data center|storage|semiconductor|Sandisk|Samsung)\b/i],
+        ['world', 'World', /\b(war|Ukraine|Russia|China|Israel|Gaza|Iran|EU|UN|NATO|Europe|Asia|Africa|India|Japan|Mexico|Canada|ceasefire|troops|border)\b/i],
+        ['more', 'More news', /./]
+      ]
+    };
+    function topicOf(r){
+      var list = TOPICS[laneOf(r)] || [], t = (mqDecodeEntities(r.headline || '') + ' ' + mqDecodeEntities(r.summary || '') + ' ' + (r.source_name || ''));
+      if(/apple music/i.test(r.source_name || '') && laneOf(r) === 'pop') return 'music';
+      for(var i = 0; i < list.length; i++){ if(list[i][2].test(t)) return list[i][0]; }
+      return 'more';
+    }
+
     // ---- feed tabs ----
     function Feed(cfg){
       this.cfg = cfg;
@@ -9681,6 +9725,7 @@
       this.lane = 'all';
       this.sort = 'new';
       this.source = 'all';
+      this.topic = 'all';
       this.loaded = false;
       var self = this;
       // "Updated X ago" line under the chips
@@ -9701,10 +9746,21 @@
         });
       }
       if(this.chips){
+        this.topicChips = document.createElement('div');
+        this.topicChips.className = 'feed-chips topic-chips';
+        this.chips.parentNode.insertBefore(this.topicChips, this.chips.nextSibling);
+        this.topicChips.addEventListener('click', function(ev){
+          var b = ev.target.closest('.feed-chip'); if(!b) return;
+          var tv = b.getAttribute('data-topic');
+          self.topic = (tv === self.topic && tv !== 'all') ? 'all' : tv;
+          self.render();
+        });
+      }
+      if(this.chips){
         this.chips.innerHTML = LANES.map(function(l){ return '<button type="button" class="feed-chip' + (l[0] === 'all' ? ' on' : '') + '" data-lane="' + l[0] + '">' + l[1] + '</button>'; }).join('');
         this.chips.addEventListener('click', function(ev){
           var b = ev.target.closest('.feed-chip'); if(!b) return;
-          if(b.hasAttribute('data-lane')){ var lv = b.getAttribute('data-lane'); self.lane = (lv === self.lane && lv !== 'all') ? 'all' : lv; }
+          if(b.hasAttribute('data-lane')){ var lv = b.getAttribute('data-lane'); self.lane = (lv === self.lane && lv !== 'all') ? 'all' : lv; self.topic = 'all'; }
           if(b.hasAttribute('data-sort')){ var sv2 = b.getAttribute('data-sort'); self.sort = (sv2 === self.sort && sv2 !== 'new') ? 'new' : sv2; }
           self.chips.querySelectorAll('.feed-chip').forEach(function(x){
             x.classList.toggle('on', (x.hasAttribute('data-lane') && x.getAttribute('data-lane') === self.lane) || (x.hasAttribute('data-sort') && x.getAttribute('data-sort') === self.sort));
@@ -9730,6 +9786,8 @@
         list = rows.filter(function(r){ return (r.kind === 'post' || r.kind === 'trend') && r.take_question; });
       }
       if(lane !== 'all') list = list.filter(function(r){ return laneOf(r) === lane; });
+      this.laneList = list;
+      if(lane !== 'all' && this.topic !== 'all') list = list.filter(function(r){ return topicOf(r) === this.topic; }, this);
       var src = this.source;
       if(this.cfg.kind === 'trending' && src !== 'all') list = list.filter(function(r){ return r.kind === 'trend' && r.source_name === src; });
       list = list.slice();
@@ -9771,6 +9829,16 @@
     Feed.prototype.render = function(){
       var list = this.pick();
       var topHtml = '', chartMode = false;
+      if(this.topicChips){
+        var counts = {}, tl = TOPICS[this.lane];
+        (this.laneList || []).forEach(function(r){ var k = topicOf(r); counts[k] = (counts[k] || 0) + 1; });
+        var shown = tl ? tl.filter(function(t){ return counts[t[0]]; }) : [];
+        if(this.topic !== 'all' && !counts[this.topic]) this.topic = 'all';
+        this.topicChips.style.display = shown.length > 1 ? '' : 'none';
+        var tself = this;
+        this.topicChips.innerHTML = shown.length > 1 ? '<button type="button" class="feed-chip' + (this.topic === 'all' ? ' on' : '') + '" data-topic="all">All</button>' + shown.map(function(t){
+          return '<button type="button" class="feed-chip' + (tself.topic === t[0] ? ' on' : '') + '" data-topic="' + t[0] + '">' + t[1] + '</button>'; }).join('') : '';
+      }
       // Source chips: only sources that actually have rows right now
       if(this.srcChips){
         var have = {}; (allRows || []).forEach(function(r){ if(r.kind === 'trend' && r.take_question) have[r.source_name] = 1; });

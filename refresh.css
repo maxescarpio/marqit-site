@@ -780,3 +780,22 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .rk-tabs{flex-wrap:wrap;overflow:visible}
 #evp-fund .fd-grid{background:none;border:0;gap:8px}
 #evp-fund .fd-c{border:1px solid var(--line);border-radius:6px}
+
+/* Credits block on About; chip focus ring; buddy lines */
+.about-credits{margin-top:36px;padding-top:24px;border-top:1px solid var(--line);max-width:640px}
+.about-credits h3{font:700 13px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#8B909A;margin:0 0 14px}
+.about-credits dl{margin:0;display:grid;grid-template-columns:200px 1fr;gap:10px 18px;font-size:14px}
+.about-credits dt{color:#E4E6EA;font-weight:600}.about-credits dd{margin:0;color:#A8ADB6;line-height:1.45}
+.about-credits p{font-size:13px;color:#6E737D;margin:16px 0 0}
+@media(max-width:560px){.about-credits dl{grid-template-columns:1fr;gap:2px}.about-credits dd{margin-bottom:10px}}
+.feed-chip:focus{outline:none}
+.feed-chip:focus-visible{outline:1px solid #6E737D;outline-offset:2px}
+.topic-chips{margin-top:10px}
+.topic-chips .feed-chip{font-size:12.5px;padding:6px 12px;opacity:.95}
+.topic-chips .feed-chip:not(.on){border-style:dashed}
+.buddy-wrap{display:flex;flex-direction:column}
+.buddy-more summary{list-style:none;cursor:pointer;font-size:13px;color:#A8ADB6;padding:6px 0 2px;display:inline-flex;gap:6px;align-items:center}
+.buddy-more summary::-webkit-details-marker{display:none}
+.buddy-more summary::after{content:"▾";font-size:11px}
+.buddy-more[open] summary::after{content:"▴"}
+.buddy-more summary:hover{color:#F2F3F5}

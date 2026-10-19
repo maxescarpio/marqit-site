@@ -47,7 +47,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261016j">
-<link rel="stylesheet" href="refresh.css?v=20261019y">
+<link rel="stylesheet" href="refresh.css?v=20261020a">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -474,13 +474,11 @@
 <section class="section hero-lite">
   <div class="wrap">
     <h2>News</h2>
-    <p style="font-size:16px; margin-top:12px; max-width:520px; color:var(--ink-soft);">What people are arguing about today. Pick a side and say why.</p>
     <div class="feed-chips" id="news-chips"></div>
     <div class="news-grid" id="news-grid" aria-live="polite">
       <div class="news-card news-skel"><i class="sk" style="height:150px;border-radius:0;"></i><div class="news-body"><i class="sk" style="width:40%;"></i><i class="sk" style="width:92%;margin-top:10px;"></i><i class="sk" style="width:70%;margin-top:6px;"></i></div></div>
       <div class="news-card news-skel"><i class="sk" style="height:150px;border-radius:0;"></i><div class="news-body"><i class="sk" style="width:40%;"></i><i class="sk" style="width:92%;margin-top:10px;"></i><i class="sk" style="width:70%;margin-top:6px;"></i></div></div>
     </div>
-    <p class="news-foot">Headlines and photos come from third-party news sources. We hide stories on sensitive topics. Comments must follow the Marqit rules: no slurs, threats, links or personal info.</p>
   </div>
 </section>
 </div>
@@ -489,13 +487,11 @@
 <section class="section hero-lite">
   <div class="wrap">
     <h2>Trending</h2>
-    <p style="font-size:16px; margin-top:12px; max-width:520px; color:var(--ink-soft);">What everyone is searching, watching and listening to right now across sports, pop culture, music and tech. Pick a side and talk it out with other fans.</p>
     <div class="feed-chips" id="trending-chips"></div>
     <div class="news-grid" id="trending-grid" aria-live="polite">
       <div class="news-card news-skel"><i class="sk" style="height:150px;border-radius:0;"></i><div class="news-body"><i class="sk" style="width:40%;"></i><i class="sk" style="width:92%;margin-top:10px;"></i><i class="sk" style="width:70%;margin-top:6px;"></i></div></div>
       <div class="news-card news-skel"><i class="sk" style="height:150px;border-radius:0;"></i><div class="news-body"><i class="sk" style="width:40%;"></i><i class="sk" style="width:92%;margin-top:10px;"></i><i class="sk" style="width:70%;margin-top:6px;"></i></div></div>
     </div>
-    <p class="news-foot">Updated through the day from public charts on Google, YouTube, Wikipedia, Apple Music and Bluesky. Comments must follow the Marqit rules.</p>
   </div>
 </section>
 </div>
@@ -907,6 +903,21 @@
       <a class="about-legal-row" href="/terms.html"><span>Terms &amp; conditions</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
       <a class="about-legal-row" href="mailto:help@playmarqit.com"><span>Contact us</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
     </div>
+    <div class="about-credits" id="about-credits">
+      <h3>Credits and data sources</h3>
+      <dl>
+        <dt>Show and movie images</dt><dd>TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</dd>
+        <dt>Team and player images</dt><dd>TheSportsDB.</dd>
+        <dt>Photos</dt><dd>Some photos from Wikimedia Commons.</dd>
+        <dt>Scores, standings and team stats</dt><dd>ESPN public feeds (unofficial).</dd>
+        <dt>Stock prices</dt><dd>Yahoo Finance, about 15 minutes delayed.</dd>
+        <dt>Analyst views and valuation</dt><dd>Nasdaq public data.</dd>
+        <dt>Music charts</dt><dd>Apple iTunes charts and Deezer.</dd>
+        <dt>Trending</dt><dd>Public charts on Google, YouTube, Wikipedia, Apple Music and Bluesky.</dd>
+        <dt>News</dt><dd>Headlines and photos come from third-party news sources. We hide stories on sensitive topics.</dd>
+      </dl>
+      <p>Comments must follow the Marqit rules: no slurs, threats, links or personal info. Stock figures are not investment advice.</p>
+    </div>
   </div>
 </section>
 </div>
@@ -933,6 +944,7 @@
       <button type="button" id="footer-challenge-link">Challenge</button>
       <button type="button" id="footer-rankings-link">Rankings</button>
       <button type="button" id="footer-about-link">About</button>
+      <button type="button" id="footer-credits-link">Credits</button>
       <a href="/privacy.html">Privacy</a>
       <a href="/terms.html">Terms</a>
       <a href="mailto:help@playmarqit.com">Contact</a>
@@ -949,7 +961,7 @@
       </a>
     </div></div>
   </div>
-  <div class="wrap sf-legal">&copy; 2026 Grand Media Group LLC. Marqit is a trademark of Grand Media Group LLC.<br>Show and movie images from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Team and player images from TheSportsDB. Some photos from Wikimedia Commons.</div>
+  <div class="wrap sf-legal">&copy; 2026 Grand Media Group LLC. Marqit is a trademark of Grand Media Group LLC.</div>
 </footer>
 
 <div id="results-sheet" class="welcome-sheet" role="dialog" aria-modal="true" aria-labelledby="results-title" hidden>
@@ -962,7 +974,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261019x" defer></script>
+<script src="app.js?v=20261019y" defer></script>
 
 
 
