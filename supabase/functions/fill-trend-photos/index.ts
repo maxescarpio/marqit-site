@@ -10,7 +10,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const UA = 'MarqitBot/1.0 (https://playmarqit.com; photo lookup for trending topics)';
 const WIKI_API = 'https://en.wikipedia.org/w/api.php';
 const TAKE_MODEL = 'claude-sonnet-5-5';
-const MAX_PER_RUN = 12;
+const MAX_PER_RUN = 30;
 const RETRY_MS = 6 * 3600000;
 const tried = new Map<string, number>(); // news id -> last attempt (this instance)
 
@@ -112,7 +112,7 @@ async function wikiPhoto(title: string): Promise<string | null> {
   if (/\.svg/i.test(t.source)) return null;
   if (!/^https:\/\/(upload|thumb)\.wikimedia\.org\/wikipedia\/commons\//.test(t.source)) return null;
   const ratio = Number(t.width) / Number(t.height);
-  if (!Number.isFinite(ratio) || ratio > 1.2 || ratio < 0.6) return null;
+  if (!Number.isFinite(ratio) || ratio > 2 || ratio < 0.5) return null;
   return t.source;
 }
 
@@ -131,6 +131,43 @@ async function tmdbLead(kind: 'tv' | 'movie', title: string): Promise<{ url: str
   const lead = (credits?.cast || []).filter((c: any) => c.profile_path).slice(0, 3)
     .sort((a: any, b: any) => (b.popularity || 0) - (a.popularity || 0))[0];
   return lead ? { url: `https://image.tmdb.org/t/p/w342${lead.profile_path}`, label: String(lead.name || '') } : null;
+}
+
+async function tmdbPerson(name: string): Promise<string | null> {
+  const data = await tmdbGet('search/person', `query=${encodeURIComponent(name)}&include_adult=false&page=1`);
+  const norm = (x: string) => String(x || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const hit = (data?.results || []).find((p: any) => p.profile_path && norm(p.name) === norm(name));
+  return hit ? `https://image.tmdb.org/t/p/w342${hit.profile_path}` : null;
+}
+
+// Last resort: a photo from a news story that is actually about the same thing (headline contains the trend's words).
+const STOP = new Set(['the', 'and', 'for', 'with', 'stock', 'news', 'live', 'week', 'game', 'from', 'that', 'this', 'new', 'vs', 'v']);
+async function newsPhoto(admin: any, headline: string): Promise<string | null> {
+  const words = headline.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length >= 3 && !STOP.has(w));
+  if (!words.length || words.length > 4) return null;
+  let q = admin.from('news_ticker').select('image_url').eq('kind', 'news').not('image_url', 'is', null)
+    .gte('fetched_at', new Date(Date.now() - 3 * 86400000).toISOString());
+  for (const w of words) q = q.ilike('headline', `%${w}%`);
+  const { data } = await q.order('fetched_at', { ascending: false }).limit(3);
+  for (const r of data || []) if (typeof r.image_url === 'string' && /^https:\/\//.test(r.image_url) && (await imageLoads(r.image_url))) return r.image_url;
+  return null;
+}
+
+// Topic fallback: the free lead image of the Wikipedia article that best matches the headline (products, places, events, games).
+async function topicPhoto(headline: string): Promise<string | null> {
+  const q = headline.replace(/\b(stock|news|live|vs?\.?|score|week \d+)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+  if (q.length < 3) return null;
+  const data = await getJson(`${WIKI_API}?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=3&prop=pageimages&piprop=thumbnail&pithumbsize=500&pilicense=free&format=json&formatversion=2`);
+  const pages = (data?.query?.pages || []).slice().sort((a: any, b: any) => (a.index || 0) - (b.index || 0));
+  const words = q.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+  for (const p of pages) {
+    const t = p.thumbnail?.source;
+    if (typeof t !== 'string' || /\.svg/i.test(t) || !/^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\//.test(t)) continue;
+    const title = String(p.title || '').toLowerCase();
+    if (words.length && !words.some((w) => title.includes(w))) continue;
+    return t;
+  }
+  return null;
 }
 
 function sportsBase(): string { return `https://www.thesportsdb.com/api/v1/json/${Deno.env.get('THESPORTSDB_API_KEY') || '123'}`; }
@@ -170,6 +207,7 @@ async function findPhoto(side: Side, lane: string): Promise<{ url: string } | nu
     case 'person': {
       let u = await wikiPhoto(side.search);
       if (!u && lane === 'sports') { try { u = await sportsPlayerPhoto(side.search); } catch (_) { u = null; } }
+      if (!u) { try { u = await tmdbPerson(side.search); } catch (_) { u = null; } }
       found = u ? { url: u } : null;
       break;
     }
@@ -210,22 +248,24 @@ Deno.serve(async (req: Request) => {
     const byI = new Map<number, any>(items.map((it: any) => [Number(it.i), it]));
 
     const report: any[] = [];
-    for (let i = 0; i < todo.length; i++) {
-      const r = todo[i];
+    await Promise.all(todo.map(async (r: any, i: number) => {
       tried.set(r.id, now);
       const subject = cleanSide(byI.get(i)?.subject);
-      if (!subject) { report.push({ h: r.headline.slice(0, 50), photo: false }); continue; }
       try {
-        const img = await findPhoto(subject, String(r.lane || ''));
-        if (img) {
-          const { error: wErr } = await admin.from('news_ticker').update({ image_url: img.url }).eq('id', r.id).is('image_url', null);
+        let url: string | null = null;
+        if (subject) { const img = await findPhoto(subject, String(r.lane || '')); url = img ? img.url : null; }
+        let via = subject ? 'subject' : 'none';
+        if (!url) { url = await newsPhoto(admin, String(r.headline)); if (url) via = 'news'; }
+        if (!url) { try { const t = await topicPhoto(String(r.headline)); if (t && (await imageLoads(t))) { url = t; via = 'wiki'; } } catch (_) { /* none */ } }
+        if (url) {
+          const { error: wErr } = await admin.from('news_ticker').update({ image_url: url }).eq('id', r.id).is('image_url', null);
           if (wErr) throw wErr;
         }
-        report.push({ h: r.headline.slice(0, 50), subject: subject.type + ':' + subject.search, photo: !!img });
+        report.push({ h: r.headline.slice(0, 50), photo: !!url, via });
       } catch (e) {
         report.push({ h: r.headline.slice(0, 50), error: String(e).slice(0, 100) });
       }
-    }
+    }));
     return new Response(JSON.stringify({ missing: todo.length, report }), { status: 200 });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
