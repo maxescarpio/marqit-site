@@ -8293,10 +8293,23 @@
     }
     return null;
   }
+  // Badge color: the team's primary color, or its alternate when the primary is too dark to see on the dark bar.
+  function mqLum(h){
+    var n = parseInt(h.slice(1), 16), c = [n >> 16 & 255, n >> 8 & 255, n & 255].map(function(v){ v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); });
+    return .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+  }
+  function mqTeamColor(side){
+    var c = [side.color, side.alt].filter(function(x){ return x && mqLum(x) > .035; })[0];
+    return c || '#4B5160';
+  }
+  function mqBadgeStyle(side){
+    var c = mqTeamColor(side);
+    return 'background:' + c + ';color:' + (mqLum(c) > .4 ? '#10131A' : '#fff');
+  }
   function mqLiveRowHtml(side, winning, showScore){
     var right = showScore && side.score != null ? side.score : (side.record || '');
     return '<div class="sstrip-team live' + (winning === false ? ' lost' : '') + '" title="' + escapeHtml(side.name) + '">' +
-      '<i class="sstrip-badge" aria-hidden="true">' + escapeHtml(side.abbr.charAt(0)) + '</i>' +
+      '<i class="sstrip-badge" aria-hidden="true" style="' + mqBadgeStyle(side) + '">' + escapeHtml(side.abbr.charAt(0)) + '</i>' +
       '<b>' + escapeHtml(side.abbr) + '</b><span class="sstrip-rec' + (showScore && side.score != null ? ' score' : '') + '">' + escapeHtml(right) + '</span></div>';
   }
   function mqLoadScores(){
@@ -8310,6 +8323,35 @@
     }).catch(function(){ mqScore.busy = false; mqScore.at = Date.now(); });
   }
   setInterval(function(){ if(!document.hidden && mqSched.loaded) mqLoadScores(); }, 60000);
+
+  // Price + daily change for the earnings cells in the ribbon (Supabase function "stock-chart", Yahoo Finance).
+  var mqQuotes = {};
+  function mqQuoteFor(sym){ return mqQuotes[sym] && mqQuotes[sym].d; }
+  function mqLoadQuotes(list){
+    var changed = false, todo = [];
+    list.forEach(function(ev){
+      if(ev.category !== 'finance' || !ev.league) return;
+      var q = mqQuotes[ev.league];
+      if(q && (q.busy || Date.now() - q.at < 300000)) return;
+      if(todo.length < 8) todo.push(ev.league);
+    });
+    todo.forEach(function(sym){
+      var prev = mqQuotes[sym] && mqQuotes[sym].d;
+      mqQuotes[sym] = { busy: true, at: Date.now(), d: prev };
+      fetch(SUPABASE_URL + '/functions/v1/stock-chart?symbol=' + encodeURIComponent(sym) + '&range=1d')
+        .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+        .then(function(d){
+          mqQuotes[sym] = { busy: false, at: Date.now(), d: d && d.points ? { last: d.last, prev: d.prevClose } : prev };
+          try{ renderSchedToday(true); }catch(e){}
+        });
+    });
+  }
+  function mqQuoteHtml(sym){
+    var q = mqQuoteFor(sym);
+    if(!q || !q.prev) return '<div class="sstrip-quote"></div>';
+    var ch = q.last - q.prev, pc = ch / q.prev * 100;
+    return '<div class="sstrip-quote ' + (ch >= 0 ? 'up' : 'down') + '"><b>$' + q.last.toFixed(2) + '</b><span>' + (ch >= 0 ? '▲' : '▼') + ' ' + Math.abs(pc).toFixed(2) + '%</span></div>';
+  }
 
   function mqSchedCellHtml(ev, clickable){
     var teams = mqSchedTeams(ev), g = mqGameFor(ev, teams), status = mqSchedTime(ev), net = '';
@@ -8329,6 +8371,11 @@
     }
     var tags = mqSchedTagsHtml(ev, clickable);
     var side = net || ev.subtitle;
+    if(ev.category === 'finance' && ev.league && clickable === false){
+      status = 'Earnings';
+      side = /before/i.test(ev.subtitle || '') ? 'Before open' : /after/i.test(ev.subtitle || '') ? 'After close' : (ev.subtitle || '');
+      body = '<div class="sstrip-title one">' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</div>' + mqQuoteHtml(ev.league);
+    }
     var canOpen = (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && teams);
     return '<div class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + '"' +
       (canOpen ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '') + '>' +
@@ -8401,7 +8448,7 @@
     var home = g ? g.home : { name: teams[1], abbr: mqTeamAbbr(ev.league, teams[1]) || teams[1], score: null, record: null };
     var show = g && g.state !== 'pre';
     function side(t, cls){
-      return '<div class="gh-team ' + cls + '"><b class="gh-abbr">' + escapeHtml(t.abbr) + '</b><span class="gh-name">' + escapeHtml(t.name) + '</span>' +
+      return '<div class="gh-team ' + cls + '" style="--tc:' + mqTeamColor(t) + '"><b class="gh-abbr">' + escapeHtml(t.abbr) + '</b><span class="gh-name">' + escapeHtml(t.name) + '</span>' +
         (t.record ? '<span class="gh-rec">' + escapeHtml(t.record) + '</span>' : '') + '</div>';
     }
     var mid = show
@@ -8551,7 +8598,7 @@
   }
 
   // The still row on the Play page: today's bigger events only. Hidden until the schedule has data.
-  function renderSchedToday(){
+  function renderSchedToday(fromQuote){
     var box = document.getElementById('sched-today'), cards = document.getElementById('sched-today-cards');
     if(!box || !cards) return;
     if(!mqSched.loaded || mqSched.events.length === 0){ box.style.display = 'none'; return; }
@@ -8566,7 +8613,7 @@
       : '<p class="sched-empty">Nothing big today. Check the rest of the week.</p>';
     var newTrack = cards.querySelector('.sstrip-track');
     if(newTrack && keep) newTrack.scrollLeft = keep;
-    mqLoadScores();
+    if(!fromQuote){ mqLoadScores(); mqLoadQuotes(list); }
   }
 
   function renderSchedPage(){

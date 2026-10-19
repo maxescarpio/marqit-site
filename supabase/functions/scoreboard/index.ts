@@ -20,6 +20,8 @@ const PATHS: Record<string, string> = Object.fromEntries(FEEDS);
 const WANT = ['avgPointsFor', 'avgPointsAgainst', 'differential', 'winPercent', 'streak', 'pointsFor', 'pointsAgainst', 'gamesBehind'];
 
 // ?team=NFL:28  -> record, standing and season numbers for one team
+const hex = (v: any) => (/^[0-9a-fA-F]{6}$/.test(String(v || '')) ? '#' + String(v).toLowerCase() : null);
+
 async function team(key: string) {
   const [league, id] = key.split(':');
   if (!PATHS[league] || !/^\d{1,6}$/.test(id || '')) return JSON.stringify({ error: 'bad team' });
@@ -46,6 +48,7 @@ function side(c: any) {
   const rec = (c?.records || []).find((r: any) => r.type === 'total') || (c?.records || [])[0];
   return {
     id: String(c?.team?.id || ''), name: String(c?.team?.displayName || ''), abbr: String(c?.team?.abbreviation || ''),
+    color: hex(c?.team?.color), alt: hex(c?.team?.alternateColor),
     score: c?.score != null && c.score !== '' ? String(c.score) : null,
     record: rec?.summary ? String(rec.summary) : null,
   };

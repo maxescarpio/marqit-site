@@ -406,3 +406,14 @@ body.mq-evopen{overflow:hidden;}
 .evp-chart.pinned .evp-dot{box-shadow:0 0 0 4px rgba(255,255,255,.28);}
 .evp-tip{width:170px;top:-4px;z-index:3;}
 @media (max-width:520px){.gh-abbr{font-size:30px;}.gh-sc{font-size:28px;}.evp-price b{font-size:30px;}}
+
+/* ---- color, without logos: team-colored badges, live price on earnings cells ---- */
+.sstrip-badge{font-weight:800;}
+.sstrip-title.one{-webkit-line-clamp:1;white-space:nowrap;text-overflow:ellipsis;display:block;}
+.sstrip-quote{display:flex;align-items:baseline;gap:8px;min-height:16px;font-variant-numeric:tabular-nums;}
+.sstrip-quote b{font-size:13px;font-weight:700;color:var(--ink);}
+.sstrip-quote span{font-size:12px;font-weight:700;}
+.sstrip-quote.up span{color:#3DDC97;}
+.sstrip-quote.down span{color:#FF6B5B;}
+.gh-team .gh-abbr{display:inline-block;padding-bottom:5px;border-bottom:3px solid var(--tc,#4B5160);align-self:flex-start;}
+.gh-team.h .gh-abbr{align-self:flex-end;}
