@@ -9704,6 +9704,23 @@
     var inner = document.getElementById('thread-inner');
     var openId = null, openedByUs = false, poll = null, handle = null, sortMode = 'top';
 
+    // Article screen head: lane bar, chips, headline with a small photo, quick facts, short summary.
+    function tscHead(r, isPost, yt, isTrend, text){
+      var when = ago(r.published_at || r.fetched_at), lane = LANE_NAME[laneOf(r)] || '';
+      var photo = (!isPost && !yt && r.image_url && /^https:\/\//i.test(r.image_url))
+        ? '<div class="tsc-ph"><img src="' + escapeHtml(r.image_url) + '" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>' : '';
+      var facts = [];
+      if(isTrend && r.trend_rank) facts.push(['Rank', '#' + Number(r.trend_rank) + ' ' + mvHtml(r)]);
+      if(isPost) facts.push(['Platform', escapeHtml(platformOf(r.article_url || ''))]);
+      facts.push([isTrend ? 'On' : 'Source', escapeHtml(r.source_name || (isTrend ? 'The chart' : '–'))]);
+      facts.push([isTrend ? 'Topic' : 'Published', isTrend ? escapeHtml(lane) : (when ? escapeHtml(when) : '–')]);
+      if(!isTrend && !isPost) facts.unshift(['Topic', escapeHtml(lane)]);
+      facts = facts.slice(0, 3);
+      return '<div class="tsc-in"><div class="tsc-chips"><span class="tsc-lane">' + escapeHtml(lane) + '</span>' + (isTrend ? '<span class="tsc-tr">Trending</span>' : '') + (when ? '<span class="tsc-when">' + escapeHtml(when) + '</span>' : '') + '</div>' +
+        '<div class="tsc-hrow"><h3 class="tsc-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</h3>' + photo + '</div>' +
+        '<div class="tsc-facts" style="--n:' + facts.length + '">' + facts.map(function(f){ return '<div><span>' + f[0] + '</span><b>' + f[1] + '</b></div>'; }).join('') + '</div>' +
+        (text ? '<p class="tsc-sum">' + escapeHtml(text) + '</p>' : '') + '</div>';
+    }
     async function renderThread(id){
       var r = rowsById[id];
       if(!r){
@@ -9718,14 +9735,13 @@
       await Promise.all([loadStats([id]), loadResults(r.take_question ? [id] : [])]);
       var s = statsById[id] || {};
       var isPost = r.kind === 'post', isTrend = r.kind === 'trend', yt = isYt(r), text = isPost ? '' : r.summary;
-      var read = (r.article_url && !isPost && !isTrend) ? '<a class="thread-read" href="' + escapeHtml(r.article_url) + '" target="_blank" rel="noopener noreferrer">Read the story' + (isPost ? '' : (r.source_name ? ' on ' + escapeHtml(r.source_name) : '')) + ' ↗</a>' : '';
+      var read = (r.article_url && !isPost && !isTrend) ? '<a class="thread-read" href="' + escapeHtml(r.article_url) + '" target="_blank" rel="noopener noreferrer">Read the full story' + (r.source_name ? ' at ' + escapeHtml(r.source_name) : '') + ' ↗</a>' : '';
       inner.innerHTML =
         '<div class="thread-top"><button type="button" class="thread-back" id="thread-back" aria-label="Back">' +
           '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Back</button>' +
           '<button type="button" class="thread-share" id="thread-share">Share</button></div>' +
-        '<div class="thread-story">' + ((isPost || yt) ? '' : imgHtml(r)) +
-          '<div class="news-body">' + metaHtml(r) + '<h3 class="thread-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</h3>' +
-          (text ? '<p class="thread-sum">' + escapeHtml(text) + '</p>' : '') + read + '</div>' +
+        '<div class="thread-story tsc" data-lane="' + laneOf(r) + '"><div class="tsc-bar"></div>' + tscHead(r, isPost, yt, isTrend, text) +
+          (read ? '<div class="tsc-readwrap">' + read + '</div>' : '') +
           ((isPost || yt) ? embedHtml(r) : '') + takeHtml(r) + '</div>' +
         '<div class="thread-cmt-head"><h4>Discussion <span id="thread-count">' + (Number(s.comments) ? '· ' + Number(s.comments) : '') + '</span></h4>' +
           '<span class="thread-sort"><button type="button" class="feed-chip on" data-tsort="top">Top</button><button type="button" class="feed-chip" data-tsort="new">New</button></span></div>' +
