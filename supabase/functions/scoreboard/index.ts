@@ -44,11 +44,28 @@ async function team(key: string) {
   return body;
 }
 
+// Season leaders for one side (passing/rushing/receiving, points/rebounds/assists, ...). Names and jersey
+// numbers only: facts, not logos or photos.
+function leaders(c: any) {
+  const out: any[] = [];
+  for (const g of c?.leaders || []) {
+    const l = g?.leaders?.[0], a = l?.athlete;
+    if (!a?.displayName) continue;
+    out.push({
+      key: String(g.name || ''), label: String(g.shortDisplayName || g.displayName || ''),
+      name: String(a.shortName || a.displayName), num: a.jersey != null ? String(a.jersey) : null,
+      pos: a.position?.abbreviation ? String(a.position.abbreviation) : null, line: String(l.displayValue || ''),
+    });
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 function side(c: any) {
   const rec = (c?.records || []).find((r: any) => r.type === 'total') || (c?.records || [])[0];
   return {
     id: String(c?.team?.id || ''), name: String(c?.team?.displayName || ''), abbr: String(c?.team?.abbreviation || ''),
-    color: hex(c?.team?.color), alt: hex(c?.team?.alternateColor),
+    color: hex(c?.team?.color), alt: hex(c?.team?.alternateColor), leaders: leaders(c),
     score: c?.score != null && c.score !== '' ? String(c.score) : null,
     record: rec?.summary ? String(rec.summary) : null,
   };

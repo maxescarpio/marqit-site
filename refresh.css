@@ -417,3 +417,24 @@ body.mq-evopen{overflow:hidden;}
 .sstrip-quote.down span{color:#FF6B5B;}
 .gh-team .gh-abbr{display:inline-block;padding-bottom:5px;border-bottom:3px solid var(--tc,#4B5160);align-self:flex-start;}
 .gh-team.h .gh-abbr{align-self:flex-end;}
+
+/* ---- sports cells: matchup band in both teams' colors, player-number circles, team leaders ---- */
+.sstrip-cell{position:relative;}
+.sstrip-cell.has-band::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:3px;
+  background:linear-gradient(90deg,var(--ca) 0 50%,var(--cb) 50% 100%);
+}
+.sstrip-badge{font-size:9px;letter-spacing:-.02em;}
+.kp-head{margin:14px 0 2px;font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);}
+.kp-list{border-bottom:1px solid #2A2D33;margin-bottom:8px;padding-bottom:6px;}
+.kp-row{display:grid;grid-template-columns:1fr 54px 1fr;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #22252B;}
+.kp-row:last-child{border-bottom:0;}
+.kp{display:flex;align-items:center;gap:10px;min-width:0;}
+.kp.h{flex-direction:row-reverse;text-align:right;}
+.kp-num{flex:none;width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:800 13px/1 'Barlow',sans-serif;font-style:normal;box-shadow:inset 0 0 0 2px rgba(255,255,255,.18);}
+.kp-t{display:flex;flex-direction:column;min-width:0;}
+.kp-t b{font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kp-t b small{font-size:10.5px;font-weight:600;color:var(--ink-soft);margin-left:3px;}
+.kp-t em{font-style:normal;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kp-row .cmp-l{font-size:10.5px;}
+@media (max-width:520px){.kp-row{grid-template-columns:1fr 40px 1fr;gap:6px;}.kp-num{width:26px;height:26px;font-size:12px;}}

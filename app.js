@@ -8302,6 +8302,11 @@
     var c = [side.color, side.alt].filter(function(x){ return x && mqLum(x) > .035; })[0];
     return c || '#4B5160';
   }
+  // The jersey number of the team's top player (NFL: the passing leader), shown in the team-colored circle.
+  function mqLeadNum(side){
+    var l = (side.leaders || []).filter(function(x){ return x.num; })[0];
+    return l ? String(l.num).slice(0, 2) : '';
+  }
   function mqBadgeStyle(side){
     var c = mqTeamColor(side);
     return 'background:' + c + ';color:' + (mqLum(c) > .4 ? '#10131A' : '#fff');
@@ -8309,7 +8314,7 @@
   function mqLiveRowHtml(side, winning, showScore){
     var right = showScore && side.score != null ? side.score : (side.record || '');
     return '<div class="sstrip-team live' + (winning === false ? ' lost' : '') + '" title="' + escapeHtml(side.name) + '">' +
-      '<i class="sstrip-badge" aria-hidden="true" style="' + mqBadgeStyle(side) + '">' + escapeHtml(side.abbr.charAt(0)) + '</i>' +
+      '<i class="sstrip-badge" aria-hidden="true" style="' + mqBadgeStyle(side) + '">' + escapeHtml(mqLeadNum(side) || side.abbr.charAt(0)) + '</i>' +
       '<b>' + escapeHtml(side.abbr) + '</b><span class="sstrip-rec' + (showScore && side.score != null ? ' score' : '') + '">' + escapeHtml(right) + '</span></div>';
   }
   function mqLoadScores(){
@@ -8377,7 +8382,8 @@
       body = '<div class="sstrip-title one">' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</div>' + mqQuoteHtml(ev.league);
     }
     var canOpen = (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && teams);
-    return '<div class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + '"' +
+    var bandStyle = g ? ' style="--ca:' + mqTeamColor(g.away) + ';--cb:' + mqTeamColor(g.home) + '"' : '';
+    return '<div class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + (g ? ' has-band' : '') + '"' + bandStyle +
       (canOpen ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '') + '>' +
       '<div class="sstrip-time"><span>' + escapeHtml(status) + '</span>' +
         (side ? '<span class="sstrip-sub">' + escapeHtml(side) + '</span>' : '') + '</div>' +
@@ -8440,6 +8446,20 @@
     if(da != null && db != null) rows.push(mqCmpRow('Point differential', da, db));
     return '<div class="cmp">' + rows.join('') + '</div>';
   }
+  function mqKeyPlayersHtml(g){
+    var rows = [], seen = {};
+    (g.away.leaders || []).forEach(function(la){
+      if(seen[la.label]) return; seen[la.label] = 1;
+      var lb = (g.home.leaders || []).filter(function(x){ return x.label === la.label; })[0];
+      if(!lb) return;
+      function who(l, side, cls){
+        return '<div class="kp ' + cls + '"><i class="kp-num" style="' + mqBadgeStyle(side) + '">' + escapeHtml(l.num || '–') + '</i>' +
+          '<span class="kp-t"><b>' + escapeHtml(l.name) + (l.pos ? ' <small>' + escapeHtml(l.pos) + '</small>' : '') + '</b><em>' + escapeHtml(l.line) + '</em></span></div>';
+      }
+      rows.push('<div class="kp-row">' + who(la, g.away, 'a') + '<span class="cmp-l">' + escapeHtml(la.label) + '</span>' + who(lb, g.home, 'h') + '</div>');
+    });
+    return rows.length ? '<div class="kp-head">Team leaders</div><div class="kp-list">' + rows.slice(0, 3).join('') + '</div>' : '';
+  }
   function mqOpenGamePanel(ev){
     var teams = mqSchedTeams(ev), g = mqGameFor(ev, teams);
     var status = g ? (g.state === 'pre' ? mqSchedTime(ev) : (g.detail || '')) : mqSchedTime(ev);
@@ -8465,7 +8485,7 @@
     };
     Promise.all([get(g.away), get(g.home)]).then(function(r){
       var body = el.querySelector('.evp-body');
-      if(body && body.isConnected) body.innerHTML = mqCompareHtml(r[0], r[1]);
+      if(body && body.isConnected) body.innerHTML = mqKeyPlayersHtml(g) + mqCompareHtml(r[0], r[1]);
     });
   }
 
