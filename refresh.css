@@ -273,3 +273,32 @@ body:has(#page-home[style*="none"]) .cta-band{display:none;}
 }
 .mq-mention-x:hover{color:var(--ink);}
 @media (prefers-reduced-motion:reduce){.mq-mention{animation:none;}}
+
+/* ==========================================================================
+   Top ribbon: thin, ESPN-height, same dark as the Play / Schedule tab bar.
+   ========================================================================== */
+.sched-today,.sched-today .sstrip,.sched-today .sstrip-lead,.sched-today .sstrip-league,
+.sched-today .sstrip-arrow{background:#17191D;}
+.sched-today{border-bottom:1px solid #2A2D33;}
+.sched-today .sstrip-lead,.sched-today .sstrip-league,.sched-today .sstrip-cell,
+.sched-today .sstrip-arrow.prev,.sched-today .sstrip-arrow.next{border-color:#2A2D33;}
+.sched-today .sstrip-lead{flex-basis:112px;padding:4px 12px;gap:1px;}
+.sched-today .sstrip-lead b{font-size:12.5px;}
+.sched-today .sstrip-lead span{font-size:11px;}
+.sched-today .sstrip-league{flex-basis:54px;padding:4px;font-size:12px;}
+.sched-today .sstrip-cell{flex-basis:150px;min-height:0;padding:5px 12px 6px;gap:3px;}
+.sched-today .sstrip-time{display:flex;justify-content:space-between;gap:8px;font-size:11px;}
+.sched-today .sstrip-sub{font-size:11px;min-width:0;}
+.sched-today .sstrip-teams{gap:1px;}
+.sched-today .sstrip-team{font-size:12.5px;line-height:1.25;}
+.sched-today .sstrip-team b{font-size:13px;}
+.sched-today .sstrip-team.long{font-size:12px;}
+.sched-today .sstrip-title{font-size:12.5px;line-height:1.2;}
+.sched-today .sstrip-tags{display:none;}
+.sched-today .sstrip-arrow{width:34px;font-size:26px;}
+.sched-today .sstrip-arrow:hover{background:#22252B;}
+.sched-today .sstrip-time span:first-child{white-space:nowrap;flex:none;}
+.sched-today .sstrip-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;}
+.sched-today .sstrip-cell:has(.sstrip-title) .sstrip-sub{display:none;}
+.sched-today .sstrip-lead{flex-basis:128px;}
+.sched-today .sstrip-lead b{white-space:nowrap;}

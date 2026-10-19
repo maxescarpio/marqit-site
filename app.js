@@ -8279,9 +8279,9 @@
       : '<div class="sstrip-title">' + escapeHtml(ev.title) + '</div>';
     var tags = mqSchedTagsHtml(ev, clickable);
     return '<div class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + '">' +
-      '<div class="sstrip-time"><span>' + escapeHtml(mqSchedTime(ev)) + '</span></div>' +
+      '<div class="sstrip-time"><span>' + escapeHtml(mqSchedTime(ev)) + '</span>' +
+        (ev.subtitle ? '<span class="sstrip-sub">' + escapeHtml(ev.subtitle) + '</span>' : '') + '</div>' +
       body +
-      (ev.subtitle ? '<div class="sstrip-sub">' + escapeHtml(ev.subtitle) + '</div>' : '') +
       (tags ? '<div class="sstrip-tags">' + tags + '</div>' : '') +
     '</div>';
   }
