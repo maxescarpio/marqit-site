@@ -68,7 +68,7 @@ function leaders(c: any) {
     if (!a?.displayName) continue;
     out.push({
       key: String(g.name || ''), label: String(g.shortDisplayName || g.displayName || ''),
-      name: String(a.shortName || a.displayName), num: a.jersey != null ? String(a.jersey) : null,
+      name: String(a.shortName || a.displayName), full: String(a.displayName), num: a.jersey != null ? String(a.jersey) : null,
       pos: a.position?.abbreviation ? String(a.position.abbreviation) : null, line: String(l.displayValue || ''),
     });
     if (out.length >= 3) break;

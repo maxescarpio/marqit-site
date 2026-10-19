@@ -835,3 +835,8 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .agenda .sstrip-teams{max-width:360px}
 .agenda .sstrip-title{font-weight:600}
 @media(max-width:560px){.agenda .sstrip-cell{grid-template-columns:86px minmax(0,1fr);gap:4px 12px}.agenda .sstrip-tags{grid-column:2}}
+
+/* Player photos (Wikimedia Commons, openly licensed, each credited) */
+.kp-ph{width:34px;height:34px;border-radius:50%;object-fit:cover;object-position:center top;flex:none;background:#e9ecf1}
+.kp-cr{display:block;margin-top:2px;font-size:10px;line-height:1.3;color:#8a93a3;text-decoration:none;font-weight:400}
+.kp-cr:hover{text-decoration:underline}

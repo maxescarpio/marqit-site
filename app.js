@@ -8518,6 +8518,39 @@
     if(da != null && db != null) rows.push(mqCmpRow('Point differential', da, db));
     return '<div class="cmp">' + rows.join('') + '</div>';
   }
+  var MQ_SPORT = { NFL: 'football', NBA: 'basketball', WNBA: 'basketball', NHL: 'hockey', MLB: 'baseball' };
+  function mqPlayerAttr(l, team, league){
+    var sp = MQ_SPORT[String(league || '').toUpperCase()];
+    return (sp && l.full) ? ' data-pn="' + escapeHtml(l.full) + '" data-pt="' + escapeHtml(team || '') + '" data-ps="' + sp + '"' : '';
+  }
+  // Swap the jersey-number circle for a real photo when Wikimedia Commons has an openly licensed one.
+  // Falls back to the number circle otherwise. Each photo carries its photographer and license.
+  function mqPlayerPhotos(root){
+    if(!root) return;
+    var seen = {};
+    [].forEach.call(root.querySelectorAll('.kp[data-pn]'), function(k){
+      var n = k.getAttribute('data-pn'), key = n + '|' + k.getAttribute('data-ps');
+      (seen[key] = seen[key] || fetch(SUPABASE_URL + '/functions/v1/player-photo?name=' + encodeURIComponent(n) + '&team=' + encodeURIComponent(k.getAttribute('data-pt') || '') + '&sport=' + k.getAttribute('data-ps'))
+        .then(function(r){ return r.json(); }).catch(function(){ return null; })).then(function(d){
+        if(!d || !d.found || !/^https:\/\/commons\.wikimedia\.org\//.test(d.photo || '') || !k.isConnected) return;
+        var num = k.querySelector('.kp-num'), t = k.querySelector('.kp-t');
+        if(!num || !t) return;
+        var img = new Image();
+        img.onload = function(){
+          img.onload = null;
+          if(!k.isConnected || k.querySelector('.kp-cr')) return;
+          img.className = 'kp-ph'; img.alt = ''; img.referrerPolicy = 'no-referrer';
+          num.replaceWith(img);
+          var cr = document.createElement('a');
+          cr.className = 'kp-cr'; cr.target = '_blank'; cr.rel = 'noopener noreferrer';
+          cr.href = /^https:\/\/commons\.wikimedia\.org\//.test(d.pageUrl || '') ? d.pageUrl : 'https://commons.wikimedia.org';
+          cr.textContent = 'Photo: ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || '');
+          t.appendChild(cr);
+        };
+        img.src = d.photo;
+      });
+    });
+  }
   function mqKeyPlayersHtml(g){
     var rows = [], seen = {};
     (g.away.leaders || []).forEach(function(la){
@@ -8525,7 +8558,7 @@
       var lb = (g.home.leaders || []).filter(function(x){ return x.label === la.label; })[0];
       if(!lb) return;
       function who(l, side, cls){
-        return '<div class="kp ' + cls + '"><i class="kp-num" style="' + mqBadgeStyle(side) + '">' + escapeHtml(l.num || '–') + '</i>' +
+        return '<div class="kp ' + cls + '"' + mqPlayerAttr(l, side.name, g.league) + '><i class="kp-num" style="' + mqBadgeStyle(side) + '">' + escapeHtml(l.num || '–') + '</i>' +
           '<span class="kp-t"><b>' + escapeHtml(l.name) + (l.pos ? ' <small>' + escapeHtml(l.pos) + '</small>' : '') + '</b><em>' + escapeHtml(l.line) + '</em></span></div>';
       }
       rows.push('<div class="kp-row">' + who(la, g.away, 'a') + '<span class="cmp-l">' + escapeHtml(la.label) + '</span>' + who(lb, g.home, 'h') + '</div>');
@@ -8557,7 +8590,7 @@
     };
     Promise.all([get(g.away), get(g.home)]).then(function(r){
       var body = el.querySelector('.evp-body');
-      if(body && body.isConnected) body.innerHTML = mqKeyPlayersHtml(g) + mqCompareHtml(r[0], r[1]);
+      if(body && body.isConnected){ body.innerHTML = mqKeyPlayersHtml(g) + mqCompareHtml(r[0], r[1]); mqPlayerPhotos(body); }
     });
   }
 
@@ -8717,14 +8750,14 @@
       var side = { color: t.color || r.color, alt: t.alt || r.alt }, out = '';
       if(t.leaders && t.leaders.length){
         out += '<div class="kp-head">Team leaders</div><div class="tp-leaders">' + t.leaders.map(function(l){
-          return '<div class="kp"><i class="kp-num" style="' + mqBadgeStyle(side) + '">' + escapeHtml(l.num || '–') + '</i><span class="kp-t"><b>' + escapeHtml(l.name) + (l.pos ? ' <small>' + escapeHtml(l.pos) + '</small>' : '') + '</b><em>' + escapeHtml(l.label + ' · ' + l.line) + '</em></span></div>';
+          return '<div class="kp"' + mqPlayerAttr(l, t.name, lg) + '><i class="kp-num" style="' + mqBadgeStyle(side) + '">' + escapeHtml(l.num || '–') + '</i><span class="kp-t"><b>' + escapeHtml(l.name) + (l.pos ? ' <small>' + escapeHtml(l.pos) + '</small>' : '') + '</b><em>' + escapeHtml(l.label + ' · ' + l.line) + '</em></span></div>';
         }).join('') + '</div>';
       }
       var cells = [['Record', t.record], ['Standing', t.standing], ['Home', t.home], ['Road', t.road]];
       (t.stats || []).forEach(function(s){ var lab = MQ_STAT_LABELS[s.label]; if(lab) cells.push([lab, s.value]); });
       cells = cells.filter(function(c){ return c[1]; });
       out += '<div class="kp-head">Season</div><div class="tp-grid">' + cells.map(function(c){ return '<div><span>' + escapeHtml(c[0]) + '</span><b>' + escapeHtml(String(c[1])) + '</b></div>'; }).join('') + '</div>';
-      body.innerHTML = out;
+      body.innerHTML = out; mqPlayerPhotos(body);
     });
   }
   function mqOpenSongPanel(x, label){
