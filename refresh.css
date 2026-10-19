@@ -1,0 +1,249 @@
+/* ==========================================================================
+   Marqit design refresh: makes the UI feel hand-built instead of templated.
+   Loaded AFTER style.css, so everything here is an override. To roll back,
+   remove the <link> to refresh.css in index.html.
+
+   1. Shape contrast: sharp prediction cards / boards, rounded utility UI
+   2. Editorial badges: hard-edged, monospace, accent line instead of pills
+   3. Textured background: grain + a faint slate-navy glow
+   4. Varied section rhythm: offset headers, editorial rules, mixed padding
+   5. Heavier primary buttons: sharp corners, solid border, offset shadow
+   ========================================================================== */
+
+:root{
+  --mono:'JetBrains Mono','SFMono-Regular',Menlo,Consolas,monospace;
+  --gold:#F2C14E;
+  --slate:#1D2740;
+}
+
+/* ---------- 3. Textured background ---------- */
+body{
+  background:
+    radial-gradient(1100px 620px at 100% -8%, rgba(46,64,112,.42), transparent 62%),
+    radial-gradient(800px 520px at -10% 108%, rgba(46,64,112,.22), transparent 60%),
+    var(--paper);
+  background-attachment:fixed;
+}
+/* film grain: behind all content, never blocks clicks */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.07;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size:180px 180px;
+}
+
+/* ---------- 1. Shape contrast ---------- */
+/* primary prediction cards: sharp, with a hard accent edge on top */
+.predict-card,
+.predict-card[data-cat]{
+  border-radius:3px;
+  border:1px solid var(--line);
+  border-top:3px solid var(--gold);
+  background:linear-gradient(180deg,#1E2128 0%,var(--panel) 38%);
+}
+.predict-card[data-cat="sports"]{border-top-color:#F2C14E;}
+.predict-card[data-cat="news"]{border-top-color:#6E9BFF;}
+.predict-card[data-cat="pop_culture"]{border-top-color:#E8964A;}
+.predict-card.pick-yes{border-top-color:var(--yes);}
+.predict-card.pick-no{border-top-color:var(--no);}
+
+/* leaderboard pods + big boards: flat, squared, ruled on the left */
+.board,
+.boards .board{
+  border-radius:2px;
+  border-left:3px solid var(--ink-soft);
+}
+.boards.lb-big .board{border-left-color:var(--gold);}
+.brow.lb{border-radius:2px;}
+.lb.m1{border-left:3px solid #F5C242;}
+.lb.m2{border-left:3px solid #C4C8D0;}
+.lb.m3{border-left:3px solid #D98A4A;}
+
+/* schedule: day blocks slightly squared, game cards a notch softer so the
+   page is not one repeating radius */
+.sched-sec{border-radius:2px;border-left:3px solid var(--line);}
+.sched-sec.today{border-left-color:var(--gold);}
+.sched-card{border-radius:6px;}
+
+/* "how to play" fact blocks and tier chips: deliberately different radii */
+.hw-fact{border-radius:2px 14px 2px 14px;}
+.tier-chip,.tier-chip.active{border-radius:2px;}
+.news-card,.trending-strip{border-radius:8px;}
+
+/* utility UI stays soft/rounded: this is the contrast */
+.lb-remind-btn{border-radius:100px;}
+
+/* ---------- 2. Editorial badges, tags and numbers ---------- */
+.status-pill,
+.pts-chip,
+.lock-chip,
+.boost-chip,
+.result-tag,
+.buddy-chip,
+.lb-you,
+.sched-flag,
+.sched-badge,
+.sched-sec-title em{
+  font-family:var(--mono);
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  font-size:10.5px;
+  font-weight:700;
+  border-radius:0;
+  padding:3px 7px;
+}
+.status-pill.live{
+  background:transparent;color:var(--yes);
+  border:1px solid var(--yes);
+}
+.status-pill.locked,
+.status-pill.final,
+.status-pill.inplay{
+  background:transparent;color:var(--ink-soft);
+  border:1px solid var(--line);
+}
+.status-pill.inplay{color:#FFB03A;border-color:rgba(255,176,58,.6);}
+/* lock countdown: reads like a ticker, not a pill */
+.lock-chip{background:transparent;border:1px solid var(--line);}
+.lock-chip.soon{background:rgba(240,150,40,.12);border-color:rgba(255,176,58,.7);}
+.boost-chip{background:var(--gold);color:#1B1400;border:0;}
+.result-tag{font-size:11.5px;border-left:3px solid currentColor;background:transparent !important;}
+.result-tag.final{color:var(--ink-soft);}
+/* "Worth 100 points": a ticket stub, hard left rule, no pill */
+.pts-chip{
+  background:transparent;
+  color:var(--gold);
+  border-left:3px solid var(--gold);
+  padding:2px 8px 2px 7px;
+}
+.pts-chip.boost{background:rgba(242,193,78,.14);color:var(--gold);}
+.buddy-chip{background:transparent;border:1px solid rgba(51,209,139,.55);}
+.lb-you{background:transparent;border:1px solid var(--yes);}
+.sched-sec-title em{padding:0;border:0;}
+
+/* category label reads like a section tag in a printed sports page */
+.cat-chip{
+  font-family:var(--mono);
+  text-transform:uppercase;
+  letter-spacing:.09em;
+  font-size:11px;
+  font-weight:700;
+  color:var(--ink-soft);
+}
+
+/* odds, point values, countdowns, ranks: tabular condensed/mono numerals */
+.lb-pts b,.trend-rank b,.sched-card-time,.sched-row-time,.sched-day span{
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.02em;
+}
+.slate-pts b,.tier-row,.countdown,[class*="countdown"],[id*="countdown"]{
+  font-family:var(--mono);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.02em;
+}
+.tier-chip span{font-family:var(--mono);letter-spacing:.06em;}
+
+/* ---------- 4. Section rhythm ---------- */
+.section{border-top:2px solid var(--ink);padding:44px 0 30px;}
+.section:nth-of-type(even){border-top:1px solid var(--line);padding:26px 0 54px;}
+#page-home .section{border-top:none;}
+.section h2{
+  position:relative;
+  padding-top:14px;
+}
+.section h2::before{
+  content:"";position:absolute;left:0;top:0;width:44px;height:3px;background:var(--gold);
+}
+.sec-head{padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:18px;}
+.sec-ico{border-radius:3px;}
+
+@media (min-width:760px){
+  /* every other section header steps in, so the eye zig-zags down the page */
+  .section:nth-of-type(even) > .wrap > h2,
+  .section:nth-of-type(even) .sec-head{margin-left:34px;}
+  .section:nth-of-type(3n) .steps{margin-top:30px;}
+}
+
+/* ---------- 5. Heavier primary buttons and inputs ---------- */
+/* YES / NO answers: sharp, solid border, hard offset shadow */
+.predict-card .opt,
+.predict-card .opt.yes,
+.predict-card .opt.no,
+.take-btn,
+.take-yes,
+.take-no{
+  border-radius:2px;
+  border-width:2px;
+  box-shadow:3px 3px 0 rgba(244,244,241,.88);
+  transition:transform .09s ease, box-shadow .09s ease, background .15s;
+}
+.predict-card .opt.yes,.take-yes{border-color:#0C5E3B;}
+.predict-card .opt.no,.take-no{border-color:#7A1F12;}
+.predict-card .opt.yes:hover,
+.predict-card .opt.no:hover,
+.take-btn:hover:not(:disabled){
+  transform:translate(-1px,-1px);
+  box-shadow:4px 4px 0 rgba(244,244,241,.95);
+}
+/* pressed / chosen answer sits flat on the card */
+.predict-card .opt.yes:active,
+.predict-card .opt.no:active,
+.predict-card .opt.yes.picked,
+.predict-card .opt.no.picked,
+.take-btn:active:not(:disabled){
+  transform:translate(3px,3px);
+  box-shadow:0 0 0 rgba(244,244,241,0);
+}
+
+/* call-to-action and share buttons */
+.hw-cta,
+.signup button,
+.lb-share-btn,
+.mq-invite,
+#mq-invite-btn,
+#play-add-buddy-btn,
+#send-reset-btn,
+#username-prompt-save-btn,
+#google-password-save-btn,
+#new-password-save-btn,
+#save-profile-customization-btn,
+#save-profile-state-btn{
+  border-radius:2px !important;
+  border:2px solid var(--ink) !important;
+  box-shadow:4px 4px 0 var(--gold);
+  font-family:'Big Shoulders Display',sans-serif !important;
+  font-weight:800 !important;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  transition:transform .09s ease, box-shadow .09s ease, background .15s;
+}
+.hw-cta{border-color:#9DB8FF !important;box-shadow:4px 4px 0 var(--ink);}
+.cta-band .signup button{box-shadow:4px 4px 0 var(--gold);}
+.hw-cta:hover,.signup button:hover,.lb-share-btn:hover,#mq-invite-btn:hover,#play-add-buddy-btn:hover{
+  opacity:1;
+  transform:translate(-1px,-1px);
+  box-shadow:6px 6px 0 var(--gold);
+}
+.hw-cta:active,.signup button:active,.lb-share-btn:active,#mq-invite-btn:active,#play-add-buddy-btn:active{
+  transform:translate(4px,4px);
+  box-shadow:0 0 0 var(--gold);
+}
+.hw-cta:disabled,.signup button:disabled{box-shadow:none;}
+
+/* inputs: not the same shape as the cards around them */
+input[type=text],input[type=email],input[type=password],input[type=search],textarea,select{
+  border-radius:6px;
+  border:2px solid var(--line);
+  transition:border-color .15s, box-shadow .15s;
+}
+input[type=text]:focus,input[type=email]:focus,input[type=password]:focus,
+input[type=search]:focus,textarea:focus,select:focus{
+  outline:none;
+  border-color:var(--gold);
+  box-shadow:3px 3px 0 rgba(242,193,78,.35);
+}
+#username-prompt-input,#google-password-input,#new-password-input,
+#reset-email-input,#profile-state-input{border-radius:6px !important;border-width:2px !important;}
+
+@media (prefers-reduced-motion:reduce){
+  .predict-card .opt,.take-btn,.hw-cta,.signup button,.lb-share-btn,#mq-invite-btn,#play-add-buddy-btn{transition:none;}
+}
