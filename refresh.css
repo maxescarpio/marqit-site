@@ -670,3 +670,26 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .tsc .take-note{font-size:12px;color:#6E737D}
 @media(max-width:520px){.tsc-h{font-size:21px}.tsc-ph{width:84px;height:84px}}
 .tsc-facts span{white-space:nowrap}
+
+/* Feed cards share the article layout; key-number cell; clickable account pill */
+.news-card.tcd{border-top-width:1px;padding:0;--lane:var(--lc)}
+.news-card.tcd:hover{border-color:var(--lc);box-shadow:none;transform:none}
+.tcd .tsc-in{padding:14px 16px 4px}
+.tcd .tsc-hrow{margin:12px 0 4px;gap:14px}
+.tcd .tsc-h{font:700 18px/1.25 'Barlow',sans-serif;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;letter-spacing:-.005em}
+.tcd .tsc-ph{width:76px;height:76px}
+.tcd-by{font-size:13px;color:#8B909A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tcd .tsc-chips{flex-wrap:nowrap}.tcd .tsc-when{flex:none}
+.tcd-stat{display:flex;align-items:baseline;gap:8px;margin:10px 0 6px}
+.tcd-stat b{font:700 26px 'Barlow',sans-serif;letter-spacing:-.01em;color:#F2F3F5}
+.tcd-stat span{font-size:13px;color:#8B909A}
+.tcd-stat.up b,.tsc-stat.up b{color:#3DDC97}.tcd-stat.dn b,.tsc-stat.dn b{color:#FF6B5B}
+.tsc-stat span{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8B909A;white-space:nowrap}
+.tsc-stat b{display:block;margin-top:2px;font:700 26px/1.1 'Barlow',sans-serif;letter-spacing:-.01em;color:#F2F3F5}
+.tsc-facts>.tsc-stat{background:var(--panel,#15171B);padding:10px 12px}
+.tcd .news-take{margin:8px 16px 0;padding:14px 0 4px}
+.tcd .take-q{font-size:16px}
+.tcd .take-note{display:none}
+#nav-profile-pill,#nav-badge{cursor:pointer;transition:background .15s}
+#nav-profile-pill:hover,#nav-badge:hover{background:#22262D !important}
+#nav-profile-pill:focus-visible,#nav-badge:focus-visible{outline:2px solid #6E737D;outline-offset:2px}

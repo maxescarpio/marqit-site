@@ -1657,7 +1657,13 @@
   }
 
   const profileCircleBtn = document.getElementById('profile-circle-btn');
-  if(profileCircleBtn) profileCircleBtn.addEventListener('click', openProfileModal);
+  if(profileCircleBtn) profileCircleBtn.addEventListener('click', function(e){ e.stopPropagation(); openProfileModal(); });
+  ['nav-profile-pill', 'nav-badge'].forEach(function(id){
+    var el = document.getElementById(id); if(!el) return;
+    el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); el.setAttribute('title', 'Your tier, points, picks and stars');
+    el.addEventListener('click', openProfileModal);
+    el.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openProfileModal(); } });
+  });
 
   const profileModalCloseBtn = document.getElementById('profile-modal-close');
   if(profileModalCloseBtn) profileModalCloseBtn.addEventListener('click', closeProfileModal);
@@ -9468,10 +9474,16 @@
     }
     function cardHtml(r){
       var isPost = r.kind === 'post', isTrend = r.kind === 'trend', yt = isYt(r);
-      return '<article class="news-card' + (isPost ? ' is-post' : '') + (isTrend ? ' is-trend' : '') + '" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(mqDecodeEntities(r.headline)) + '" data-news-id="' + escapeHtml(r.id) + '">' +
-        ((isPost || yt || isTrend) ? '' : imgHtml(r)) +
-        '<div class="news-body">' + (isTrend ? faceHtml(r) + rankHtml(r) : '') + metaHtml(r) + '<div class="news-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</div>' +
-        (isTrend && r.summary ? '<p class="trend-ctx">' + escapeHtml(mqDecodeEntities(r.summary)) + '</p>' : '') + '</div>' +
+      var lane = LANE_NAME[laneOf(r)] || '', when = ago(r.published_at || r.fetched_at), ks = keyStat(r);
+      var photo = (!isPost && !yt && r.image_url && /^https:\/\//i.test(r.image_url))
+        ? '<div class="tsc-ph"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>' : '';
+      var rank = isTrend && r.trend_rank ? '<span class="tsc-tr">#' + Number(r.trend_rank) + ' ' + mvHtml(r) + '</span>' : (isTrend ? '<span class="tsc-tr">Trending</span>' : '');
+      var by = r.source_name ? '<span class="tcd-by">' + escapeHtml(r.source_name) + '</span>' : '';
+      return '<article class="news-card tcd tsc' + (isPost ? ' is-post' : '') + (isTrend ? ' is-trend' : '') + '" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(mqDecodeEntities(r.headline)) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+        '<div class="tsc-bar"></div><div class="tsc-in"><div class="tsc-chips"><span class="tsc-lane">' + escapeHtml(lane) + '</span>' + rank + by + (when ? '<span class="tsc-when">' + escapeHtml(when) + '</span>' : '') + '</div>' +
+        '<div class="tsc-hrow"><div class="news-h tsc-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</div>' + photo + '</div>' +
+        (ks ? '<div class="tcd-stat ' + ks.dir + '"><b>' + escapeHtml(ks.value) + '</b><span>' + escapeHtml(ks.label) + '</span></div>' : '') +
+        (isTrend && r.summary && !ks ? '<p class="trend-ctx">' + escapeHtml(mqDecodeEntities(r.summary)) + '</p>' : '') + '</div>' +
         ((isPost || yt) ? embedHtml(r) : '') +
         takeHtml(r) + footHtml(r) + '</article>';
     }
@@ -9704,6 +9716,31 @@
     var inner = document.getElementById('thread-inner');
     var openId = null, openedByUs = false, poll = null, handle = null, sortMode = 'top';
 
+    // Pull the headline number out of a story ("up 1,300%", "$5.2 billion") for the big stat cell.
+    function keyStat(r){
+      var txt = mqDecodeEntities(r.headline || '') + ' . ' + mqDecodeEntities(r.summary || '');
+      var src = [mqDecodeEntities(r.headline || ''), mqDecodeEntities(r.summary || '')];
+      var UP = /\b(up|jump|jumps|jumped|surge|surges|surged|soar|soars|soared|rise|rises|rose|gain|gains|gained|climb|climbs|climbed|rally|rallies|rallied|grow|grew|boost|record|higher)\b/i;
+      var DN = /\b(down|fall|falls|fell|drop|drops|dropped|plunge|plunges|plunged|slump|slumps|slumped|sink|sinks|sank|slide|slides|slid|cut|cuts|lower|decline|declines|declined|lose|loses|lost|loss)\b/i;
+      for(var i = 0; i < src.length; i++){
+        var t = src[i], m = t.match(/(\d[\d,]*(?:\.\d+)?)\s?(%|percent\b)/i), money = t.match(/\$\s?(\d[\d,]*(?:\.\d+)?)\s?(trillion|billion|million|thousand|[TBMK]\b)?/i);
+        var pick = m || money; if(!pick) continue;
+        var at = t.indexOf(pick[0]), near = t.slice(Math.max(0, at - 40), at + pick[0].length + 20);
+        var dir = DN.test(near) && !UP.test(near) ? 'dn' : UP.test(near) ? 'up' : '';
+        var value;
+        if(m && (!money || m.index <= money.index || !money)){
+          if(Number(m[1].replace(/,/g, '')) > 100000) continue;
+          value = (dir === 'up' ? '+' : dir === 'dn' ? '−' : '') + m[1] + '%';
+        }else{
+          var u = (money[2] || '').toLowerCase();
+          var suf = u === 'trillion' || u === 't' ? 'T' : u === 'billion' || u === 'b' ? 'B' : u === 'million' || u === 'm' ? 'M' : u === 'thousand' || u === 'k' ? 'K' : '';
+          value = '$' + money[1] + suf;
+        }
+        var lab = /this year|of the year|year[- ]to[- ]date|so far this|ytd/i.test(near + ' ' + t) ? 'this year' : /today|on monday|on tuesday|on wednesday|on thursday|on friday|overnight/i.test(near) ? 'today' : /week/i.test(near) ? 'this week' : /month/i.test(near) ? 'this month' : m ? 'change' : '';
+        return { value: value, label: lab, dir: dir };
+      }
+      return null;
+    }
     // Article screen head: lane bar, chips, headline with a small photo, quick facts, short summary.
     function tscHead(r, isPost, yt, isTrend, text){
       var when = ago(r.published_at || r.fetched_at), lane = LANE_NAME[laneOf(r)] || '';
@@ -9715,10 +9752,12 @@
       facts.push([isTrend ? 'On' : 'Source', escapeHtml(r.source_name || (isTrend ? 'The chart' : '–'))]);
       facts.push([isTrend ? 'Topic' : 'Published', isTrend ? escapeHtml(lane) : (when ? escapeHtml(when) : '–')]);
       if(!isTrend && !isPost) facts.unshift(['Topic', escapeHtml(lane)]);
-      facts = facts.slice(0, 3);
+      var ks = keyStat(r);
+      facts = facts.slice(0, ks ? 2 : 3);
+      var statCell = ks ? '<div class="tsc-stat ' + ks.dir + '"><span>' + escapeHtml(ks.label || 'Key number') + '</span><b>' + escapeHtml(ks.value) + '</b></div>' : '';
       return '<div class="tsc-in"><div class="tsc-chips"><span class="tsc-lane">' + escapeHtml(lane) + '</span>' + (isTrend ? '<span class="tsc-tr">Trending</span>' : '') + (when ? '<span class="tsc-when">' + escapeHtml(when) + '</span>' : '') + '</div>' +
         '<div class="tsc-hrow"><h3 class="tsc-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</h3>' + photo + '</div>' +
-        '<div class="tsc-facts" style="--n:' + facts.length + '">' + facts.map(function(f){ return '<div><span>' + f[0] + '</span><b>' + f[1] + '</b></div>'; }).join('') + '</div>' +
+        '<div class="tsc-facts" style="--n:' + (facts.length + (ks ? 1 : 0)) + '">' + statCell + facts.map(function(f){ return '<div><span>' + f[0] + '</span><b>' + f[1] + '</b></div>'; }).join('') + '</div>' +
         (text ? '<p class="tsc-sum">' + escapeHtml(text) + '</p>' : '') + '</div>';
     }
     async function renderThread(id){
