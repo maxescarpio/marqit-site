@@ -2,19 +2,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Puts the small circle photo on the daily questions, automatically.
 //
-// ONE real person per question, always (never a poster, badge, logo or group shot):
-//   shows / movies -> the biggest lead actor; games -> a head coach or star player;
-//   companies -> the best-known leader or founder.
-//   The AI names the person, Wikipedia/Commons supplies a free head-and-shoulders portrait
-//   (TheSportsDB player photo as a sports fallback), and the link is checked to really load
-//   before it is saved to question_visuals, which the Play page already reads.
-// Rows set by hand in the admin page are never overwritten. Called by a database trigger when
-// questions are inserted, and by a 5-minute cron as a retry. When nothing is missing it does
-// nothing, before any AI call.
-//
-// Secrets: TMDB_API_KEY (themoviedb.org, free) for shows and movies.
-//          THESPORTSDB_API_KEY (optional; falls back to TheSportsDB's public test key "123").
-//          GEMINI_API_KEY and/or ANTHROPIC_API_KEY for the AI step (already set for the news writer).
+// ONE real person per question, always (never a poster, logo, badge or group shot):
+//   show / movie -> the biggest of its top-billed actors (TMDB cast photo)
+//   team         -> its head coach, read from the team's Wikipedia page (current, not AI memory)
+//   person       -> Wikipedia/Commons free portrait, then (sports) TheSportsDB player photo
+//   company      -> the company's best-known leader (the AI names them as a person)
+// Only head-and-shoulders style photos are accepted, so a face is never cropped away in the circle.
+// If no good photo is found the question simply has no photo. Rows set by hand in the admin page
+// are never overwritten.
+// Secrets: TMDB_API_KEY, THESPORTSDB_API_KEY (optional), GEMINI_API_KEY and/or ANTHROPIC_API_KEY.
 
 const UA = 'MarqitBot/1.0 (https://playmarqit.com; photo lookup for prediction questions)';
 const WIKI_API = 'https://en.wikipedia.org/w/api.php';
@@ -24,28 +20,28 @@ const RETRY_MINUTES = 15;
 
 type Side = { name: string; type: string; search: string };
 
-const PROMPT = `You pick the photo for the daily prediction questions on Marqit. Each question gets ONE small round photo of ONE real person. For every question below, say which single person the photo should show.
+const PROMPT = `You pick the photo for the daily prediction questions on Marqit. Each question gets ONE small round photo of ONE real person. For every question below, say who or what the photo should be about.
 
 Return, per question:
-- "subject": {"name": the person's short display name (max 22 characters), "type": "person", "search": the person's full name as their English Wikipedia article is titled}. Return null if no single suitable person exists.
-- "vs": always null. Never return a second person or a head-to-head.
+- "subject": {"name": short display name (max 22 characters), "type": one of "person" | "team" | "show" | "movie", "search": the text to look it up with}.
+- "vs": always null. Never return a second side.
 
-Who to pick (ALWAYS exactly one real person, never a team badge, poster, logo, product or group):
-- A question about a TV show or a movie: the single biggest, best-known lead actor of that show or movie, for example "Keri Russell" for The Diplomat. Never the director or a minor cast member.
-- A question about a game, team or league (NFL, NBA, MLB, NHL, soccer, college): the team's head coach or its single biggest star player, whoever is most famous and most current. For a game between two teams pick one person: the head coach or star of the team the question asks about ("Will the Cowboys defeat the Packers" -> the Cowboys' head coach or quarterback).
-- A question about a named player, athlete, fighter, artist or celebrity: that person.
-- A question about a company, or about a product, launch, console or event run by a company, with no person named: that company's best-known current leader or founder: SpaceX, Starlink, Tesla -> "Elon Musk"; Nvidia -> "Jensen Huang"; Meta -> "Mark Zuckerberg"; Apple -> "Tim Cook"; Sony or PlayStation -> Sony's current CEO; and the same for Google, Microsoft, Amazon, OpenAI and so on.
-- An event (a summit, a keynote, an awards show) with no named person: the most prominent speaker named in the question, or the leader of the company hosting it. If nothing at all is named, return subject null.
+What to return:
+- A question about a TV show: type "show", search = the series title, for example "The Diplomat". (Its biggest lead actor is looked up for you.)
+- A question about a movie: type "movie", search = the film title. (Its biggest lead actor is looked up for you.)
+- A question about a game, team or league: type "team", search = the full official name of the team the question is about, for example "Dallas Cowboys". (Its head coach is looked up for you.) In a matchup choose the first-named team.
+- A question about a named player, athlete, fighter, artist or celebrity: type "person", search = their full name as it would be titled on English Wikipedia.
+- A question about a company, or about a product, launch, console or event run by a company, with no person named, MUST use that company's best-known current leader or founder as a person (type "person"): SpaceX, Starlink or a Falcon 9 or Starship launch -> "Elon Musk"; Tesla -> "Elon Musk"; Nvidia -> "Jensen Huang"; Meta -> "Mark Zuckerberg"; Apple -> "Tim Cook"; Sony or PlayStation -> Sony's current CEO; and the same for Google, Microsoft, Amazon, OpenAI and so on.
+- Every news question gets a face. If no person or company is named, pick the single most prominent, recognizable person tied to the topic, such as the leader of the company or organization hosting the event, or the best-known leader in that field, and use that person (type "person"). Choose a famous, household-name person who certainly has a Wikipedia article with a photo (for a tech or AI event: the best-known leader in that field, such as Sam Altman, Jensen Huang, Elon Musk, Mark Zuckerberg or Sundar Pichai), never an obscure editor, researcher or spokesperson. Only choose someone you are sure currently holds that role. Return subject null only if you cannot name anyone with confidence.
 
 Rules:
-- The photo must show one person alone, so choose someone with a well-known solo portrait on Wikipedia.
+- Never use a logo, poster, product, rocket, building or group. Always end up with one person.
 - Politicians and government figures are allowed (official portraits are free to use).
 - Return null for private individuals, and for anything about death, crime or tragedy.
-- If you are not sure of the exact name or who currently holds the role, return null rather than guessing. Do not rely on old memory for who is a current coach or CEO; pick the person you are most certain about.
+- If you are not sure of the exact title or name, return null.
 
-Reply with JSON only: {"items":[{"i":0,"subject":{"name":"Keri Russell","type":"person","search":"Keri Russell"},"vs":null}]}`;
+Reply with JSON only: {"items":[{"i":0,"subject":{"name":"The Diplomat","type":"show","search":"The Diplomat"},"vs":null}]}`;
 
-// ---- the model: free Gemini key first, Claude as a backup (same as the news writer) ----
 const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
 async function askModel(system: string, user: string, maxTokens: number): Promise<string> {
   const errors: string[] = [];
@@ -100,7 +96,6 @@ async function getJson(url: string, headers: Record<string, string> = {}): Promi
   return await res.json();
 }
 
-// A link only counts if it really loads as an image, so a circle is never left empty.
 async function imageLoads(url: string): Promise<boolean> {
   try {
     const res = await fetch(url, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(10000) });
@@ -110,9 +105,9 @@ async function imageLoads(url: string): Promise<boolean> {
   } catch (_) { return false; }
 }
 
-// ---- Wikipedia: a FREELY LICENSED photo for an article title ----
-// pilicense=free asks Wikipedia for free images only; the URL check is a second lock, because
-// free files live on Commons and fair-use logos and posters live on en.wikipedia.
+// Wikipedia: a FREELY LICENSED portrait for an article title. The photo is shown in a circle, so
+// only head-and-shoulders style shots are accepted: a wide photo (a group, a stadium, a person
+// standing far away) would cut a face off or show several people, so those are skipped.
 async function wikiPhoto(title: string): Promise<string | null> {
   const data = await getJson(`${WIKI_API}?action=query&titles=${encodeURIComponent(title)}&prop=pageimages%7Cpageprops&piprop=thumbnail&pithumbsize=400&pilicense=free&ppprop=disambiguation&redirects=1&format=json&formatversion=2`);
   const page = data?.query?.pages?.[0];
@@ -120,47 +115,40 @@ async function wikiPhoto(title: string): Promise<string | null> {
   if (page.pageprops && 'disambiguation' in page.pageprops) return null;
   const t = page.thumbnail;
   if (!t || typeof t.source !== 'string') return null;
-  // Wikipedia hands out thumbnails from either host; both serve the same free Commons files.
   if (/\.svg/i.test(t.source)) return null; // drawn logos are not photos
   if (!/^https:\/\/(upload|thumb)\.wikimedia\.org\/wikipedia\/commons\//.test(t.source)) return null;
   const ratio = Number(t.width) / Number(t.height);
-  // The photo is shown in a circle, so only head-and-shoulders style shots work: a very wide
-  // photo (a group, a stadium) or a full-length one would cut a face off or show several people.
-  if (!Number.isFinite(ratio) || ratio > 1.3 || ratio < 0.6) return null;
+  if (!Number.isFinite(ratio) || ratio > 1.2 || ratio < 0.6) return null;
   return t.source;
 }
 
-// ---- TMDB: posters for shows and movies ----
-function tmdbRequest(path: string, query: string): Promise<any> {
+// TMDB: for a show or movie, the photo of its biggest top-billed actor (never the poster).
+function tmdbGet(path: string, params: string): Promise<any> {
   const key = Deno.env.get('TMDB_API_KEY');
   if (!key) throw new Error('TMDB_API_KEY is not set');
-  const q = `https://api.themoviedb.org/3/${path}?query=${encodeURIComponent(query)}&include_adult=false&language=en-US&page=1`;
-  // A v4 "read access token" (starts with eyJ) goes in a header; a v3 key goes in the URL.
+  const q = `https://api.themoviedb.org/3/${path}?${params}&language=en-US`;
   return key.startsWith('eyJ') ? getJson(q, { authorization: 'Bearer ' + key }) : getJson(q + '&api_key=' + encodeURIComponent(key));
 }
-async function tmdbPoster(kind: 'tv' | 'movie', title: string): Promise<string | null> {
-  const data = await tmdbRequest('search/' + kind, title);
-  const results = (data?.results || []).filter((r: any) => r.poster_path).slice(0, 5);
+async function tmdbLead(kind: 'tv' | 'movie', title: string): Promise<{ url: string; label: string } | null> {
+  const data = await tmdbGet('search/' + kind, `query=${encodeURIComponent(title)}&include_adult=false&page=1`);
+  const results = (data?.results || []).slice(0, 5);
   if (!results.length) return null;
   const dateOf = (r: any) => Date.parse(kind === 'tv' ? r.first_air_date : r.release_date) || 0;
-  let pick = results[0];
+  let pick = [...results].sort((a: any, b: any) => b.popularity - a.popularity)[0];
   if (kind === 'movie') {
-    // Daily questions are about the film in the news right now: prefer a recent or upcoming release.
     const now = Date.now(), from = now - 548 * 86400000, to = now + 366 * 86400000;
     const recent = results.filter((r: any) => dateOf(r) >= from && dateOf(r) <= to);
     if (recent.length) pick = recent.sort((a: any, b: any) => b.popularity - a.popularity)[0];
-  } else {
-    pick = [...results].sort((a: any, b: any) => b.popularity - a.popularity)[0];
   }
-  return `https://image.tmdb.org/t/p/w342${pick.poster_path}`;
+  const credits = await tmdbGet(`${kind}/${pick.id}/credits`, 'x=1');
+  // Among the three top-billed actors that have a photo, the best-known one (highest TMDB popularity).
+  const lead = (credits?.cast || []).filter((c: any) => c.profile_path).slice(0, 3)
+    .sort((a: any, b: any) => (b.popularity || 0) - (a.popularity || 0))[0];
+  return lead ? { url: `https://image.tmdb.org/t/p/w342${lead.profile_path}`, label: String(lead.name || '') } : null;
 }
 
-// ---- TheSportsDB: team badges and player photos ----
 function sportsBase(): string { return `https://www.thesportsdb.com/api/v1/json/${Deno.env.get('THESPORTSDB_API_KEY') || '123'}`; }
 function sized(url: string): string { return /\.(png|jpe?g)$/i.test(url) ? url + '/small' : url; }
-// TheSportsDB answers some searches with a 404 instead of an empty list, and is picky about
-// spaces, so try the name a few ways. A 404 on every try means "not found"; any other failure
-// (rate limit, outage) is thrown so the question is retried later.
 async function sportsSearch(endpoint: string, param: string, name: string): Promise<any> {
   const words = name.trim().split(/\s+/);
   const variants = [name.trim(), words.join('_'), ...(words.length > 1 ? [words.slice(1).join(' ')] : [])];
@@ -170,45 +158,54 @@ async function sportsSearch(endpoint: string, param: string, name: string): Prom
   }
   return null;
 }
-async function sportsBadge(team: string): Promise<string | null> {
-  const data = await sportsSearch('searchteams.php', 't', team);
-  const teams: any[] = data?.teams || [];
-  if (!teams.length) return null;
-  const norm = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const hit = teams.find((t) => norm(t.strTeam) === norm(team));
-  if (!hit) return null; // exact team name only: a wrong badge is worse than the drawn one
-  const badge = hit.strBadge || hit.strTeamBadge;
-  return typeof badge === 'string' && /^https:\/\//.test(badge) ? sized(badge) : null;
-}
 async function sportsPlayerPhoto(name: string): Promise<string | null> {
   const data = await sportsSearch('searchplayers.php', 'p', name);
   const players: any[] = data?.player || [];
   if (!players.length) return null;
   const norm = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const hit = players.find((p) => norm(p.strPlayer) === norm(name));
-  if (!hit) return null; // only an exact name match: a wrong face is worse than no face
+  if (!hit) return null;
   const img = hit.strThumb || hit.strCutout || hit.strRender;
   return typeof img === 'string' && /^https:\/\//.test(img) ? sized(img) : null;
 }
 
-// Finds one photo for one side. Returns null when there is no usable photo, and THROWS when the
-// source could not be asked (missing key, network), so that question is retried next run
-// instead of being marked as done.
-async function findPhoto(side: Side, category: string): Promise<string | null> {
-  // Always one person: posters, team badges and group shots are never used.
-  if (side.type !== 'person') return null;
-  let url: string | null = await wikiPhoto(side.search);
-  if (!url && category === 'sports') { try { url = await sportsPlayerPhoto(side.search); } catch (_) { url = null; } }
-  return url && (await imageLoads(url)) ? url : null;
+// A team is shown as its head coach or manager, read from the team's own Wikipedia page (so it is
+// current, not from the AI's memory). Team logos are protected, so they are not used.
+async function coachPhoto(team: string): Promise<{ url: string; label: string } | null> {
+  const data = await getJson(`${WIKI_API}?action=query&titles=${encodeURIComponent(team)}&prop=revisions&rvprop=content&rvslots=main&redirects=1&format=json&formatversion=2`);
+  const text: string = (data?.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content || '').slice(0, 15000);
+  const m = text.match(/\|\s*(?:head[ _]?coach|manager|coach)\s*=\s*(?:\{\{[^\[\]{}]*?\|\s*)?(?:\{\{[^}]*\}\}\s*)*\[\[([^\]|#]+)/i);
+  if (!m) return null;
+  const article = m[1].trim();
+  const url = await wikiPhoto(article);
+  const label = article.replace(/\s*\(.*\)\s*$/, '');
+  return url ? { url, label } : null;
 }
 
-const TYPES = new Set(['person', 'team', 'show', 'movie', 'company', 'other']);
+// Always one person: any other kind of subject (company, product, other) gets no photo.
+async function findPhoto(side: Side, category: string): Promise<{ url: string; label?: string } | null> {
+  let found: { url: string; label?: string } | null = null;
+  switch (side.type) {
+    case 'show': found = await tmdbLead('tv', side.search); break;
+    case 'movie': found = await tmdbLead('movie', side.search); break;
+    case 'team': found = await coachPhoto(side.search); break;
+    case 'person': {
+      let u = await wikiPhoto(side.search);
+      if (!u && category === 'sports') { try { u = await sportsPlayerPhoto(side.search); } catch (_) { u = null; } }
+      found = u ? { url: u } : null;
+      break;
+    }
+    default: found = null;
+  }
+  return found && (await imageLoads(found.url)) ? found : null;
+}
+
+const TYPES = new Set(['person', 'team', 'show', 'movie']);
 function cleanSide(s: any): Side | null {
   if (!s || typeof s.name !== 'string' || typeof s.search !== 'string') return null;
   const name = s.name.trim().slice(0, 40), search = s.search.trim();
-  const type = TYPES.has(s.type) ? s.type : 'other';
-  if (name.length < 2 || search.length < 2) return null;
-  return { name, type, search };
+  if (!TYPES.has(s.type) || name.length < 2 || search.length < 2) return null;
+  return { name, type: s.type, search };
 }
 
 Deno.serve(async (req: Request) => {
@@ -219,7 +216,6 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    // Recent and upcoming questions (two days back covers timezone edges).
     const since = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
     const { data: qs, error } = await admin.from('daily_questions')
       .select('id, category, question_text, question_date')
@@ -229,8 +225,6 @@ Deno.serve(async (req: Request) => {
     if (!ids.length) return new Response(JSON.stringify({ missing: 0 }), { status: 200 });
 
     // Done = it has a photo, or it was tried less than RETRY_MINUTES ago and found none.
-    // A question with no photo is tried again later, so adding a key or a source fixes it
-    // without anyone touching the data. Rows with a photo (including ones set by hand) are never touched.
     const { data: have, error: hErr } = await admin.from('question_visuals').select('question_id, subject_image_url, updated_at').in('question_id', ids);
     if (hErr) throw hErr;
     const fresh = Date.now() - RETRY_MINUTES * 60000;
@@ -247,28 +241,21 @@ Deno.serve(async (req: Request) => {
     for (let i = 0; i < todo.length; i++) {
       const q = todo[i];
       const it = byI.get(i);
-      if (!it) continue; // the model skipped it: leave it for the next run
-      const subject = cleanSide(it.subject), vs: Side | null = null; // one person per question, never a face-off
+      if (!it) continue;
+      const subject = cleanSide(it.subject); // one person per question, never a face-off
       let row: any = { question_id: q.id, subject_name: null, subject_image_url: null, vs_name: null, vs_image_url: null, updated_at: new Date().toISOString() };
       try {
         if (subject) {
           const subImg = await findPhoto(subject, q.category);
-          if (vs) {
-            const vsImg = subImg ? await findPhoto(vs, q.category) : null;
-            // A face-off needs both faces, otherwise save nothing so the drawn matchup stays.
-            if (subImg && vsImg) row = { ...row, subject_name: subject.name, subject_image_url: subImg, vs_name: vs.name, vs_image_url: vsImg };
-          } else if (subImg) {
-            row = { ...row, subject_name: subject.name, subject_image_url: subImg };
-          }
+          if (subImg) row = { ...row, subject_name: subImg.label || subject.name, subject_image_url: subImg.url };
         }
       } catch (e) {
         report.push({ q: q.question_text.slice(0, 60), error: String(e).slice(0, 100) });
-        continue; // the source could not be asked (not "no photo"): try again next run
+        continue;
       }
-      // Only questions with no photo reach this point, so this never overwrites one set by hand.
       const { error: wErr } = await admin.from('question_visuals').upsert(row, { onConflict: 'question_id' });
       if (wErr) throw wErr;
-      report.push({ q: q.question_text.slice(0, 60), photo: !!row.subject_image_url, faceoff: !!row.vs_image_url, subject: subject ? subject.type + ':' + subject.search : null, vs: vs ? vs.type + ':' + vs.search : null, img: row.subject_image_url });
+      report.push({ q: q.question_text.slice(0, 60), photo: !!row.subject_image_url, subject: subject ? subject.type + ':' + subject.search : null, label: row.subject_name, img: row.subject_image_url });
     }
     return new Response(JSON.stringify({ missing: todo.length, report }), { status: 200 });
   } catch (e) {
