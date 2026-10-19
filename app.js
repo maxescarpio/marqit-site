@@ -6607,22 +6607,24 @@
       return { user_id: row.user_id, username: p.username, avatar_emoji: p.avatar_emoji, avatar_color: p.avatar_color, points: row.total_points, streak: row.current_streak };
     }), myId, false, new Set(ids));
   }
-  // "Longest streak" view of the Big Board: everyone ranked by their all-time best
-  // run of consecutive days played (streaks.longest_streak). Same opt-out rule as
-  // Worldwide (hide_from_leaderboard excluded in the query); banned players are
-  // already hidden by the table's row-level security. Ties go to whoever is on the
-  // longer run right now, then to total points.
+  // "Streaks" view of the Big Board: the longest ACTIVE streaks right now, in order.
+  // A streak only counts as active if the player played today or yesterday (Eastern),
+  // so people who stopped playing drop off. Same opt-out rule as Worldwide
+  // (hide_from_leaderboard excluded); banned players are hidden by row-level security.
+  // Ties go to the longer all-time best, then to total points.
   async function loadStreakBoard(){
     const el = document.getElementById('big-board-rows');
     if(!el) return;
     el.innerHTML = '<div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>';
+    const yesterday = mqSchedAddDays(getETDateInfo().dateStr, -1);
     const { data, error } = await sb
       .from('streaks')
-      .select('user_id, total_points, current_streak, longest_streak, profiles!inner(username, avatar_emoji, avatar_color, hide_from_leaderboard)')
+      .select('user_id, total_points, current_streak, longest_streak, last_played_date, profiles!inner(username, avatar_emoji, avatar_color, hide_from_leaderboard)')
       .eq('profiles.hide_from_leaderboard', false)
-      .gt('longest_streak', 0)
-      .order('longest_streak', { ascending: false })
+      .gte('last_played_date', yesterday)
+      .gt('current_streak', 0)
       .order('current_streak', { ascending: false })
+      .order('longest_streak', { ascending: false })
       .order('total_points', { ascending: false })
       .limit(10);
 
@@ -6631,14 +6633,14 @@
     if(!activeTab || activeTab.getAttribute('data-scope') !== 'streak') return;
 
     if(error || !data || data.length === 0){
-      el.innerHTML = '<div class="brow"><span>No streaks yet — play today to start one.</span></div>';
+      el.innerHTML = '<div class="brow"><span>No active streaks yet. Play today to start one.</span></div>';
       return;
     }
 
     const myId = await mqMyId();
     el.innerHTML = await mqBoardRows(data.map(function(row){
       const p = row.profiles || {};
-      const days = row.longest_streak || 0;
+      const days = row.current_streak || 0;
       return { user_id: row.user_id, username: p.username, avatar_emoji: p.avatar_emoji, avatar_color: p.avatar_color, points: days, unit: days === 1 ? 'day' : 'days' };
     }), myId, false);
   }
@@ -8534,8 +8536,12 @@
       '<div class="evp-price"><b id="evp-px">…</b><span id="evp-chg"></span></div>' +
       '<div class="evp-chart" id="evp-chart"><p class="evp-muted">Loading chart…</p></div>' +
       '<div class="evp-ranges">' + MQ_RANGES.map(function(r, i){ return '<button type="button" data-r="' + r[0] + '"' + (i === 0 ? ' class="on"' : '') + '>' + r[1] + '</button>'; }).join('') + '</div>' +
-      '<p class="evp-foot">Prices from Yahoo Finance, about 15 minutes delayed. Not investment advice.</p>');
+      '<div id="evp-fund"></div>' +
+      '<p class="evp-foot">Prices from Yahoo Finance, about 15 minutes delayed. Analyst and valuation figures from Nasdaq. Not investment advice.</p>');
     var seq = 0;
+    fetch(SUPABASE_URL + '/functions/v1/stock-details?symbol=' + encodeURIComponent(sym))
+      .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      .then(function(d){ var box = el.querySelector('#evp-fund'); if(box && box.isConnected && d && !d.error) box.innerHTML = mqFundHtml(d); });
     function load(range){
       var my = ++seq, box = el.querySelector('#evp-chart');
       box.innerHTML = '<p class="evp-muted">Loading chart…</p>';
@@ -8553,6 +8559,47 @@
       load(b.getAttribute('data-r'));
     });
     load('1d');
+  }
+  function mqMoney(n){
+    if(n == null) return '–';
+    var a = Math.abs(n);
+    if(a >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+    if(a >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
+    if(a >= 1e6) return '$' + (n / 1e6).toFixed(0) + 'M';
+    return '$' + n.toFixed(2);
+  }
+  function mqFundHtml(d){
+    var out = '', a = d.analysts, f = function(v, suf){ return v == null ? '–' : v + (suf || ''); };
+    if(a && a.count){
+      var tot = a.count, bp = a.buy / tot * 100, hp = a.hold / tot * 100, sp = a.sell / tot * 100;
+      var cons = String(a.consensus || '').toLowerCase();
+      var cls = /buy/.test(cons) ? 'buy' : /sell/.test(cons) ? 'sell' : 'hold';
+      out += '<div class="fd-sec"><div class="fd-h">Wall Street view' + (a.consensus ? '<span class="fd-badge ' + cls + '">' + escapeHtml(a.consensus) + '</span>' : '') + '</div>' +
+        '<div class="fd-bar"><i class="b" style="width:' + bp + '%"></i><i class="h" style="width:' + hp + '%"></i><i class="s" style="width:' + sp + '%"></i></div>' +
+        '<div class="fd-leg"><span><b>' + a.buy + '</b> Buy</span><span><b>' + a.hold + '</b> Hold</span><span><b>' + a.sell + '</b> Sell</span><em>' + tot + ' analysts</em></div>';
+      var t = a.target;
+      if(t && t.mean != null){
+        var up = d.price ? (t.mean / d.price - 1) * 100 : null;
+        var lo = t.low, hi = t.high, pos = function(v){ return hi > lo ? Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100)) : 50; };
+        out += '<div class="fd-tg"><div class="fd-tgt">Price target <b>$' + t.mean.toFixed(2) + '</b>' + (up != null ? '<span class="' + (up >= 0 ? 'up' : 'dn') + '">' + (up >= 0 ? '+' : '') + up.toFixed(1) + '% vs now</span>' : '') + '</div>' +
+          (lo != null && hi != null ? '<div class="fd-rng"><u style="left:' + pos(t.mean) + '%"></u>' + (d.price ? '<s style="left:' + pos(d.price) + '%"></s>' : '') + '</div><div class="fd-rl"><span>Low $' + lo.toFixed(0) + '</span><span>High $' + hi.toFixed(0) + '</span></div>' : '') + '</div>';
+      }
+      out += '</div>';
+    }
+    var v = d.valuation || {}, m = d.margins || {}, cells = [
+      ['Market cap', mqMoney(d.marketCap), 'Total value of all shares'],
+      ['P/E ratio', f(v.pe), 'Price per $1 of yearly profit'],
+      ['Forward P/E', f(v.forwardPe), 'Based on next 4 quarters expected'],
+      ['EPS (TTM)', v.epsTtm == null ? '–' : '$' + v.epsTtm.toFixed(2), 'Profit per share, last 12 months'],
+      ['Revenue (TTM)', mqMoney(d.revenueTtm), 'Sales, last 12 months'],
+      ['52-week range', d.range52 ? '$' + d.range52[0].toFixed(0) + '–$' + d.range52[1].toFixed(0) : '–', 'Lowest and highest price'],
+      ['Gross margin', f(m.gross, '%'), 'Left after cost of goods'],
+      ['Operating margin', f(m.operating, '%'), 'Left after running the business'],
+      ['Net margin', f(m.net, '%'), 'Left as final profit']
+    ].filter(function(c){ return c[1] !== '–'; });
+    if(cells.length) out += '<div class="fd-sec"><div class="fd-h">Key numbers</div><div class="fd-grid">' + cells.map(function(c){
+      return '<div class="fd-c" title="' + escapeHtml(c[2]) + '"><span>' + c[0] + '</span><b>' + escapeHtml(c[1]) + '</b><small>' + escapeHtml(c[2]) + '</small></div>'; }).join('') + '</div></div>';
+    return out;
   }
   function mqDrawChart(el, box, d, range){
     var pts = d.points, W = 600, H = 220, pad = 8;
@@ -9369,7 +9416,9 @@
         res.hidden = false;
         res.innerHTML = '<div class="take-bar"><i class="take-bar-y" style="width:' + yp + '%"></i><i class="take-bar-n" style="width:' + np + '%"></i></div>' +
           '<div class="take-split"><span class="' + (mine === 'yes' ? 'me' : '') + '">Yes ' + yp + '%</span><span class="' + (mine === 'no' ? 'me' : '') + '">No ' + np + '%</span></div>' +
-          '<div class="take-count">' + plural(t, 'vote') + ' · you said ' + (mine === 'yes' ? 'Yes' : 'No') + '</div>';
+          '<button type="button" class="take-count voters-btn" data-voters="' + escapeHtml(id) + '" aria-expanded="false">' + plural(t, 'vote') + ' · you said ' + (mine === 'yes' ? 'Yes' : 'No') +
+            '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>' +
+          '<div class="voters" hidden></div>';
       });
     }
     function paintAll(scope){
@@ -9382,6 +9431,36 @@
         f.replaceWith(tmp.firstChild);
       });
     }
+
+    // Click "N votes" to see who voted (signed-in players by username; guests and hidden players as a count).
+    async function toggleVoters(btn){
+      var box = btn.closest('.news-take'); var list = box && box.querySelector('.voters'); if(!list) return;
+      var open = list.hidden; list.hidden = !open; btn.setAttribute('aria-expanded', open ? 'true' : 'false'); btn.classList.toggle('open', open);
+      if(!open || list.getAttribute('data-loaded')) return;
+      list.innerHTML = '<div class="voters-msg">Loading…</div>';
+      var res = await sb.rpc('get_news_take_voters', { p_news_id: btn.getAttribute('data-voters') });
+      if(res.error || !res.data){ list.innerHTML = '<div class="voters-msg">Could not load voters.</div>'; return; }
+      var by = { yes: { names: [], more: 0 }, no: { names: [], more: 0 } };
+      res.data.forEach(function(r){
+        var g = by[r.choice]; if(!g) return;
+        if(r.username) g.names.push(r); else g.more += Number(r.guests || 0) + Number(r.hidden || 0);
+      });
+      function col(key, label){
+        var g = by[key];
+        var rows = g.names.map(function(u){
+          return '<li><i class="vtr-av" style="background:' + escapeHtml(u.avatar_color || '#2B2E34') + '">' + mqAvatarInner(u.avatar_emoji, u.username) + '</i><span>' + escapeHtml(u.username) + '</span></li>';
+        }).join('');
+        if(g.more) rows += '<li class="more">' + (g.names.length ? '+ ' : '') + g.more + (g.more === 1 ? ' guest or private player' : ' guests or private players') + '</li>';
+        if(!rows) rows = '<li class="more">No one yet</li>';
+        return '<div class="vtr-col ' + key + '"><h5>' + label + ' · ' + (g.names.length + g.more) + '</h5><ul>' + rows + '</ul></div>';
+      }
+      list.innerHTML = col('yes', 'Yes') + col('no', 'No');
+      list.setAttribute('data-loaded', '1');
+    }
+    document.addEventListener('click', function(e){
+      var b = e.target.closest('.voters-btn'); if(!b) return;
+      e.stopPropagation(); e.preventDefault(); toggleVoters(b);
+    }, true);
 
     async function vote(btn){
       var box = btn.closest('.news-take'); var id = box && box.getAttribute('data-take-id'); if(!id) return;
