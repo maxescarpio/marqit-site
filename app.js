@@ -105,6 +105,60 @@
     for(var i = 0; i < rawData.length; ++i){ outputArray[i] = rawData.charCodeAt(i); }
     return outputArray;
   }
+  // Pull down to refresh. The iPhone home-screen app has no browser chrome, so there is no built-in way to reload.
+  (function(){
+    if(window.navigator.standalone !== true) return; // Safari tabs and Android already have their own
+    var bar = document.createElement('div');
+    bar.className = 'mq-ptr';
+    bar.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(bar);
+    var startY = 0, startX = 0, pull = 0, tracking = false, busy = false;
+    var TRIGGER = 80;
+    function blocked(el){
+      // Never start a pull inside a sheet, popup or full-screen view, or inside something that is itself scrolled.
+      if(el.closest('.thread-view,.welcome-sheet,.mq-sheet-bg,.mq-ss,.mq-crop,.mq-legal-overlay,.milestone-overlay,input,textarea,select')) return true;
+      for(var n = el; n && n !== document.body; n = n.parentElement){
+        var oy = getComputedStyle(n).overflowY;
+        if((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight && n.scrollTop > 0) return true;
+      }
+      return false;
+    }
+    function reset(){
+      pull = 0; tracking = false;
+      bar.classList.remove('ready', 'busy');
+      bar.style.transform = ''; bar.style.opacity = '';
+    }
+    document.addEventListener('touchstart', function(e){
+      if(busy || e.touches.length !== 1 || (window.scrollY || document.documentElement.scrollTop) > 0 || blocked(e.target)){ tracking = false; return; }
+      startY = e.touches[0].clientY; startX = e.touches[0].clientX; pull = 0; tracking = true;
+    }, { passive: true });
+    document.addEventListener('touchmove', function(e){
+      if(!tracking || busy) return;
+      var dy = e.touches[0].clientY - startY, dx = e.touches[0].clientX - startX;
+      if(dy <= 0 || Math.abs(dx) > dy){ reset(); return; }
+      if((window.scrollY || document.documentElement.scrollTop) > 0){ reset(); return; }
+      pull = Math.min(dy, 140);
+      var shown = Math.min(pull / TRIGGER, 1);
+      bar.textContent = pull >= TRIGGER ? 'Release to refresh' : 'Pull to refresh';
+      bar.classList.toggle('ready', pull >= TRIGGER);
+      bar.style.transform = 'translate(-50%,' + (-70 + 70 * shown) + 'px)';
+      bar.style.opacity = String(shown);
+    }, { passive: true });
+    function end(){
+      if(!tracking) return;
+      if(pull >= TRIGGER){
+        busy = true;
+        bar.style.transform = ''; bar.style.opacity = '';
+        bar.textContent = 'Refreshing…';
+        bar.classList.add('busy');
+        setTimeout(function(){ window.location.reload(); }, 150);
+      } else reset();
+      tracking = false;
+    }
+    document.addEventListener('touchend', end, { passive: true });
+    document.addEventListener('touchcancel', reset, { passive: true });
+  })();
+
   var swRegistrationPromise = ('serviceWorker' in navigator)
     ? navigator.serviceWorker.register('/sw.js').catch(function(){ return null; })
     : Promise.resolve(null);
