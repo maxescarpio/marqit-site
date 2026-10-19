@@ -86,8 +86,7 @@
   function mqAvatarInner(raw, username){
     var photo = mqAvatarPhoto(raw);
     if(photo) return '<img class="av-photo" src="' + escapeHtml(photo) + '" alt="" loading="lazy" decoding="async">';
-    var k = mqAvatarKey(raw);
-    if(k) return mqAvatarSvg(k);
+    // Old icon avatars now show the initial too.
     var ch = String(username || '?').trim().charAt(0).toUpperCase() || '?';
     return '<span class="av-initial">' + escapeHtml(ch) + '</span>';
   }
@@ -1512,31 +1511,8 @@
       });
     }
 
-    // Avatar glyph picker
-    const emojiPicker = document.getElementById('avatar-emoji-picker');
-    emojiPicker.innerHTML = '';
-    function paintGlyphBorders(){
-      emojiPicker.querySelectorAll('button').forEach(function(b){ b.classList.toggle('sel', b.getAttribute('data-key') === selectedAvatarEmoji); });
-    }
-    MQ_AVATAR_KEYS.forEach(function(key, idx){
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'av-tile';
-      btn.setAttribute('data-key', key);
-      btn.setAttribute('aria-label', 'Avatar ' + key);
-      btn.style.setProperty('--ac', MQ_AVATAR_ACCENT[key] || '#8FB4FF');
-      btn.style.animationDelay = (idx * 28) + 'ms';
-      btn.innerHTML = mqAvatarSvg(key);
-      btn.addEventListener('click', function(){
-        selectedAvatarEmoji = key;
-        document.getElementById('profile-modal-avatar').innerHTML = mqAvatarSvg(key);
-        paintGlyphBorders();
-        btn.classList.remove('picked'); void btn.offsetWidth; btn.classList.add('picked');
-        try{ mqHaptic('tap'); }catch(e){}
-      });
-      emojiPicker.appendChild(btn);
-    });
-    paintGlyphBorders();
+    // No icon picker any more: the avatar is your initial on a color, or an uploaded photo.
+    function paintGlyphBorders(){}
 
     // Color picker
     const colorPicker = document.getElementById('avatar-color-picker');
@@ -1569,7 +1545,7 @@
       upBtn.onclick = function(){ fileInput.click(); };
       if(rmBtn) rmBtn.onclick = function(){
         selectedAvatarEmoji = 'target';
-        document.getElementById('profile-modal-avatar').innerHTML = mqAvatarSvg('target');
+        document.getElementById('profile-modal-avatar').innerHTML = mqAvatarInner('target', profileRow.username);
         paintGlyphBorders(); syncRemove(); pmsg.textContent = 'Photo removed. Press Save to keep it.'; pmsg.className = 'form-msg';
       };
       fileInput.onchange = async function(){
@@ -1590,7 +1566,7 @@
           if(up.error) throw up.error;
           var pub = sb.storage.from('avatars').getPublicUrl(path);
           selectedAvatarEmoji = 'photo:' + pub.data.publicUrl;
-          document.getElementById('profile-modal-avatar').innerHTML = mqAvatarInner(selectedAvatarEmoji, '');
+          document.getElementById('profile-modal-avatar').innerHTML = mqAvatarInner(selectedAvatarEmoji, profileRow.username);
           paintGlyphBorders(); syncRemove();
           pmsg.className = 'form-msg ok'; pmsg.textContent = 'Looking good. Press Save to keep it.';
         }catch(err){
@@ -1618,13 +1594,21 @@
       catAccEl = document.createElement('div');
       catAccEl.id = 'profile-category-acc';
       catAccEl.style.cssText = 'display:flex; gap:8px; margin:0 0 10px;';
+      catAccEl.insertAdjacentHTML('beforebegin', '<div class="pc-label" style="margin:0 0 8px;">Accuracy, last 5 weeks</div>');
       picksList.parentNode.insertBefore(catAccEl, picksList);
     }
     catAccEl.innerHTML = '';
     var catTotals = {};
+    // Same window and rules as "Your record": last 5 weeks (Monday-aligned), voided calls left out.
+    var recStart = (function(){
+      var t0 = new Date(getETDateInfo().dateStr + 'T12:00:00Z');
+      var ix = (t0.getUTCDay() + 6) % 7;
+      return new Date(t0.getTime() - (ix + 28) * 86400000).toISOString().slice(0, 10);
+    })();
     (picks || []).forEach(function(p){
       var q = p.daily_questions;
-      if(!q || !q.resolved || !q.correct_answer) return;
+      if(!q || !q.resolved || q.voided || !q.correct_answer) return;
+      if(q.question_date < recStart) return;
       var t = catTotals[q.category] || (catTotals[q.category] = { right: 0, total: 0 });
       t.total++;
       if(p.choice === q.correct_answer) t.right++;
@@ -1707,7 +1691,7 @@
       msg.textContent = 'Saved!';
       const circleEmoji = document.getElementById('profile-circle-emoji');
       const circleBtn = document.getElementById('profile-circle-btn');
-      if(circleEmoji) circleEmoji.innerHTML = mqAvatarInner(selectedAvatarEmoji, '');
+      if(circleEmoji) circleEmoji.innerHTML = mqAvatarInner(selectedAvatarEmoji, (document.getElementById('profile-modal-username') || {}).textContent || '');
       if(circleBtn) circleBtn.style.background = selectedAvatarColor;
     });
   }
@@ -8161,6 +8145,7 @@
       document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
       targetPage.style.display = 'block';
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      if(target === 'schedule' && typeof mqEnsureWeekScores === 'function') mqEnsureWeekScores();
     });
   });
 
@@ -8278,7 +8263,7 @@
 
   // ---- Live scores / records / TV network (Supabase function "scoreboard", ESPN public feed).
   // Optional: if it fails, cells just keep showing time + teams. No logos: a plain round badge instead.
-  var mqScore = { games: [], at: 0, busy: false };
+  var mqScore = { games: [], at: 0, busy: false, byDay: {} };
   function mqNormTeam(n){ return String(n || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim(); }
   function mqSameTeam(a, b){
     a = mqNormTeam(a); b = mqNormTeam(b);
@@ -8286,12 +8271,20 @@
     if(a === b) return true;
     return a.split(' ').pop() === b.split(' ').pop() && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0 || a.split(' ')[0] === b.split(' ')[0]);
   }
+  var MQ_LEAGUE_ALIAS = { 'champions league': 'UCL', 'premier league': 'EPL' };
+  function mqLeagueKey(l){ l = String(l || ''); return MQ_LEAGUE_ALIAS[l.toLowerCase()] || l; }
+  function mqAllGames(){
+    var out = mqScore.games.slice();
+    Object.keys(mqScore.byDay).forEach(function(k){ (mqScore.byDay[k].games || []).forEach(function(g){ out.push(g); }); });
+    return out;
+  }
   function mqGameFor(ev, teams){
-    if(!teams || !mqScore.games.length) return null;
+    var all = mqAllGames();
+    if(!teams || !all.length) return null;
     var t0 = new Date(ev.starts_at).getTime();
-    for(var i = 0; i < mqScore.games.length; i++){
-      var g = mqScore.games[i];
-      if(g.league !== ev.league) continue;
+    for(var i = 0; i < all.length; i++){
+      var g = all[i];
+      if(g.league !== mqLeagueKey(ev.league)) continue;
       if(Math.abs(new Date(g.start).getTime() - t0) > 6 * 3600000) continue;
       if(mqSameTeam(g.away.name, teams[0]) && mqSameTeam(g.home.name, teams[1])) return g;
     }
@@ -8319,6 +8312,7 @@
     var right = showScore && side.score != null ? side.score : (side.record || '');
     return '<div class="sstrip-team live' + (winning === false ? ' lost' : '') + '" title="' + escapeHtml(side.name) + '">' +
       '<i class="sstrip-badge" aria-hidden="true" style="' + mqBadgeStyle(side) + '">' + escapeHtml(side.abbr.charAt(0)) + '</i>' +
+      (side.rank ? '<em class="sstrip-rk">' + side.rank + '</em>' : '') +
       '<b>' + escapeHtml(side.abbr) + '</b><span class="sstrip-rec' + (showScore && side.score != null ? ' score' : '') + '">' + escapeHtml(right) + '</span></div>';
   }
   function mqLoadScores(){
@@ -8332,6 +8326,45 @@
     }).catch(function(){ mqScore.busy = false; mqScore.at = Date.now(); });
   }
   setInterval(function(){ if(!document.hidden && mqSched.loaded) mqLoadScores(); }, 60000);
+
+  // Every game for each day of the week (Schedule page only): fills the page with all the sports,
+  // not just the handful the schedule table marks as marquee, and gives each its team colors.
+  var mqSynth = {};
+  function mqEnsureWeekScores(){
+    if(!mqSched.loaded) return;
+    var days = mqSchedWeekDays();
+    days.forEach(function(d){
+      var k = d.replace(/-/g, ''), c = mqScore.byDay[k];
+      if(c && (c.busy || Date.now() - c.at < 300000)) return;
+      mqScore.byDay[k] = { busy: true, at: Date.now(), games: c ? c.games : [] };
+      fetch(SUPABASE_URL + '/functions/v1/scoreboard?dates=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+        .then(function(d2){
+          mqScore.byDay[k] = { busy: false, at: Date.now(), games: d2 && d2.games ? d2.games : (c ? c.games : []) };
+          try{ renderSchedPage(); }catch(e){}
+        });
+    });
+  }
+  // The schedule table's events for a day, plus any ESPN game it left out (shown as ordinary events).
+  function mqSchedDayEvents(day){
+    var list = mqSched.events.filter(function(ev){ return mqSchedEventDay(ev) === day; });
+    var seen = {};
+    list.forEach(function(ev){
+      if(ev.category !== 'sports') return;
+      var g = mqGameFor(ev, mqSchedTeams(ev));
+      if(g) seen[g.league + ':' + g.away.id + '@' + g.home.id] = true;
+    });
+    var bd = mqScore.byDay[day.replace(/-/g, '')];
+    if(bd) bd.games.forEach(function(g){
+      if(mqSchedEtDay(new Date(g.start)) !== day) return;
+      var key = g.league + ':' + g.away.id + '@' + g.home.id;
+      if(seen[key]) return;
+      var id = 'g:' + key;
+      mqSynth[id] = mqSynth[id] || { id: id, category: 'sports', title: g.away.name + ' at ' + g.home.name, subtitle: g.network || null,
+        league: g.league, starts_at: g.start, all_day: false, importance: 1, status: 'scheduled', url: null, question_id: null, synth: true };
+      list.push(mqSynth[id]);
+    });
+    return list;
+  }
 
   // Price + daily change for the earnings cells in the ribbon (Supabase function "stock-chart", Yahoo Finance).
   var mqQuotes = {};
@@ -8387,7 +8420,7 @@
     }
     var canOpen = (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && teams);
     var bandStyle = g ? ' style="--ca:' + mqTeamColor(g.away) + ';--cb:' + mqTeamColor(g.home) + '"' : '';
-    return '<div class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + '"' +
+    return '<div data-cat="' + escapeHtml(ev.category || '') + '" class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + '"' +
       (canOpen ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '') + '>' +
       '<div class="sstrip-time"><span>' + escapeHtml(status) + '</span>' +
         (side ? '<span class="sstrip-sub">' + escapeHtml(side) + '</span>' : '') + '</div>' +
@@ -8586,7 +8619,7 @@
   }
   function mqEventPanel(cell){
     var id = cell.getAttribute('data-ev');
-    var ev = mqSched.events.filter(function(x){ return String(x.id) === id; })[0];
+    var ev = mqSched.events.filter(function(x){ return String(x.id) === id; })[0] || mqSynth[id];
     if(!ev) return;
     if(ev.category === 'finance') mqOpenStockPanel(ev); else mqOpenGamePanel(ev);
   }
@@ -8651,8 +8684,9 @@
     if(!mqSched.loaded) return;
     var days = mqSchedWeekDays(), today = getETDateInfo().dateStr;
     // Only offer the tabs that have something this week.
-    var present = {};
-    mqSched.events.forEach(function(ev){ present[ev.category] = true; });
+    var present = {}, dayLists = {};
+    days.forEach(function(d){ dayLists[d] = mqSchedDayEvents(d); dayLists[d].forEach(function(ev){ present[ev.category] = true; }); });
+    if(document.getElementById('page-schedule') && document.getElementById('page-schedule').offsetParent) mqEnsureWeekScores();
     var tabs = MQ_SCHED_CATS.filter(function(c){ return c[0] !== 'all' && present[c[0]]; });
     if(mqSched.cat !== 'all' && !present[mqSched.cat]) mqSched.cat = 'all';
     chips.style.display = tabs.length > 1 ? '' : 'none';
@@ -8661,10 +8695,11 @@
     }).join('');
     var byDay = {};
     days.forEach(function(d){ byDay[d] = []; });
-    mqSched.events.forEach(function(ev){
-      if(mqSched.cat !== 'all' && ev.category !== mqSched.cat) return;
-      var d = mqSchedEventDay(ev);
-      if(byDay[d]) byDay[d].push(ev);
+    days.forEach(function(d){
+      dayLists[d].forEach(function(ev){
+        if(mqSched.cat !== 'all' && ev.category !== mqSched.cat) return;
+        byDay[d].push(ev);
+      });
     });
     // One day at a time: the picked day (today by default) fills the strip.
     if(!mqSched.day || days.indexOf(mqSched.day) < 0) mqSched.day = days.indexOf(today) >= 0 ? today : days[0];

@@ -3,17 +3,19 @@
 // does, the ribbon simply falls back to showing time and teams). No logos are returned on purpose.
 // Cached for 30 seconds so many visitors cost one request upstream.
 //
-// GET  .../functions/v1/scoreboard            -> { games: [...] }
+// GET  .../functions/v1/scoreboard            -> { games: [...] }   (today)
+// GET  .../functions/v1/scoreboard?dates=20261024 -> the same for one day (Eastern date)
 // Each game: { league, home, away, state: 'pre'|'in'|'post', detail, network }
 //   home/away: { name, abbr, score, record }
 
 const FEEDS: [string, string][] = [
   ['NFL', 'football/nfl'], ['NBA', 'basketball/nba'], ['MLB', 'baseball/mlb'], ['NHL', 'hockey/nhl'],
   ['WNBA', 'basketball/wnba'], ['EPL', 'soccer/eng.1'], ['UCL', 'soccer/uefa.champions'], ['MLS', 'soccer/usa.1'],
+  ['NCAAF', 'football/college-football'],
 ];
 const UA = { 'user-agent': 'curl/8.5.0', accept: 'application/json' };
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'content-type': 'application/json' };
-let cache: { at: number; body: string } | null = null;
+const cache = new Map<string, { at: number; body: string }>();
 const teamCache = new Map<string, { at: number; body: string }>();
 const PATHS: Record<string, string> = Object.fromEntries(FEEDS);
 // Season numbers worth showing first, in this order (ESPN stat names). Anything else is skipped.
@@ -66,17 +68,19 @@ function side(c: any) {
   return {
     id: String(c?.team?.id || ''), name: String(c?.team?.displayName || ''), abbr: String(c?.team?.abbreviation || ''),
     color: hex(c?.team?.color), alt: hex(c?.team?.alternateColor), leaders: leaders(c),
+    rank: Number(c?.curatedRank?.current) >= 1 && Number(c?.curatedRank?.current) <= 25 ? Number(c.curatedRank.current) : null,
     score: c?.score != null && c.score !== '' ? String(c.score) : null,
     record: rec?.summary ? String(rec.summary) : null,
   };
 }
 
-async function load() {
+async function load(date: string | null) {
   const games: any[] = [];
   const errors: string[] = [];
   await Promise.all(FEEDS.map(async ([league, path]) => {
     try {
-      const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard`, { headers: UA, signal: AbortSignal.timeout(8000) });
+      const q = [date ? 'dates=' + date : '', league === 'NCAAF' ? 'groups=80&limit=300' : ''].filter(Boolean).join('&');
+      const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard${q ? '?' + q : ''}`, { headers: UA, signal: AbortSignal.timeout(8000) });
       if (!res.ok) { errors.push(league + ' ' + res.status); return; }
       const d = await res.json();
       for (const e of d?.events || []) {
@@ -84,6 +88,8 @@ async function load() {
         const cs = comp?.competitors || [];
         const home = cs.find((c: any) => c.homeAway === 'home'), away = cs.find((c: any) => c.homeAway === 'away');
         if (!home || !away) continue;
+        // College football: only games with a ranked (top 25) team, otherwise there are 60+ a Saturday.
+        if (league === 'NCAAF' && !side(home).rank && !side(away).rank) continue;
         const t = e?.status?.type || {};
         const net = (comp?.broadcasts || []).flatMap((b: any) => b?.names || [])[0] || (comp?.geoBroadcasts || [])[0]?.media?.shortName || null;
         games.push({
@@ -104,6 +110,12 @@ Deno.serve(async (req: Request) => {
     try { body = await team(tk); } catch (_) { /* keep the error body */ }
     return new Response(body, { headers: { ...CORS, 'cache-control': 'public, max-age=300' } });
   }
-  if (!cache || Date.now() - cache.at > 30000) cache = { at: Date.now(), body: await load() };
-  return new Response(cache.body, { headers: { ...CORS, 'cache-control': 'public, max-age=30' } });
+  const dp = new URL(req.url).searchParams.get('dates');
+  const date = dp && /^\d{8}$/.test(dp) ? dp : null;
+  const key = date || 'today', ttl = date ? 300000 : 30000;
+  const hit = cache.get(key);
+  let body: string;
+  if (hit && Date.now() - hit.at < ttl) body = hit.body;
+  else { body = await load(date); cache.set(key, { at: Date.now(), body }); if (cache.size > 20) cache.delete(cache.keys().next().value as string); }
+  return new Response(body, { headers: { ...CORS, 'cache-control': 'public, max-age=' + (ttl / 1000) } });
 });

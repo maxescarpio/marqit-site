@@ -508,3 +508,61 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .pagenav-tab:focus{outline:none;}
 .pagenav-tab:focus-visible{outline:none;color:#fff;box-shadow:inset 0 -2px 0 #6B7079;}
 .pagenav-tab.active:focus-visible{box-shadow:none;}
+
+/* ==========================================================================
+   Avatars: your initial (editorial serif, hairline ring) on your color, or a photo.
+   ========================================================================== */
+.av-initial{
+  display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;
+  width:80%;height:80%;border-radius:50%;border:1px solid rgba(255,255,255,.32);
+  font-family:Georgia,'Times New Roman',serif;font-weight:400;line-height:1;letter-spacing:0;
+}
+
+/* ==========================================================================
+   This week: streak on the left, the seven days as an even row, hairline between.
+   ========================================================================== */
+#recap-card{border-top:1px solid var(--line) !important;}
+.recap-strip{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:0 26px;margin:8px 0 18px;}
+.rs-streak{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:96px;padding-right:26px;border-right:1px solid #2A2D33;}
+.rs-streak strong{color:var(--ink) !important;font-size:48px;line-height:.95;}
+.rs-streak span{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);}
+.rs-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;justify-items:center;}
+.rs-day{display:flex;flex-direction:column;align-items:center;gap:9px;}
+.rs-dot{width:34px;height:34px;max-width:none;aspect-ratio:auto;border:1.5px solid #3A3F48;border-style:solid;background:transparent;font-size:14px;font-weight:600;color:var(--ink);}
+.rs-day.has .rs-dot{border-color:#4FA477;background:rgba(79,164,119,.16);}
+.rs-day.today .rs-dot{border-color:var(--gold);}
+.rs-day.today.has .rs-dot{border-color:#4FA477;box-shadow:0 0 0 2px #1B1E24,0 0 0 3px var(--gold);}
+.rs-day.future .rs-dot{border-color:#2A2D33;opacity:.65;}
+.rs-name{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);}
+.rs-day.today .rs-name{color:var(--gold);font-weight:700;}
+@media (max-width:560px){
+  .recap-strip{grid-template-columns:1fr;gap:16px 0;}
+  .rs-streak{flex-direction:row;align-items:baseline;gap:10px;border-right:0;border-bottom:1px solid #2A2D33;padding:0 0 12px;}
+  .rs-streak strong{font-size:40px;}
+  .rs-dot{width:30px;height:30px;font-size:13px;}
+}
+
+/* ---- Share buttons: one height, label centered, one font ---- */
+.lb-share-btn,#share-group-card-btn{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;align-self:flex-start;
+  height:46px;min-height:46px;padding:0 22px;line-height:1;text-align:center;
+  font-family:'Barlow',sans-serif !important;font-size:14.5px !important;font-weight:600 !important;
+}
+#share-group-card-btn[style*="none"]{display:none !important;}
+
+/* ==========================================================================
+   Schedule page cells: category color dot, ranked-team numbers, readable time row.
+   ========================================================================== */
+#sched-list .sstrip-time{display:flex;justify-content:space-between;gap:8px;align-items:baseline;}
+#sched-list .sstrip-time span:first-child{white-space:nowrap;flex:none;}
+#sched-list .sstrip-sub{min-width:0;text-align:right;}
+#sched-list .sstrip-cell{--cc:#6B7079;}
+#sched-list .sstrip-cell[data-cat="sports"]{--cc:#D98B3A;}
+#sched-list .sstrip-cell[data-cat="finance"]{--cc:#4FA477;}
+#sched-list .sstrip-cell[data-cat="tech"]{--cc:#5B8BC9;}
+#sched-list .sstrip-cell[data-cat="pop_culture"]{--cc:#9A74C8;}
+#sched-list .sstrip-cell[data-cat="news"]{--cc:#C9A24A;}
+#sched-list .sstrip-cell .sstrip-time span:first-child::before{
+  content:"";display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:7px;vertical-align:1px;background:var(--cc);
+}
+.sstrip-rk{font:600 10.5px/1 'Barlow',sans-serif;font-style:normal;color:var(--ink-soft);margin:0 -2px 0 0;min-width:11px;text-align:right;}
