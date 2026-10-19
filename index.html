@@ -284,6 +284,7 @@
 <div class="pagenav">
   <div class="wrap pagenav-row">
     <button class="pagenav-tab active" data-page="home">Play</button>
+    <button class="pagenav-tab" data-page="schedule">Schedule</button>
     <button class="pagenav-tab" data-page="leaderboard">Leaderboard</button>
     <button class="pagenav-tab" data-page="news">News</button>
     <button class="pagenav-tab" data-page="trending">Trending</button>
@@ -297,6 +298,16 @@
 </div>
 
 <div id="page-home" class="page">
+<!-- Today's key events: a still, swipeable row under the headline ticker. Filled by loadSchedule() in app.js; stays hidden until there is something to show. -->
+<section class="sched-today" id="sched-today" style="display:none;" aria-label="Today's key events">
+  <div class="wrap">
+    <div class="sched-today-head">
+      <h3 class="sched-today-title">Today's key events</h3>
+      <button type="button" class="sched-see-all" id="sched-see-all">Full schedule &rsaquo;</button>
+    </div>
+    <div class="sched-cards" id="sched-today-cards"></div>
+  </div>
+</section>
 <header class="hero hero-play">
   <div class="wrap">
     <p id="play-status" class="play-status" style="display:none;"></p>
@@ -437,6 +448,21 @@
       <button type="button" id="home-cta-challenge" class="cb-btn">Join</button>
     </div>
 
+  </div>
+</section>
+</div>
+
+<div id="page-schedule" class="page" style="display:none;">
+<section class="section hero-lite">
+  <div class="wrap">
+    <h2>Schedule</h2>
+    <p style="font-size:16px; margin-top:12px; max-width:520px; color:var(--ink-soft);">The big dates this week across sports, finance, tech, pop culture and news.</p>
+    <div class="feed-chips" id="sched-chips"></div>
+    <div class="sched-days" id="sched-days" role="tablist" aria-label="Days this week"></div>
+    <div class="sched-list" id="sched-list" aria-live="polite">
+      <div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>
+    </div>
+    <p class="news-foot">Monday to Sunday, with times in your local time. Sports dates come from TheSportsDB, company earnings from Finnhub, and movie and TV dates from TMDB. Dates can change, so check the official source before you plan around one. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
   </div>
 </section>
 </div>

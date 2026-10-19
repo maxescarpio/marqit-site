@@ -7910,6 +7910,196 @@
     });
   });
 
+  // ===== Schedule: key dates across sports, finance, tech, pop culture and news =====
+  // Rows live in public.key_events (filled by the fetch-key-events function, plus anything added by
+  // hand in the admin page). One fetch of this Monday-to-Sunday (Eastern) feeds both the "Today's key
+  // events" row on Play and the Schedule page. Static and swipeable on purpose: the headline ticker
+  // above is the only thing on the site that moves by itself.
+  var MQ_SCHED_CATS = [['all', 'All'], ['sports', 'Sports'], ['finance', 'Finance'], ['tech', 'Tech'], ['pop_culture', 'Pop culture'], ['news', 'News']];
+  var MQ_SCHED_COLORS = { sports: '#E0963A', finance: '#2DBE7E', tech: '#22B8B0', pop_culture: '#A26BDB', news: '#4D8BE0' };
+  var mqSched = { events: [], loaded: false, failed: false, cat: 'all', fetchedAt: 0, loading: null };
+
+  function mqSchedEtDay(d){
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  }
+  function mqSchedAddDays(dateStr, n){
+    return new Date(Date.parse(dateStr + 'T12:00:00Z') + n * 86400000).toISOString().slice(0, 10);
+  }
+  // The Eastern calendar day an event belongs to. All-day rows store noon UTC of their date.
+  function mqSchedEventDay(ev){
+    return ev.all_day ? String(ev.starts_at).slice(0, 10) : mqSchedEtDay(new Date(ev.starts_at));
+  }
+  function mqSchedTime(ev){
+    if(ev.all_day) return 'All day';
+    return new Date(ev.starts_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+  function mqSchedWeekDays(){
+    var monday = getWeekStart(), out = [];
+    for(var i = 0; i < 7; i++) out.push(mqSchedAddDays(monday, i));
+    return out;
+  }
+  // All-day items first (earnings, releases), then by start time; bigger events first within a tie.
+  function mqSchedSort(list){
+    return list.slice().sort(function(a, b){
+      if(a.all_day !== b.all_day) return a.all_day ? -1 : 1;
+      if(a.starts_at !== b.starts_at) return a.starts_at < b.starts_at ? -1 : 1;
+      if(a.importance !== b.importance) return b.importance - a.importance;
+      return a.title < b.title ? -1 : 1;
+    });
+  }
+
+  function loadSchedule(force){
+    if(mqSched.loading) return mqSched.loading;
+    if(!force && mqSched.loaded && (Date.now() - mqSched.fetchedAt) < 60000) return Promise.resolve();
+    var days = mqSchedWeekDays();
+    mqSched.loading = (async function(){
+      try{
+        var res = await sb.from('key_events')
+          .select('id, category, title, subtitle, league, starts_at, all_day, importance, status, url, question_id')
+          .gte('starts_at', mqSchedAddDays(days[0], -1) + 'T00:00:00Z')
+          .lte('starts_at', mqSchedAddDays(days[6], 2) + 'T00:00:00Z')
+          .order('starts_at', { ascending: true })
+          .limit(500);
+        if(res.error) throw res.error;
+        var inWeek = {};
+        days.forEach(function(d){ inWeek[d] = true; });
+        mqSched.events = (res.data || []).filter(function(ev){ return inWeek[mqSchedEventDay(ev)]; });
+        mqSched.loaded = true;
+        mqSched.failed = false;
+      }catch(e){
+        if(!mqSched.loaded) mqSched.failed = true; // keep showing the last good data if a refresh fails
+      }
+      mqSched.fetchedAt = Date.now();
+      mqSched.loading = null;
+      renderSchedToday();
+      renderSchedPage();
+    })();
+    return mqSched.loading;
+  }
+
+  function mqSchedTagsHtml(ev, clickable){
+    var out = '';
+    if(ev.question_id) out += clickable
+      ? '<button type="button" class="sched-pick">Marqit pick</button>'
+      : '<span class="sched-pick">Marqit pick</span>';
+    if(ev.status === 'postponed') out += '<span class="sched-flag">Postponed</span>';
+    return out;
+  }
+
+  function mqSchedCardHtml(ev){
+    var tags = mqSchedTagsHtml(ev, false);
+    return '<div class="sched-card" style="--cat:' + (MQ_SCHED_COLORS[ev.category] || '#A8ABB3') + ';">' +
+      '<div class="sched-card-top"><i class="sched-dot"></i>' + (ev.league ? '<span class="sched-badge">' + escapeHtml(ev.league) + '</span>' : '') +
+        '<span class="sched-time">' + escapeHtml(mqSchedTime(ev)) + '</span></div>' +
+      '<div class="sched-card-title">' + escapeHtml(ev.title) + '</div>' +
+      (ev.subtitle ? '<div class="sched-card-sub">' + escapeHtml(ev.subtitle) + '</div>' : '') +
+      (tags ? '<div class="sched-card-tags">' + tags + '</div>' : '') +
+    '</div>';
+  }
+
+  function mqSchedRowHtml(ev){
+    var title = ev.url
+      ? '<a class="sched-row-title" href="' + escapeHtml(ev.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(ev.title) + '</a>'
+      : '<span class="sched-row-title">' + escapeHtml(ev.title) + '</span>';
+    var tags = mqSchedTagsHtml(ev, true);
+    return '<div class="sched-row" style="--cat:' + (MQ_SCHED_COLORS[ev.category] || '#A8ABB3') + ';">' +
+      '<span class="sched-row-time">' + escapeHtml(mqSchedTime(ev)) + '</span>' +
+      '<div class="sched-row-main"><i class="sched-dot"></i><div>' + title +
+        (ev.subtitle ? '<div class="sched-row-sub">' + escapeHtml(ev.subtitle) + '</div>' : '') + '</div></div>' +
+      '<div class="sched-row-side">' + (ev.league ? '<span class="sched-badge">' + escapeHtml(ev.league) + '</span>' : '') + tags + '</div>' +
+    '</div>';
+  }
+
+  // The still row on the Play page: today's bigger events only. Hidden until the schedule has data.
+  function renderSchedToday(){
+    var box = document.getElementById('sched-today'), cards = document.getElementById('sched-today-cards');
+    if(!box || !cards) return;
+    if(!mqSched.loaded || mqSched.events.length === 0){ box.style.display = 'none'; return; }
+    var today = getETDateInfo().dateStr;
+    var list = mqSchedSort(mqSched.events.filter(function(ev){
+      return mqSchedEventDay(ev) === today && ev.importance >= 2;
+    })).slice(0, 12);
+    box.style.display = '';
+    cards.innerHTML = list.length
+      ? list.map(mqSchedCardHtml).join('')
+      : '<p class="sched-empty">Nothing big today. Check the rest of the week.</p>';
+  }
+
+  function renderSchedPage(){
+    var chips = document.getElementById('sched-chips'), daysEl = document.getElementById('sched-days'), listEl = document.getElementById('sched-list');
+    if(!chips || !daysEl || !listEl) return;
+    if(mqSched.failed){
+      chips.innerHTML = ''; daysEl.innerHTML = '';
+      listEl.innerHTML = '<p class="sched-empty">Couldn’t load the schedule right now. Try again in a minute.</p>';
+      return;
+    }
+    if(!mqSched.loaded) return;
+    var days = mqSchedWeekDays(), today = getETDateInfo().dateStr;
+    chips.innerHTML = MQ_SCHED_CATS.map(function(c){
+      return '<button type="button" class="feed-chip' + (mqSched.cat === c[0] ? ' on' : '') + '" data-cat="' + c[0] + '">' + c[1] + '</button>';
+    }).join('');
+    var byDay = {};
+    days.forEach(function(d){ byDay[d] = []; });
+    mqSched.events.forEach(function(ev){
+      if(mqSched.cat !== 'all' && ev.category !== mqSched.cat) return;
+      var d = mqSchedEventDay(ev);
+      if(byDay[d]) byDay[d].push(ev);
+    });
+    daysEl.innerHTML = days.map(function(d){
+      var dt = new Date(Date.parse(d + 'T12:00:00Z')), n = byDay[d].length;
+      return '<button type="button" class="sched-day' + (d === today ? ' today' : '') + (d < today ? ' past' : '') + '" data-day="' + d + '">' +
+        '<b>' + dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }) + '</b><span>' + dt.getUTCDate() + '</span>' +
+        (n ? '<i class="sched-day-n">' + n + '</i>' : '') + '</button>';
+    }).join('');
+    listEl.innerHTML = days.map(function(d){
+      var label = new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+      return '<section class="sched-sec' + (d === today ? ' today' : '') + (d < today ? ' past' : '') + '" id="sched-sec-' + d + '">' +
+        '<h4 class="sched-sec-title">' + label + (d === today ? '<em>Today</em>' : '') + '</h4>' +
+        (byDay[d].length ? mqSchedSort(byDay[d]).map(mqSchedRowHtml).join('') : '<p class="sched-none">Nothing scheduled.</p>') +
+      '</section>';
+    }).join('');
+  }
+
+  (function(){
+    var chips = document.getElementById('sched-chips');
+    if(chips) chips.addEventListener('click', function(e){
+      var b = e.target.closest('.feed-chip');
+      if(!b) return;
+      mqSched.cat = b.getAttribute('data-cat') || 'all';
+      renderSchedPage();
+    });
+    var daysEl = document.getElementById('sched-days');
+    if(daysEl) daysEl.addEventListener('click', function(e){
+      var b = e.target.closest('.sched-day');
+      if(!b) return;
+      var sec = document.getElementById('sched-sec-' + b.getAttribute('data-day'));
+      if(sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    var listEl = document.getElementById('sched-list');
+    if(listEl) listEl.addEventListener('click', function(e){
+      if(!e.target.closest('.sched-pick')) return;
+      var t = document.querySelector('.pagenav-tab[data-page="home"]');
+      if(t) t.click();
+    });
+    var seeAll = document.getElementById('sched-see-all');
+    if(seeAll) seeAll.addEventListener('click', function(){
+      var t = document.querySelector('.pagenav-tab[data-page="schedule"]');
+      if(t) t.click();
+    });
+    var tab = document.querySelector('.pagenav-tab[data-page="schedule"]');
+    if(tab) tab.addEventListener('click', function(){
+      loadSchedule(false);
+      renderSchedPage();
+      // Past days sit above today; bring today into view unless it is Monday.
+      setTimeout(function(){
+        var sec = document.querySelector('#sched-list .sched-sec.today');
+        if(sec && sec.previousElementSibling) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 400);
+    });
+    loadSchedule(true);
+    setInterval(function(){ if(!document.hidden) loadSchedule(true); }, 300000);
+  })();
+
   const homeCtaChallenge = document.getElementById('home-cta-challenge');
   if(homeCtaChallenge){
     homeCtaChallenge.addEventListener('click', function(){
