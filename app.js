@@ -8314,7 +8314,7 @@
   function mqLiveRowHtml(side, winning, showScore){
     var right = showScore && side.score != null ? side.score : (side.record || '');
     return '<div class="sstrip-team live' + (winning === false ? ' lost' : '') + '" title="' + escapeHtml(side.name) + '">' +
-      '<i class="sstrip-badge" aria-hidden="true" style="' + mqBadgeStyle(side) + '">' + escapeHtml(mqLeadNum(side) || side.abbr.charAt(0)) + '</i>' +
+      '<i class="sstrip-badge" aria-hidden="true" style="' + mqBadgeStyle(side) + '">' + escapeHtml(side.abbr.charAt(0)) + '</i>' +
       '<b>' + escapeHtml(side.abbr) + '</b><span class="sstrip-rec' + (showScore && side.score != null ? ' score' : '') + '">' + escapeHtml(right) + '</span></div>';
   }
   function mqLoadScores(){
@@ -8383,7 +8383,7 @@
     }
     var canOpen = (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && teams);
     var bandStyle = g ? ' style="--ca:' + mqTeamColor(g.away) + ';--cb:' + mqTeamColor(g.home) + '"' : '';
-    return '<div class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + (g ? ' has-band' : '') + '"' + bandStyle +
+    return '<div class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + '"' +
       (canOpen ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '') + '>' +
       '<div class="sstrip-time"><span>' + escapeHtml(status) + '</span>' +
         (side ? '<span class="sstrip-sub">' + escapeHtml(side) + '</span>' : '') + '</div>' +
