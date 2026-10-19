@@ -8355,20 +8355,43 @@
   }
   document.addEventListener('keydown', function(e){ if(e.key === 'Escape') mqPanelClose(); });
 
-  function mqTeamStatsHtml(d, fallbackName){
-    if(!d || d.error) return '<p class="evp-muted">Season numbers aren’t available right now.</p>';
+  function mqWinPct(rec){
+    var n = String(rec || '').split('-').map(function(x){ return parseInt(x, 10); });
+    if(n.length < 2 || n.some(isNaN)) return null;
+    var w = n[0], l = n[1], t = n[2] || 0, tot = w + l + t;
+    if(!tot) return null;
+    return (w + t / 2) / tot;
+  }
+  function mqFmtNum(v, dec){ return isNaN(v) ? '' : (dec === 'pct' ? (v >= 1 ? '1.000' : v.toFixed(3).replace(/^0/, '')) : String(v)); }
+  // One comparison row: away value | label | home value, with a thin bar for each side.
+  function mqCmpRow(label, a, b, o){
+    o = o || {};
+    var na = parseFloat(a), nb = parseFloat(b), bars = '', wa = false, wb = false;
+    if(o.bar && !isNaN(na) && !isNaN(nb) && na >= 0 && nb >= 0 && na + nb > 0){
+      var pa = na / (na + nb) * 100, pb = 100 - pa;
+      wa = o.low ? na < nb : na > nb; wb = o.low ? nb < na : nb > na;
+      bars = '<div class="cmp-bars"><i class="' + (wa ? 'win' : '') + '" style="width:' + pa.toFixed(1) + '%"></i><i class="' + (wb ? 'win' : '') + '" style="width:' + pb.toFixed(1) + '%"></i></div>';
+    }
+    return '<div class="cmp-row"><span class="cmp-v' + (wa ? ' win' : '') + '">' + escapeHtml(a == null ? '–' : a) + '</span><span class="cmp-l">' + escapeHtml(label) + '</span>' +
+      '<span class="cmp-v r' + (wb ? ' win' : '') + '">' + escapeHtml(b == null ? '–' : b) + '</span>' + bars + '</div>';
+  }
+  function mqStat(d, key){ var x = (d && d.stats || []).filter(function(r){ return r.label === key; })[0]; return x ? x.value : null; }
+  function mqCompareHtml(a, b){
+    if(!a || a.error || !b || b.error) return '<p class="evp-muted">Season numbers aren’t available right now.</p>';
     var rows = [];
-    if(d.record) rows.push(['Record', d.record]);
-    if(d.standing) rows.push(['Standing', d.standing]);
-    if(d.home) rows.push(['Home', d.home]);
-    if(d.road) rows.push(['Road', d.road]);
-    (d.stats || []).forEach(function(x){
-      if(!MQ_STAT_LABELS[x.label]) return;
-      rows.push([MQ_STAT_LABELS[x.label], x.value]);
+    rows.push(mqCmpRow('Record', a.record, b.record));
+    if(a.standing || b.standing) rows.push(mqCmpRow('Standing', a.standing, b.standing));
+    rows.push(mqCmpRow('Home', a.home, b.home));
+    rows.push(mqCmpRow('Road', a.road, b.road));
+    var pa = mqWinPct(a.record), pb = mqWinPct(b.record);
+    if(pa != null && pb != null) rows.push(mqCmpRow('Win %', mqFmtNum(pa, 'pct'), mqFmtNum(pb, 'pct'), { bar: true }));
+    [['avgPointsFor', 'Points per game', false], ['avgPointsAgainst', 'Allowed per game', true]].forEach(function(k){
+      var x = mqStat(a, k[0]), y = mqStat(b, k[0]);
+      if(x != null && y != null) rows.push(mqCmpRow(k[1], x, y, { bar: true, low: k[2] }));
     });
-    return '<h4>' + escapeHtml(d.name || fallbackName) + '</h4><dl>' + rows.map(function(r){
-      return '<div><dt>' + escapeHtml(r[0]) + '</dt><dd>' + escapeHtml(r[1]) + '</dd></div>';
-    }).join('') + '</dl>';
+    var da = mqStat(a, 'differential'), db = mqStat(b, 'differential');
+    if(da != null && db != null) rows.push(mqCmpRow('Point differential', da, db));
+    return '<div class="cmp">' + rows.join('') + '</div>';
   }
   function mqOpenGamePanel(ev){
     var teams = mqSchedTeams(ev), g = mqGameFor(ev, teams);
@@ -8377,25 +8400,32 @@
     var away = g ? g.away : { name: teams[0], abbr: mqTeamAbbr(ev.league, teams[0]) || teams[0], score: null, record: null };
     var home = g ? g.home : { name: teams[1], abbr: mqTeamAbbr(ev.league, teams[1]) || teams[1], score: null, record: null };
     var show = g && g.state !== 'pre';
-    function line(t){ return '<div class="evp-line"><i class="sstrip-badge">' + escapeHtml(t.abbr.charAt(0)) + '</i><span class="evp-tn">' + escapeHtml(t.name) +
-      (t.record ? '<small>' + escapeHtml(t.record) + '</small>' : '') + '</span><b>' + (show && t.score != null ? escapeHtml(t.score) : '') + '</b></div>'; }
-    var el = mqPanelOpen('<div class="evp-kicker">' + escapeHtml(ev.league) + ' · ' + escapeHtml(status) + (net ? ' · ' + escapeHtml(net) : '') + '</div>' +
-      '<div class="evp-score">' + line(away) + line(home) + '</div>' +
-      (g ? '<div class="evp-cols"><div class="evp-col" data-side="away"><p class="evp-muted">Loading…</p></div><div class="evp-col" data-side="home"><p class="evp-muted">Loading…</p></div></div>'
-         : '<p class="evp-muted">Season numbers show up once the game is on today’s scoreboard.</p>'));
+    function side(t, cls){
+      return '<div class="gh-team ' + cls + '"><b class="gh-abbr">' + escapeHtml(t.abbr) + '</b><span class="gh-name">' + escapeHtml(t.name) + '</span>' +
+        (t.record ? '<span class="gh-rec">' + escapeHtml(t.record) + '</span>' : '') + '</div>';
+    }
+    var mid = show
+      ? '<div class="gh-mid"><b class="gh-sc">' + escapeHtml(away.score) + '</b><span class="gh-dash">–</span><b class="gh-sc">' + escapeHtml(home.score) + '</b></div>'
+      : '<div class="gh-mid"><span class="gh-at">at</span></div>';
+    var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + escapeHtml(ev.league) + (net ? ' · ' + escapeHtml(net) : '') + '</div>' +
+      '<div class="gh">' + side(away, 'a') + mid + side(home, 'h') + '</div>' +
+      '<div class="gh-status' + (g && g.state === 'in' ? ' live' : '') + '">' + escapeHtml(status) + '</div>' +
+      '<div class="evp-body">' + (g ? '<p class="evp-muted">Loading season numbers…</p>' : '<p class="evp-muted">Season numbers show up once the game is on today’s scoreboard.</p>') + '</div>');
     if(!g) return;
-    [['away', g.away], ['home', g.home]].forEach(function(pair){
-      var col = el.querySelector('[data-side="' + pair[0] + '"]');
-      fetch(SUPABASE_URL + '/functions/v1/scoreboard?team=' + encodeURIComponent(ev.league + ':' + pair[1].id))
-        .then(function(r){ return r.json(); }).catch(function(){ return null; })
-        .then(function(d){ if(col && col.isConnected) col.innerHTML = mqTeamStatsHtml(d, pair[1].name); });
+    var get = function(t){
+      return fetch(SUPABASE_URL + '/functions/v1/scoreboard?team=' + encodeURIComponent(ev.league + ':' + t.id))
+        .then(function(r){ return r.json(); }).catch(function(){ return null; });
+    };
+    Promise.all([get(g.away), get(g.home)]).then(function(r){
+      var body = el.querySelector('.evp-body');
+      if(body && body.isConnected) body.innerHTML = mqCompareHtml(r[0], r[1]);
     });
   }
 
   var MQ_RANGES = [['1d', '1D'], ['3m', '3M'], ['6m', '6M'], ['ytd', 'YTD']];
   function mqOpenStockPanel(ev){
     var sym = String(ev.league).toUpperCase();
-    var el = mqPanelOpen('<div class="evp-kicker">' + escapeHtml(sym) + ' · ' + escapeHtml(ev.subtitle || 'Earnings') + '</div>' +
+    var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + escapeHtml(sym) + ' · ' + escapeHtml(ev.subtitle || 'Earnings') + '</div>' +
       '<h3 class="evp-title">' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</h3>' +
       '<div class="evp-price"><b id="evp-px">…</b><span id="evp-chg"></span></div>' +
       '<div class="evp-chart" id="evp-chart"><p class="evp-muted">Loading chart…</p></div>' +
@@ -8442,10 +8472,9 @@
     var rangeLabel = { '1d': 'today', '3m': 'past 3 months', '6m': 'past 6 months', 'ytd': 'year to date' }[range];
     setHead(last, rangeLabel);
     box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Price chart">' +
-      '<defs><linearGradient id="evg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".28"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>' +
+      [0.25, 0.5, 0.75].map(function(f){ var y = (pad + f * (H - pad * 2)).toFixed(1); return '<line x1="0" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="#262930" vector-effect="non-scaling-stroke"/>'; }).join('') +
       (range === '1d' && d.prevClose && d.prevClose > lo && d.prevClose < hi ? '<line x1="0" x2="' + W + '" y1="' + Y(d.prevClose).toFixed(1) + '" y2="' + Y(d.prevClose).toFixed(1) + '" stroke="#5A5E66" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>' : '') +
-      '<path d="' + line + 'L' + X(t1).toFixed(1) + ' ' + H + 'L' + X(t0).toFixed(1) + ' ' + H + 'Z" fill="url(#evg)"/>' +
-      '<path d="' + line + '" fill="none" stroke="' + col + '" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>' +
+      '<path d="' + line + '" fill="none" stroke="' + col + '" stroke-width="1.75" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>' +
       '<line class="evp-cur" y1="0" y2="' + H + '" stroke="#8A8E96" vector-effect="non-scaling-stroke" style="display:none"/></svg>' +
       '<div class="evp-tip" style="display:none"></div>' +
       '<div class="evp-axis"><span>' + escapeHtml(mqChartDate(t0, range)) + '</span><span>' + escapeHtml(mqChartDate(t1, range)) + '</span></div>' +
