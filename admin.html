@@ -135,6 +135,37 @@
   <button id="bulk-add-btn">Add all 3</button>
   <p id="bulk-msg" style="font-size:13px; margin-top:8px;"></p>
 
+  <h2>Schedule (key dates)</h2>
+  <p style="font-size:13px; color:var(--ink-soft); margin-top:0;">Sports, earnings and movie/TV dates fill in on their own. Add the rest here: tech launches, awards shows, news events. Importance 2 also shows on the Today row of the Play page; importance 1 shows on the Schedule page only.</p>
+  <label>Category</label>
+  <select id="sched-cat">
+    <option value="tech">Tech</option>
+    <option value="pop_culture">Pop culture</option>
+    <option value="news">News</option>
+    <option value="finance">Finance</option>
+    <option value="sports">Sports</option>
+  </select>
+  <label>Title</label>
+  <input id="sched-title" maxlength="140" placeholder="e.g. Billboard Latin Music Awards">
+  <label>Small line under the title (optional)</label>
+  <input id="sched-sub" maxlength="140" placeholder="e.g. Telemundo, 8pm ET">
+  <label>Badge (optional, a few letters)</label>
+  <input id="sched-badge" maxlength="40" placeholder="e.g. Awards, Keynote">
+  <label>Date and time (your time zone)</label>
+  <input type="datetime-local" id="sched-when">
+  <label style="display:flex; align-items:center; gap:8px; font-weight:500;"><input type="checkbox" id="sched-allday" style="width:auto; margin:0;"> All day (ignore the time, use just the date)</label>
+  <label>Importance</label>
+  <select id="sched-imp">
+    <option value="2">2 - shows on the Today row and the Schedule page</option>
+    <option value="1">1 - Schedule page only</option>
+  </select>
+  <label>Link (optional, https://...)</label>
+  <input id="sched-url" placeholder="https://...">
+  <button id="sched-add-btn">Add event</button>
+  <p id="sched-msg" style="font-size:13px; margin-top:8px;"></p>
+  <button id="sched-refresh-btn" class="btn-edit" style="margin-bottom:6px;">Refresh list</button>
+  <div id="sched-admin-list"></div>
+
   <h2>Publisher widgets</h2>
   <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Partner sites that show the Marqit widget. Add a site, give it a question for each article, and approve comments.</p>
   <label>New site name</label><input id="wsite-name" type="text" placeholder="Example Sports Blog">
@@ -1343,8 +1374,82 @@
     modMsg('term-msg', 'Added.'); document.getElementById('term-input').value = ''; loadTerms();
   });
 
+  // ---- Schedule (key dates): add by hand, remove anything unwanted ----
+  var SCHED_CAT_LABEL = { sports: 'Sports', finance: 'Finance', tech: 'Tech', pop_culture: 'Pop culture', news: 'News' };
+  function schedMsg(text, isErr){
+    var el = document.getElementById('sched-msg');
+    el.textContent = text;
+    el.style.color = isErr ? 'var(--no)' : 'var(--yes)';
+  }
+  async function loadScheduleAdmin(){
+    var list = document.getElementById('sched-admin-list');
+    list.textContent = 'Loading…';
+    var since = new Date(Date.now() - 86400000).toISOString();
+    var res = await sb.from('key_events')
+      .select('id, category, title, subtitle, league, starts_at, all_day, importance, status, source, admin_hidden')
+      .gte('starts_at', since).order('starts_at', { ascending: true }).limit(300);
+    list.textContent = '';
+    if(res.error){ list.textContent = 'Error loading the schedule: ' + res.error.message; return; }
+    if(!res.data || res.data.length === 0){
+      var none = document.createElement('p');
+      none.style.cssText = 'font-size:13px; color:var(--ink-soft);';
+      none.textContent = 'No upcoming events yet. The automatic feed fills in sports, earnings and movies/TV; add anything else above.';
+      list.appendChild(none);
+      return;
+    }
+    res.data.forEach(function(ev){
+      var when = ev.all_day
+        ? new Date(ev.starts_at).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }) + ' (all day)'
+        : new Date(ev.starts_at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      var row = document.createElement('div'); row.className = 'qrow';
+      var t = document.createElement('div'); t.className = 'qtext'; t.textContent = ev.title;
+      var m = document.createElement('div'); m.className = 'qmeta';
+      m.textContent = when + ' · ' + (SCHED_CAT_LABEL[ev.category] || ev.category) + (ev.league ? ' · ' + ev.league : '') +
+        ' · importance ' + ev.importance + ' · ' + (ev.source === 'manual' ? 'added by hand' : 'automatic (' + ev.source + ')') +
+        (ev.admin_hidden ? ' · REMOVED' : '') + (ev.status !== 'scheduled' ? ' · ' + ev.status : '');
+      row.appendChild(t); row.appendChild(m);
+      if(!ev.admin_hidden){
+        var actions = document.createElement('div'); actions.className = 'actions';
+        var del = document.createElement('button'); del.className = 'btn-delete';
+        del.textContent = ev.source === 'manual' ? 'Delete' : 'Remove from site';
+        del.addEventListener('click', async function(){
+          if(!confirm((ev.source === 'manual' ? 'Delete' : 'Remove from the site') + ': ' + ev.title + '?')) return;
+          del.disabled = true;
+          var r = await sb.rpc('admin_remove_key_event', { p_id: ev.id });
+          if(r.error){ alert(r.error.message); del.disabled = false; return; }
+          loadScheduleAdmin();
+        });
+        actions.appendChild(del); row.appendChild(actions);
+      }
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('sched-refresh-btn').addEventListener('click', loadScheduleAdmin);
+  document.getElementById('sched-add-btn').addEventListener('click', async function(){
+    var title = document.getElementById('sched-title').value.trim();
+    var whenVal = document.getElementById('sched-when').value;
+    var allDay = document.getElementById('sched-allday').checked;
+    if(title.length < 2){ schedMsg('Give it a title.', true); return; }
+    if(!whenVal){ schedMsg('Pick a date' + (allDay ? '.' : ' and time.'), true); return; }
+    // All-day rows store noon UTC of the date; timed rows store the exact moment.
+    var startsAt = allDay ? (whenVal.slice(0, 10) + 'T12:00:00Z') : new Date(whenVal).toISOString();
+    var btn = document.getElementById('sched-add-btn'); btn.disabled = true;
+    var res = await sb.rpc('admin_add_key_event', {
+      p_category: document.getElementById('sched-cat').value, p_title: title,
+      p_subtitle: document.getElementById('sched-sub').value, p_league: document.getElementById('sched-badge').value,
+      p_starts_at: startsAt, p_all_day: allDay, p_importance: Number(document.getElementById('sched-imp').value),
+      p_url: document.getElementById('sched-url').value
+    });
+    btn.disabled = false;
+    if(res.error){ schedMsg('Error: ' + res.error.message, true); return; }
+    schedMsg('Added.');
+    ['sched-title', 'sched-sub', 'sched-badge', 'sched-url'].forEach(function(id){ document.getElementById(id).value = ''; });
+    loadScheduleAdmin();
+  });
+
   checkAccess().then(function(ok){
     if(ok){
+      loadScheduleAdmin();
       loadReview();
       loadUpdates();
       loadTerms();
