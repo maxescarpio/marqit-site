@@ -799,3 +799,39 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .buddy-more summary::after{content:"▾";font-size:11px}
 .buddy-more[open] summary::after{content:"▴"}
 .buddy-more summary:hover{color:#F2F3F5}
+
+/* Round two: pictures everywhere, no placeholders on cards, pill focus, chips on one line */
+.tsc-ph.ph-none{display:none}
+.tsc-lane,.tsc-tr{white-space:nowrap;flex:none}
+.tcd .tsc-chips{overflow:hidden}
+.rk-tl{flex:none;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.06);vertical-align:middle;margin-right:10px}
+.rk-tl img{width:28px;height:28px;object-fit:contain}
+.rk-tl.big{width:64px;height:64px;border-radius:14px;margin:0}.rk-tl.big img{width:52px;height:52px}
+.rk-dot.big{width:64px;height:64px;font-size:18px;margin:0}
+.tp-head .rk-tl,.tp-head .rk-dot{margin-right:0}
+#profile-circle-btn:focus{outline:none}
+#profile-circle-btn:focus-visible{outline:2px solid #6E737D;outline-offset:2px}
+#nav-profile-pill button:focus,#nav-profile-pill:focus{outline:none}
+.pagenav-rk{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 18px;font-size:14px;line-height:1;position:relative;top:-2px}
+.pagenav-rk span{display:inline-block;line-height:1;transform:translateY(-1px)}
+
+/* Schedule, cleaner: a plain list with hairlines instead of boxed cards */
+.agenda{max-width:860px}
+.agenda .ag-grp{margin-top:34px}
+.ag-h{border:0;margin:0 0 2px;padding:0 8px 10px;font:600 12px 'Barlow',sans-serif;letter-spacing:.18em;color:#8B909A;border-bottom:1px solid #3A3E46}
+.ag-h em{display:none}
+.ag-rows{display:block}
+.agenda .sstrip-cell{display:grid;grid-template-columns:112px minmax(0,1fr) auto;gap:4px 18px;padding:14px 8px;background:none;border:0;border-bottom:1px solid #23262C;border-radius:0;box-shadow:none}
+.agenda .sstrip-cell.has-q{box-shadow:none}
+.agenda .sstrip-cell.is-live{box-shadow:none}
+.agenda .sstrip-cell.is-click{padding-right:30px}
+.agenda .sstrip-cell.is-click:hover{background:rgba(255,255,255,.035);border-color:#23262C}
+.agenda .sstrip-cell.is-click::after{opacity:0;right:10px;transition:opacity .15s}
+.agenda .sstrip-cell.is-click:hover::after{opacity:1}
+.agenda .sstrip-time span:first-child{font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:8px}
+.agenda .sstrip-time span:first-child::before{display:inline-block !important;content:"";width:6px;height:6px;border-radius:50%;background:var(--cc);flex:none}
+.agenda .sstrip-cell.is-live .sstrip-time span:first-child{color:#FF8A7A}
+.agenda .sstrip-sub{padding-left:14px;font-size:12px;color:#7B808A}
+.agenda .sstrip-teams{max-width:360px}
+.agenda .sstrip-title{font-weight:600}
+@media(max-width:560px){.agenda .sstrip-cell{grid-template-columns:86px minmax(0,1fr);gap:4px 12px}.agenda .sstrip-tags{grid-column:2}}

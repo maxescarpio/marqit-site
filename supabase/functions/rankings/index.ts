@@ -3,7 +3,7 @@
 //   GET .../functions/v1/rankings?kind=music             top 10 country songs, top 10 songs, top 10 artists, 1 hour
 //   GET .../functions/v1/rankings?kind=markets           largest US-listed companies by market cap (Nasdaq public API), 5 min
 //   GET .../functions/v1/rankings?kind=artist&id=246791  one artist: photo, fans, top tracks (Deezer)
-// Team colors come from ESPN's team list; album art and artist photos from Apple and Deezer.
+// Team badges come from TheSportsDB (free, already credited on the site); team colors from ESPN's team list; album art and artist photos from Apple and Deezer.
 
 const UA = 'curl/8.5.0';
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'content-type': 'application/json' };
@@ -16,6 +16,35 @@ async function getJson(url: string, headers: Record<string, string> = {}): Promi
   if (!r.ok) throw new Error(new URL(url).hostname + ' ' + r.status);
   return r.json();
 }
+
+// ---- team badges (TheSportsDB, cached a day) ----
+const LEAGUE_NAME: Record<string, string> = { nba: 'NBA', nfl: 'NFL', nhl: 'NHL', mlb: 'MLB' };
+const badgeCache = new Map<string, { at: number; map: Record<string, string> }>();
+async function badges(kind: string): Promise<Record<string, string>> {
+  const hit = badgeCache.get(kind);
+  if (hit && Date.now() - hit.at < 86400000) return hit.map;
+  const key = Deno.env.get('THESPORTSDB_API_KEY') || '123';
+  const d = await getJson(`https://www.thesportsdb.com/api/v1/json/${key}/search_all_teams.php?l=${LEAGUE_NAME[kind]}`);
+  const map: Record<string, string> = {};
+  for (const t of d?.teams || []) {
+    const b = String(t?.strBadge || t?.strTeamBadge || '');
+    const n = String(t?.strTeam || '').toLowerCase();
+    if (!/^https:\/\//.test(b) || !n) continue;
+    const url = b + '/small';
+    const w = n.split(/\s+/);
+    map[n] = url;
+    if (w.length > 1) map['~' + w.slice(-2).join(' ')] = map['~' + w.slice(-2).join(' ')] || url;
+    map['~' + w[w.length - 1]] = map['~' + w[w.length - 1]] || url;
+  }
+  if (Object.keys(map).length) badgeCache.set(kind, { at: Date.now(), map });
+  return map;
+}
+function badgeFor(map: Record<string, string>, name: string): string | null {
+  const n = name.toLowerCase(), w = n.split(/\s+/);
+  return map[n] || (w.length > 1 && map['~' + w.slice(-2).join(' ')]) || map['~' + w[w.length - 1]] || null;
+}
+
+function badgeCacheMiss(kind: string, name: string): boolean { return !!badgeCache.get(kind)?.map['!' + String(name).toLowerCase()]; }
 
 // ---- standings ----
 const stat = (e: any, name: string): string | null => {
@@ -48,10 +77,27 @@ async function standings(kind: string) {
     for (const t of tl?.sports?.[0]?.leagues?.[0]?.teams || []) { const x = t?.team; if (x?.id) col[String(x.id)] = { color: /^[0-9a-f]{6}$/i.test(x.color || '') ? '#' + x.color.toLowerCase() : null, alt: /^[0-9a-f]{6}$/i.test(x.alternateColor || '') ? '#' + x.alternateColor.toLowerCase() : null }; }
     for (const g of groups) for (const r of g.rows) Object.assign(r, col[r.id] || {});
   } catch (_) { /* colors are decoration */ }
+  try {
+    const bm = await badges(kind);
+    const todo: any[] = [];
+    for (const g of groups) for (const r of g.rows) { r.logo = badgeFor(bm, String(r.name || '')); if (!r.logo && !bm['!' + String(r.name).toLowerCase()]) todo.push(r); }
+    // The free list endpoint only returns 10 teams, so look the rest up one by one (20 a time, remembered for a day).
+    const key = Deno.env.get('THESPORTSDB_API_KEY') || '123';
+    await Promise.all(todo.slice(0, 20).map(async (r) => {
+      const n = String(r.name).toLowerCase();
+      try {
+        const d = await getJson(`https://www.thesportsdb.com/api/v1/json/${key}/searchteams.php?t=${encodeURIComponent(r.name)}`);
+        const t = (d?.teams || []).find((x: any) => String(x?.strTeam || '').toLowerCase() === n && String(x?.strLeague || '') === LEAGUE_NAME[kind]);
+        const b = String(t?.strBadge || t?.strTeamBadge || '');
+        if (/^https:\/\//.test(b)) { bm[n] = b + '/small'; r.logo = bm[n]; } else bm['!' + n] = '1';
+      } catch (_) { /* try again next time */ }
+    }));
+  } catch (_) { /* badges are decoration */ }
+  const partial = groups.some((g: any) => g.rows.some((r: any) => !r.logo && !badgeCacheMiss(kind, r.name)));
   const season = d?.seasons?.[0]?.displayName || d?.season?.displayName || null;
   const st = groups[0]?.st;
   const phase = st === 1 ? 'Preseason' : st === 3 ? 'Postseason' : st === 2 ? 'Regular season' : null;
-  return { kind, season, phase, groups };
+  return { kind, season, phase, groups, partial };
 }
 
 // ---- music ----
@@ -110,10 +156,10 @@ Deno.serve(async (req: Request) => {
     try {
       const data = SPORTS[kind] ? await standings(kind) : kind === 'music' ? await music() : kind === 'artist' ? await artist(aid) : await markets();
       body = JSON.stringify({ ...data, at: new Date().toISOString() });
-      cache.set(ckey, { at: Date.now(), body }); if (cache.size > 100) cache.delete(cache.keys().next().value as string);
+      cache.set(ckey, { at: (data as any).partial ? Date.now() - TTL[kind] + 45000 : Date.now(), body }); if (cache.size > 100) cache.delete(cache.keys().next().value as string);
     } catch (e) {
       body = hit ? hit.body : JSON.stringify({ error: 'unavailable', detail: String(e).slice(0, 80) });
     }
   }
-  return new Response(body, { headers: { ...CORS, 'cache-control': 'public, max-age=' + Math.floor(TTL[kind] / 2000) } });
+  return new Response(body, { headers: { ...CORS, 'cache-control': 'public, max-age=' + Math.floor(TTL[kind] / 20) } });
 });

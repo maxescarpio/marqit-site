@@ -1594,8 +1594,8 @@
       catAccEl = document.createElement('div');
       catAccEl.id = 'profile-category-acc';
       catAccEl.style.cssText = 'display:flex; gap:8px; margin:0 0 10px;';
-      catAccEl.insertAdjacentHTML('beforebegin', '<div class="pc-label" style="margin:0 0 8px;">Accuracy, last 5 weeks</div>');
       picksList.parentNode.insertBefore(catAccEl, picksList);
+      catAccEl.insertAdjacentHTML('beforebegin', '<div class="pc-label" style="margin:0 0 8px;">Accuracy, last 5 weeks</div>');
     }
     catAccEl.innerHTML = '';
     var catTotals = {};
@@ -8642,7 +8642,7 @@
   function mqRkFetch(kind){
     var k = (kind === 'country' || kind === 'songs' || kind === 'artists') ? 'music' : kind;
     if(MQ_RK.cache[k] && Date.now() - MQ_RK.cache[k].at < 300000) return Promise.resolve(MQ_RK.cache[k].d);
-    return fetch(SUPABASE_URL + '/functions/v1/rankings?kind=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+    return fetch(SUPABASE_URL + '/functions/v1/rankings?v=3&kind=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
       .then(function(d){ if(d && !d.error) MQ_RK.cache[k] = { at: Date.now(), d: d }; return d && !d.error ? d : null; });
   }
   function mqRkConf(kind, g){
@@ -8653,7 +8653,13 @@
   }
   function mqRkLogo(sym, name){
     var d = MQ_DOMAINS[String(sym).toUpperCase()], ch = escapeHtml(String(name || sym).charAt(0));
-    return '<span class="rk-logo">' + (d ? '<img src="https://www.google.com/s2/favicons?sz=64&domain=' + d + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '<i>' + ch + '</i></span>';
+    return '<span class="rk-logo">' + (d ? '<img src="https://www.google.com/s2/favicons?sz=128&domain=' + d + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '<i>' + ch + '</i></span>';
+  }
+  // Team mark: the badge picture when we have one, otherwise a team-colored circle with the abbreviation.
+  function mqRkTeamMark(r, big){
+    var dot = '<span class="rk-dot' + (big ? ' big' : '') + '" style="' + mqBadgeStyle(r) + '">' + escapeHtml((r.abbr || '').slice(0, 3)) + '</span>';
+    if(!/^https:\/\//.test(r.logo || '')) return dot;
+    return '<span data-fb="' + escapeHtml(dot) + '" class="rk-tl' + (big ? ' big' : '') + '"><img src="' + escapeHtml(r.logo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.outerHTML=this.parentNode.getAttribute(\'data-fb\')"></span>';
   }
   function mqRkNum(v){ var n = parseFloat(String(v == null ? '' : v).replace(/[$,%\s+]/g, '')); return isNaN(n) ? null : n; }
   function mqRkStandings(kind, d){
@@ -8667,7 +8673,7 @@
       out += (title ? '<div class="rk-div">' + escapeHtml(title) + '</div>' : '') + '<table class="rk-t"><thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th>' + (hasOtl ? '<th>OTL</th><th>PTS</th>' : hasT ? '<th>T</th>' : '') + '<th>' + (kind === 'nfl' || hasOtl ? 'PCT' : 'GB') + '</th><th>Strk</th></tr></thead><tbody>' +
         g.rows.map(function(r, i){
           var tc = mqTeamColor(r);
-          return '<tr class="rk-go" data-act="team" data-g="' + gi + '" data-r="' + i + '" tabindex="0" style="--tc:' + tc + '"><td class="n">' + (r.seed || i + 1) + '</td><td class="t"><span class="rk-dot" style="' + mqBadgeStyle(r) + '">' + escapeHtml((r.abbr || '').slice(0, 3)) + '</span>' + escapeHtml(r.name || r.abbr) + '</td><td>' + (r.w == null ? '' : r.w) + '</td><td>' + (r.l == null ? '' : r.l) + '</td>' +
+          return '<tr class="rk-go" data-act="team" data-g="' + gi + '" data-r="' + i + '" tabindex="0" style="--tc:' + tc + '"><td class="n">' + (r.seed || i + 1) + '</td><td class="t">' + mqRkTeamMark(r) + escapeHtml(r.name || r.abbr) + '</td><td>' + (r.w == null ? '' : r.w) + '</td><td>' + (r.l == null ? '' : r.l) + '</td>' +
             (hasOtl ? '<td>' + (r.otl == null ? '' : r.otl) + '</td><td>' + (r.pts == null ? '' : r.pts) + '</td>' : hasT ? '<td>' + (r.t == null ? '' : r.t) + '</td>' : '') +
             '<td>' + escapeHtml(String(kind === 'nfl' || hasOtl ? (r.pct == null ? '' : r.pct) : (r.gb == null ? '' : r.gb))) + '</td><td>' + escapeHtml(String(r.strk || '')) + '</td></tr>';
         }).join('') + '</tbody></table>';
@@ -8699,7 +8705,7 @@
   function mqOpenTeamPanel(kind, r){
     var lg = kind.toUpperCase(), tc = mqTeamColor(r);
     var el = mqPanelOpen('<div class="evp-bar" style="background:' + tc + '"></div><div class="evp-kicker">' + lg + '</div>' +
-      '<div class="tp-head"><i class="tp-badge" style="' + mqBadgeStyle(r) + '">' + escapeHtml((r.abbr || '').slice(0, 3)) + '</i><div><h3 class="evp-title">' + escapeHtml(r.name) + '</h3><div class="tp-sub" id="tp-sub">' + escapeHtml([r.w + '-' + r.l + (r.t && r.t !== '0' ? '-' + r.t : '') + (r.otl ? '-' + r.otl : '')].join('')) + '</div></div></div>' +
+      '<div class="tp-head">' + mqRkTeamMark(r, true) + '<div><h3 class="evp-title">' + escapeHtml(r.name) + '</h3><div class="tp-sub" id="tp-sub">' + escapeHtml([r.w + '-' + r.l + (r.t && r.t !== '0' ? '-' + r.t : '') + (r.otl ? '-' + r.otl : '')].join('')) + '</div></div></div>' +
       '<div class="evp-body"><p class="evp-muted">Loading season numbers…</p></div>');
     mqRkBack(el);
     fetch(SUPABASE_URL + '/functions/v1/scoreboard?team=' + encodeURIComponent(lg + ':' + r.id)).then(function(x){ return x.json(); }).catch(function(){ return null; }).then(function(t){
@@ -8731,7 +8737,7 @@
       '<div class="evp-body"><p class="evp-muted">Loading top tracks…</p></div>');
     mqRkBack(el);
     if(!a.id) return;
-    fetch(SUPABASE_URL + '/functions/v1/rankings?kind=artist&id=' + a.id).then(function(x){ return x.json(); }).catch(function(){ return null; }).then(function(d){
+    fetch(SUPABASE_URL + '/functions/v1/rankings?v=3&kind=artist&id=' + a.id).then(function(x){ return x.json(); }).catch(function(){ return null; }).then(function(d){
       var body = el.querySelector('.evp-body'); if(!body || !body.isConnected) return;
       if(!d || d.error){ body.innerHTML = ''; return; }
       var f = el.querySelector('#ar-fans'); if(f && d.fans) f.textContent = d.fans.toLocaleString('en-US') + ' fans on Deezer';
