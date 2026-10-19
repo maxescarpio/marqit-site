@@ -4198,6 +4198,35 @@
       });
     }catch(e){ /* decoration only */ }
   }
+  // Tap "N voted" on a prediction card to see who has called it (usernames only, never which side).
+  document.addEventListener('click', async function(e){
+    var fl = e.target.closest && e.target.closest('.foot-left'); if(!fl) return;
+    var card = fl.closest('[data-question-id]'); if(!card) return;
+    var qid = card.getAttribute('data-question-id'), foot = fl.closest('.ticket-foot');
+    var box = card.querySelector('.pvoters');
+    if(box){ box.remove(); fl.classList.remove('open'); return; }
+    fl.classList.add('open');
+    box = document.createElement('div'); box.className = 'pvoters'; box.innerHTML = '<p class="voters-msg">Loading…</p>';
+    foot.insertAdjacentElement('afterend', box);
+    try{
+      var pr = await sb.from('predictions').select('user_id, created_at').eq('question_id', qid).order('created_at', { ascending: true }).limit(300);
+      var uids = []; (pr.data || []).forEach(function(r){ if(uids.indexOf(r.user_id) < 0) uids.push(r.user_id); });
+      var profs = [];
+      if(uids.length){
+        var q = await sb.from('profiles').select('id, username, avatar_emoji, avatar_color, hide_from_leaderboard').in('id', uids);
+        profs = (q.data || []).filter(function(x){ return !x.hide_from_leaderboard && x.username; });
+      }
+      var total = (card.querySelector('.foot-count') || {}).textContent || '', n = parseInt(total, 10) || uids.length;
+      var rest = Math.max(0, n - profs.length);
+      if(!box.isConnected) return;
+      box.innerHTML = profs.length
+        ? '<div class="pv-grid">' + profs.map(function(u){
+            var color = /^#[0-9A-Fa-f]{6}$/.test(u.avatar_color || '') ? u.avatar_color : '#2B2E34';
+            return '<span class="pv-u"><i class="vtr-av" style="background:' + color + '">' + mqAvatarInner(u.avatar_emoji, u.username) + '</i>' + escapeHtml(u.username) + '</span>';
+          }).join('') + '</div>' + (rest ? '<p class="voters-msg">+ ' + rest + ' guest' + (rest === 1 ? '' : 's') + ' or private player' + (rest === 1 ? '' : 's') + '</p>' : '')
+        : '<p class="voters-msg">' + (n ? n + ' voted, all guests or private players.' : 'No one yet. Be the first.') + '</p>';
+    }catch(err){ if(box.isConnected) box.innerHTML = '<p class="voters-msg">Couldn’t load who voted. Try again.</p>'; }
+  });
   // Emoji reactions: one fetch for every reaction on today's questions,
   // counts painted per-button, tap toggles your own (insert/delete). Anyone
   // can react, even before voting -- these aren't gated like crowd % since
@@ -8611,11 +8640,12 @@
   // ---------- Rankings panel (standings, music charts, biggest companies) ----------
   var MQ_RK = { cache: {}, kind: 'nba' };
   var MQ_RK_TABS = [['nba','NBA'],['nfl','NFL'],['nhl','NHL'],['mlb','MLB'],['country','Country songs'],['songs','Top songs'],['artists','Artists'],['markets','Biggest companies']];
+  var MQ_DOMAINS = { NVDA:'nvidia.com', AAPL:'apple.com', GOOGL:'google.com', GOOG:'google.com', MSFT:'microsoft.com', AMZN:'amazon.com', TSM:'tsmc.com', META:'meta.com', AVGO:'broadcom.com', TSLA:'tesla.com', BRK:'berkshirehathaway.com', WMT:'walmart.com', JPM:'jpmorganchase.com', LLY:'lilly.com', V:'visa.com', ORCL:'oracle.com', NFLX:'netflix.com', XOM:'exxonmobil.com', MA:'mastercard.com', COST:'costco.com', JNJ:'jnj.com', HD:'homedepot.com', PG:'pg.com', BAC:'bankofamerica.com', ABBV:'abbvie.com', KO:'coca-cola.com', AMD:'amd.com', PLTR:'palantir.com', SAP:'sap.com', ASML:'asml.com', BABA:'alibaba.com', NVO:'novonordisk.com', SPCX:'spacex.com' };
   function mqRkFetch(kind){
     var k = (kind === 'country' || kind === 'songs' || kind === 'artists') ? 'music' : kind;
     if(MQ_RK.cache[k] && Date.now() - MQ_RK.cache[k].at < 300000) return Promise.resolve(MQ_RK.cache[k].d);
     return fetch(SUPABASE_URL + '/functions/v1/rankings?kind=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
-      .then(function(d){ if(d) MQ_RK.cache[k] = { at: Date.now(), d: d }; return d; });
+      .then(function(d){ if(d && !d.error) MQ_RK.cache[k] = { at: Date.now(), d: d }; return d && !d.error ? d : null; });
   }
   function mqRkConf(kind, g){
     var n = String(g.name || '');
@@ -8623,17 +8653,23 @@
     if(g.conf) return String(g.conf).replace(/^East$/i, 'Eastern Conference').replace(/^West$/i, 'Western Conference');
     var m = n.match(/^(AFC|NFC|American League|National League)/i); return m ? m[1] : '';
   }
+  function mqRkLogo(sym, name){
+    var d = MQ_DOMAINS[String(sym).toUpperCase()], ch = escapeHtml(String(name || sym).charAt(0));
+    return '<span class="rk-logo">' + (d ? '<img src="https://www.google.com/s2/favicons?sz=64&domain=' + d + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '<i>' + ch + '</i></span>';
+  }
+  function mqRkNum(v){ var n = parseFloat(String(v == null ? '' : v).replace(/[$,%\s+]/g, '')); return isNaN(n) ? null : n; }
   function mqRkStandings(kind, d){
     if(!d || !d.groups || !d.groups.length) return '<p class="evp-muted">Standings aren’t available right now.</p>';
     var hasT = kind === 'nfl', hasOtl = kind === 'nhl', last = '', out = '';
     if(d.phase && /pre/i.test(d.phase)) out += '<p class="rk-note">Preseason records, the regular season hasn’t started.</p>';
-    d.groups.forEach(function(g){
+    d.groups.forEach(function(g, gi){
       var conf = mqRkConf(kind, g);
       if(conf && conf !== last){ out += '<div class="rk-conf">' + escapeHtml(conf) + '</div>'; last = conf; }
       var title = g.name && g.name !== conf && !/^(East|West)$/i.test(g.name) ? g.name : '';
       out += (title ? '<div class="rk-div">' + escapeHtml(title) + '</div>' : '') + '<table class="rk-t"><thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th>' + (hasOtl ? '<th>OTL</th><th>PTS</th>' : hasT ? '<th>T</th>' : '') + '<th>' + (kind === 'nfl' || hasOtl ? 'PCT' : 'GB') + '</th><th>Strk</th></tr></thead><tbody>' +
         g.rows.map(function(r, i){
-          return '<tr><td class="n">' + (r.seed || i + 1) + '</td><td class="t">' + escapeHtml(r.name || r.abbr) + '</td><td>' + (r.w == null ? '' : r.w) + '</td><td>' + (r.l == null ? '' : r.l) + '</td>' +
+          var tc = mqTeamColor(r);
+          return '<tr class="rk-go" data-act="team" data-g="' + gi + '" data-r="' + i + '" tabindex="0" style="--tc:' + tc + '"><td class="n">' + (r.seed || i + 1) + '</td><td class="t"><span class="rk-dot" style="' + mqBadgeStyle(r) + '">' + escapeHtml((r.abbr || '').slice(0, 3)) + '</span>' + escapeHtml(r.name || r.abbr) + '</td><td>' + (r.w == null ? '' : r.w) + '</td><td>' + (r.l == null ? '' : r.l) + '</td>' +
             (hasOtl ? '<td>' + (r.otl == null ? '' : r.otl) + '</td><td>' + (r.pts == null ? '' : r.pts) + '</td>' : hasT ? '<td>' + (r.t == null ? '' : r.t) + '</td>' : '') +
             '<td>' + escapeHtml(String(kind === 'nfl' || hasOtl ? (r.pct == null ? '' : r.pct) : (r.gb == null ? '' : r.gb))) + '</td><td>' + escapeHtml(String(r.strk || '')) + '</td></tr>';
         }).join('') + '</tbody></table>';
@@ -8643,41 +8679,104 @@
   function mqRkList(items, artist){
     if(!items || !items.length) return '<p class="evp-muted">This chart isn’t available right now.</p>';
     return '<ol class="rk-l">' + items.map(function(x, i){
-      var a = x.artist || '', t = x.title || x.name || '';
-      return '<li><span class="n">' + (x.rank || i + 1) + '</span><span class="m"><b>' + escapeHtml(t) + '</b>' + (artist || !a ? '' : '<em>' + escapeHtml(a) + '</em>') + '</span></li>';
+      var a = x.artist || '', t = x.title || x.name || '', img = x.image || x.picture || '';
+      return '<li class="rk-go" data-act="' + (artist ? 'artist' : 'song') + '" data-i="' + i + '" tabindex="0"><span class="n">' + (x.rank || i + 1) + '</span>' +
+        '<span class="rk-art' + (artist ? ' round' : '') + '">' + (img ? '<img src="' + escapeHtml(img) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<i>' + escapeHtml(t.charAt(0)) + '</i></span>' +
+        '<span class="m"><b>' + escapeHtml(t) + '</b>' + (artist || !a ? '' : '<em>' + escapeHtml(a) + '</em>') + '</span><span class="rk-chev">›</span></li>';
     }).join('') + '</ol>';
   }
   function mqRkMarkets(d){
     if(!d || !d.companies || !d.companies.length) return '<p class="evp-muted">Market data isn’t available right now.</p>';
-    return '<table class="rk-t"><thead><tr><th>#</th><th>Company</th><th>Value</th><th>Price</th><th>Today</th></tr></thead><tbody>' + d.companies.map(function(c){
-      var up = (c.pct || 0) >= 0;
-      return '<tr><td class="n">' + c.rank + '</td><td class="t">' + escapeHtml(c.name) + ' <small>' + escapeHtml(c.symbol) + '</small></td><td>' + escapeHtml(String(c.cap != null && c.cap > 1e6 ? mqMoney(c.cap) : c.cap)) + '</td><td>' + (c.price != null ? '$' + Number(c.price).toFixed(2) : '') + '</td><td class="' + (up ? 'up' : 'dn') + '">' + (c.pct == null ? '' : (up ? '+' : '') + Number(c.pct).toFixed(2) + '%') + '</td></tr>';
+    return '<table class="rk-t"><thead><tr><th>#</th><th>Company</th><th>Value</th><th>Price</th><th>Today</th></tr></thead><tbody>' + d.companies.map(function(c, i){
+      var pc = mqRkNum(c.pct), px = mqRkNum(c.price), up = (pc || 0) >= 0;
+      return '<tr class="rk-go" data-act="co" data-i="' + i + '" tabindex="0"><td class="n">' + c.rank + '</td><td class="t">' + mqRkLogo(c.symbol, c.name) + escapeHtml(c.name) + ' <small>' + escapeHtml(c.symbol) + '</small></td><td>' + escapeHtml(mqMoney(Number(c.cap))) + '</td><td>' + (px != null ? '$' + px.toFixed(2) : '') + '</td><td class="' + (up ? 'up' : 'dn') + '">' + (pc == null ? '' : (up ? '+' : '') + pc.toFixed(2) + '%') + '</td></tr>';
     }).join('') + '</tbody></table>';
   }
   var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', country: 'Apple iTunes charts', songs: 'Apple iTunes charts', artists: 'Deezer', markets: 'Nasdaq' };
+  function mqRkBack(el){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'rk-back'; b.textContent = '‹ Rankings';
+    b.addEventListener('click', function(){ mqOpenRankings(MQ_RK.kind); });
+    el.insertBefore(b, el.querySelector('.evp-bar'));
+  }
+  function mqOpenTeamPanel(kind, r){
+    var lg = kind.toUpperCase(), tc = mqTeamColor(r);
+    var el = mqPanelOpen('<div class="evp-bar" style="background:' + tc + '"></div><div class="evp-kicker">' + lg + '</div>' +
+      '<div class="tp-head"><i class="tp-badge" style="' + mqBadgeStyle(r) + '">' + escapeHtml((r.abbr || '').slice(0, 3)) + '</i><div><h3 class="evp-title">' + escapeHtml(r.name) + '</h3><div class="tp-sub" id="tp-sub">' + escapeHtml([r.w + '-' + r.l + (r.t && r.t !== '0' ? '-' + r.t : '') + (r.otl ? '-' + r.otl : '')].join('')) + '</div></div></div>' +
+      '<div class="evp-body"><p class="evp-muted">Loading season numbers…</p></div>');
+    mqRkBack(el);
+    fetch(SUPABASE_URL + '/functions/v1/scoreboard?team=' + encodeURIComponent(lg + ':' + r.id)).then(function(x){ return x.json(); }).catch(function(){ return null; }).then(function(t){
+      var body = el.querySelector('.evp-body'); if(!body || !body.isConnected) return;
+      if(!t || t.error){ body.innerHTML = '<p class="evp-muted">Season numbers aren’t available right now.</p>'; return; }
+      var sub = el.querySelector('#tp-sub'); if(sub) sub.textContent = [t.record, t.standing].filter(Boolean).join(' · ');
+      var side = { color: t.color || r.color, alt: t.alt || r.alt }, out = '';
+      if(t.leaders && t.leaders.length){
+        out += '<div class="kp-head">Team leaders</div><div class="tp-leaders">' + t.leaders.map(function(l){
+          return '<div class="kp"><i class="kp-num" style="' + mqBadgeStyle(side) + '">' + escapeHtml(l.num || '–') + '</i><span class="kp-t"><b>' + escapeHtml(l.name) + (l.pos ? ' <small>' + escapeHtml(l.pos) + '</small>' : '') + '</b><em>' + escapeHtml(l.label + ' · ' + l.line) + '</em></span></div>';
+        }).join('') + '</div>';
+      }
+      var cells = [['Record', t.record], ['Standing', t.standing], ['Home', t.home], ['Road', t.road]];
+      (t.stats || []).forEach(function(s){ var lab = MQ_STAT_LABELS[s.label]; if(lab) cells.push([lab, s.value]); });
+      cells = cells.filter(function(c){ return c[1]; });
+      out += '<div class="kp-head">Season</div><div class="tp-grid">' + cells.map(function(c){ return '<div><span>' + escapeHtml(c[0]) + '</span><b>' + escapeHtml(String(c[1])) + '</b></div>'; }).join('') + '</div>';
+      body.innerHTML = out;
+    });
+  }
+  function mqOpenSongPanel(x, label){
+    var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + escapeHtml(label) + ' · #' + x.rank + '</div>' +
+      '<div class="sg-head">' + (x.image ? '<img class="sg-art" src="' + escapeHtml(x.image) + '" alt="" referrerpolicy="no-referrer">' : '') + '<div><h3 class="evp-title">' + escapeHtml(x.title) + '</h3><div class="tp-sub">' + escapeHtml(x.artist) + '</div>' + (x.album ? '<div class="sg-album">' + escapeHtml(x.album) + '</div>' : '') + '</div></div>' +
+      (/^https:\/\//.test(x.link || '') ? '<a class="sg-link" href="' + escapeHtml(x.link) + '" target="_blank" rel="noopener noreferrer">Listen on Apple Music ↗</a>' : ''));
+    mqRkBack(el);
+  }
+  function mqOpenArtistPanel(a){
+    var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">Top artists · #' + a.rank + '</div>' +
+      '<div class="sg-head">' + (a.picture ? '<img class="sg-art round" src="' + escapeHtml(a.picture) + '" alt="" referrerpolicy="no-referrer">' : '') + '<div><h3 class="evp-title">' + escapeHtml(a.name) + '</h3><div class="tp-sub" id="ar-fans"></div></div></div>' +
+      '<div class="evp-body"><p class="evp-muted">Loading top tracks…</p></div>');
+    mqRkBack(el);
+    if(!a.id) return;
+    fetch(SUPABASE_URL + '/functions/v1/rankings?kind=artist&id=' + a.id).then(function(x){ return x.json(); }).catch(function(){ return null; }).then(function(d){
+      var body = el.querySelector('.evp-body'); if(!body || !body.isConnected) return;
+      if(!d || d.error){ body.innerHTML = ''; return; }
+      var f = el.querySelector('#ar-fans'); if(f && d.fans) f.textContent = d.fans.toLocaleString('en-US') + ' fans on Deezer';
+      body.innerHTML = (d.top && d.top.length ? '<div class="kp-head">Most played</div><ol class="rk-l ar-top">' + d.top.map(function(t, i){
+        return '<li><span class="n">' + (i + 1) + '</span><span class="rk-art">' + (t.cover ? '<img src="' + escapeHtml(t.cover) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '') + '</span><span class="m"><b>' + escapeHtml(t.title) + '</b><em>' + escapeHtml(t.album) + '</em></span></li>';
+      }).join('') + '</ol>' : '') + (/^https:\/\//.test(d.link || '') ? '<a class="sg-link" href="' + escapeHtml(d.link) + '" target="_blank" rel="noopener noreferrer">Open on Deezer ↗</a>' : '');
+    });
+  }
   function mqOpenRankings(kind){
     MQ_RK.kind = kind || MQ_RK.kind;
     var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">Rankings</div><h3 class="evp-title">Standings &amp; charts</h3>' +
       '<div class="rk-tabs" role="tablist">' + MQ_RK_TABS.map(function(t){ return '<button type="button" role="tab" data-k="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>' +
       '<div id="rk-body" class="rk-body"></div><p class="evp-foot" id="rk-foot"></p>');
+    var cur = null;
     function show(k){
-      MQ_RK.kind = k;
+      MQ_RK.kind = k; cur = null;
       el.querySelectorAll('.rk-tabs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-k') === k); });
       var body = el.querySelector('#rk-body'); body.innerHTML = '<p class="evp-muted">Loading…</p>';
-      el.querySelector('#rk-foot').textContent = 'Source: ' + MQ_RK_SRC[k] + '. Unofficial feed, may lag. Updated as you open it.';
+      el.querySelector('#rk-foot').textContent = 'Source: ' + MQ_RK_SRC[k] + '. Unofficial feed, may lag. Tap any row for details.';
       mqRkFetch(k).then(function(d){
         if(MQ_RK.kind !== k || !body.isConnected) return;
         if(!d){ body.innerHTML = '<p class="evp-muted">Couldn’t load this right now. Try again in a minute.</p>'; return; }
+        cur = d;
         body.innerHTML = k === 'markets' ? mqRkMarkets(d) : k === 'country' ? mqRkList(d.countrySongs) : k === 'songs' ? mqRkList(d.songs) : k === 'artists' ? mqRkList(d.artists, true) : mqRkStandings(k, d);
       });
     }
+    function act(row){
+      if(!row || !cur) return;
+      var a = row.getAttribute('data-act'), k = MQ_RK.kind, i = Number(row.getAttribute('data-i'));
+      if(a === 'team') mqOpenTeamPanel(k, cur.groups[Number(row.getAttribute('data-g'))].rows[Number(row.getAttribute('data-r'))]);
+      else if(a === 'co'){ var c = cur.companies[i]; mqOpenStockPanel({ league: c.symbol, title: c.name + ' earnings', subtitle: 'Largest companies' }); var p = document.querySelector('#mq-evpanel .evp'); if(p) mqRkBack(p); }
+      else if(a === 'song') mqOpenSongPanel((k === 'country' ? cur.countrySongs : cur.songs)[i], k === 'country' ? 'Country songs' : 'Top songs');
+      else if(a === 'artist') mqOpenArtistPanel(cur.artists[i]);
+    }
     el.querySelector('.rk-tabs').addEventListener('click', function(e){ var b = e.target.closest('button[data-k]'); if(b) show(b.getAttribute('data-k')); });
+    el.querySelector('#rk-body').addEventListener('click', function(e){ act(e.target.closest('.rk-go')); });
+    el.querySelector('#rk-body').addEventListener('keydown', function(e){ if(e.key === 'Enter') act(e.target.closest('.rk-go')); });
     show(MQ_RK.kind);
   }
   window.mqOpenRankings = mqOpenRankings;
   (function(){
     function bind(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', function(){ var h = document.getElementById('hamburger-menu'); if(h) h.style.display = 'none'; mqOpenRankings(); }); }
-    ['hamburger-rankings-btn', 'footer-rankings-link', 'sched-rankings-link'].forEach(bind);
+    ['hamburger-rankings-btn', 'footer-rankings-link', 'sched-rankings-link', 'home-rankings-btn', 'tabs-rankings-link'].forEach(bind);
   })();
   function mqDrawChart(el, box, d, range){
     var pts = d.points, W = 600, H = 220, pad = 8;
@@ -8779,6 +8878,20 @@
     '</div>';
   }
 
+  // Schedule page: one card per game or event, grouped by league, two columns on wide screens.
+  function mqSchedAgendaHtml(list){
+    var groups = [], byKey = {};
+    mqSchedSort(list).forEach(function(ev){
+      var key = ev.category === 'finance' ? 'Earnings' : ev.league || (MQ_SCHED_CATS.filter(function(c){ return c[0] === ev.category; })[0] || [0, 'Events'])[1];
+      if(!byKey[key]){ byKey[key] = { name: key, events: [] }; groups.push(byKey[key]); }
+      byKey[key].events.push(ev);
+    });
+    return '<div class="agenda">' + groups.map(function(g){
+      return '<section class="ag-grp"><h5 class="ag-h"><span>' + escapeHtml(g.name) + '</span><em>' + g.events.length + (g.events.length === 1 ? ' event' : ' events') + '</em></h5><div class="ag-rows">' +
+        g.events.map(function(ev){ return mqSchedCellHtml(ev, true); }).join('') + '</div></section>';
+    }).join('') + '</div>';
+  }
+
   // The still row on the Play page: today's bigger events only. Hidden until the schedule has data.
   function renderSchedToday(fromQuote){
     var box = document.getElementById('sched-today'), cards = document.getElementById('sched-today-cards');
@@ -8837,7 +8950,7 @@
     var selLabel = new Date(Date.parse(sel + 'T12:00:00Z')).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
     listEl.innerHTML =
       '<h4 class="sched-sec-title sched-sel-title">' + selLabel + (sel === today ? '<em>Today</em>' : '') + '</h4>' +
-      (byDay[sel].length ? mqSchedStripHtml(byDay[sel], true) : '<p class="sched-none">Nothing scheduled</p>');
+      (byDay[sel].length ? mqSchedAgendaHtml(byDay[sel]) : '<p class="sched-none">Nothing scheduled</p>');
   }
 
   (function(){
@@ -9476,7 +9589,8 @@
       var isPost = r.kind === 'post', isTrend = r.kind === 'trend', yt = isYt(r);
       var lane = LANE_NAME[laneOf(r)] || '', when = ago(r.published_at || r.fetched_at), ks = keyStat(r);
       var photo = (!isPost && !yt && r.image_url && /^https:\/\//i.test(r.image_url))
-        ? '<div class="tsc-ph"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>' : '';
+        ? '<div class="tsc-ph"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add(\'ph-none\');this.remove()"></div>' : '';
+      if(!photo && !isPost && !yt) photo = '<div class="tsc-ph ph-none"></div>';
       var rank = isTrend && r.trend_rank ? '<span class="tsc-tr">#' + Number(r.trend_rank) + ' ' + mvHtml(r) + '</span>' : (isTrend ? '<span class="tsc-tr">Trending</span>' : '');
       var by = r.source_name ? '<span class="tcd-by">' + escapeHtml(r.source_name) + '</span>' : '';
       return '<article class="news-card tcd tsc' + (isPost ? ' is-post' : '') + (isTrend ? ' is-trend' : '') + '" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(mqDecodeEntities(r.headline)) + '" data-news-id="' + escapeHtml(r.id) + '">' +

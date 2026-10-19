@@ -2,12 +2,13 @@
 //   GET .../functions/v1/rankings?kind=nba|nfl|nhl|mlb   standings (ESPN public feed, unofficial), 10 min
 //   GET .../functions/v1/rankings?kind=music             top 10 country songs, top 10 songs, top 10 artists, 1 hour
 //   GET .../functions/v1/rankings?kind=markets           largest US-listed companies by market cap (Nasdaq public API), 5 min
-// Names, numbers and positions only. No logos or photos.
+//   GET .../functions/v1/rankings?kind=artist&id=246791  one artist: photo, fans, top tracks (Deezer)
+// Team colors come from ESPN's team list; album art and artist photos from Apple and Deezer.
 
 const UA = 'curl/8.5.0';
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'content-type': 'application/json' };
 const cache = new Map<string, { at: number; body: string }>();
-const TTL: Record<string, number> = { nba: 600000, nfl: 600000, nhl: 600000, mlb: 600000, music: 3600000, markets: 300000 };
+const TTL: Record<string, number> = { nba: 600000, nfl: 600000, nhl: 600000, mlb: 600000, music: 3600000, markets: 300000, artist: 3600000 };
 const SPORTS: Record<string, string> = { nba: 'basketball/nba', nfl: 'football/nfl', nhl: 'hockey/nhl', mlb: 'baseball/mlb' };
 
 async function getJson(url: string, headers: Record<string, string> = {}): Promise<any> {
@@ -41,6 +42,12 @@ async function standings(kind: string) {
   const d = await getJson(`https://site.api.espn.com/apis/v2/sports/${SPORTS[kind]}/standings${level}`);
   const groups: any[] = [];
   collect(d, null, groups);
+  try {
+    const tl = await getJson(`https://site.api.espn.com/apis/site/v2/sports/${SPORTS[kind]}/teams?limit=100`);
+    const col: Record<string, any> = {};
+    for (const t of tl?.sports?.[0]?.leagues?.[0]?.teams || []) { const x = t?.team; if (x?.id) col[String(x.id)] = { color: /^[0-9a-f]{6}$/i.test(x.color || '') ? '#' + x.color.toLowerCase() : null, alt: /^[0-9a-f]{6}$/i.test(x.alternateColor || '') ? '#' + x.alternateColor.toLowerCase() : null }; }
+    for (const g of groups) for (const r of g.rows) Object.assign(r, col[r.id] || {});
+  } catch (_) { /* colors are decoration */ }
   const season = d?.seasons?.[0]?.displayName || d?.season?.displayName || null;
   const st = groups[0]?.st;
   const phase = st === 1 ? 'Preseason' : st === 3 ? 'Postseason' : st === 2 ? 'Regular season' : null;
@@ -52,14 +59,22 @@ async function music() {
   const out: any = { countrySongs: [], songs: [], artists: [] };
   const errors: string[] = [];
   const itunes = (genre: string) => `https://itunes.apple.com/us/rss/topsongs/limit=10${genre}/json`;
-  const parseSongs = (d: any) => (d?.feed?.entry || []).slice(0, 10).map((e: any, i: number) => ({ rank: i + 1, title: String(e?.['im:name']?.label || ''), artist: String(e?.['im:artist']?.label || '') }));
+  const parseSongs = (d: any) => (d?.feed?.entry || []).slice(0, 10).map((e: any, i: number) => ({ rank: i + 1, title: String(e?.['im:name']?.label || ''), artist: String(e?.['im:artist']?.label || ''), image: String((e?.['im:image'] || []).slice(-1)[0]?.label || '').replace(/\/\d+x\d+bb/, '/300x300bb'), link: String(e?.id?.label || e?.link?.attributes?.href || ''), album: String(e?.['im:collection']?.['im:name']?.label || '') }));
   await Promise.all([
     getJson(itunes('/genre=6')).then((d) => { out.countrySongs = parseSongs(d); }).catch((e) => errors.push('country ' + String(e).slice(0, 40))),
     getJson(itunes('')).then((d) => { out.songs = parseSongs(d); }).catch((e) => errors.push('songs ' + String(e).slice(0, 40))),
-    getJson('https://api.deezer.com/chart/0/artists?limit=10').then((d) => { out.artists = (d?.data || []).slice(0, 10).map((a: any, i: number) => ({ rank: i + 1, name: String(a?.name || '') })); }).catch((e) => errors.push('artists ' + String(e).slice(0, 40))),
+    getJson('https://api.deezer.com/chart/0/artists?limit=10').then((d) => { out.artists = (d?.data || []).slice(0, 10).map((a: any, i: number) => ({ rank: i + 1, id: Number(a?.id) || null, name: String(a?.name || ''), picture: String(a?.picture_medium || ''), link: String(a?.link || '') })); }).catch((e) => errors.push('artists ' + String(e).slice(0, 40))),
   ]);
   out.errors = errors;
   return out;
+}
+
+// ---- one artist ----
+async function artist(id: string) {
+  if (!/^\d{1,12}$/.test(id)) throw new Error('bad id');
+  const [a, top] = await Promise.all([getJson(`https://api.deezer.com/artist/${id}`), getJson(`https://api.deezer.com/artist/${id}/top?limit=5`)]);
+  return { kind: 'artist', id: Number(id), name: String(a?.name || ''), picture: String(a?.picture_big || a?.picture_medium || ''), fans: Number(a?.nb_fan) || null, link: String(a?.link || ''),
+    top: (top?.data || []).slice(0, 5).map((t: any) => ({ title: String(t?.title_short || t?.title || ''), album: String(t?.album?.title || ''), cover: String(t?.album?.cover_medium || '') })) };
 }
 
 // ---- markets ----
@@ -86,14 +101,16 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
   const kind = (new URL(req.url).searchParams.get('kind') || '').toLowerCase();
   if (!TTL[kind]) return new Response(JSON.stringify({ error: 'bad kind' }), { status: 400, headers: CORS });
-  const hit = cache.get(kind);
+  const aid = new URL(req.url).searchParams.get('id') || '';
+  const ckey = kind === 'artist' ? 'artist:' + aid : kind;
+  const hit = cache.get(ckey);
   let body: string;
   if (hit && Date.now() - hit.at < TTL[kind]) body = hit.body;
   else {
     try {
-      const data = SPORTS[kind] ? await standings(kind) : kind === 'music' ? await music() : await markets();
+      const data = SPORTS[kind] ? await standings(kind) : kind === 'music' ? await music() : kind === 'artist' ? await artist(aid) : await markets();
       body = JSON.stringify({ ...data, at: new Date().toISOString() });
-      cache.set(kind, { at: Date.now(), body });
+      cache.set(ckey, { at: Date.now(), body }); if (cache.size > 100) cache.delete(cache.keys().next().value as string);
     } catch (e) {
       body = hit ? hit.body : JSON.stringify({ error: 'unavailable', detail: String(e).slice(0, 80) });
     }

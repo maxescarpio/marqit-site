@@ -693,3 +693,90 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 #nav-profile-pill,#nav-badge{cursor:pointer;transition:background .15s}
 #nav-profile-pill:hover,#nav-badge:hover{background:#22262D !important}
 #nav-profile-pill:focus-visible,#nav-badge:focus-visible{outline:2px solid #6E737D;outline-offset:2px}
+
+/* NEW chip: no outline box */
+.mv-new,.tsc .mv-new,.tsc-facts .mv-new{border:0 !important;background:none !important;padding:0;min-width:0;height:auto;display:inline;color:#9DBBF5;font-size:11px;letter-spacing:.08em}
+.tsc-tr .mv{height:auto;min-width:0;padding:0 0 0 4px}
+/* Trending and News cards: same photo slot, with a tinted tile when there is no photo */
+.tsc-ph.ph-none{background:linear-gradient(135deg,color-mix(in srgb,var(--lc) 38%,#14161B),#14161B);position:relative}
+.tsc-ph.ph-none::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 70% 25%,rgba(255,255,255,.12),transparent 55%)}
+.tsc-ph.ph-none img{display:none}
+
+/* Schedule agenda */
+.agenda .ag-grp{margin-top:26px}
+.ag-h{display:flex;align-items:baseline;gap:10px;margin:0 0 12px;padding-bottom:9px;border-bottom:1px solid var(--line);font:700 13px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#E4E6EA}
+.ag-h em{font-style:normal;font-weight:500;letter-spacing:.02em;text-transform:none;color:#6E737D;font-size:13px}
+.ag-rows{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:10px}
+.agenda .sstrip-cell{flex:none;display:grid;grid-template-columns:96px minmax(0,1fr) auto;align-items:center;gap:6px 16px;min-height:0;padding:14px 16px 14px 14px;background:#15171B;border:1px solid var(--line);border-left:4px solid var(--cc);border-radius:10px;position:relative}
+.agenda .sstrip-cell.is-click{cursor:pointer;padding-right:34px}
+.agenda .sstrip-cell.is-click:hover{background:#1A1D22;border-color:#3A3E46;border-left-color:var(--cc)}
+.agenda .sstrip-cell.is-click::after{content:"›";position:absolute;right:14px;top:50%;transform:translateY(-52%);font-size:22px;color:#6E737D}
+.agenda .sstrip-cell.is-live{box-shadow:inset 0 0 0 1px rgba(255,107,91,.35)}
+.agenda .sstrip-time{display:flex !important;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px}
+.agenda .sstrip-time span:first-child{font-size:13px;font-weight:700;color:#F2F3F5;white-space:normal}
+.agenda .sstrip-time span:first-child::before{display:none !important}
+.agenda .sstrip-sub{text-align:left !important;font-size:12px;color:#8B909A;white-space:normal}
+.agenda .sstrip-teams{gap:6px}
+.agenda .sstrip-team{font-size:15px}
+.agenda .sstrip-team b{font-size:15px}
+.agenda .sstrip-title{font-size:16px;-webkit-line-clamp:3}
+.agenda .sstrip-tags{grid-column:2 / -1;margin:0}
+.agenda .sstrip-cell>.sstrip-title,.agenda .sstrip-cell>.sstrip-teams{min-width:0}
+@media(max-width:520px){.ag-rows{grid-template-columns:1fr}.agenda .sstrip-cell{grid-template-columns:78px minmax(0,1fr) auto;gap:6px 12px}}
+
+/* Who has voted on a prediction */
+.foot-left{cursor:pointer;border-radius:100px}
+.foot-left .foot-count{text-decoration:underline;text-decoration-color:#4A4F58;text-underline-offset:3px}
+.foot-left:hover .foot-count,.foot-left.open .foot-count{text-decoration-color:currentColor}
+.pvoters{margin-top:10px;padding:12px 14px;background:#1B1E24;border:1px solid var(--line);border-radius:8px}
+.pv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 14px}
+.pv-u{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:#E4E6EA;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-u .vtr-av{flex:none}
+
+/* Rankings: entry points */
+.sched-rk-btn{display:inline-flex;align-items:center;margin-left:10px;height:34px;padding:0 14px;border:1px solid #3A3E46;border-radius:100px;background:#1B1E24;color:#F2F3F5;font:600 13px 'Barlow',sans-serif;cursor:pointer;vertical-align:middle}
+.sched-rk-btn:hover{border-color:#6E737D;background:#22262D}
+.pagenav-rk{margin-left:auto;align-self:center;background:none;border:1px solid #3A3E46;border-radius:100px;color:#E4E6EA;font:600 13px 'Barlow',sans-serif;padding:7px 14px;cursor:pointer;white-space:nowrap}
+.pagenav-rk:hover{border-color:#6E737D;background:#1B1E24}
+@media(max-width:700px){.pagenav-rk{display:none}}
+/* Rankings: color */
+.rk-go{cursor:pointer}
+.rk-t tr.rk-go:hover td{background:#1A1D22}
+.rk-t tr.rk-go td.n{box-shadow:inset 4px 0 0 var(--tc,transparent);padding-left:12px}
+.rk-t td.t{display:flex;align-items:center;gap:10px}
+.rk-dot{flex:none;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;font:700 10.5px 'Barlow',sans-serif;letter-spacing:.02em}
+.rk-logo{flex:none;position:relative;width:30px;height:30px;border-radius:8px;background:#F2F3F5;display:inline-flex;align-items:center;justify-content:center;overflow:hidden}
+.rk-logo img{position:relative;z-index:1;width:20px;height:20px;object-fit:contain}
+.rk-logo i{position:absolute;font:700 14px 'Barlow',sans-serif;color:#15171B;font-style:normal}
+.rk-t td.t small{margin-left:2px}
+.rk-l li.rk-go:hover{background:#1A1D22}
+.rk-l .rk-art{flex:none;position:relative;width:48px;height:48px;border-radius:6px;overflow:hidden;background:#2A2D33;display:inline-flex;align-items:center;justify-content:center}
+.rk-l .rk-art.round{border-radius:50%}
+.rk-l .rk-art img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover}
+.rk-l .rk-art i{position:absolute;font:700 18px 'Barlow',sans-serif;color:#8B909A;font-style:normal}
+.rk-l .m{flex:1}
+.rk-chev{color:#6E737D;font-size:22px;padding-right:4px}
+.rk-l .n{font-size:20px;width:26px}
+.rk-back{background:none;border:0;color:#A8ADB6;font:600 13px 'Barlow',sans-serif;cursor:pointer;padding:0;margin:0 0 10px;display:block}
+.rk-back:hover{color:#F2F3F5}
+/* Team, song and artist panels */
+.tp-head{display:flex;gap:16px;align-items:center;margin:6px 0 4px}
+.tp-badge{flex:none;width:58px;height:58px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:700 17px 'Barlow',sans-serif;font-style:normal}
+.tp-sub{font-size:14px;color:#A8ADB6;margin-top:2px}
+.tp-leaders{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.tp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:10px}
+.tp-grid>div{background:#15171B;padding:10px 12px}
+.tp-grid span{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8B909A}
+.tp-grid b{display:block;margin-top:2px;font:600 16px 'Barlow',sans-serif;color:#F2F3F5}
+.sg-head{display:flex;gap:18px;align-items:center;margin:10px 0 14px}
+.sg-art{flex:none;width:112px;height:112px;border-radius:8px;object-fit:cover;background:#2A2D33}
+.sg-art.round{border-radius:50%}
+.sg-album{font-size:13px;color:#8B909A;margin-top:4px}
+.sg-link{display:block;text-align:center;margin-top:14px;padding:11px;border:1px solid #3A3E46;border-radius:6px;color:#F2F3F5;text-decoration:none;font:600 14px 'Barlow',sans-serif}
+.sg-link:hover{border-color:#6E737D}
+.ar-top .n{font-size:16px}
+.rk-t td.t{display:table-cell}
+.rk-t td.t .rk-dot,.rk-t td.t .rk-logo{vertical-align:middle;margin-right:10px}
+.rk-tabs{flex-wrap:wrap;overflow:visible}
+#evp-fund .fd-grid{background:none;border:0;gap:8px}
+#evp-fund .fd-c{border:1px solid var(--line);border-radius:6px}

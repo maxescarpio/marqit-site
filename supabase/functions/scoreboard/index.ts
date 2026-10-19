@@ -37,7 +37,20 @@ async function team(key: string) {
   const stats = (total.stats || []).filter((x: any) => WANT.includes(x.name))
     .sort((a: any, b: any) => WANT.indexOf(a.name) - WANT.indexOf(b.name))
     .map((x: any) => ({ label: String(x.shortDisplayName || x.displayName || x.name), value: String(x.displayValue ?? x.value) }));
+  // Season leaders: ESPN only lists them on a scoreboard game, so look up the team's next (or last) game day.
+  let lead: any[] = [];
+  try {
+    const ev = (t.nextEvent || [])[0];
+    const d = ev?.date ? new Date(ev.date) : null;
+    if (d) {
+      const et = new Date(d.getTime() - 5 * 3600000); // close enough to the Eastern calendar day
+      const ds = et.getUTCFullYear() + String(et.getUTCMonth() + 1).padStart(2, '0') + String(et.getUTCDate()).padStart(2, '0');
+      const sb = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${PATHS[league]}/scoreboard?dates=${ds}`, { headers: UA, signal: AbortSignal.timeout(8000) });
+      if (sb.ok) for (const e of (await sb.json())?.events || []) for (const c of e?.competitions?.[0]?.competitors || []) if (String(c?.team?.id) === id) lead = leaders(c);
+    }
+  } catch (_) { /* leaders are optional */ }
   const body = JSON.stringify({
+    color: hex(t.color), alt: hex(t.alternateColor), leaders: lead,
     name: String(t.displayName || ''), record: total.summary || null, standing: t.standingSummary || null,
     home: items.find((i: any) => i.type === 'home')?.summary || null, road: items.find((i: any) => i.type === 'road')?.summary || null,
     stats,
