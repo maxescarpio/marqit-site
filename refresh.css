@@ -155,3 +155,144 @@ input[type=search]:focus,textarea:focus,select:focus{
 }
 #username-prompt-input,#google-password-input,#new-password-input,
 #reset-email-input,#profile-state-input{border-radius:8px !important;}
+
+/* ==========================================================================
+   Scoreboard strip (Schedule page + "Today's key events" on Play).
+   A boxed, edge-to-edge band like ESPN's top bar: league label cells and
+   game cells separated by thin dividers, swipeable sideways.
+   ========================================================================== */
+.page{overflow-x:clip;}
+.sstrip{
+  position:relative;
+  width:100vw;
+  margin-left:calc(50% - 50vw);
+  margin-top:10px;
+  background:#15171C;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+}
+.sstrip-track{
+  display:flex;
+  overflow-x:auto;
+  scroll-snap-type:x proximity;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+.sstrip-track::-webkit-scrollbar{display:none;}
+.sstrip-league{
+  flex:0 0 88px;
+  display:flex;align-items:center;justify-content:center;
+  padding:8px 6px;
+  background:#101216;
+  border-right:1px solid var(--line);
+  font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;text-align:center;overflow-wrap:normal;word-break:normal;
+  color:var(--ink);
+  scroll-snap-align:start;
+}
+.sstrip-cell{
+  flex:0 0 196px;
+  min-height:118px;
+  padding:11px 14px 12px;
+  display:flex;flex-direction:column;gap:7px;
+  border-right:1px solid var(--line);
+  scroll-snap-align:start;
+}
+.sstrip-time{
+  font-size:12px;font-weight:600;color:var(--ink-soft);
+  font-variant-numeric:tabular-nums;
+}
+.sstrip-teams{display:flex;flex-direction:column;gap:6px;}
+.sstrip-team{
+  font-size:14.5px;font-weight:600;color:var(--ink);line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.sstrip-title{
+  font-size:14.5px;font-weight:600;color:var(--ink);line-height:1.25;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+}
+.sstrip-sub{
+  font-size:11.5px;color:var(--ink-soft);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.sstrip-tags{margin-top:auto;display:flex;gap:10px;align-items:baseline;}
+.sstrip-cell .sched-pick{font-size:12px;margin:0;}
+.sstrip-arrow{
+  position:absolute;top:0;bottom:0;z-index:2;
+  width:34px;border:0;cursor:pointer;
+  background:linear-gradient(90deg,#15171C 35%,rgba(21,23,28,0));
+  color:var(--ink);font-size:26px;line-height:1;font-family:inherit;
+}
+.sstrip-arrow.prev{left:0;}
+.sstrip-arrow.next{right:0;transform:scaleX(-1);}
+/* arrows only show when there is more to scroll to in that direction */
+.sstrip:not(.can-prev) .sstrip-arrow.prev,
+.sstrip:not(.can-next) .sstrip-arrow.next{display:none;}
+@media (hover:none){.sstrip-arrow{display:none;}}
+@media (max-width:640px){
+  .sstrip-league{flex-basis:78px;font-size:11px;}
+  .sstrip-cell{flex-basis:172px;}
+}
+/* selected day tab on the Schedule page */
+.sched-day.sel{border-bottom-color:var(--ink);}
+.sched-day.sel b{color:var(--ink);}
+.sched-sel-title{margin-top:18px;}
+
+/* ==========================================================================
+   @mentions: tagged names in comments, username suggestions, and the
+   "mentioned you" notice.
+   ========================================================================== */
+.cmt-mention{color:#7FA8FF;font-weight:600;}
+.cmt-form{position:relative;}
+.cmt-suggest{
+  position:absolute;left:0;bottom:100%;z-index:30;
+  width:min(280px,100%);margin-bottom:6px;padding:4px;
+  background:#20242C;border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+}
+.cmt-suggest[hidden]{display:none;}
+.cmt-suggest-item{
+  display:flex;align-items:center;gap:9px;width:100%;
+  padding:8px 10px;border:0;border-radius:7px;background:transparent;
+  color:var(--ink);font:inherit;font-size:14px;font-weight:600;text-align:left;cursor:pointer;
+}
+.cmt-suggest-item:hover,.cmt-suggest-item.on{background:rgba(127,168,255,.16);}
+.cmt-suggest-av{
+  flex:none;width:24px;height:24px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:12px;background:#2C2F37;overflow:hidden;
+}
+.cmt-suggest-av img{width:100%;height:100%;object-fit:cover;}
+
+.mq-mention-host{
+  position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));
+  z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;
+  pointer-events:none;
+}
+.mq-mention{
+  pointer-events:auto;
+  display:flex;align-items:center;gap:10px;
+  width:100%;max-width:400px;padding:9px 10px 9px 12px;
+  background:#20242C;border:1px solid rgba(127,168,255,.45);border-radius:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+  animation:mqMentionIn .3s ease backwards;
+}
+@keyframes mqMentionIn{from{opacity:0;transform:translateY(10px);}}
+.mq-mention-av{
+  flex:none;width:28px;height:28px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:14px;background:#2C2F37;overflow:hidden;
+}
+.mq-mention-av img{width:100%;height:100%;object-fit:cover;}
+.mq-mention-text{flex:1;min-width:0;font-size:14px;line-height:1.3;color:var(--ink);}
+.mq-mention-text b{color:#7FA8FF;font-weight:700;}
+.mq-mention-view{
+  flex:none;padding:6px 12px;border:0;border-radius:8px;
+  background:var(--ink);color:var(--paper);font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+}
+.mq-mention-x{
+  flex:none;width:28px;height:28px;border:0;border-radius:50%;
+  background:transparent;color:var(--ink-soft);font-size:20px;line-height:1;cursor:pointer;
+}
+.mq-mention-x:hover{color:var(--ink);}
+@media (prefers-reduced-motion:reduce){.mq-mention{animation:none;}}

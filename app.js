@@ -4212,6 +4212,85 @@
   // Reads/writes go through RPCs from supabase/migrations/20261012_question_comments.sql.
   // If that migration isn't applied yet the dropdowns simply say comments are coming soon.
   var MQ_ADMIN_EMAIL = 'maxescarpio3@gmail.com';
+
+  // ---- @mentions ----
+  // Writes comment text into `node`, turning @username into a highlighted span. Text goes in as text
+  // nodes (never as HTML), so a comment can't inject markup. A tag only counts when the @ starts a
+  // word, so an email address like me@site.com is left alone.
+  function mqAppendMentionText(node, text){
+    var s = String(text == null ? '' : text), re = /(^|[^A-Za-z0-9_])@([A-Za-z0-9_]{3,24})/g, last = 0, m;
+    while((m = re.exec(s))){
+      var start = m.index + m[1].length;
+      if(start > last) node.appendChild(document.createTextNode(s.slice(last, start)));
+      var tag = document.createElement('span');
+      tag.className = 'cmt-mention';
+      tag.textContent = '@' + m[2];
+      node.appendChild(tag);
+      last = start + 1 + m[2].length;
+    }
+    if(last < s.length) node.appendChild(document.createTextNode(s.slice(last)));
+  }
+
+  // Username suggestions under a comment box: type "@ja" and people whose names start with "ja" appear.
+  // Uses search_usernames() from supabase/migrations/20261019_comment_mentions.sql; if that is not
+  // applied yet, nothing shows and the box works exactly as before.
+  function mqAttachMentionSuggest(form, input){
+    var box = document.createElement('div');
+    box.className = 'cmt-suggest'; box.hidden = true; box.setAttribute('role', 'listbox');
+    form.appendChild(box);
+    var list = [], sel = 0, timer = null, seq = 0;
+    function close(){ box.hidden = true; box.textContent = ''; list = []; sel = 0; }
+    function paint(){
+      box.textContent = '';
+      list.forEach(function(u, i){
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'cmt-suggest-item' + (i === sel ? ' on' : ''); b.setAttribute('role', 'option');
+        var av = document.createElement('span'); av.className = 'cmt-suggest-av'; av.innerHTML = mqAvatarInner(u.avatar_emoji, u.username);
+        if(u.avatar_color) av.style.background = u.avatar_color;
+        var nm = document.createElement('span'); nm.textContent = '@' + u.username;
+        b.appendChild(av); b.appendChild(nm);
+        b.addEventListener('mousedown', function(e){ e.preventDefault(); }); // keep focus in the box
+        b.addEventListener('click', function(){ pick(u); });
+        box.appendChild(b);
+      });
+    }
+    // The "@something" being typed right at the cursor, if any.
+    function query(){
+      var pos = input.selectionStart == null ? input.value.length : input.selectionStart;
+      var m = /(^|[^A-Za-z0-9_])@([A-Za-z0-9_]{1,24})$/.exec(input.value.slice(0, pos));
+      return m ? { prefix: m[2], start: pos - m[2].length - 1, end: pos } : null;
+    }
+    function pick(u){
+      var q = query(); if(!q) return;
+      input.value = input.value.slice(0, q.start) + '@' + u.username + ' ' + input.value.slice(q.end);
+      var np = q.start + u.username.length + 2;
+      try{ input.setSelectionRange(np, np); }catch(e){}
+      close(); input.focus();
+    }
+    input.addEventListener('input', function(){
+      clearTimeout(timer);
+      var q = query();
+      if(!q){ close(); return; }
+      timer = setTimeout(async function(){
+        var mine = ++seq;
+        try{
+          var r = await sb.rpc('search_usernames', { p_prefix: q.prefix });
+          if(mine !== seq) return;
+          if(r.error || !r.data || !r.data.length){ close(); return; }
+          list = r.data; sel = 0; paint(); box.hidden = false;
+        }catch(e){ close(); }
+      }, 160);
+    });
+    input.addEventListener('keydown', function(e){
+      if(box.hidden || !list.length) return;
+      if(e.key === 'ArrowDown'){ e.preventDefault(); sel = (sel + 1) % list.length; paint(); }
+      else if(e.key === 'ArrowUp'){ e.preventDefault(); sel = (sel - 1 + list.length) % list.length; paint(); }
+      else if(e.key === 'Enter' || e.key === 'Tab'){ e.preventDefault(); pick(list[sel]); }
+      else if(e.key === 'Escape'){ close(); }
+    });
+    input.addEventListener('blur', function(){ setTimeout(close, 150); });
+  }
+
   async function mqFillComments(container, prepared, session, api){
     api = api || { get:'get_question_comments', getArg:'p_question_ids', post:'post_question_comment', postArg:'p_question_id', like:'toggle_comment_like', del:'delete_my_comment', report:'report_question_comment', pin:'admin_pin_comment', idKey:'question_id' };
     var boxes = container.querySelectorAll('.cmt');
@@ -4244,7 +4323,7 @@
       if(c.held) who.appendChild(el('span', 'cmt-held', ' · Waiting for review'));
       if(c.pinned){ var pb = el('span', 'cmt-pinned'); pb.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z"/></svg>Pinned'; who.appendChild(pb); }
       main.appendChild(who);
-      main.appendChild(el('div', 'cmt-text', c.body));
+      var txt = el('div', 'cmt-text'); mqAppendMentionText(txt, c.body); main.appendChild(txt);
       var acts = el('div', 'cmt-acts');
       var like = el('button', 'cmt-heart' + (c.mine ? ' on' : ''));
       like.type = 'button';
@@ -4310,6 +4389,7 @@
       var btn = el('button', 'cmt-post', 'Post'); btn.type = 'submit';
       var msg = el('div', 'cmt-msg');
       f.appendChild(inp); f.appendChild(btn); f.appendChild(msg);
+      mqAttachMentionSuggest(f, inp);
       f.addEventListener('submit', async function(ev){
         ev.preventDefault();
         var v = inp.value.trim(); if(!v) return;
@@ -4402,6 +4482,85 @@
     var n = document.createElement('div'); n.className = 'cmt-note'; n.textContent = text; parent.appendChild(n);
     setTimeout(function(){ if(n.parentNode) n.remove(); }, 2500);
   }
+
+  // ===== "Someone mentioned you" notices =====
+  // When a signed-in player is tagged (@theirname) in a Play, News or Trending comment, a small notice
+  // appears at the bottom of the screen: "@jazcuy mentioned you in Play". Tapping View jumps to that
+  // conversation; the X dismisses it. Either way it is marked seen and won't come back.
+  // Uses get_my_mentions / mark_mentions_seen from supabase/migrations/20261019_comment_mentions.sql;
+  // if that is not applied yet the lookup just fails quietly and nothing shows.
+  (function(){
+    var shown = {}, host = null;
+    function getHost(){
+      if(host && host.parentNode) return host;
+      host = document.createElement('div');
+      host.className = 'mq-mention-host';
+      host.setAttribute('role', 'status'); host.setAttribute('aria-live', 'polite');
+      document.body.appendChild(host);
+      return host;
+    }
+    function whenFound(sel, cb){
+      var tries = 0;
+      (function look(){
+        var n = document.querySelector(sel);
+        if(n){ cb(n); return; }
+        if(++tries < 20) setTimeout(look, 200);
+      })();
+    }
+    function openMention(m){
+      var page = m.kind === 'question' ? 'home' : (m.where_label === 'Trending' ? 'trending' : 'news');
+      var tab = document.querySelector('.pagenav-tab[data-page="' + page + '"]');
+      if(tab) tab.click();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if(m.kind === 'question'){
+        whenFound('.predict-card[data-question-id="' + m.target_id + '"] details.cmt', function(d){
+          d.open = true;
+          d.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      }else{
+        whenFound('.news-card[data-news-id="' + m.target_id + '"]', function(card){ card.click(); });
+      }
+    }
+    function seen(ids){
+      try{ sb.rpc('mark_mentions_seen', { p_ids: ids }).then(function(){}, function(){}); }catch(e){}
+    }
+    function show(m){
+      var row = document.createElement('div');
+      row.className = 'mq-mention';
+      var av = document.createElement('span'); av.className = 'mq-mention-av'; av.innerHTML = mqAvatarInner(m.avatar_emoji, m.by_username);
+      if(m.avatar_color) av.style.background = m.avatar_color;
+      var txt = document.createElement('span'); txt.className = 'mq-mention-text';
+      var line = document.createElement('b'); line.textContent = '@' + m.by_username;
+      txt.appendChild(line);
+      txt.appendChild(document.createTextNode(' mentioned you in ' + (m.where_label || 'a comment')));
+      var view = document.createElement('button'); view.type = 'button'; view.className = 'mq-mention-view'; view.textContent = 'View';
+      var x = document.createElement('button'); x.type = 'button'; x.className = 'mq-mention-x'; x.setAttribute('aria-label', 'Dismiss'); x.textContent = '×';
+      view.addEventListener('click', function(){ seen([m.id]); row.remove(); openMention(m); });
+      x.addEventListener('click', function(){ seen([m.id]); row.remove(); });
+      row.appendChild(av); row.appendChild(txt); row.appendChild(view); row.appendChild(x);
+      var h = getHost();
+      h.appendChild(row);
+      while(h.children.length > 3) h.removeChild(h.firstChild); // never stack more than three
+    }
+    async function check(){
+      if(document.hidden) return;
+      try{
+        var s = await sb.auth.getSession();
+        if(!s || !s.data || !s.data.session){ if(host) host.textContent = ''; shown = {}; return; }
+        var r = await sb.rpc('get_my_mentions');
+        if(r.error || !r.data) return;
+        r.data.slice(0, 3).forEach(function(m){
+          if(shown[m.id]) return;
+          shown[m.id] = true;
+          show(m);
+        });
+      }catch(e){}
+    }
+    setTimeout(check, 3500);
+    setInterval(check, 90000);
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden) setTimeout(check, 500); });
+    try{ sb.auth.onAuthStateChange(function(ev){ if(ev === 'SIGNED_IN') setTimeout(check, 2500); }); }catch(e){}
+  })();
 
   // ===== Haptics =====
   // Tiny, optional feedback on the moments that matter. Silent where the
@@ -8007,7 +8166,7 @@
   // events" row on Play and the Schedule page. Static and swipeable on purpose: the headline ticker
   // above is the only thing on the site that moves by itself.
   var MQ_SCHED_CATS = [['all', 'All'], ['sports', 'Sports'], ['finance', 'Finance'], ['tech', 'Tech'], ['pop_culture', 'Pop culture'], ['news', 'News']];
-  var mqSched = { events: [], loaded: false, failed: false, cat: 'all', fetchedAt: 0, loading: null };
+  var mqSched = { events: [], loaded: false, failed: false, cat: 'all', day: '', fetchedAt: 0, loading: null };
 
   function mqSchedEtDay(d){
     return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
@@ -8076,26 +8235,46 @@
     return out;
   }
 
-  function mqSchedCardHtml(ev){
-    var tags = mqSchedTagsHtml(ev, false);
-    return '<div class="sched-card">' +
-      '<div class="sched-card-top"><span>' + escapeHtml(ev.league || '') + '</span>' +
-        '<span class="sched-card-time">' + escapeHtml(mqSchedTime(ev)) + '</span></div>' +
-      '<div class="sched-card-title">' + escapeHtml(ev.title) + '</div>' +
-      (ev.subtitle ? '<div class="sched-card-sub">' + escapeHtml(ev.subtitle) + '</div>' : '') +
-      tags +
+  // ESPN-style scoreboard strip: one full-width band of boxed cells, grouped by league, that swipes
+  // sideways. Sports titles are stored as "Away at Home" (or "Home vs Away" for soccer), so a game
+  // becomes a two-team cell; anything else (earnings, releases, awards) becomes a one-title cell.
+  // The feed has no scores or logos yet, so cells show the matchup, start time and venue.
+  function mqSchedTeams(ev){
+    if(ev.category !== 'sports') return null;
+    var m = /^(.+?)\s+(?:at|vs\.?|@)\s+(.+)$/i.exec(ev.title || '');
+    return m ? [m[1].trim(), m[2].trim()] : null;
+  }
+
+  function mqSchedCellHtml(ev, clickable){
+    var teams = mqSchedTeams(ev);
+    var body = teams
+      ? '<div class="sstrip-teams"><div class="sstrip-team">' + escapeHtml(teams[0]) + '</div>' +
+          '<div class="sstrip-team">' + escapeHtml(teams[1]) + '</div></div>'
+      : '<div class="sstrip-title">' + escapeHtml(ev.title) + '</div>';
+    var tags = mqSchedTagsHtml(ev, clickable);
+    return '<div class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + '">' +
+      '<div class="sstrip-time"><span>' + escapeHtml(mqSchedTime(ev)) + '</span></div>' +
+      body +
+      (ev.subtitle ? '<div class="sstrip-sub">' + escapeHtml(ev.subtitle) + '</div>' : '') +
+      (tags ? '<div class="sstrip-tags">' + tags + '</div>' : '') +
     '</div>';
   }
 
-  function mqSchedRowHtml(ev){
-    var title = ev.url
-      ? '<a class="sched-row-title" href="' + escapeHtml(ev.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(ev.title) + '</a>'
-      : '<span class="sched-row-title">' + escapeHtml(ev.title) + '</span>';
-    var tags = mqSchedTagsHtml(ev, true);
-    return '<div class="sched-row">' +
-      '<span class="sched-row-time">' + escapeHtml(mqSchedTime(ev)) + '</span>' +
-      '<div>' + title + (ev.subtitle ? '<div class="sched-row-sub">' + escapeHtml(ev.subtitle) + '</div>' : '') + '</div>' +
-      '<div class="sched-row-side">' + (ev.league ? '<span class="sched-badge">' + escapeHtml(ev.league) + '</span>' : '') + tags + '</div>' +
+  function mqSchedStripHtml(list, clickable){
+    var groups = [], byKey = {};
+    mqSchedSort(list).forEach(function(ev){
+      var key = ev.league || (MQ_SCHED_CATS.filter(function(c){ return c[0] === ev.category; })[0] || [0, 'Events'])[1];
+      if(!byKey[key]){ byKey[key] = { name: key, events: [] }; groups.push(byKey[key]); }
+      byKey[key].events.push(ev);
+    });
+    var cells = groups.map(function(g){
+      return '<div class="sstrip-league"><span>' + escapeHtml(g.name) + '</span></div>' +
+        g.events.map(function(ev){ return mqSchedCellHtml(ev, clickable); }).join('');
+    }).join('');
+    return '<div class="sstrip">' +
+      '<button type="button" class="sstrip-arrow prev" aria-label="Scroll left">&lsaquo;</button>' +
+      '<div class="sstrip-track">' + cells + '</div>' +
+      '<button type="button" class="sstrip-arrow next" aria-label="Scroll right">&rsaquo;</button>' +
     '</div>';
   }
 
@@ -8110,7 +8289,7 @@
     })).slice(0, 12);
     box.style.display = '';
     cards.innerHTML = list.length
-      ? list.map(mqSchedCardHtml).join('')
+      ? mqSchedStripHtml(list, false)
       : '<p class="sched-empty">Nothing big today. Check the rest of the week.</p>';
   }
 
@@ -8140,19 +8319,18 @@
       var d = mqSchedEventDay(ev);
       if(byDay[d]) byDay[d].push(ev);
     });
+    // One day at a time: the picked day (today by default) fills the strip.
+    if(!mqSched.day || days.indexOf(mqSched.day) < 0) mqSched.day = days.indexOf(today) >= 0 ? today : days[0];
+    var sel = mqSched.day;
     daysEl.innerHTML = days.map(function(d){
       var dt = new Date(Date.parse(d + 'T12:00:00Z')), n = byDay[d].length;
-      return '<button type="button" class="sched-day' + (n ? ' has' : '') + (d === today ? ' today' : '') + (d < today ? ' past' : '') + '" data-day="' + d + '">' +
+      return '<button type="button" class="sched-day' + (n ? ' has' : '') + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (d === sel ? ' sel' : '') + '" data-day="' + d + '" aria-pressed="' + (d === sel) + '">' +
         '<b>' + dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }) + '</b><span>' + dt.getUTCDate() + '</span></button>';
     }).join('');
-    listEl.innerHTML = days.map(function(d){
-      var label = new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
-      var has = byDay[d].length > 0;
-      return '<section class="sched-sec' + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (has ? '' : ' empty') + '" id="sched-sec-' + d + '">' +
-        '<h4 class="sched-sec-title">' + label + (d === today ? '<em>Today</em>' : '') + '</h4>' +
-        (has ? mqSchedSort(byDay[d]).map(mqSchedRowHtml).join('') : '<p class="sched-none">Nothing scheduled</p>') +
-      '</section>';
-    }).join('');
+    var selLabel = new Date(Date.parse(sel + 'T12:00:00Z')).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+    listEl.innerHTML =
+      '<h4 class="sched-sec-title sched-sel-title">' + selLabel + (sel === today ? '<em>Today</em>' : '') + '</h4>' +
+      (byDay[sel].length ? mqSchedStripHtml(byDay[sel], true) : '<p class="sched-none">Nothing scheduled</p>');
   }
 
   (function(){
@@ -8167,8 +8345,32 @@
     if(daysEl) daysEl.addEventListener('click', function(e){
       var b = e.target.closest('.sched-day');
       if(!b) return;
-      var sec = document.getElementById('sched-sec-' + b.getAttribute('data-day'));
-      if(sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      mqSched.day = b.getAttribute('data-day');
+      renderSchedPage();
+    });
+    // Show each strip's arrows only when there is more to scroll to in that direction.
+    function stripState(strip){
+      var t = strip.querySelector('.sstrip-track');
+      if(!t) return;
+      strip.classList.toggle('can-prev', t.scrollLeft > 6);
+      strip.classList.toggle('can-next', t.scrollLeft + t.clientWidth < t.scrollWidth - 6);
+    }
+    function stripStateAll(){ document.querySelectorAll('.sstrip').forEach(stripState); }
+    document.addEventListener('scroll', function(e){
+      if(e.target && e.target.classList && e.target.classList.contains('sstrip-track')) stripState(e.target.parentNode);
+    }, true);
+    window.addEventListener('resize', stripStateAll);
+    var stripObs = new MutationObserver(function(){ requestAnimationFrame(stripStateAll); });
+    ['sched-list', 'sched-today-cards'].forEach(function(id){
+      var host = document.getElementById(id);
+      if(host) stripObs.observe(host, { childList: true });
+    });
+    // Arrow buttons on every strip scroll it sideways (the strip also swipes and scrolls natively).
+    document.addEventListener('click', function(e){
+      var a = e.target.closest('.sstrip-arrow');
+      if(!a) return;
+      var track = a.parentNode.querySelector('.sstrip-track');
+      if(track) track.scrollBy({ left: (a.classList.contains('next') ? 1 : -1) * Math.max(240, track.clientWidth * 0.8), behavior: 'smooth' });
     });
     var listEl = document.getElementById('sched-list');
     if(listEl) listEl.addEventListener('click', function(e){
@@ -8183,13 +8385,9 @@
     });
     var tab = document.querySelector('.pagenav-tab[data-page="schedule"]');
     if(tab) tab.addEventListener('click', function(){
+      mqSched.day = ''; // opening the tab starts on today
       loadSchedule(false);
       renderSchedPage();
-      // Past days sit above today; bring today into view unless it is Monday.
-      setTimeout(function(){
-        var sec = document.querySelector('#sched-list .sched-sec.today');
-        if(sec && sec.previousElementSibling) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 400);
     });
     loadSchedule(true);
     setInterval(function(){ if(!document.hidden) loadSchedule(true); }, 300000);
