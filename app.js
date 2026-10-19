@@ -8698,7 +8698,7 @@
       return '<tr class="rk-go" data-act="co" data-i="' + i + '" tabindex="0"><td class="n">' + c.rank + '</td><td class="t">' + mqRkLogo(c.symbol, c.name) + escapeHtml(c.name) + ' <small>' + escapeHtml(c.symbol) + '</small></td><td>' + escapeHtml(mqMoney(Number(c.cap))) + '</td><td>' + (px != null ? '$' + px.toFixed(2) : '') + '</td><td class="' + (up ? 'up' : 'dn') + '">' + (pc == null ? '' : (up ? '+' : '') + pc.toFixed(2) + '%') + '</td></tr>';
     }).join('') + '</tbody></table>';
   }
-  var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', country: 'Apple iTunes charts', songs: 'Apple iTunes charts', artists: 'Deezer', markets: 'Nasdaq' };
+  var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', country: 'Apple iTunes charts, album art © its owners', songs: 'Apple iTunes charts, album art © its owners', artists: 'Deezer, photos © their owners', markets: 'Nasdaq' };
   function mqRkBack(el){
     var b = document.createElement('button'); b.type = 'button'; b.className = 'rk-back'; b.textContent = '‹ Rankings';
     b.addEventListener('click', function(){ mqOpenRankings(MQ_RK.kind); });
