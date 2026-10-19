@@ -3471,6 +3471,25 @@
   // check only — since the Supabase key is public, someone could write a malicious
   // username straight to the database and bypass it. Escaping here means that even if
   // that ever happens, it renders as inert text instead of executing as HTML/script.
+  // Turns leftover HTML codes (&#x2019;, &#39;, &amp;, &rsquo;) from news feeds back into real
+  // characters. Run it on text BEFORE escapeHtml, so headlines never show raw codes.
+  function mqDecodeEntities(str){
+    var NAMED = { amp:'&', lt:'<', gt:'>', quot:'"', apos:"'", nbsp:' ', rsquo:'’', lsquo:'‘', rdquo:'”', ldquo:'“', ndash:'–', mdash:'—', hellip:'…' };
+    var out = String(str == null ? '' : str);
+    for(var i = 0; i < 3; i++){
+      var next = out.replace(/&(?:#x([0-9a-f]+)|#(\d+)|([a-z]+));/gi, function(m, hex, dec, name){
+        try {
+          if(hex) return String.fromCodePoint(parseInt(hex, 16));
+          if(dec) return String.fromCodePoint(parseInt(dec, 10));
+        } catch(e){ return m; }
+        var v = NAMED[String(name).toLowerCase()];
+        return v === undefined ? m : v;
+      });
+      if(next === out) break;
+      out = next;
+    }
+    return out;
+  }
   function escapeHtml(str){
     return String(str)
       .replace(/&/g, '&amp;')
@@ -8004,7 +8023,7 @@
         if(rows.length < 6) return;
 
         function itemHtml(row){
-          var headline = escapeHtml(row.headline || '');
+          var headline = escapeHtml(mqDecodeEntities(row.headline || ''));
           var source = row.source_name || '';
           var url = row.article_url || '#';
           var domain = '';
@@ -8423,7 +8442,7 @@
       if(!r.take_question) return '';
       return '<div class="news-take" data-take-id="' + escapeHtml(r.id) + '">' +
         '<div class="take-label">The debate</div>' +
-        '<div class="take-q">' + escapeHtml(r.take_question) + '</div>' +
+        '<div class="take-q">' + escapeHtml(mqDecodeEntities(r.take_question)) + '</div>' +
         '<div class="take-btns"><button type="button" class="take-btn take-yes" data-choice="yes">Yes</button><button type="button" class="take-btn take-no" data-choice="no">No</button></div>' +
         '<div class="take-result" hidden></div>' +
         '<div class="take-note">No points. Just the debate.</div></div>';
@@ -8442,10 +8461,10 @@
     }
     function cardHtml(r){
       var isPost = r.kind === 'post', isTrend = r.kind === 'trend', yt = isYt(r);
-      return '<article class="news-card' + (isPost ? ' is-post' : '') + (isTrend ? ' is-trend' : '') + '" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+      return '<article class="news-card' + (isPost ? ' is-post' : '') + (isTrend ? ' is-trend' : '') + '" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(mqDecodeEntities(r.headline)) + '" data-news-id="' + escapeHtml(r.id) + '">' +
         ((isPost || yt) ? '' : imgHtml(r)) +
-        '<div class="news-body">' + (isTrend ? rankHtml(r) : '') + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div>' +
-        (isTrend && r.summary ? '<p class="trend-ctx">' + escapeHtml(r.summary) + '</p>' : '') + '</div>' +
+        '<div class="news-body">' + (isTrend ? rankHtml(r) : '') + metaHtml(r) + '<div class="news-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</div>' +
+        (isTrend && r.summary ? '<p class="trend-ctx">' + escapeHtml(mqDecodeEntities(r.summary)) + '</p>' : '') + '</div>' +
         ((isPost || yt) ? embedHtml(r) : '') +
         takeHtml(r) + footHtml(r) + '</article>';
     }
@@ -8557,9 +8576,9 @@
     function topRowHtml(r, n){
       var s = statsById[r.id] || {}, c = Number(s.comments) || 0;
       var img = (r.image_url && /^https:\/\//i.test(r.image_url)) ? '<img class="tr-img" src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">' : '';
-      return '<article class="news-card top-row" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+      return '<article class="news-card top-row" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(mqDecodeEntities(r.headline)) + '" data-news-id="' + escapeHtml(r.id) + '">' +
         '<span class="tr-n">' + n + '</span>' + img +
-        '<div class="tr-main">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(r.headline || '') + '</div></div>' +
+        '<div class="tr-main">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</div></div>' +
         (c ? '<span class="tr-c">' + plural(c, 'comment') + '</span>' : '') + '</article>';
     }
     var SRC_CHIPS = [ ['Google Trends', 'Google'], ['YouTube', 'YouTube'], ['Apple Music', 'Music'], ['Wikipedia', 'Wikipedia'], ['Bluesky', 'Bluesky'] ];
@@ -8567,9 +8586,9 @@
     function chartRowHtml(r){
       var s = statsById[r.id] || {}, c = Number(s.comments) || 0;
       var img = (r.image_url && /^https:\/\//i.test(r.image_url)) ? '<img class="tr-img sq" src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">' : '';
-      return '<article class="news-card top-row" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+      return '<article class="news-card top-row" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(mqDecodeEntities(r.headline)) + '" data-news-id="' + escapeHtml(r.id) + '">' +
         '<span class="tr-n">' + Number(r.trend_rank) + '</span>' + img +
-        '<div class="tr-main"><div class="news-h">' + escapeHtml(r.headline || '') + '</div>' + (r.summary ? '<div class="tr-sub">' + escapeHtml(r.summary) + '</div>' : '') + '</div>' +
+        '<div class="tr-main"><div class="news-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</div>' + (r.summary ? '<div class="tr-sub">' + escapeHtml(mqDecodeEntities(r.summary)) + '</div>' : '') + '</div>' +
         mvHtml(r) + (c ? '<span class="tr-c">' + plural(c, 'comment') + '</span>' : '') + '</article>';
     }
     // Biggest risers: the largest jumps up a source's chart since the last day we have data for.
@@ -8580,8 +8599,8 @@
       if(!ups.length) return '';
       return '<div class="news-top3"><div class="nt3-h">Biggest risers today</div>' + ups.map(function(r){
         var m = movesById[r.id], d = m.prev - Number(r.trend_rank);
-        return '<article class="news-card top-row" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(r.headline) + '" data-news-id="' + escapeHtml(r.id) + '">' +
-          '<span class="tr-n up">+' + d + '</span><div class="tr-main"><div class="news-h">' + escapeHtml(r.headline || '') + '</div><div class="tr-sub">#' + m.prev + ' to #' + Number(r.trend_rank) + ' on ' + escapeHtml(r.source_name || 'the chart') + '</div></div></article>';
+        return '<article class="news-card top-row" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(mqDecodeEntities(r.headline)) + '" data-news-id="' + escapeHtml(r.id) + '">' +
+          '<span class="tr-n up">+' + d + '</span><div class="tr-main"><div class="news-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</div><div class="tr-sub">#' + m.prev + ' to #' + Number(r.trend_rank) + ' on ' + escapeHtml(r.source_name || 'the chart') + '</div></div></article>';
       }).join('') + '</div>';
     }
     Feed.prototype.render = function(){
@@ -8666,7 +8685,7 @@
           '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Back</button>' +
           '<button type="button" class="thread-share" id="thread-share">Share</button></div>' +
         '<div class="thread-story">' + ((isPost || yt) ? '' : imgHtml(r)) +
-          '<div class="news-body">' + metaHtml(r) + '<h3 class="thread-h">' + escapeHtml(r.headline || '') + '</h3>' +
+          '<div class="news-body">' + metaHtml(r) + '<h3 class="thread-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</h3>' +
           (text ? '<p class="thread-sum">' + escapeHtml(text) + '</p>' : '') + read + '</div>' +
           ((isPost || yt) ? embedHtml(r) : '') + takeHtml(r) + '</div>' +
         '<div class="thread-cmt-head"><h4>Discussion <span id="thread-count">' + (Number(s.comments) ? '· ' + Number(s.comments) : '') + '</span></h4>' +

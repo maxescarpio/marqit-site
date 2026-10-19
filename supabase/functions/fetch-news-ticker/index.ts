@@ -190,12 +190,29 @@ const UA = 'Mozilla/5.0 (compatible; MarqitBot/1.0; +https://playmarqit.com)';
 
 type Item = { title: string; url: string; image: string | null; description: string; published: string | null; source: string; tab: Tab };
 
+const NAMED_ENTITIES: Record<string, string> = {
+  lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“',
+  ndash: '–', mdash: '—', hellip: '…', eacute: 'é', amp: '&',
+};
+function decodeOnce(s: string): string {
+  return s.replace(/&(?:#x([0-9a-f]+)|#(\d+)|([a-z]+));/gi, (m, hex, dec, name) => {
+    try {
+      if (hex) return String.fromCodePoint(parseInt(hex, 16));
+      if (dec) return String.fromCodePoint(parseInt(dec, 10));
+    } catch (_) { return m; }
+    const v = NAMED_ENTITIES[String(name).toLowerCase()];
+    return v === undefined ? m : v;
+  });
+}
 function decodeEntities(s: string): string {
-  return s
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'").replace(/&#(\d+);/g, (_m, n) => String.fromCharCode(+n))
-    .replace(/&amp;/g, '&');
+  let out = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
+  // Feeds sometimes double-encode (&amp;#x2019;), so decode until nothing changes (max 3 passes).
+  for (let i = 0; i < 3; i++) {
+    const next = decodeOnce(out);
+    if (next === out) break;
+    out = next;
+  }
+  return out;
 }
 function xmlTag(block: string, name: string): string {
   const m = block.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'i'));

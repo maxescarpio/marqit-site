@@ -1,23 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Puts the small circle photos on the daily questions, automatically.
+// Puts the small circle photo on the daily questions, automatically.
 //
-// For every recent or upcoming daily question that has no row in question_visuals yet:
-//   1. the AI says who or what the question is about and what KIND of thing it is
-//      (person, team, TV show, movie, company), plus the other side of a head-to-head;
-//   2. each side is looked up in the right place:
-//        person   -> Wikipedia/Commons free photo, then (sports) TheSportsDB player photo
-//        team     -> TheSportsDB team badge
-//        show     -> TMDB poster
-//        movie    -> TMDB poster
-//        company  -> Wikipedia/Commons free photo (often a related article, e.g. "Falcon 9")
-//   3. every photo link is checked to really load, then saved to question_visuals,
-//      which the Play page already reads.
-//
-// A face-off (two sides) is only saved when BOTH photos are found, so a matchup never loses
-// its drawn badges for a half-empty picture. Rows set by hand in the admin page are never
-// overwritten. Called by a database trigger when questions are inserted, and by a 5-minute
-// cron as a retry. When nothing is missing it does nothing, before any AI call.
+// ONE real person per question, always (never a poster, badge, logo or group shot):
+//   shows / movies -> the biggest lead actor; games -> a head coach or star player;
+//   companies -> the best-known leader or founder.
+//   The AI names the person, Wikipedia/Commons supplies a free head-and-shoulders portrait
+//   (TheSportsDB player photo as a sports fallback), and the link is checked to really load
+//   before it is saved to question_visuals, which the Play page already reads.
+// Rows set by hand in the admin page are never overwritten. Called by a database trigger when
+// questions are inserted, and by a 5-minute cron as a retry. When nothing is missing it does
+// nothing, before any AI call.
 //
 // Secrets: TMDB_API_KEY (themoviedb.org, free) for shows and movies.
 //          THESPORTSDB_API_KEY (optional; falls back to TheSportsDB's public test key "123").
@@ -31,28 +24,26 @@ const RETRY_MINUTES = 15;
 
 type Side = { name: string; type: string; search: string };
 
-const PROMPT = `You pick the photos for the daily prediction questions on Marqit. Each question gets small round photos of who or what it is about. For every question below, say who or what the photo should show.
+const PROMPT = `You pick the photo for the daily prediction questions on Marqit. Each question gets ONE small round photo of ONE real person. For every question below, say which single person the photo should show.
 
 Return, per question:
-- "subject": the main thing the question is about, as {"name": short display name (max 22 characters), "type": one of "person" | "team" | "show" | "movie" | "company" | "other", "search": the text to look it up with}.
-- "vs": only when the question is a head-to-head between two sides of the same kind (two teams, two fighters, two players, two companies), the other side in the same shape. Otherwise null.
+- "subject": {"name": the person's short display name (max 22 characters), "type": "person", "search": the person's full name as their English Wikipedia article is titled}. Return null if no single suitable person exists.
+- "vs": always null. Never return a second person or a head-to-head.
 
-What "search" should be:
-- team: the full official team name as written in the question, for example "Dallas Cowboys", "Tampa Bay Rays".
-- person: the full name, for example "Bo Nix".
-- show: the TV series title, for example "The Diplomat". movie: the film title, for example "Street Fighter".
-- company or product: the English Wikipedia article most likely to have a real photograph, for example "Falcon 9" for a SpaceX launch question, "Tesla Cybertruck" for a Cybertruck question. "name" stays what the question is about.
+Who to pick (ALWAYS exactly one real person, never a team badge, poster, logo, product or group):
+- A question about a TV show or a movie: the single biggest, best-known lead actor of that show or movie, for example "Keri Russell" for The Diplomat. Never the director or a minor cast member.
+- A question about a game, team or league (NFL, NBA, MLB, NHL, soccer, college): the team's head coach or its single biggest star player, whoever is most famous and most current. For a game between two teams pick one person: the head coach or star of the team the question asks about ("Will the Cowboys defeat the Packers" -> the Cowboys' head coach or quarterback).
+- A question about a named player, athlete, fighter, artist or celebrity: that person.
+- A question about a company, or about a product, launch, console or event run by a company, with no person named: that company's best-known current leader or founder: SpaceX, Starlink, Tesla -> "Elon Musk"; Nvidia -> "Jensen Huang"; Meta -> "Mark Zuckerberg"; Apple -> "Tim Cook"; Sony or PlayStation -> Sony's current CEO; and the same for Google, Microsoft, Amazon, OpenAI and so on.
+- An event (a summit, a keynote, an awards show) with no named person: the most prominent speaker named in the question, or the leader of the company hosting it. If nothing at all is named, return subject null.
 
 Rules:
-- Use only names that are written in the question text, with the one exception in the next rule.
-- A question about a company, or about a product, launch, console or event run by a company, with no person named, MUST use that company's best-known current leader or founder as a person (type "person"), never the company or the product: SpaceX, Starlink or a Falcon 9 or Starship launch -> "Elon Musk"; Tesla -> "Elon Musk"; Nvidia -> "Jensen Huang"; Meta -> "Mark Zuckerberg"; Apple -> "Tim Cook"; Sony or PlayStation -> Sony's current CEO; and the same for Google, Microsoft, Amazon, OpenAI and so on. Use type "company" only when you truly do not know who leads it.
-- An event (a summit, a keynote, an awards show) with no named person: use the most prominent organization or speaker that is named in the question, or the leader of the company hosting it. If nothing at all is named, return subject null.
+- The photo must show one person alone, so choose someone with a well-known solo portrait on Wikipedia.
 - Politicians and government figures are allowed (official portraits are free to use).
 - Return null for private individuals, and for anything about death, crime or tragedy.
-- If you are not sure of the exact title or name, return null for that side.
-- If a question has two sides but you can only name one, return it as subject and vs null.
+- If you are not sure of the exact name or who currently holds the role, return null rather than guessing. Do not rely on old memory for who is a current coach or CEO; pick the person you are most certain about.
 
-Reply with JSON only: {"items":[{"i":0,"subject":{"name":"Cowboys","type":"team","search":"Dallas Cowboys"},"vs":{"name":"Packers","type":"team","search":"Green Bay Packers"}}]}`;
+Reply with JSON only: {"items":[{"i":0,"subject":{"name":"Keri Russell","type":"person","search":"Keri Russell"},"vs":null}]}`;
 
 // ---- the model: free Gemini key first, Claude as a backup (same as the news writer) ----
 const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
@@ -123,7 +114,7 @@ async function imageLoads(url: string): Promise<boolean> {
 // pilicense=free asks Wikipedia for free images only; the URL check is a second lock, because
 // free files live on Commons and fair-use logos and posters live on en.wikipedia.
 async function wikiPhoto(title: string): Promise<string | null> {
-  const data = await getJson(`${WIKI_API}?action=query&titles=${encodeURIComponent(title)}&prop=pageimages%7Cpageprops&piprop=thumbnail&pithumbsize=240&pilicense=free&ppprop=disambiguation&redirects=1&format=json&formatversion=2`);
+  const data = await getJson(`${WIKI_API}?action=query&titles=${encodeURIComponent(title)}&prop=pageimages%7Cpageprops&piprop=thumbnail&pithumbsize=400&pilicense=free&ppprop=disambiguation&redirects=1&format=json&formatversion=2`);
   const page = data?.query?.pages?.[0];
   if (!page || page.missing) return null;
   if (page.pageprops && 'disambiguation' in page.pageprops) return null;
@@ -133,7 +124,9 @@ async function wikiPhoto(title: string): Promise<string | null> {
   if (/\.svg/i.test(t.source)) return null; // drawn logos are not photos
   if (!/^https:\/\/(upload|thumb)\.wikimedia\.org\/wikipedia\/commons\//.test(t.source)) return null;
   const ratio = Number(t.width) / Number(t.height);
-  if (!Number.isFinite(ratio) || ratio > 2.4 || ratio < 0.3) return null; // very wide wordmarks do not crop to a circle; tall photos (rockets, standing people) do
+  // The photo is shown in a circle, so only head-and-shoulders style shots work: a very wide
+  // photo (a group, a stadium) or a full-length one would cut a face off or show several people.
+  if (!Number.isFinite(ratio) || ratio > 1.3 || ratio < 0.6) return null;
   return t.source;
 }
 
@@ -202,18 +195,10 @@ async function sportsPlayerPhoto(name: string): Promise<string | null> {
 // source could not be asked (missing key, network), so that question is retried next run
 // instead of being marked as done.
 async function findPhoto(side: Side, category: string): Promise<string | null> {
-  let url: string | null = null;
-  switch (side.type) {
-    case 'show': url = await tmdbPoster('tv', side.search); break;
-    case 'movie': url = await tmdbPoster('movie', side.search); break;
-    case 'team': url = await sportsBadge(side.search); break;
-    case 'person': {
-      url = await wikiPhoto(side.search);
-      if (!url && category === 'sports') { try { url = await sportsPlayerPhoto(side.search); } catch (_) { url = null; } }
-      break;
-    }
-    default: url = await wikiPhoto(side.search);
-  }
+  // Always one person: posters, team badges and group shots are never used.
+  if (side.type !== 'person') return null;
+  let url: string | null = await wikiPhoto(side.search);
+  if (!url && category === 'sports') { try { url = await sportsPlayerPhoto(side.search); } catch (_) { url = null; } }
   return url && (await imageLoads(url)) ? url : null;
 }
 
@@ -263,7 +248,7 @@ Deno.serve(async (req: Request) => {
       const q = todo[i];
       const it = byI.get(i);
       if (!it) continue; // the model skipped it: leave it for the next run
-      const subject = cleanSide(it.subject), vs = cleanSide(it.vs);
+      const subject = cleanSide(it.subject), vs: Side | null = null; // one person per question, never a face-off
       let row: any = { question_id: q.id, subject_name: null, subject_image_url: null, vs_name: null, vs_image_url: null, updated_at: new Date().toISOString() };
       try {
         if (subject) {
