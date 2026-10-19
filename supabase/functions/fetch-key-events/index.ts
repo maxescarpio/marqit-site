@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Fills public.key_events (the Schedule) for the rest of the current Monday-Sunday week, Eastern time.
-//   sports      -> TheSportsDB, only marquee games (see sportsImportance) or games a Marqit question is about
+//   sports      -> free league feeds (MLB, NHL, NBA official; NFL/soccer via TheSportsDB), only marquee games (see sportsImportance) or games a Marqit question is about
 //   finance     -> Finnhub earnings calendar, only the household-name companies in WATCH
 //   pop culture -> TMDB, the most popular movie releases and new TV series that week
 // Tech launches, awards shows and news events have no feed: add them by hand in the admin page.
@@ -11,8 +11,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // stop the others; the JSON reply says what each one did.
 //
 // Secrets: TMDB_API_KEY (already set), FINNHUB_API_KEY (free key from finnhub.io; earnings are skipped
-// without it), THESPORTSDB_API_KEY (optional; the free key "123" allows 5 games per league per day and
-// 30 requests a minute, a paid key lifts both).
+// without it). Sports needs no key.
 // Test one source: POST ...?only=tmdb  (comma separated: tmdb,earnings,sports)
 
 const UA = 'MarqitBot/1.0 (https://playmarqit.com; schedule lookup)';
@@ -58,40 +57,24 @@ async function fetchJson(url: string, headers: Record<string, string> = {}): Pro
   throw new Error('request failed');
 }
 
-// ---------------------------------------------------------------- sports
-const SPORTS = ['American_Football', 'Baseball', 'Basketball', 'Ice_Hockey', 'Soccer'];
-// League names exactly as TheSportsDB titles them (lowercased) -> the badge shown on the site.
-// Leagues not listed here are ignored; the reply lists the ones it skipped so this list can be extended.
-const LEAGUES: Record<string, string> = {
-  'nfl': 'NFL', 'mlb': 'MLB', 'nba': 'NBA', 'nhl': 'NHL', 'wnba': 'WNBA',
-  'uefa champions league': 'Champions League',
-  'english premier league': 'Premier League',
-  'american major league soccer': 'MLS',
-};
+// ---------------------------------------------------------------- sports (free official league feeds, no keys)
+//   MLB  statsapi.mlb.com        NHL  api-web.nhle.com        NBA  cdn.nba.com (season schedule file)
+//   NFL, Premier League, Champions League, MLS, WNBA: TheSportsDB free "next games of a league" lookup.
+// Each league is fetched on its own and reports its own errors; one failing never stops the rest.
 const SOCCER = new Set(['Champions League', 'Premier League', 'MLS']);
+const TSDB_LEAGUES: [string, string, string][] = [
+  ['4391', 'NFL', 'NFL'], ['4328', 'Premier League', 'EPL'], ['4480', 'Champions League', 'UCL'],
+  ['4346', 'MLS', 'MLS'], ['4516', 'WNBA', 'WNBA'],
+];
 
 // What counts as marquee. Edit here to show more or fewer games.
-//   NFL: primetime kickoffs (7pm Eastern or later). MLB: October and November are the postseason.
-//   Champions League: all. Anything else only if the round or name says playoff or final.
+//   Any postseason game. NFL: primetime kickoffs (7pm Eastern or later). Champions League: all.
 //   A game a Marqit question is about is always shown (set by the caller).
-function sportsImportance(badge: string, start: Date, text: string): number {
-  const month = Number(etDate(start).slice(5, 7));
+function sportsImportance(badge: string, start: Date, postseason: boolean): number {
+  if (postseason) return 2;
   if (badge === 'NFL') return etHour(start) >= 19 ? 2 : 1;
-  if (badge === 'MLB') return (month === 10 || month === 11) ? 2 : 1;
   if (badge === 'Champions League') return 2;
-  if (/playoff|final|semi|quarter|round of|game [1-7]\b/i.test(text)) return 2;
   return 1;
-}
-
-// TheSportsDB sends UTC. A game without a time becomes an all-day row.
-function eventStart(e: any): { iso: string; allDay: boolean } | null {
-  const ts = typeof e.strTimestamp === 'string' ? e.strTimestamp.trim() : '';
-  if (ts) {
-    const t = Date.parse(/Z$|[+-]\d\d:?\d\d$/.test(ts) ? ts : ts.replace(' ', 'T') + 'Z');
-    if (!isNaN(t)) return { iso: new Date(t).toISOString(), allDay: false };
-  }
-  if (e.dateEvent && /^\d{4}-\d\d-\d\d$/.test(e.dateEvent)) return { iso: e.dateEvent + 'T12:00:00.000Z', allDay: true };
-  return null;
 }
 
 function mentions(text: string, team: string): boolean {
@@ -108,50 +91,90 @@ function findQuestion(questions: any[], home: string, away: string, day: string)
   }) || null;
 }
 
-async function sportsRows(dates: string[], questions: any[], deadline: number, report: any): Promise<Row[]> {
-  const key = Deno.env.get('THESPORTSDB_API_KEY') || '123';
-  const gap = key === '123' ? 2200 : 700; // stay under the free 30 requests a minute
-  const base = `https://www.thesportsdb.com/api/v1/json/${key}`;
+async function sportsRows(dates: string[], questions: any[], _deadline: number, report: any): Promise<Row[]> {
   const inWindow = new Set(dates);
+  const first = dates[0], last = dates[dates.length - 1];
   const rows = new Map<string, Row>();
-  const unmatched: Record<string, number> = {};
-  const rep = { requests: 0, seen: 0, kept: 0, partial: false, free_key: key === '123', unmatched_leagues: unmatched, errors: [] as string[] };
+  const rep = { kept: 0, per_league: {} as Record<string, string | number>, errors: [] as string[] };
   report.sports = rep;
-  // The feed groups by UTC date, so late Eastern games sit on the next date: ask for one day more.
-  const queryDates = [...dates, addDays(dates[dates.length - 1], 1)];
-  outer:
-  for (const d of queryDates) {
-    for (const sport of SPORTS) {
-      if (Date.now() > deadline) { rep.partial = true; break outer; }
-      try {
-        const data = await fetchJson(`${base}/eventsday.php?d=${d}&s=${sport}`);
-        for (const e of (data?.events || [])) {
-          rep.seen++;
-          const badge = LEAGUES[String(e.strLeague || '').trim().toLowerCase()];
-          if (!badge) { const n = String(e.strLeague || '?'); unmatched[n] = (unmatched[n] || 0) + 1; continue; }
-          const start = eventStart(e);
-          const home = String(e.strHomeTeam || '').trim(), away = String(e.strAwayTeam || '').trim();
-          if (!start || !e.idEvent || !home || !away) continue;
-          const startDate = new Date(start.iso);
-          const day = start.allDay ? start.iso.slice(0, 10) : etDate(startDate);
-          if (!inWindow.has(day)) continue;
-          const q = findQuestion(questions, home, away, day);
-          const importance = q ? 3 : sportsImportance(badge, startDate, `${e.strEvent || ''} ${e.strRound || ''}`);
-          if (importance < 2) continue;
-          const st = String(e.strStatus || '');
-          rows.set(String(e.idEvent), {
-            category: 'sports',
-            title: (SOCCER.has(badge) ? `${home} vs ${away}` : `${away} at ${home}`).slice(0, 140),
-            subtitle: e.strVenue ? String(e.strVenue).slice(0, 140) : null,
-            league: badge, starts_at: start.iso, all_day: start.allDay, importance,
-            status: /cancel/i.test(st) ? 'cancelled' : /postpon|suspend|delay/i.test(st) ? 'postponed' : 'scheduled',
-            url: null, source: 'thesportsdb', external_id: String(e.idEvent), question_id: q ? q.id : null,
-          });
-        }
-      } catch (e) { rep.errors.push(`${d} ${sport}: ${String(e).slice(0, 80)}`); }
-      rep.requests++;
-      await sleep(gap);
+
+  // One game from any feed. Returns true if kept.
+  function add(badge: string, key: string, home: string, away: string, startIso: string, venue: string | null, postseason: boolean, statusText: string): boolean {
+    const t = Date.parse(startIso);
+    if (!home || !away || isNaN(t)) return false;
+    const startDate = new Date(t);
+    const day = etDate(startDate);
+    if (!inWindow.has(day)) return false;
+    const q = findQuestion(questions, home, away, day);
+    const importance = q ? 3 : sportsImportance(badge, startDate, postseason);
+    if (importance < 2) return false;
+    rows.set(badge + ':' + key, {
+      category: 'sports',
+      title: (SOCCER.has(badge) ? `${home} vs ${away}` : `${away} at ${home}`).slice(0, 140),
+      subtitle: venue ? venue.slice(0, 140) : null,
+      league: badge, starts_at: startDate.toISOString(), all_day: false, importance,
+      status: /cancel/i.test(statusText) ? 'cancelled' : /postpon|suspend|delay/i.test(statusText) ? 'postponed' : 'scheduled',
+      url: null, source: 'sports', external_id: badge + ':' + key, question_id: q ? q.id : null,
+    });
+    return true;
+  }
+  async function league(name: string, fn: () => Promise<number>) {
+    try { rep.per_league[name] = await fn(); } catch (e) { rep.per_league[name] = 'failed'; rep.errors.push(`${name}: ${String(e).slice(0, 90)}`); }
+  }
+
+  // MLB: official stats API, whole window in one call. gameType R = regular season, anything else is postseason.
+  await league('MLB', async () => {
+    const d = await fetchJson(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&startDate=${addDays(first, -1)}&endDate=${addDays(last, 1)}&hydrate=venue`);
+    let n = 0;
+    for (const day of (d?.dates || [])) for (const g of (day.games || [])) {
+      if (add('MLB', String(g.gamePk), String(g.teams?.home?.team?.name || ''), String(g.teams?.away?.team?.name || ''), g.gameDate, g.venue?.name || null, g.gameType !== 'R' && g.gameType !== 'S', String(g.status?.detailedState || ''))) n++;
     }
+    return n;
+  });
+
+  // NHL: schedule endpoint returns a week starting at the date given. gameType 3 = playoffs.
+  await league('NHL', async () => {
+    let n = 0;
+    const seen = new Set<string>();
+    for (const start of [first, addDays(first, 7)]) {
+      if (start > addDays(last, 1) && start !== first) break;
+      const d = await fetchJson(`https://api-web.nhle.com/v1/schedule/${start}`);
+      for (const w of (d?.gameWeek || [])) for (const g of (w.games || [])) {
+        if (seen.has(String(g.id))) continue; seen.add(String(g.id));
+        const nm = (t: any) => `${t?.placeName?.default || ''} ${t?.commonName?.default || ''}`.trim();
+        if (add('NHL', String(g.id), nm(g.homeTeam), nm(g.awayTeam), g.startTimeUTC, g.venue?.default || null, g.gameType === 3, String(g.gameScheduleState || ''))) n++;
+      }
+    }
+    return n;
+  });
+
+  // NBA: one season schedule file. Game ids starting 004 are playoff games.
+  await league('NBA', async () => {
+    const d = await fetchJson('https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json');
+    let n = 0;
+    for (const gd of (d?.leagueSchedule?.gameDates || [])) for (const g of (gd.games || [])) {
+      const t = Date.parse(g.gameDateTimeUTC);
+      if (isNaN(t) || !inWindow.has(etDate(new Date(t)))) continue;
+      const nm = (x: any) => `${x?.teamCity || ''} ${x?.teamName || ''}`.trim();
+      if (add('NBA', String(g.gameId), nm(g.homeTeam), nm(g.awayTeam), g.gameDateTimeUTC, g.arenaName || null, String(g.gameId).startsWith('004'), '')) n++;
+    }
+    return n;
+  });
+
+  // NFL, soccer, WNBA: the free TheSportsDB feed lists the next games of one league per request.
+  const tsdbKey = Deno.env.get('THESPORTSDB_API_KEY') || '123';
+  for (const [id, badge] of TSDB_LEAGUES) {
+    await league(badge, async () => {
+      const d = await fetchJson(`https://www.thesportsdb.com/api/v1/json/${tsdbKey}/eventsnextleague.php?id=${id}`);
+      let n = 0;
+      for (const e of (d?.events || [])) {
+        const ts = String(e.strTimestamp || '');
+        const iso = ts ? (/Z$|[+-]\d\d:?\d\d$/.test(ts) ? ts : ts.replace(' ', 'T') + 'Z') : '';
+        if (iso && add(badge, String(e.idEvent), String(e.strHomeTeam || ''), String(e.strAwayTeam || ''), iso, e.strVenue || null, /playoff|final/i.test(String(e.strRound || '') + String(e.strEvent || '')), String(e.strStatus || ''))) n++;
+      }
+      return n;
+    });
+    await sleep(2200);
   }
   rep.kept = rows.size;
   return [...rows.values()];
