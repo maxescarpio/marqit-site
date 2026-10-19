@@ -4054,7 +4054,7 @@
     var total = count * 100 + (count === 3 ? 100 : 0) + (count * 25 * names.length) + (boostedCount || 0) * 100;
     var el = document.createElement('div');
     el.className = 'mq-slate';
-    var buddyLabel = names.map(function(n){ return escapeHtml(n); }).join(', ');
+    var buddyLabel = names.slice(0, 2).map(function(n){ return escapeHtml(n); }).join(', ') + (names.length > 2 ? ' and ' + (names.length - 2) + ' more buddies' : '');
     el.innerHTML =
       '<div class="slate-top"><div class="slate-pts"><span class="slate-pre">Earn up to</span><b>' + total + '</b><span>points today</span></div>' +
       '<div class="slate-meta"><span>' + count + (count === 1 ? ' call' : ' calls') + '</span>' + (count === 3 ? '<span>3 for 3 adds +100</span>' : '') + '</div></div>' +
