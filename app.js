@@ -8272,19 +8272,220 @@
       : '<div class="sstrip-team long" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</div>';
   }
 
+  // ---- Live scores / records / TV network (Supabase function "scoreboard", ESPN public feed).
+  // Optional: if it fails, cells just keep showing time + teams. No logos: a plain round badge instead.
+  var mqScore = { games: [], at: 0, busy: false };
+  function mqNormTeam(n){ return String(n || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim(); }
+  function mqSameTeam(a, b){
+    a = mqNormTeam(a); b = mqNormTeam(b);
+    if(!a || !b) return false;
+    if(a === b) return true;
+    return a.split(' ').pop() === b.split(' ').pop() && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0 || a.split(' ')[0] === b.split(' ')[0]);
+  }
+  function mqGameFor(ev, teams){
+    if(!teams || !mqScore.games.length) return null;
+    var t0 = new Date(ev.starts_at).getTime();
+    for(var i = 0; i < mqScore.games.length; i++){
+      var g = mqScore.games[i];
+      if(g.league !== ev.league) continue;
+      if(Math.abs(new Date(g.start).getTime() - t0) > 6 * 3600000) continue;
+      if(mqSameTeam(g.away.name, teams[0]) && mqSameTeam(g.home.name, teams[1])) return g;
+    }
+    return null;
+  }
+  function mqLiveRowHtml(side, winning, showScore){
+    var right = showScore && side.score != null ? side.score : (side.record || '');
+    return '<div class="sstrip-team live' + (winning === false ? ' lost' : '') + '" title="' + escapeHtml(side.name) + '">' +
+      '<i class="sstrip-badge" aria-hidden="true">' + escapeHtml(side.abbr.charAt(0)) + '</i>' +
+      '<b>' + escapeHtml(side.abbr) + '</b><span class="sstrip-rec' + (showScore && side.score != null ? ' score' : '') + '">' + escapeHtml(right) + '</span></div>';
+  }
+  function mqLoadScores(){
+    if(mqScore.busy || Date.now() - mqScore.at < 25000) return;
+    mqScore.busy = true;
+    fetch(SUPABASE_URL + '/functions/v1/scoreboard').then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      mqScore.busy = false; mqScore.at = Date.now();
+      if(!d || !d.games) return;
+      mqScore.games = d.games;
+      try{ renderSchedToday(); }catch(e){}
+    }).catch(function(){ mqScore.busy = false; mqScore.at = Date.now(); });
+  }
+  setInterval(function(){ if(!document.hidden && mqSched.loaded) mqLoadScores(); }, 60000);
+
   function mqSchedCellHtml(ev, clickable){
-    var teams = mqSchedTeams(ev);
-    var body = teams
-      ? '<div class="sstrip-teams">' + mqTeamRowHtml(ev.league, teams[0]) + mqTeamRowHtml(ev.league, teams[1]) + '</div>'
-      : '<div class="sstrip-title">' + escapeHtml(ev.title) + '</div>';
+    var teams = mqSchedTeams(ev), g = mqGameFor(ev, teams), status = mqSchedTime(ev), net = '';
+    var body;
+    if(g){
+      var started = g.state !== 'pre', hs = parseInt(g.home.score, 10), as = parseInt(g.away.score, 10);
+      var done = g.state === 'post', tie = hs === as;
+      body = '<div class="sstrip-teams">' +
+        mqLiveRowHtml(g.away, done && !tie ? as > hs : null, started) + mqLiveRowHtml(g.home, done && !tie ? hs > as : null, started) + '</div>';
+      if(g.state === 'in') status = g.detail || 'Live';
+      else if(done) status = g.detail || 'Final';
+      net = g.network || '';
+    } else {
+      body = teams
+        ? '<div class="sstrip-teams">' + mqTeamRowHtml(ev.league, teams[0]) + mqTeamRowHtml(ev.league, teams[1]) + '</div>'
+        : '<div class="sstrip-title">' + escapeHtml(ev.title) + '</div>';
+    }
     var tags = mqSchedTagsHtml(ev, clickable);
-    return '<div class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + '">' +
-      '<div class="sstrip-time"><span>' + escapeHtml(mqSchedTime(ev)) + '</span>' +
-        (ev.subtitle ? '<span class="sstrip-sub">' + escapeHtml(ev.subtitle) + '</span>' : '') + '</div>' +
+    var side = net || ev.subtitle;
+    var canOpen = (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && teams);
+    return '<div class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + '"' +
+      (canOpen ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '') + '>' +
+      '<div class="sstrip-time"><span>' + escapeHtml(status) + '</span>' +
+        (side ? '<span class="sstrip-sub">' + escapeHtml(side) + '</span>' : '') + '</div>' +
       body +
       (tags ? '<div class="sstrip-tags">' + tags + '</div>' : '') +
     '</div>';
   }
+
+
+  // ---- Click a ribbon cell: sports -> score, records, season numbers; earnings -> price chart.
+  var MQ_STAT_LABELS = { avgPointsFor: 'Points per game', avgPointsAgainst: 'Allowed per game', differential: 'Point differential',
+    winPercent: 'Win %', pointsFor: 'Points for', pointsAgainst: 'Points against' };
+  function mqPanelClose(){ var m = document.getElementById('mq-evpanel'); if(m) m.remove(); document.body.classList.remove('mq-evopen'); }
+  function mqPanelOpen(inner){
+    mqPanelClose();
+    var m = document.createElement('div');
+    m.id = 'mq-evpanel'; m.className = 'evp-back';
+    m.innerHTML = '<div class="evp" role="dialog" aria-modal="true"><button type="button" class="evp-x" aria-label="Close">&times;</button>' + inner + '</div>';
+    m.addEventListener('click', function(e){ if(e.target === m || e.target.closest('.evp-x')) mqPanelClose(); });
+    document.body.appendChild(m); document.body.classList.add('mq-evopen');
+    return m.querySelector('.evp');
+  }
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') mqPanelClose(); });
+
+  function mqTeamStatsHtml(d, fallbackName){
+    if(!d || d.error) return '<p class="evp-muted">Season numbers aren’t available right now.</p>';
+    var rows = [];
+    if(d.record) rows.push(['Record', d.record]);
+    if(d.standing) rows.push(['Standing', d.standing]);
+    if(d.home) rows.push(['Home', d.home]);
+    if(d.road) rows.push(['Road', d.road]);
+    (d.stats || []).forEach(function(x){
+      if(!MQ_STAT_LABELS[x.label]) return;
+      rows.push([MQ_STAT_LABELS[x.label], x.value]);
+    });
+    return '<h4>' + escapeHtml(d.name || fallbackName) + '</h4><dl>' + rows.map(function(r){
+      return '<div><dt>' + escapeHtml(r[0]) + '</dt><dd>' + escapeHtml(r[1]) + '</dd></div>';
+    }).join('') + '</dl>';
+  }
+  function mqOpenGamePanel(ev){
+    var teams = mqSchedTeams(ev), g = mqGameFor(ev, teams);
+    var status = g ? (g.state === 'pre' ? mqSchedTime(ev) : (g.detail || '')) : mqSchedTime(ev);
+    var net = (g && g.network) || ev.subtitle || '';
+    var away = g ? g.away : { name: teams[0], abbr: mqTeamAbbr(ev.league, teams[0]) || teams[0], score: null, record: null };
+    var home = g ? g.home : { name: teams[1], abbr: mqTeamAbbr(ev.league, teams[1]) || teams[1], score: null, record: null };
+    var show = g && g.state !== 'pre';
+    function line(t){ return '<div class="evp-line"><i class="sstrip-badge">' + escapeHtml(t.abbr.charAt(0)) + '</i><span class="evp-tn">' + escapeHtml(t.name) +
+      (t.record ? '<small>' + escapeHtml(t.record) + '</small>' : '') + '</span><b>' + (show && t.score != null ? escapeHtml(t.score) : '') + '</b></div>'; }
+    var el = mqPanelOpen('<div class="evp-kicker">' + escapeHtml(ev.league) + ' · ' + escapeHtml(status) + (net ? ' · ' + escapeHtml(net) : '') + '</div>' +
+      '<div class="evp-score">' + line(away) + line(home) + '</div>' +
+      (g ? '<div class="evp-cols"><div class="evp-col" data-side="away"><p class="evp-muted">Loading…</p></div><div class="evp-col" data-side="home"><p class="evp-muted">Loading…</p></div></div>'
+         : '<p class="evp-muted">Season numbers show up once the game is on today’s scoreboard.</p>'));
+    if(!g) return;
+    [['away', g.away], ['home', g.home]].forEach(function(pair){
+      var col = el.querySelector('[data-side="' + pair[0] + '"]');
+      fetch(SUPABASE_URL + '/functions/v1/scoreboard?team=' + encodeURIComponent(ev.league + ':' + pair[1].id))
+        .then(function(r){ return r.json(); }).catch(function(){ return null; })
+        .then(function(d){ if(col && col.isConnected) col.innerHTML = mqTeamStatsHtml(d, pair[1].name); });
+    });
+  }
+
+  var MQ_RANGES = [['1d', '1D'], ['3m', '3M'], ['6m', '6M'], ['ytd', 'YTD']];
+  function mqOpenStockPanel(ev){
+    var sym = String(ev.league).toUpperCase();
+    var el = mqPanelOpen('<div class="evp-kicker">' + escapeHtml(sym) + ' · ' + escapeHtml(ev.subtitle || 'Earnings') + '</div>' +
+      '<h3 class="evp-title">' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</h3>' +
+      '<div class="evp-price"><b id="evp-px">…</b><span id="evp-chg"></span></div>' +
+      '<div class="evp-chart" id="evp-chart"><p class="evp-muted">Loading chart…</p></div>' +
+      '<div class="evp-ranges">' + MQ_RANGES.map(function(r, i){ return '<button type="button" data-r="' + r[0] + '"' + (i === 0 ? ' class="on"' : '') + '>' + r[1] + '</button>'; }).join('') + '</div>' +
+      '<p class="evp-foot">Prices from Yahoo Finance, about 15 minutes delayed. Not investment advice.</p>');
+    var seq = 0;
+    function load(range){
+      var my = ++seq, box = el.querySelector('#evp-chart');
+      box.innerHTML = '<p class="evp-muted">Loading chart…</p>';
+      fetch(SUPABASE_URL + '/functions/v1/stock-chart?symbol=' + encodeURIComponent(sym) + '&range=' + range)
+        .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+        .then(function(d){
+          if(my !== seq || !box.isConnected) return;
+          if(!d || !d.points){ box.innerHTML = '<p class="evp-muted">Couldn’t load the chart right now. Try again in a minute.</p>'; return; }
+          mqDrawChart(el, box, d, range);
+        });
+    }
+    el.querySelector('.evp-ranges').addEventListener('click', function(e){
+      var b = e.target.closest('button[data-r]'); if(!b) return;
+      el.querySelectorAll('.evp-ranges button').forEach(function(x){ x.classList.toggle('on', x === b); });
+      load(b.getAttribute('data-r'));
+    });
+    load('1d');
+  }
+  function mqDrawChart(el, box, d, range){
+    var pts = d.points, W = 600, H = 220, pad = 8;
+    var base = range === '1d' && d.prevClose ? d.prevClose : pts[0][1];
+    var last = pts[pts.length - 1][1], up = last >= base;
+    var lo = Math.min.apply(null, pts.map(function(p){ return p[1]; })), hi = Math.max.apply(null, pts.map(function(p){ return p[1]; }));
+    if(hi === lo){ hi += 1; lo -= 1; }
+    var t0 = pts[0][0], t1 = pts[pts.length - 1][0];
+    function X(t){ return pad + (t - t0) / ((t1 - t0) || 1) * (W - pad * 2); }
+    function Y(v){ return pad + (hi - v) / (hi - lo) * (H - pad * 2); }
+    var line = pts.map(function(p, i){ return (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1); }).join('');
+    var col = up ? '#3DDC97' : '#FF6B5B';
+    function fmt(v){ return '$' + v.toFixed(2); }
+    function setHead(v, label){
+      var ch = v - base, pc = ch / base * 100;
+      el.querySelector('#evp-px').textContent = fmt(v);
+      var c = el.querySelector('#evp-chg');
+      c.textContent = (ch >= 0 ? '+' : '−') + Math.abs(ch).toFixed(2) + ' (' + (ch >= 0 ? '+' : '−') + Math.abs(pc).toFixed(2) + '%) ' + label;
+      c.style.color = ch >= 0 ? '#3DDC97' : '#FF6B5B';
+    }
+    var rangeLabel = { '1d': 'today', '3m': 'past 3 months', '6m': 'past 6 months', 'ytd': 'year to date' }[range];
+    setHead(last, rangeLabel);
+    box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Price chart">' +
+      '<defs><linearGradient id="evg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".28"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>' +
+      (range === '1d' && d.prevClose && d.prevClose > lo && d.prevClose < hi ? '<line x1="0" x2="' + W + '" y1="' + Y(d.prevClose).toFixed(1) + '" y2="' + Y(d.prevClose).toFixed(1) + '" stroke="#5A5E66" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>' : '') +
+      '<path d="' + line + 'L' + X(t1).toFixed(1) + ' ' + H + 'L' + X(t0).toFixed(1) + ' ' + H + 'Z" fill="url(#evg)"/>' +
+      '<path d="' + line + '" fill="none" stroke="' + col + '" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>' +
+      '<line class="evp-cur" y1="0" y2="' + H + '" stroke="#8A8E96" vector-effect="non-scaling-stroke" style="display:none"/></svg>' +
+      '<div class="evp-tip" style="display:none"></div>' +
+      '<div class="evp-axis"><span>' + escapeHtml(mqChartDate(t0, range)) + '</span><span>' + escapeHtml(mqChartDate(t1, range)) + '</span></div>' +
+      '<div class="evp-hilo"><span>Low ' + fmt(lo) + '</span><span>High ' + fmt(hi) + '</span></div>';
+    var svg = box.querySelector('svg'), cur = box.querySelector('.evp-cur'), tip = box.querySelector('.evp-tip');
+    function move(e){
+      var r = svg.getBoundingClientRect(), cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+      var t = t0 + Math.max(0, Math.min(1, cx / r.width)) * (t1 - t0), best = pts[0];
+      for(var i = 0; i < pts.length; i++) if(Math.abs(pts[i][0] - t) < Math.abs(best[0] - t)) best = pts[i];
+      var x = X(best[0]);
+      cur.setAttribute('x1', x); cur.setAttribute('x2', x); cur.style.display = '';
+      tip.style.display = ''; tip.textContent = fmt(best[1]) + ' · ' + mqChartDate(best[0], range, true);
+      tip.style.left = Math.max(0, Math.min(r.width - 150, x / W * r.width - 75)) + 'px';
+      setHead(best[1], mqChartDate(best[0], range, true));
+    }
+    function leave(){ cur.style.display = 'none'; tip.style.display = 'none'; setHead(last, rangeLabel); }
+    svg.addEventListener('mousemove', move); svg.addEventListener('mouseleave', leave);
+    svg.addEventListener('touchstart', move, { passive: true }); svg.addEventListener('touchmove', move, { passive: true }); svg.addEventListener('touchend', leave);
+  }
+  function mqChartDate(sec, range, long){
+    var d = new Date(sec * 1000);
+    if(range === '1d') return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET';
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: long || range === 'ytd' ? 'numeric' : undefined, timeZone: 'America/New_York' });
+  }
+  function mqEventPanel(cell){
+    var id = cell.getAttribute('data-ev');
+    var ev = mqSched.events.filter(function(x){ return String(x.id) === id; })[0];
+    if(!ev) return;
+    if(ev.category === 'finance') mqOpenStockPanel(ev); else mqOpenGamePanel(ev);
+  }
+  document.addEventListener('click', function(e){
+    var c = e.target.closest('.sstrip-cell.is-click');
+    if(!c || e.target.closest('.sched-pick')) return;
+    mqEventPanel(c);
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Enter' && e.key !== ' ') return;
+    var c = e.target.closest && e.target.closest('.sstrip-cell.is-click');
+    if(c){ e.preventDefault(); mqEventPanel(c); }
+  });
 
   function mqSchedStripHtml(list, clickable, lead){
     var groups = [], byKey = {};
@@ -8316,9 +8517,13 @@
       return mqSchedEventDay(ev) === today && ev.importance >= 2;
     })).slice(0, 12);
     box.style.display = '';
+    var oldTrack = cards.querySelector('.sstrip-track'), keep = oldTrack ? oldTrack.scrollLeft : 0;
     cards.innerHTML = list.length
       ? mqSchedStripHtml(list, false, true)
       : '<p class="sched-empty">Nothing big today. Check the rest of the week.</p>';
+    var newTrack = cards.querySelector('.sstrip-track');
+    if(newTrack && keep) newTrack.scrollLeft = keep;
+    mqLoadScores();
   }
 
   function renderSchedPage(){
