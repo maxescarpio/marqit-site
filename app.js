@@ -8887,13 +8887,13 @@
     if(ev.category === 'finance') mqOpenStockPanel(ev); else mqOpenGamePanel(ev);
   }
   document.addEventListener('click', function(e){
-    var c = e.target.closest('.sstrip-cell.is-click');
+    var c = e.target.closest('.sstrip-cell.is-click, .sr.is-click');
     if(!c || e.target.closest('.sched-pick')) return;
     mqEventPanel(c);
   });
   document.addEventListener('keydown', function(e){
     if(e.key !== 'Enter' && e.key !== ' ') return;
-    var c = e.target.closest && e.target.closest('.sstrip-cell.is-click');
+    var c = e.target.closest && e.target.closest('.sstrip-cell.is-click, .sr.is-click');
     if(c){ e.preventDefault(); mqEventPanel(c); }
   });
 
@@ -8918,17 +8918,48 @@
   }
 
   // Schedule page: one card per game or event, grouped by league, two columns on wide screens.
+  // Schedule page, one day: a "Live now" block, then the rest of the day as a plain timeline.
+  function mqSchedRowHtml(ev){
+    var teams = mqSchedTeams(ev), g = mqGameFor(ev, teams), when = mqSchedTime(ev), main, sub = [];
+    var state = g ? g.state : 'pre';
+    if(g){
+      var started = g.state !== 'pre';
+      if(g.state === 'in') when = g.detail || 'Live';
+      else if(g.state === 'post') when = /^f/i.test(g.detail || '') ? g.detail : 'Final';
+      var dot = function(t){ return '<i class="sr-dot" style="background:' + mqTeamColor(t) + '"></i>'; };
+      main = started
+        ? '<b class="sr-sc">' + dot(g.away) + escapeHtml(g.away.abbr) + ' <em>' + escapeHtml(g.away.score) + '</em><span>–</span><em>' + escapeHtml(g.home.score) + '</em> ' + escapeHtml(g.home.abbr) + dot(g.home) + '</b>'
+        : '<b>' + dot(g.away) + escapeHtml(g.away.name) + ' <span class="sr-at">at</span> ' + dot(g.home) + escapeHtml(g.home.name) + '</b>';
+      if(g.network) sub.push(g.network);
+    } else if(ev.category === 'finance' && ev.league){
+      main = '<b>' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + ' <span class="sr-at">earnings</span></b>';
+      sub.push(/before/i.test(ev.subtitle || '') ? 'Before the open' : /after/i.test(ev.subtitle || '') ? 'After the close' : (ev.subtitle || ''));
+    } else {
+      main = '<b>' + escapeHtml(ev.title) + '</b>';
+      if(ev.subtitle) sub.push(ev.subtitle);
+    }
+    var lg = ev.category === 'finance' ? 'Earnings' : ev.league;
+    if(lg) sub.unshift(lg);
+    var canOpen = (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && teams);
+    return '<div class="sr ' + (state === 'in' ? 'is-live' : state === 'post' ? 'is-done' : '') + (canOpen ? ' is-click' : '') + '"' +
+      (canOpen ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '') + '>' +
+      '<span class="sr-t">' + escapeHtml(when) + '</span>' +
+      '<span class="sr-m">' + main + (sub.length ? '<small>' + escapeHtml(sub.filter(Boolean).join(' · ')) + '</small>' : '') + '</span>' +
+      (ev.question_id ? '<button type="button" class="sched-pick">Play ›</button>' : (canOpen ? '<span class="sr-go" aria-hidden="true">›</span>' : '')) +
+    '</div>';
+  }
   function mqSchedAgendaHtml(list){
-    var groups = [], byKey = {};
+    var live = [], later = [], done = [];
     mqSchedSort(list).forEach(function(ev){
-      var key = ev.category === 'finance' ? 'Earnings' : ev.league || (MQ_SCHED_CATS.filter(function(c){ return c[0] === ev.category; })[0] || [0, 'Events'])[1];
-      if(!byKey[key]){ byKey[key] = { name: key, events: [] }; groups.push(byKey[key]); }
-      byKey[key].events.push(ev);
+      var g = mqGameFor(ev, mqSchedTeams(ev)), st = g ? g.state : 'pre';
+      (st === 'in' ? live : st === 'post' ? done : later).push(ev);
     });
-    return '<div class="agenda">' + groups.map(function(g){
-      return '<section class="ag-grp"><h5 class="ag-h"><span>' + escapeHtml(g.name) + '</span><em>' + g.events.length + (g.events.length === 1 ? ' event' : ' events') + '</em></h5><div class="ag-rows">' +
-        g.events.map(function(ev){ return mqSchedCellHtml(ev, true); }).join('') + '</div></section>';
-    }).join('') + '</div>';
+    var rows = function(l){ return l.map(mqSchedRowHtml).join(''); };
+    var out = '';
+    if(live.length) out += '<section class="ag-live"><h5 class="ag-h"><span><i class="ag-pulse"></i>Live now</span><em>' + live.length + '</em></h5>' + rows(live) + '</section>';
+    if(later.length) out += '<section class="ag-sec"><h5 class="ag-h"><span>' + (live.length || done.length ? 'Later' : 'Schedule') + '</span><em>' + later.length + '</em></h5>' + rows(later) + '</section>';
+    if(done.length) out += '<details class="ag-sec ag-done"' + (!live.length && !later.length ? ' open' : '') + '><summary class="ag-h"><span>Finished</span><em>' + done.length + '</em></summary>' + rows(done) + '</details>';
+    return '<div class="agenda">' + out + '</div>';
   }
 
   // The still row on the Play page: today's bigger events only. Hidden until the schedule has data.

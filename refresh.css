@@ -840,3 +840,96 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .kp-ph{width:34px;height:34px;border-radius:50%;object-fit:cover;object-position:center top;flex:none;background:#e9ecf1}
 .kp-cr{display:block;margin-top:2px;font-size:10px;line-height:1.3;color:#8a93a3;text-decoration:none;font-weight:400}
 .kp-cr:hover{text-decoration:underline}
+
+/* Schedule, layout B: Live now / Later / Finished, one tight row per game */
+.agenda{max-width:760px}
+.agenda .ag-h{display:flex;align-items:center;justify-content:space-between;margin:0;padding:0 2px 8px;border-bottom:0;font:600 11.5px 'Barlow',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8B909A}
+.agenda .ag-h em{display:inline;font-style:normal;letter-spacing:0;font-weight:500;color:#6E737D;font-size:12px}
+.ag-sec{margin-top:18px}
+.ag-sec summary{cursor:pointer;list-style:none}.ag-sec summary::-webkit-details-marker{display:none}
+.ag-done:not([open]) summary::after{content:"Show";font-size:12px;color:#8B909A;margin-left:8px;letter-spacing:0;text-transform:none}
+.ag-done[open] summary{margin-bottom:0}
+.ag-live{background:#17191E;border:1px solid #2B2F37;border-radius:12px;padding:12px 12px 4px;margin-top:6px}
+.ag-live .ag-h{color:#FF8272}
+.ag-pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:#FF6B5B;margin-right:8px;vertical-align:1px}
+.sr{display:grid;grid-template-columns:76px minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 4px;border-top:1px solid #23262C;min-height:52px}
+.ag-live .sr{padding:11px 4px;border-top-color:#2B2F37}
+.sr.is-click{cursor:pointer}.sr.is-click:hover{background:rgba(255,255,255,.035)}
+.sr-t{font-size:13px;font-weight:600;color:#C9CDD4;font-variant-numeric:tabular-nums;line-height:1.25}
+.sr.is-live .sr-t{color:#FF8272}
+.sr.is-done .sr-t{color:#6E737D}.sr.is-done .sr-m b{color:#AEB3BC}
+.sr-m{display:flex;flex-direction:column;gap:2px;min-width:0}
+.sr-m b{font-size:15.5px;font-weight:600;color:#F2F3F5;display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.3}
+.sr-m small{font-size:12px;color:#7E838D}
+.sr-at{font-weight:400;color:#7E838D}
+.sr-dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+.sr-sc em{font-style:normal;font:700 19px 'Big Shoulders Display','Barlow',sans-serif;min-width:14px;text-align:center}
+.sr-sc span{color:#6E737D}
+.sr-go{color:#6E737D;font-size:20px;line-height:1}
+.sr .sched-pick{margin:0;font-size:12.5px}
+.sched-sel-title{font-size:22px;margin:12px 0 4px}
+@media(max-width:520px){.sr{grid-template-columns:62px minmax(0,1fr) auto;gap:10px}}
+.agenda .ag-h{justify-content:flex-start;gap:8px}
+.ag-done:not([open]) summary::after,.ag-done[open] summary::after{margin-left:auto}
+.ag-done[open] summary::after{content:"Hide";font-size:12px;color:#8B909A;letter-spacing:0;text-transform:none}
+.sched-sub{font-size:15px;margin:6px 0 0;color:var(--ink-soft)}
+#page-schedule .hero-lite{padding-top:18px;padding-bottom:28px}
+#page-schedule h2{font-size:34px;margin-bottom:0}
+
+/* ===== Density pass: Play page, Leaderboard, Schedule are shorter and tighter ===== */
+.section{padding:28px 0 20px}
+#page-home .section{padding:8px 0 24px}
+#page-home .hero-play + .section{padding-top:6px}
+/* Play: friends/buddies/rivals rows */
+.mq-fold>summary{min-height:44px;padding:5px 14px;gap:10px}
+.mq-fold>summary .sec-ico{width:28px;height:28px;border-radius:9px}
+.mq-fold>summary .sec-ico svg{width:15px;height:15px}
+.mq-fold>summary .ex-title{font-size:16px}
+.mq-fold-count{font-size:11.5px;padding:1px 7px}
+#play-friends{margin-top:14px !important}
+/* Play: request a prediction + results card */
+#play-suggest > div > div{padding:14px 16px !important}
+#play-suggest textarea{min-height:44px}
+.play-extras{gap:14px}
+.play-extras > *{margin-top:14px}
+.play-extras #share-section{padding:14px 16px}
+.play-extras #share-section .share-card-lg .share-head strong{font-size:18px}
+.play-extras #share-section .share-cell{flex:0 0 52px}
+.play-extras #share-section .share-card-lg .share-icon{width:44px;height:44px;border-radius:12px}
+.play-extras #share-section .share-card-lg .share-icon svg{width:20px;height:20px}
+.play-extras #share-section .share-card-lg .share-cell-label{font-size:11px;margin-top:4px}
+.play-extras #share-section .share-date{margin-bottom:6px;font-size:13px}
+.play-extras #share-section .share-card-lg .share-foot{margin-top:6px;font-size:12px}
+.challenge-banner{margin-top:14px;padding:10px 14px;gap:12px}
+.cb-ico{width:38px;height:38px;border-radius:12px}.cb-ico svg{width:20px;height:20px}
+.challenge-banner .cb-title{font-size:18px}.challenge-banner .cb-sub{font-size:12.5px}
+.challenge-banner .cb-btn{padding:7px 16px;font-size:13px}
+
+/* Leaderboard: record card is rings + calendar side by side; weekly cards side by side */
+#page-leaderboard .hero-lite{padding-top:14px;padding-bottom:6px}
+#page-leaderboard .hero-lite h2{font-size:32px}
+#page-leaderboard .hero-lite p{margin-top:4px !important}
+#page-leaderboard .hero-lite + .section{padding-top:8px;padding-bottom:6px}
+#page-leaderboard .section{padding-top:14px;padding-bottom:14px}
+#page-leaderboard .recap-card{padding:14px 16px}
+#record-card .rec-rings{padding-top:2px;margin-bottom:6px}
+.rec-ring svg{width:52px !important;height:52px !important;margin-bottom:4px !important}
+.rec-dow,.rec-cal{gap:4px !important}
+#record-card .rec-cal-wrap>*{max-width:250px !important}
+.rec-legend{font-size:10.5px;gap:8px;margin-top:6px}
+@media(min-width:760px){
+  #record-card{display:grid;grid-template-columns:minmax(0,1fr) 270px;column-gap:24px;align-items:start}
+  #record-card .recap-head{grid-column:1 / -1}
+  #record-card .rec-rings{grid-column:1;grid-row:2;border-top:0;margin-top:8px}
+  #record-card .recap-foot{grid-column:1;grid-row:3;align-self:start}
+  #record-card .rec-cal-wrap{grid-column:2;grid-row:2 / span 2;padding-top:0;border-top:0}
+  #page-leaderboard .section:nth-of-type(2) > .wrap{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  #page-leaderboard .section:nth-of-type(2) > .wrap > #record-card,
+  #page-leaderboard .section:nth-of-type(2) > .wrap > #top-predictor-line{grid-column:1 / -1}
+  #page-leaderboard .section:nth-of-type(2) > .wrap > .recap-card{margin-top:0 !important}
+  #page-leaderboard .section:nth-of-type(2) > .wrap > #top-predictor-line{margin-top:0 !important}
+}
+#page-leaderboard .hero-lite p{display:none}
+#page-leaderboard .hero-lite{padding-bottom:0}
+@media(min-width:760px){.rec-legend{flex-wrap:wrap;justify-content:center}}
+#page-leaderboard .hero-lite{padding-bottom:10px}
