@@ -8636,6 +8636,8 @@
   }
 
   // ---------- Rankings panel (standings, music charts, biggest companies) ----------
+  // Team badges and company logos are trademarks, so they stay off unless this is deliberately switched on.
+  var MQ_USE_LOGOS = false;
   var MQ_RK = { cache: {}, kind: 'nba' };
   var MQ_RK_TABS = [['nba','NBA'],['nfl','NFL'],['nhl','NHL'],['mlb','MLB'],['country','Country songs'],['songs','Top songs'],['artists','Artists'],['markets','Biggest companies']];
   var MQ_DOMAINS = { NVDA:'nvidia.com', AAPL:'apple.com', GOOGL:'google.com', GOOG:'google.com', MSFT:'microsoft.com', AMZN:'amazon.com', TSM:'tsmc.com', META:'meta.com', AVGO:'broadcom.com', TSLA:'tesla.com', BRK:'berkshirehathaway.com', WMT:'walmart.com', JPM:'jpmorganchase.com', LLY:'lilly.com', V:'visa.com', ORCL:'oracle.com', NFLX:'netflix.com', XOM:'exxonmobil.com', MA:'mastercard.com', COST:'costco.com', JNJ:'jnj.com', HD:'homedepot.com', PG:'pg.com', BAC:'bankofamerica.com', ABBV:'abbvie.com', KO:'coca-cola.com', AMD:'amd.com', PLTR:'palantir.com', SAP:'sap.com', ASML:'asml.com', BABA:'alibaba.com', NVO:'novonordisk.com', SPCX:'spacex.com' };
@@ -8653,12 +8655,12 @@
   }
   function mqRkLogo(sym, name){
     var d = MQ_DOMAINS[String(sym).toUpperCase()], ch = escapeHtml(String(name || sym).charAt(0));
-    return '<span class="rk-logo">' + (d ? '<img src="https://www.google.com/s2/favicons?sz=128&domain=' + d + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '<i>' + ch + '</i></span>';
+    return '<span class="rk-logo">' + (d && MQ_USE_LOGOS ? '<img src="https://www.google.com/s2/favicons?sz=128&domain=' + d + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '<i>' + ch + '</i></span>';
   }
   // Team mark: the badge picture when we have one, otherwise a team-colored circle with the abbreviation.
   function mqRkTeamMark(r, big){
     var dot = '<span class="rk-dot' + (big ? ' big' : '') + '" style="' + mqBadgeStyle(r) + '">' + escapeHtml((r.abbr || '').slice(0, 3)) + '</span>';
-    if(!/^https:\/\//.test(r.logo || '')) return dot;
+    if(!MQ_USE_LOGOS || !/^https:\/\//.test(r.logo || '')) return dot;
     return '<span data-fb="' + escapeHtml(dot) + '" class="rk-tl' + (big ? ' big' : '') + '"><img src="' + escapeHtml(r.logo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.outerHTML=this.parentNode.getAttribute(\'data-fb\')"></span>';
   }
   function mqRkNum(v){ var n = parseFloat(String(v == null ? '' : v).replace(/[$,%\s+]/g, '')); return isNaN(n) ? null : n; }
