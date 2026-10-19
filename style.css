@@ -1717,7 +1717,7 @@ button,input,select,textarea{font-family:inherit;}
 .lb-share-btn:hover{border-color:rgba(70,140,255,.6);}
 #champion-card-btn-wrap .lb-share-btn{margin-top:10px;}
 
-/* ---- Schedule: the "Today's key events" row on Play, and the Schedule page ---- */
+/* ---- Schedule: the "Today" row on Play, and the Schedule page (uses the site's panels, tabs and display font) ---- */
 .sched-today{padding:14px 0 2px;}
 .sched-today-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
 .sched-today-title{font-family:'Big Shoulders Display',sans-serif;font-size:21px;font-weight:700;letter-spacing:.2px;margin:0;}
@@ -1725,45 +1725,48 @@ button,input,select,textarea{font-family:inherit;}
 .sched-see-all:hover{color:var(--ink);}
 .sched-cards{display:flex;gap:10px;overflow-x:auto;padding:10px 2px 8px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
 .sched-cards::-webkit-scrollbar{display:none;}
-.sched-card{flex:0 0 176px;scroll-snap-align:start;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 13px;display:flex;flex-direction:column;gap:6px;min-height:108px;}
-.sched-card-top{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:var(--ink-soft);}
-.sched-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--cat,#A8ABB3);flex:none;}
-.sched-badge{letter-spacing:.4px;text-transform:uppercase;font-size:11px;font-weight:700;color:var(--ink-soft);}
-.sched-time{margin-left:auto;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;}
-.sched-card-title{font-size:14.5px;font-weight:700;line-height:1.25;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.sched-card{flex:0 0 168px;scroll-snap-align:start;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:5px;min-height:96px;}
+.sched-card-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;color:var(--ink-soft);font-weight:600;}
+.sched-card-time{font-family:'Big Shoulders Display',sans-serif;font-size:17px;font-weight:700;color:var(--ink);white-space:nowrap;}
+.sched-card-title{font-size:14.5px;font-weight:600;line-height:1.25;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
 .sched-card-sub{font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.sched-card-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;}
-.sched-pick{font-family:inherit;font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#17130A;background:var(--gold);border:none;border-radius:100px;padding:2px 8px;line-height:1.5;}
+.sched-pick{font:inherit;font-size:12.5px;font-weight:700;color:var(--gold);background:none;border:none;padding:0;margin-top:auto;}
 button.sched-pick{cursor:pointer;}
-.sched-flag{font-size:10.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#F5A524;border:1px solid rgba(245,165,36,.55);border-radius:100px;padding:1px 7px;line-height:1.5;}
+button.sched-pick:hover{text-decoration:underline;}
+.sched-flag{font-size:12px;font-weight:700;color:#F5A524;}
 .sched-empty,.sched-none{font-size:13.5px;color:var(--ink-soft);margin:6px 0;}
 
-.sched-days{display:flex;gap:6px;margin-top:16px;overflow-x:auto;padding:8px 2px 2px;scrollbar-width:none;}
+#page-schedule .scope-tab-row{margin-top:18px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line);}
+#page-schedule .scope-tab-row::-webkit-scrollbar{display:none;}
+.sched-days{display:flex;gap:4px;margin-top:14px;overflow-x:auto;scrollbar-width:none;}
 .sched-days::-webkit-scrollbar{display:none;}
-.sched-day{flex:1 0 52px;position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 6px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);font:inherit;cursor:pointer;transition:border-color .15s;}
-.sched-day:hover{border-color:var(--ink-soft);}
-.sched-day b{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;}
-.sched-day span{font-family:'Big Shoulders Display',sans-serif;font-size:21px;font-weight:700;color:var(--ink);line-height:1.1;}
-.sched-day.today{border-color:var(--gold);}
-.sched-day.past{opacity:.6;}
-.sched-day-n{position:absolute;top:-6px;right:-3px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--gold);color:#17130A;font-size:10.5px;font-style:normal;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.sched-day{flex:1 0 46px;display:flex;flex-direction:column;align-items:center;gap:0;padding:6px 4px 7px;border:none;border-bottom:2px solid transparent;background:none;color:var(--ink-soft);font:inherit;cursor:pointer;}
+.sched-day:hover{color:var(--ink);}
+.sched-day b{font-size:11.5px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
+.sched-day span{font-family:'Big Shoulders Display',sans-serif;font-size:20px;font-weight:700;color:var(--ink);line-height:1.15;}
+.sched-day.has b{color:var(--ink);}
+.sched-day.today{border-bottom-color:var(--gold);}
+.sched-day.past{opacity:.55;}
 
-.sched-list{margin-top:10px;}
-.sched-sec{padding:16px 0 6px;border-top:1px solid var(--line);scroll-margin-top:72px;}
-.sched-sec:first-child{border-top:none;}
+.sched-list{margin-top:14px;display:flex;flex-direction:column;gap:12px;}
+.sched-sec{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px 6px;scroll-margin-top:72px;}
+.sched-sec.today{border-color:rgba(242,193,78,.45);}
 .sched-sec.past{opacity:.6;}
-.sched-sec-title{font-family:'Big Shoulders Display',sans-serif;font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px;margin:0 0 6px;}
-.sched-sec-title em{font-style:normal;font-family:'Barlow',sans-serif;font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#17130A;background:var(--gold);border-radius:100px;padding:2px 9px;}
-.sched-row{display:grid;grid-template-columns:84px 1fr auto;gap:12px;align-items:center;padding:11px 0;border-top:1px solid rgba(255,255,255,.05);}
+.sched-sec.empty{padding-bottom:14px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+.sched-sec.empty .sched-sec-title{margin:0;}
+.sched-sec.empty .sched-none{margin:0;}
+.sched-sec-title{font-family:'Big Shoulders Display',sans-serif;font-size:21px;font-weight:700;display:flex;align-items:baseline;gap:10px;margin:0 0 4px;}
+.sched-sec-title em{font-style:normal;font-family:'Barlow',sans-serif;font-size:12.5px;font-weight:700;color:var(--gold);}
+.sched-row{display:grid;grid-template-columns:78px 1fr auto;gap:12px;align-items:baseline;padding:11px 0;border-top:1px solid var(--line);}
 .sched-sec-title + .sched-row{border-top:none;}
-.sched-row-time{font-size:13px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
-.sched-row-main{display:flex;align-items:flex-start;gap:9px;min-width:0;}
-.sched-row-main .sched-dot{margin-top:6px;}
-.sched-row-title{font-size:15px;font-weight:700;color:var(--ink);line-height:1.3;text-decoration:none;}
+.sched-row-time{font-family:'Big Shoulders Display',sans-serif;font-size:17px;font-weight:700;color:var(--ink);white-space:nowrap;}
+.sched-row-title{font-size:15px;font-weight:600;color:var(--ink);line-height:1.3;text-decoration:none;}
 a.sched-row-title:hover{text-decoration:underline;}
-.sched-row-sub{font-size:12.5px;color:var(--ink-soft);margin-top:1px;}
-.sched-row-side{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+.sched-row-sub{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+.sched-row-side{display:flex;align-items:baseline;gap:10px;justify-content:flex-end;white-space:nowrap;}
+.sched-badge{font-size:12px;font-weight:600;color:var(--ink-soft);}
 @media (max-width:520px){
-  .sched-row{grid-template-columns:62px 1fr;row-gap:4px;}
+  .sched-sec{padding:14px 14px 4px;}
+  .sched-row{grid-template-columns:62px 1fr;row-gap:2px;}
   .sched-row-side{grid-column:2;justify-content:flex-start;}
 }

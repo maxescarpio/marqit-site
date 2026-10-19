@@ -7916,7 +7916,6 @@
   // events" row on Play and the Schedule page. Static and swipeable on purpose: the headline ticker
   // above is the only thing on the site that moves by itself.
   var MQ_SCHED_CATS = [['all', 'All'], ['sports', 'Sports'], ['finance', 'Finance'], ['tech', 'Tech'], ['pop_culture', 'Pop culture'], ['news', 'News']];
-  var MQ_SCHED_COLORS = { sports: '#E0963A', finance: '#2DBE7E', tech: '#22B8B0', pop_culture: '#A26BDB', news: '#4D8BE0' };
   var mqSched = { events: [], loaded: false, failed: false, cat: 'all', fetchedAt: 0, loading: null };
 
   function mqSchedEtDay(d){
@@ -7980,20 +7979,20 @@
   function mqSchedTagsHtml(ev, clickable){
     var out = '';
     if(ev.question_id) out += clickable
-      ? '<button type="button" class="sched-pick">Marqit pick</button>'
-      : '<span class="sched-pick">Marqit pick</span>';
+      ? '<button type="button" class="sched-pick">Play this one ›</button>'
+      : '<span class="sched-pick">On today’s board</span>';
     if(ev.status === 'postponed') out += '<span class="sched-flag">Postponed</span>';
     return out;
   }
 
   function mqSchedCardHtml(ev){
     var tags = mqSchedTagsHtml(ev, false);
-    return '<div class="sched-card" style="--cat:' + (MQ_SCHED_COLORS[ev.category] || '#A8ABB3') + ';">' +
-      '<div class="sched-card-top"><i class="sched-dot"></i>' + (ev.league ? '<span class="sched-badge">' + escapeHtml(ev.league) + '</span>' : '') +
-        '<span class="sched-time">' + escapeHtml(mqSchedTime(ev)) + '</span></div>' +
+    return '<div class="sched-card">' +
+      '<div class="sched-card-top"><span>' + escapeHtml(ev.league || '') + '</span>' +
+        '<span class="sched-card-time">' + escapeHtml(mqSchedTime(ev)) + '</span></div>' +
       '<div class="sched-card-title">' + escapeHtml(ev.title) + '</div>' +
       (ev.subtitle ? '<div class="sched-card-sub">' + escapeHtml(ev.subtitle) + '</div>' : '') +
-      (tags ? '<div class="sched-card-tags">' + tags + '</div>' : '') +
+      tags +
     '</div>';
   }
 
@@ -8002,10 +8001,9 @@
       ? '<a class="sched-row-title" href="' + escapeHtml(ev.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(ev.title) + '</a>'
       : '<span class="sched-row-title">' + escapeHtml(ev.title) + '</span>';
     var tags = mqSchedTagsHtml(ev, true);
-    return '<div class="sched-row" style="--cat:' + (MQ_SCHED_COLORS[ev.category] || '#A8ABB3') + ';">' +
+    return '<div class="sched-row">' +
       '<span class="sched-row-time">' + escapeHtml(mqSchedTime(ev)) + '</span>' +
-      '<div class="sched-row-main"><i class="sched-dot"></i><div>' + title +
-        (ev.subtitle ? '<div class="sched-row-sub">' + escapeHtml(ev.subtitle) + '</div>' : '') + '</div></div>' +
+      '<div>' + title + (ev.subtitle ? '<div class="sched-row-sub">' + escapeHtml(ev.subtitle) + '</div>' : '') + '</div>' +
       '<div class="sched-row-side">' + (ev.league ? '<span class="sched-badge">' + escapeHtml(ev.league) + '</span>' : '') + tags + '</div>' +
     '</div>';
   }
@@ -8035,8 +8033,14 @@
     }
     if(!mqSched.loaded) return;
     var days = mqSchedWeekDays(), today = getETDateInfo().dateStr;
-    chips.innerHTML = MQ_SCHED_CATS.map(function(c){
-      return '<button type="button" class="feed-chip' + (mqSched.cat === c[0] ? ' on' : '') + '" data-cat="' + c[0] + '">' + c[1] + '</button>';
+    // Only offer the tabs that have something this week.
+    var present = {};
+    mqSched.events.forEach(function(ev){ present[ev.category] = true; });
+    var tabs = MQ_SCHED_CATS.filter(function(c){ return c[0] !== 'all' && present[c[0]]; });
+    if(mqSched.cat !== 'all' && !present[mqSched.cat]) mqSched.cat = 'all';
+    chips.style.display = tabs.length > 1 ? '' : 'none';
+    chips.innerHTML = [['all', 'All']].concat(tabs).map(function(c){
+      return '<button type="button" class="scope-tab' + (mqSched.cat === c[0] ? ' active' : '') + '" data-cat="' + c[0] + '">' + c[1] + '</button>';
     }).join('');
     var byDay = {};
     days.forEach(function(d){ byDay[d] = []; });
@@ -8047,15 +8051,15 @@
     });
     daysEl.innerHTML = days.map(function(d){
       var dt = new Date(Date.parse(d + 'T12:00:00Z')), n = byDay[d].length;
-      return '<button type="button" class="sched-day' + (d === today ? ' today' : '') + (d < today ? ' past' : '') + '" data-day="' + d + '">' +
-        '<b>' + dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }) + '</b><span>' + dt.getUTCDate() + '</span>' +
-        (n ? '<i class="sched-day-n">' + n + '</i>' : '') + '</button>';
+      return '<button type="button" class="sched-day' + (n ? ' has' : '') + (d === today ? ' today' : '') + (d < today ? ' past' : '') + '" data-day="' + d + '">' +
+        '<b>' + dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }) + '</b><span>' + dt.getUTCDate() + '</span></button>';
     }).join('');
     listEl.innerHTML = days.map(function(d){
       var label = new Date(Date.parse(d + 'T12:00:00Z')).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
-      return '<section class="sched-sec' + (d === today ? ' today' : '') + (d < today ? ' past' : '') + '" id="sched-sec-' + d + '">' +
+      var has = byDay[d].length > 0;
+      return '<section class="sched-sec' + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (has ? '' : ' empty') + '" id="sched-sec-' + d + '">' +
         '<h4 class="sched-sec-title">' + label + (d === today ? '<em>Today</em>' : '') + '</h4>' +
-        (byDay[d].length ? mqSchedSort(byDay[d]).map(mqSchedRowHtml).join('') : '<p class="sched-none">Nothing scheduled.</p>') +
+        (has ? mqSchedSort(byDay[d]).map(mqSchedRowHtml).join('') : '<p class="sched-none">Nothing scheduled</p>') +
       '</section>';
     }).join('');
   }
@@ -8063,7 +8067,7 @@
   (function(){
     var chips = document.getElementById('sched-chips');
     if(chips) chips.addEventListener('click', function(e){
-      var b = e.target.closest('.feed-chip');
+      var b = e.target.closest('.scope-tab');
       if(!b) return;
       mqSched.cat = b.getAttribute('data-cat') || 'all';
       renderSchedPage();
