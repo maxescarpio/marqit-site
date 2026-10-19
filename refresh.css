@@ -493,3 +493,18 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .news-card.is-trend:has(.trend-face) .news-meta,
 .news-card.is-trend:has(.trend-face) .news-h,
 .news-card.is-trend:has(.trend-face) .trend-ctx{padding-right:80px;}
+
+/* ---- Account: avatar + username and the tier label read as one joined pill ---- */
+#nav-signed-in{gap:0 !important;}
+#nav-signed-in #sign-out-btn{margin-left:10px;order:3;}
+#nav-profile-pill{order:1;align-self:stretch;}
+#nav-badge{order:2;align-self:stretch;}
+#nav-signed-in:has(#nav-badge[style*="flex"]) #nav-profile-pill{border-radius:100px 0 0 100px !important;border-right:0 !important;}
+#nav-badge{border-radius:0 100px 100px 0 !important;border-left:1px solid #2F333A !important;background:#1B1E24 !important;padding:4px 14px 4px 11px !important;gap:6px !important;}
+#nav-badge #nav-badge-icon{stroke:var(--gold);width:14px;height:14px;}
+#nav-badge #nav-badge-label{font-size:12.5px !important;font-weight:600 !important;letter-spacing:.02em;color:#C9CDD3;}
+
+/* ---- Tabs: no browser focus box after a click (keyboard focus keeps a thin underline) ---- */
+.pagenav-tab:focus{outline:none;}
+.pagenav-tab:focus-visible{outline:none;color:#fff;box-shadow:inset 0 -2px 0 #6B7079;}
+.pagenav-tab.active:focus-visible{box-shadow:none;}
