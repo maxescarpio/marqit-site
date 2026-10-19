@@ -47,7 +47,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261016j">
-<link rel="stylesheet" href="refresh.css?v=20261019s">
+<link rel="stylesheet" href="refresh.css?v=20261019t">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -107,6 +107,7 @@
   <div id="hamburger-menu" style="display:none; position:absolute; top:100%; right:20px; margin-top:8px; width:190px; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:10px; box-shadow:0 12px 32px rgba(0,0,0,0.12); z-index:60;">
     <button type="button" id="hamburger-how-btn" style="width:100%; text-align:left; background:none; border:none; padding:10px 10px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; border-radius:8px;">How to play</button>
     <button type="button" id="hamburger-challenge-btn" style="width:100%; text-align:left; background:none; border:none; padding:10px 10px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; border-radius:8px;">2026 Challenge</button>
+    <button type="button" id="hamburger-rankings-btn" style="width:100%; text-align:left; background:none; border:none; padding:10px 10px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; border-radius:8px;">Standings &amp; charts</button>
     <button type="button" id="hamburger-about-btn" style="width:100%; text-align:left; background:none; border:none; padding:10px 10px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; border-radius:8px;">About Us</button>
     <div style="height:1px; background:var(--line); margin:6px 2px;"></div>
     <div style="padding:6px 10px 4px; font-size:11.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em;">Notifications</div>
@@ -452,7 +453,7 @@
 <section class="section hero-lite">
   <div class="wrap">
     <h2>Schedule</h2>
-    <p style="font-size:16px; margin-top:12px; max-width:520px; color:var(--ink-soft);">What’s on this week, Monday to Sunday.</p>
+    <p style="font-size:16px; margin-top:12px; max-width:520px; color:var(--ink-soft);">What’s on this week, Monday to Sunday. <button type="button" id="sched-rankings-link" class="sched-rk-link">Standings &amp; charts ›</button></p>
     <div class="scope-tab-row" id="sched-chips"></div>
     <div class="sched-days" id="sched-days" role="tablist" aria-label="Days this week"></div>
     <div class="sched-list" id="sched-list" aria-live="polite">
@@ -924,6 +925,7 @@
     <div class="sf-right"><nav class="sf-links" aria-label="Footer">
       <button type="button" id="footer-how-link">How to play</button>
       <button type="button" id="footer-challenge-link">Challenge</button>
+      <button type="button" id="footer-rankings-link">Rankings</button>
       <button type="button" id="footer-about-link">About</button>
       <a href="/privacy.html">Privacy</a>
       <a href="/terms.html">Terms</a>
@@ -954,7 +956,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261019r" defer></script>
+<script src="app.js?v=20261019s" defer></script>
 
 
 

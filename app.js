@@ -8601,6 +8601,78 @@
       return '<div class="fd-c" title="' + escapeHtml(c[2]) + '"><span>' + c[0] + '</span><b>' + escapeHtml(c[1]) + '</b><small>' + escapeHtml(c[2]) + '</small></div>'; }).join('') + '</div></div>';
     return out;
   }
+
+  // ---------- Rankings panel (standings, music charts, biggest companies) ----------
+  var MQ_RK = { cache: {}, kind: 'nba' };
+  var MQ_RK_TABS = [['nba','NBA'],['nfl','NFL'],['nhl','NHL'],['mlb','MLB'],['country','Country songs'],['songs','Top songs'],['artists','Artists'],['markets','Biggest companies']];
+  function mqRkFetch(kind){
+    var k = (kind === 'country' || kind === 'songs' || kind === 'artists') ? 'music' : kind;
+    if(MQ_RK.cache[k] && Date.now() - MQ_RK.cache[k].at < 300000) return Promise.resolve(MQ_RK.cache[k].d);
+    return fetch(SUPABASE_URL + '/functions/v1/rankings?kind=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      .then(function(d){ if(d) MQ_RK.cache[k] = { at: Date.now(), d: d }; return d; });
+  }
+  function mqRkConf(kind, g){
+    var n = String(g.name || '');
+    if(kind === 'nhl') return /atlantic|metropolitan/i.test(n) ? 'Eastern Conference' : 'Western Conference';
+    if(g.conf) return String(g.conf).replace(/^East$/i, 'Eastern Conference').replace(/^West$/i, 'Western Conference');
+    var m = n.match(/^(AFC|NFC|American League|National League)/i); return m ? m[1] : '';
+  }
+  function mqRkStandings(kind, d){
+    if(!d || !d.groups || !d.groups.length) return '<p class="evp-muted">Standings aren’t available right now.</p>';
+    var hasT = kind === 'nfl', hasOtl = kind === 'nhl', last = '', out = '';
+    if(d.phase && /pre/i.test(d.phase)) out += '<p class="rk-note">Preseason records, the regular season hasn’t started.</p>';
+    d.groups.forEach(function(g){
+      var conf = mqRkConf(kind, g);
+      if(conf && conf !== last){ out += '<div class="rk-conf">' + escapeHtml(conf) + '</div>'; last = conf; }
+      var title = g.name && g.name !== conf && !/^(East|West)$/i.test(g.name) ? g.name : '';
+      out += (title ? '<div class="rk-div">' + escapeHtml(title) + '</div>' : '') + '<table class="rk-t"><thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th>' + (hasOtl ? '<th>OTL</th><th>PTS</th>' : hasT ? '<th>T</th>' : '') + '<th>' + (kind === 'nfl' || hasOtl ? 'PCT' : 'GB') + '</th><th>Strk</th></tr></thead><tbody>' +
+        g.rows.map(function(r, i){
+          return '<tr><td class="n">' + (r.seed || i + 1) + '</td><td class="t">' + escapeHtml(r.name || r.abbr) + '</td><td>' + (r.w == null ? '' : r.w) + '</td><td>' + (r.l == null ? '' : r.l) + '</td>' +
+            (hasOtl ? '<td>' + (r.otl == null ? '' : r.otl) + '</td><td>' + (r.pts == null ? '' : r.pts) + '</td>' : hasT ? '<td>' + (r.t == null ? '' : r.t) + '</td>' : '') +
+            '<td>' + escapeHtml(String(kind === 'nfl' || hasOtl ? (r.pct == null ? '' : r.pct) : (r.gb == null ? '' : r.gb))) + '</td><td>' + escapeHtml(String(r.strk || '')) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    });
+    return out;
+  }
+  function mqRkList(items, artist){
+    if(!items || !items.length) return '<p class="evp-muted">This chart isn’t available right now.</p>';
+    return '<ol class="rk-l">' + items.map(function(x, i){
+      var a = x.artist || '', t = x.title || x.name || '';
+      return '<li><span class="n">' + (x.rank || i + 1) + '</span><span class="m"><b>' + escapeHtml(t) + '</b>' + (artist || !a ? '' : '<em>' + escapeHtml(a) + '</em>') + '</span></li>';
+    }).join('') + '</ol>';
+  }
+  function mqRkMarkets(d){
+    if(!d || !d.companies || !d.companies.length) return '<p class="evp-muted">Market data isn’t available right now.</p>';
+    return '<table class="rk-t"><thead><tr><th>#</th><th>Company</th><th>Value</th><th>Price</th><th>Today</th></tr></thead><tbody>' + d.companies.map(function(c){
+      var up = (c.pct || 0) >= 0;
+      return '<tr><td class="n">' + c.rank + '</td><td class="t">' + escapeHtml(c.name) + ' <small>' + escapeHtml(c.symbol) + '</small></td><td>' + escapeHtml(String(c.cap != null && c.cap > 1e6 ? mqMoney(c.cap) : c.cap)) + '</td><td>' + (c.price != null ? '$' + Number(c.price).toFixed(2) : '') + '</td><td class="' + (up ? 'up' : 'dn') + '">' + (c.pct == null ? '' : (up ? '+' : '') + Number(c.pct).toFixed(2) + '%') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  }
+  var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', country: 'Apple iTunes charts', songs: 'Apple iTunes charts', artists: 'Deezer', markets: 'Nasdaq' };
+  function mqOpenRankings(kind){
+    MQ_RK.kind = kind || MQ_RK.kind;
+    var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">Rankings</div><h3 class="evp-title">Standings &amp; charts</h3>' +
+      '<div class="rk-tabs" role="tablist">' + MQ_RK_TABS.map(function(t){ return '<button type="button" role="tab" data-k="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      '<div id="rk-body" class="rk-body"></div><p class="evp-foot" id="rk-foot"></p>');
+    function show(k){
+      MQ_RK.kind = k;
+      el.querySelectorAll('.rk-tabs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-k') === k); });
+      var body = el.querySelector('#rk-body'); body.innerHTML = '<p class="evp-muted">Loading…</p>';
+      el.querySelector('#rk-foot').textContent = 'Source: ' + MQ_RK_SRC[k] + '. Unofficial feed, may lag. Updated as you open it.';
+      mqRkFetch(k).then(function(d){
+        if(MQ_RK.kind !== k || !body.isConnected) return;
+        if(!d){ body.innerHTML = '<p class="evp-muted">Couldn’t load this right now. Try again in a minute.</p>'; return; }
+        body.innerHTML = k === 'markets' ? mqRkMarkets(d) : k === 'country' ? mqRkList(d.countrySongs) : k === 'songs' ? mqRkList(d.songs) : k === 'artists' ? mqRkList(d.artists, true) : mqRkStandings(k, d);
+      });
+    }
+    el.querySelector('.rk-tabs').addEventListener('click', function(e){ var b = e.target.closest('button[data-k]'); if(b) show(b.getAttribute('data-k')); });
+    show(MQ_RK.kind);
+  }
+  window.mqOpenRankings = mqOpenRankings;
+  (function(){
+    function bind(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', function(){ var h = document.getElementById('hamburger-menu'); if(h) h.style.display = 'none'; mqOpenRankings(); }); }
+    ['hamburger-rankings-btn', 'footer-rankings-link', 'sched-rankings-link'].forEach(bind);
+  })();
   function mqDrawChart(el, box, d, range){
     var pts = d.points, W = 600, H = 220, pad = 8;
     var base = range === '1d' && d.prevClose ? d.prevClose : pts[0][1];

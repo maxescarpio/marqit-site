@@ -606,3 +606,26 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 #evp-fund .fd-c b{font-size:17px;color:#F2F3F5;font-weight:600}
 #evp-fund .fd-c small{font-size:11px;color:#6E737D;line-height:1.3}
 @media(max-width:520px){#evp-fund .fd-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* Rankings panel */
+.sched-rk-link{background:none;border:0;padding:0;margin-left:6px;font:600 14px 'Barlow',sans-serif;color:var(--ink);cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:#4A4F58}
+.sched-rk-link:hover{text-decoration-color:var(--ink)}
+.rk-tabs{display:flex;gap:6px;overflow-x:auto;margin:14px 0 6px;padding-bottom:6px;scrollbar-width:none}
+.rk-tabs::-webkit-scrollbar{display:none}
+.rk-tabs button{flex:none;background:none;border:1px solid var(--line);color:#A8ADB6;font:600 12px 'Barlow',sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:7px 12px;border-radius:100px;cursor:pointer}
+.rk-tabs button.on{background:#F2F3F5;color:#15171B;border-color:#F2F3F5}
+.rk-body{min-height:120px}
+.rk-note{font-size:13px;color:#D9B24A;margin:8px 0 0}
+.rk-conf{font:600 11px 'Barlow',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8B909A;margin:22px 0 2px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.rk-div{font:600 13px 'Barlow',sans-serif;color:#F2F3F5;margin:14px 0 4px}
+.rk-t{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.rk-t th{font:600 10px 'Barlow',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#6E737D;text-align:right;padding:6px 6px;font-weight:600}
+.rk-t td{text-align:right;padding:8px 6px;border-top:1px solid #23262C;color:#C9CDD4}
+.rk-t th:nth-child(2),.rk-t td.t{text-align:left}
+.rk-t th:first-child,.rk-t td.n{text-align:left;width:26px;color:#6E737D}
+.rk-t td.t{color:#F2F3F5;font-weight:500}.rk-t td.t small{color:#6E737D;font-weight:400;margin-left:4px}
+.rk-t td.up{color:#3DDC97}.rk-t td.dn{color:#FF6B5B}
+.rk-l{list-style:none;margin:8px 0 0;padding:0}
+.rk-l li{display:flex;gap:16px;align-items:center;padding:11px 0;border-top:1px solid #23262C}
+.rk-l .n{font:700 22px 'Big Shoulders Display','Barlow',sans-serif;color:#6E737D;width:30px}
+.rk-l .m{display:flex;flex-direction:column;min-width:0}.rk-l b{font-size:16px;color:#F2F3F5;font-weight:600}.rk-l em{font-style:normal;font-size:13px;color:#8B909A}
