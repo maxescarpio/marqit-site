@@ -59,6 +59,10 @@
   .scope-tab{padding:10px 18px;border:none;background:none;color:#9A9CA3;font-family:'Barlow',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;transition:color .15s;}
   .scope-tab:hover{color:#D8D9DC;}
   .scope-tab.active{color:#FFFFFF;border-bottom-color:var(--yes);}
+  /* Big Board has four tabs now: tighten them on phones, and scroll sideways rather than overflow if a name runs long. */
+  #lb-scope-tabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+  #lb-scope-tabs::-webkit-scrollbar{display:none;}
+  @media (max-width:480px){#lb-scope-tabs .scope-tab{padding:10px 11px;}}
 
   .news-ticker{background:#17191D;border-top:1px solid #2C2F37;overflow:hidden;position:relative;display:none;}
   .news-ticker.has-items{display:block;}

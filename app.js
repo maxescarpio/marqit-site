@@ -6343,7 +6343,7 @@
         '<span class="lb-rank">' + rank + '</span>' +
         '<i class="lb-av' + (framed ? ' has-frame' : '') + (champ ? ' has-champion-frame' : '') + '" style="background:' + color + ';" title="' + (champ ? 'Marqit Champion' : '') + '">' + face + (champ ? '<span class="champ-crown" aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg></span>' : '') + '</i>' +
         '<span class="lb-name"><span class="lb-name-text">' + escapeHtml(r.username || 'player') + '</span>' + (mine ? '<em class="lb-you">You</em>' : '') + streak + rankChg + '</span>' +
-        '<span class="lb-pts"><b>' + Number(r.points || 0).toLocaleString() + '</b><small>pts</small></span>' +
+        '<span class="lb-pts"><b>' + Number(r.points || 0).toLocaleString() + '</b><small>' + (r.unit || 'pts') + '</small></span>' +
         ((!mine && remindIds && r.user_id && remindIds.has(r.user_id)) ? '<button type="button" class="remind-btn lb-remind-btn" data-user-id="' + escapeHtml(r.user_id) + '" data-username="' + escapeHtml(r.username || 'your friend') + '">Remind</button>' : '') +
       '</div>';
     }).join('');
@@ -6406,6 +6406,42 @@
       return { user_id: row.user_id, username: p.username, avatar_emoji: p.avatar_emoji, avatar_color: p.avatar_color, points: row.total_points, streak: row.current_streak };
     }), myId, false, new Set(ids));
   }
+  // "Longest streak" view of the Big Board: everyone ranked by their all-time best
+  // run of consecutive days played (streaks.longest_streak). Same opt-out rule as
+  // Worldwide (hide_from_leaderboard excluded in the query); banned players are
+  // already hidden by the table's row-level security. Ties go to whoever is on the
+  // longer run right now, then to total points.
+  async function loadStreakBoard(){
+    const el = document.getElementById('big-board-rows');
+    if(!el) return;
+    el.innerHTML = '<div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>';
+    const { data, error } = await sb
+      .from('streaks')
+      .select('user_id, total_points, current_streak, longest_streak, profiles!inner(username, avatar_emoji, avatar_color, hide_from_leaderboard)')
+      .eq('profiles.hide_from_leaderboard', false)
+      .gt('longest_streak', 0)
+      .order('longest_streak', { ascending: false })
+      .order('current_streak', { ascending: false })
+      .order('total_points', { ascending: false })
+      .limit(10);
+
+    // The player may have switched tabs while this was loading; don't overwrite that view.
+    const activeTab = document.querySelector('#lb-scope-tabs .scope-tab.active');
+    if(!activeTab || activeTab.getAttribute('data-scope') !== 'streak') return;
+
+    if(error || !data || data.length === 0){
+      el.innerHTML = '<div class="brow"><span>No streaks yet — play today to start one.</span></div>';
+      return;
+    }
+
+    const myId = await mqMyId();
+    el.innerHTML = await mqBoardRows(data.map(function(row){
+      const p = row.profiles || {};
+      const days = row.longest_streak || 0;
+      return { user_id: row.user_id, username: p.username, avatar_emoji: p.avatar_emoji, avatar_color: p.avatar_color, points: days, unit: days === 1 ? 'day' : 'days' };
+    }), myId, false);
+  }
+
   (function(){
     // One delegated listener for the "Remind" buttons on the Friends board.
     var boardEl = document.getElementById('big-board-rows');
@@ -6420,12 +6456,13 @@
       if(!btn) return;
       tabs.querySelectorAll('.scope-tab').forEach(function(b){ b.classList.toggle('active', b === btn); });
       var scope = btn.getAttribute('data-scope');
-      // Worldwide and Friends share one list; State has its own, filled by loadStateBoard.
+      // Worldwide, Friends and Longest streak share one list; State has its own, filled by loadStateBoard.
       var stateEl = document.getElementById('board-state');
       if(stateEl) stateEl.style.display = (scope === 'state') ? '' : 'none';
       if(boardEl) boardEl.style.display = (scope === 'state') ? 'none' : '';
       if(scope === 'friends') loadFriendsBoard();
       else if(scope === 'worldwide') loadBigBoard();
+      else if(scope === 'streak') loadStreakBoard();
     });
   })();
 
