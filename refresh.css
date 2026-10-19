@@ -22,14 +22,22 @@
 
 :root{ --gold:#F2C14E; }
 
-/* ---------- 2. Navy gradient background ---------- */
-html{background:#0C111F;}
-body{
-  background-color:#0C111F;
-  background-image:linear-gradient(180deg,#1B2748 0%,#131C36 45%,#0C111F 100%);
-  background-attachment:fixed;
-  background-repeat:no-repeat;
-  background-size:100% 100%;
+/* ---------- 2. Background: deep charcoal gradient, dotted side rails on wide screens ---------- */
+html{
+  background-color:#0B0D11;
+  background-image:linear-gradient(180deg,#191C23 0%,#101218 50%,#0B0D11 100%);
+  background-attachment:fixed;background-repeat:no-repeat;background-size:100% 100%;
+}
+body{background:transparent;}
+/* On wide screens the empty space either side of the content gets a fine dot grid (hard edge, no fade). */
+@media (min-width:1180px){
+  html::before{
+    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,.085) 1px,transparent 1.4px);
+    background-size:20px 20px;
+    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(50% - 548px),transparent calc(50% - 548px),transparent calc(50% + 548px),#000 calc(50% + 548px));
+            mask-image:linear-gradient(90deg,#000 0,#000 calc(50% - 548px),transparent calc(50% - 548px),transparent calc(50% + 548px),#000 calc(50% + 548px));
+  }
 }
 
 /* ---------- 1. Varied, moderate corners ---------- */
@@ -83,10 +91,15 @@ body{
 #save-profile-customization-btn,
 #save-profile-state-btn{
   border-radius:9px !important;
-  font-family:'Big Shoulders Display',sans-serif !important;
-  font-weight:800 !important;
-  letter-spacing:.05em;
-  text-transform:uppercase;
+  font-family:'Barlow',sans-serif !important;
+  font-weight:600 !important;
+  letter-spacing:0 !important;
+  text-transform:none !important;
+}
+/* the Rival button sits next to the Buddy button, so it gets exactly the same type */
+#play-add-rival-btn,#set-rival-btn{
+  border-radius:9px !important;font-family:'Barlow',sans-serif !important;font-weight:600 !important;
+  letter-spacing:0 !important;text-transform:none !important;
 }
 input[type=text],input[type=email],input[type=password],input[type=search],textarea,select{
   border-radius:8px;
@@ -106,15 +119,15 @@ input[type=search]:focus,textarea:focus,select:focus{
    one row, split by thin 1px lines, and swipe sideways. No rounded corners.
    ========================================================================== */
 .page{overflow-x:clip;}
-.sched-today{background:#0B1020;border-bottom:1px solid #26304A;}
+.sched-today{background:#15171B;border-bottom:1px solid #2A2D33;}
 .sstrip{
   position:relative;
   width:100vw;
   margin-left:calc(50% - 50vw);
   margin-top:10px;
-  background:#0B1020;
-  border-top:1px solid #26304A;
-  border-bottom:1px solid #26304A;
+  background:#15171B;
+  border-top:1px solid #2A2D33;
+  border-bottom:1px solid #2A2D33;
   border-radius:0;
 }
 .sched-today .sstrip{width:100%;margin:0;border:0;}
@@ -132,8 +145,8 @@ input[type=search]:focus,textarea:focus,select:focus{
   flex:0 0 132px;
   display:flex;flex-direction:column;justify-content:center;gap:3px;
   padding:8px 14px;
-  background:#0B1020;
-  border:0;border-right:1px solid #26304A;border-radius:0;
+  background:#15171B;
+  border:0;border-right:1px solid #2A2D33;border-radius:0;
   color:var(--ink);font:inherit;text-align:left;cursor:pointer;
   scroll-snap-align:start;
 }
@@ -146,8 +159,8 @@ input[type=search]:focus,textarea:focus,select:focus{
   flex:0 0 66px;
   display:flex;align-items:center;justify-content:center;
   padding:8px 6px;
-  background:#0B1020;
-  border-right:1px solid #26304A;
+  background:#15171B;
+  border-right:1px solid #2A2D33;
   font-size:13.5px;font-weight:700;letter-spacing:.02em;
   text-transform:uppercase;text-align:center;
   color:var(--ink);
@@ -160,7 +173,7 @@ input[type=search]:focus,textarea:focus,select:focus{
   min-height:104px;
   padding:10px 14px 10px;
   display:flex;flex-direction:column;gap:6px;
-  border-right:1px solid #26304A;
+  border-right:1px solid #2A2D33;
   scroll-snap-align:start;
 }
 .sstrip-time{
@@ -191,12 +204,12 @@ input[type=search]:focus,textarea:focus,select:focus{
   position:absolute;top:0;bottom:0;z-index:2;
   width:42px;padding:0;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  background:#0B1020;border:0;border-radius:0;
+  background:#15171B;border:0;border-radius:0;
   color:var(--ink);font-size:30px;line-height:1;font-family:inherit;
 }
-.sstrip-arrow.prev{left:0;border-right:1px solid #26304A;}
-.sstrip-arrow.next{right:0;border-left:1px solid #26304A;}
-.sstrip-arrow:hover{background:#151D35;}
+.sstrip-arrow.prev{left:0;border-right:1px solid #2A2D33;}
+.sstrip-arrow.next{right:0;border-left:1px solid #2A2D33;}
+.sstrip-arrow:hover{background:#1F2228;}
 /* arrows only show when there is more to scroll to in that direction */
 .sstrip:not(.can-prev) .sstrip-arrow.prev,
 .sstrip:not(.can-next) .sstrip-arrow.next{display:none;}
@@ -216,7 +229,7 @@ input[type=search]:focus,textarea:focus,select:focus{
    ========================================================================== */
 body:has(#nav-signed-out[style*="none"]) .cta-band,
 body:has(#page-home[style*="none"]) .cta-band{display:none;}
-.cta-band{padding:22px 0;background:#0F1530;border-top:1px solid #26304A;}
+.cta-band{padding:22px 0;background:#13161B;border-top:1px solid #2A2D33;}
 .cta-band .cta-row{display:flex;align-items:center;justify-content:space-between;gap:14px 24px;flex-wrap:wrap;}
 .cta-band h2{font-size:clamp(22px,4vw,28px);max-width:none;line-height:1;}
 .cta-band p{margin-top:5px;font-size:14.5px;max-width:none;}
@@ -454,3 +467,32 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 @media (max-width:480px){
   body:has(.sched-today:not([style*="none"])) nav{padding-top:20px;}
 }
+
+/* ---- How to play / Challenge are reachable from the menu and footer, not the tab bar ---- */
+.pagenav-tab[data-page="how"],.pagenav-tab[data-page="challenge"]{display:none;}
+
+/* ---- Profile picker: icon tiles and color swatches ---- */
+.pc-label{margin:16px 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);}
+.pc-label:first-child{margin-top:0;}
+.pc-icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px;padding:10px;border:1px solid #2A2D33;border-radius:10px;background:#15171B;margin-bottom:6px;}
+.pc-icons .av-tile{width:100%;height:auto;aspect-ratio:1;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--ac);}
+.pc-icons .av-tile:hover{background:#1E2127;transform:none;}
+.pc-icons .av-tile.sel{background:#22262D;color:var(--ac);border-color:var(--gold);box-shadow:inset 0 -3px 0 var(--gold);}
+.pc-icons .av-tile .av-glyph{width:52%;height:52%;}
+.pc-colors{display:flex;flex-wrap:wrap;gap:0;margin-bottom:16px;border:1px solid #2A2D33;border-radius:10px;overflow:hidden;width:max-content;max-width:100%;}
+.pc-swatch{width:44px;height:34px;border:0;border-radius:0;cursor:pointer;position:relative;padding:0;}
+.pc-swatch.sel::after{content:"";position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px rgba(0,0,0,.35);}
+.pc-swatch:hover{filter:brightness(1.12);}
+
+/* ---- Trending cards: round photo of the main person, floated beside the title ---- */
+.news-card.is-trend .trend-face{
+  float:right;width:64px;height:64px;border-radius:50%;object-fit:cover;object-position:center 22%;
+  margin:0 0 6px 14px;background:#1B1E24;box-shadow:0 0 0 2px #2A2D33;
+}
+/* the card body is a flex column, so the photo is pinned top-right instead of floated */
+.news-card.is-trend{position:relative;}
+.news-card.is-trend .trend-face{position:absolute;top:16px;right:16px;float:none;margin:0;z-index:1;}
+.news-card.is-trend:has(.trend-face) .trend-rank,
+.news-card.is-trend:has(.trend-face) .news-meta,
+.news-card.is-trend:has(.trend-face) .news-h,
+.news-card.is-trend:has(.trend-face) .trend-ctx{padding-right:80px;}

@@ -1543,11 +1543,12 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.setAttribute('aria-label', 'Color ' + color);
-      btn.style.cssText = 'width:30px; height:30px; border-radius:50%; cursor:pointer; background:' + color + '; border:2px solid ' + (color === selectedAvatarColor ? 'var(--ink)' : 'transparent') + '; outline:1px solid var(--line);';
+      btn.className = 'pc-swatch' + (color === selectedAvatarColor ? ' sel' : '');
+      btn.style.background = color;
       btn.addEventListener('click', function(){
         selectedAvatarColor = color;
         document.getElementById('profile-modal-avatar').style.background = color;
-        colorPicker.querySelectorAll('button').forEach(function(b){ b.style.borderColor = (b.style.background === color || b.getAttribute('aria-label') === 'Color ' + color) ? 'var(--ink)' : 'transparent'; });
+        colorPicker.querySelectorAll('button').forEach(function(b){ b.classList.toggle('sel', b === btn); });
       });
       colorPicker.appendChild(btn);
     });
@@ -8775,6 +8776,17 @@
     hamburgerMenu.style.display = hamburgerMenu.style.display === 'block' ? 'none' : 'block';
     if(hamburgerMenu.style.display === 'block') loadNotificationSettings();
   });
+  // How to play and the Challenge are no longer top tabs; they open from the menu and the footer
+  // (the tab buttons stay in the page, hidden, so every existing link into them still works).
+  function mqOpenHiddenTab(page){
+    var t = document.querySelector('.pagenav-tab[data-page="' + page + '"]');
+    if(t) t.click();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  [['hamburger-how-btn', 'how'], ['hamburger-challenge-btn', 'challenge'], ['footer-how-link', 'how'], ['footer-challenge-link', 'challenge']].forEach(function(p){
+    var el = document.getElementById(p[0]);
+    if(el) el.addEventListener('click', function(){ hamburgerMenu.style.display = 'none'; mqOpenHiddenTab(p[1]); });
+  });
   document.getElementById('hamburger-about-btn').addEventListener('click', function(){
     document.querySelectorAll('.pagenav-tab').forEach(function(t){ t.classList.remove('active'); });
     document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
@@ -9292,11 +9304,16 @@
     function embedHtml(r){
       return '<div class="post-embed" data-url="' + escapeHtml(r.article_url || '') + '"><div class="post-skel">Loading post…</div></div>';
     }
+    // Trending cards: a small round photo of the main person involved (found by the fill-trend-photos function).
+    function faceHtml(r){
+      if(!(r.image_url && /^https:\/\//i.test(r.image_url))) return '';
+      return '<img class="trend-face" src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">';
+    }
     function cardHtml(r){
       var isPost = r.kind === 'post', isTrend = r.kind === 'trend', yt = isYt(r);
       return '<article class="news-card' + (isPost ? ' is-post' : '') + (isTrend ? ' is-trend' : '') + '" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(mqDecodeEntities(r.headline)) + '" data-news-id="' + escapeHtml(r.id) + '">' +
-        ((isPost || yt) ? '' : imgHtml(r)) +
-        '<div class="news-body">' + (isTrend ? rankHtml(r) : '') + metaHtml(r) + '<div class="news-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</div>' +
+        ((isPost || yt || isTrend) ? '' : imgHtml(r)) +
+        '<div class="news-body">' + (isTrend ? faceHtml(r) + rankHtml(r) : '') + metaHtml(r) + '<div class="news-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</div>' +
         (isTrend && r.summary ? '<p class="trend-ctx">' + escapeHtml(mqDecodeEntities(r.summary)) + '</p>' : '') + '</div>' +
         ((isPost || yt) ? embedHtml(r) : '') +
         takeHtml(r) + footHtml(r) + '</article>';

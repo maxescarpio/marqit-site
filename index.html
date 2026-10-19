@@ -47,7 +47,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261016j">
-<link rel="stylesheet" href="refresh.css?v=20261019k">
+<link rel="stylesheet" href="refresh.css?v=20261019n">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -105,6 +105,8 @@
   </div>
 
   <div id="hamburger-menu" style="display:none; position:absolute; top:100%; right:20px; margin-top:8px; width:190px; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:10px; box-shadow:0 12px 32px rgba(0,0,0,0.12); z-index:60;">
+    <button type="button" id="hamburger-how-btn" style="width:100%; text-align:left; background:none; border:none; padding:10px 10px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; border-radius:8px;">How to play</button>
+    <button type="button" id="hamburger-challenge-btn" style="width:100%; text-align:left; background:none; border:none; padding:10px 10px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; border-radius:8px;">2026 Challenge</button>
     <button type="button" id="hamburger-about-btn" style="width:100%; text-align:left; background:none; border:none; padding:10px 10px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; border-radius:8px;">About Us</button>
     <div style="height:1px; background:var(--line); margin:6px 2px;"></div>
     <div style="padding:6px 10px 4px; font-size:11.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em;">Notifications</div>
@@ -239,17 +241,17 @@
 
     <div style="margin-top:22px; padding-top:18px; border-top:1px solid var(--line);">
       <div style="font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:15px; margin-bottom:10px;">Customize your profile</div>
-      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Use your own photo</div>
+      <div class="pc-label">Photo</div>
       <div class="av-photo-row">
         <button type="button" id="avatar-photo-btn" class="av-photo-btn"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.6-2.4h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/></svg>Upload a photo</button>
         <button type="button" id="avatar-photo-remove" class="av-photo-rm" style="display:none;">Remove photo</button>
         <input type="file" id="avatar-photo-input" accept="image/*" hidden>
       </div>
       <p class="form-msg" id="avatar-photo-msg" style="margin:6px 0 14px;"></p>
-      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Or pick an icon</div>
-      <div id="avatar-emoji-picker" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;"></div>
-      <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Pick a color</div>
-      <div id="avatar-color-picker" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
+      <div class="pc-label">Icon</div>
+      <div id="avatar-emoji-picker" class="pc-icons"></div>
+      <div class="pc-label">Color</div>
+      <div id="avatar-color-picker" class="pc-colors"></div>
       <button type="button" id="save-profile-customization-btn" style="padding:9px 18px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:14px; cursor:pointer;">Save</button>
       <p class="form-msg" id="profile-customization-msg" style="margin-top:8px;"></p>
     </div>
@@ -458,7 +460,7 @@
     <div class="sched-list" id="sched-list" aria-live="polite">
       <div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>
     </div>
-    <p class="news-foot">Times are in your local time. Dates can change, so check the official source before you plan around one. Movie and TV dates come from TMDB; this product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+    <p class="news-foot">Times are in your local time. Dates can change, so check the official source before you plan around one.</p>
   </div>
 </section>
 </div>
@@ -922,6 +924,8 @@
       <p>A free daily prediction game. Three calls a day, the same three for everyone. No wagering, no cash prizes.</p>
     </div>
     <div class="sf-right"><nav class="sf-links" aria-label="Footer">
+      <button type="button" id="footer-how-link">How to play</button>
+      <button type="button" id="footer-challenge-link">Challenge</button>
       <button type="button" id="footer-about-link">About</button>
       <a href="/privacy.html">Privacy</a>
       <a href="/terms.html">Terms</a>
@@ -952,7 +956,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261019k" defer></script>
+<script src="app.js?v=20261019m" defer></script>
 
 
 
