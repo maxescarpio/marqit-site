@@ -1381,8 +1381,9 @@
     }
   }
 
-    // Muted, slightly desaturated tones (first one stays the default so saved profiles keep working).
-    const AVATAR_COLORS = ['#17191D','#3E4A5C','#2F4B6E','#2F5D5A','#4A6B52','#8A7A3E','#B07A3C','#9A4A3A','#7A3B4A','#6A4C7A','#5B5F8A','#6B6F76'];
+    // Named, curated palette. Order matters (first is the default for new profiles).
+    const AVATAR_NAMES = {'#2B2E34':'Graphite','#4A5568':'Slate','#1E3A5F':'Midnight','#2F5D5A':'Spruce','#4A6B52':'Moss','#7A6E34':'Olive','#9A6B34':'Bronze','#A5513F':'Clay','#6E2F3F':'Burgundy','#5E4478':'Plum','#5B5F8A':'Dusk','#7A7E86':'Stone'};
+    const AVATAR_COLORS = Object.keys(AVATAR_NAMES);
   let selectedAvatarEmoji = null;
   let selectedAvatarColor = null;
 
@@ -1425,7 +1426,7 @@
     if(!profileRow) return;
 
     selectedAvatarEmoji = mqAvatarPhoto(profileRow.avatar_emoji) ? profileRow.avatar_emoji : (mqAvatarKey(profileRow.avatar_emoji) || 'target');
-    selectedAvatarColor = profileRow.avatar_color || '#17191D';
+    selectedAvatarColor = profileRow.avatar_color || '#2B2E34';
 
     const profileStateInput = document.getElementById('profile-state-input');
     if(profileStateInput) profileStateInput.value = profileRow.state || '';
@@ -1543,7 +1544,8 @@
     AVATAR_COLORS.forEach(function(color){
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.setAttribute('aria-label', 'Color ' + color);
+      btn.setAttribute('aria-label', 'Color ' + (AVATAR_NAMES[color] || color));
+      btn.title = AVATAR_NAMES[color] || color;
       btn.className = 'pc-swatch' + (color === selectedAvatarColor ? ' sel' : '');
       btn.style.background = color;
       btn.addEventListener('click', function(){
