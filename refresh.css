@@ -394,3 +394,15 @@ body.mq-evopen{overflow:hidden;}
 .cmp-bars i:first-child{transform-origin:right;}
 .cmp-bars i.win{background:var(--gold);}
 @media (max-width:520px){.gh-abbr{font-size:40px;}.gh-sc{font-size:36px;}.evp{padding:18px 16px;}}
+
+/* ---- round 2: smaller type, area fill kept, clickable white dot on the chart ---- */
+.gh-abbr{font-size:34px;}
+.gh-sc{font-size:32px;}
+.gh-name{font-size:12.5px;}
+.evp-title{font-size:19px;letter-spacing:.02em;}
+.evp-price b{font-size:34px;}
+.evp-price span{font-size:13px;}
+.evp-dot{position:absolute;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;background:#fff;border:2px solid #3DDC97;box-shadow:0 0 0 3px rgba(255,255,255,.14);pointer-events:none;z-index:2;}
+.evp-chart.pinned .evp-dot{box-shadow:0 0 0 4px rgba(255,255,255,.28);}
+.evp-tip{width:170px;top:-4px;z-index:3;}
+@media (max-width:520px){.gh-abbr{font-size:30px;}.gh-sc{font-size:28px;}.evp-price b{font-size:30px;}}

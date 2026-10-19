@@ -8472,27 +8472,41 @@
     var rangeLabel = { '1d': 'today', '3m': 'past 3 months', '6m': 'past 6 months', 'ytd': 'year to date' }[range];
     setHead(last, rangeLabel);
     box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="Price chart">' +
+      '<defs><linearGradient id="evg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".30"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>' +
       [0.25, 0.5, 0.75].map(function(f){ var y = (pad + f * (H - pad * 2)).toFixed(1); return '<line x1="0" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="#262930" vector-effect="non-scaling-stroke"/>'; }).join('') +
       (range === '1d' && d.prevClose && d.prevClose > lo && d.prevClose < hi ? '<line x1="0" x2="' + W + '" y1="' + Y(d.prevClose).toFixed(1) + '" y2="' + Y(d.prevClose).toFixed(1) + '" stroke="#5A5E66" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>' : '') +
+      '<path d="' + line + 'L' + X(t1).toFixed(1) + ' ' + H + 'L' + X(t0).toFixed(1) + ' ' + H + 'Z" fill="url(#evg)"/>' +
       '<path d="' + line + '" fill="none" stroke="' + col + '" stroke-width="1.75" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>' +
       '<line class="evp-cur" y1="0" y2="' + H + '" stroke="#8A8E96" vector-effect="non-scaling-stroke" style="display:none"/></svg>' +
-      '<div class="evp-tip" style="display:none"></div>' +
+      '<i class="evp-dot" style="border-color:' + col + '"></i><div class="evp-tip" style="display:none"></div>' +
       '<div class="evp-axis"><span>' + escapeHtml(mqChartDate(t0, range)) + '</span><span>' + escapeHtml(mqChartDate(t1, range)) + '</span></div>' +
       '<div class="evp-hilo"><span>Low ' + fmt(lo) + '</span><span>High ' + fmt(hi) + '</span></div>';
-    var svg = box.querySelector('svg'), cur = box.querySelector('.evp-cur'), tip = box.querySelector('.evp-tip');
-    function move(e){
+    var svg = box.querySelector('svg'), cur = box.querySelector('.evp-cur'), tip = box.querySelector('.evp-tip'), dot = box.querySelector('.evp-dot');
+    var pinned = false;
+    function place(pt, showTip){
+      var x = X(pt[0]);
+      dot.style.left = (x / W * 100) + '%'; dot.style.top = (Y(pt[1]) / H * svg.clientHeight) + 'px';
+      cur.setAttribute('x1', x); cur.setAttribute('x2', x); cur.style.display = showTip ? '' : 'none';
+      if(showTip){
+        var r = svg.getBoundingClientRect();
+        tip.style.display = ''; tip.textContent = fmt(pt[1]) + ' · ' + mqChartDate(pt[0], range, true);
+        tip.style.left = Math.max(0, Math.min(r.width - 170, x / W * r.width - 85)) + 'px';
+        setHead(pt[1], mqChartDate(pt[0], range, true));
+      } else { tip.style.display = 'none'; setHead(last, rangeLabel); }
+    }
+    function nearest(e){
       var r = svg.getBoundingClientRect(), cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
       var t = t0 + Math.max(0, Math.min(1, cx / r.width)) * (t1 - t0), best = pts[0];
       for(var i = 0; i < pts.length; i++) if(Math.abs(pts[i][0] - t) < Math.abs(best[0] - t)) best = pts[i];
-      var x = X(best[0]);
-      cur.setAttribute('x1', x); cur.setAttribute('x2', x); cur.style.display = '';
-      tip.style.display = ''; tip.textContent = fmt(best[1]) + ' · ' + mqChartDate(best[0], range, true);
-      tip.style.left = Math.max(0, Math.min(r.width - 150, x / W * r.width - 75)) + 'px';
-      setHead(best[1], mqChartDate(best[0], range, true));
+      return best;
     }
-    function leave(){ cur.style.display = 'none'; tip.style.display = 'none'; setHead(last, rangeLabel); }
-    svg.addEventListener('mousemove', move); svg.addEventListener('mouseleave', leave);
-    svg.addEventListener('touchstart', move, { passive: true }); svg.addEventListener('touchmove', move, { passive: true }); svg.addEventListener('touchend', leave);
+    place(pts[pts.length - 1], false);
+    svg.addEventListener('mousemove', function(e){ if(!pinned) place(nearest(e), true); });
+    svg.addEventListener('mouseleave', function(){ if(!pinned) place(pts[pts.length - 1], false); });
+    svg.addEventListener('click', function(e){ pinned = true; box.classList.add('pinned'); place(nearest(e), true); });
+    svg.addEventListener('touchstart', function(e){ pinned = true; box.classList.add('pinned'); place(nearest(e), true); }, { passive: true });
+    svg.addEventListener('touchmove', function(e){ place(nearest(e), true); }, { passive: true });
+    box.addEventListener('dblclick', function(){ pinned = false; box.classList.remove('pinned'); place(pts[pts.length - 1], false); });
   }
   function mqChartDate(sec, range, long){
     var d = new Date(sec * 1000);
