@@ -237,16 +237,16 @@ async function tmdbRows(dates: string[], report: any): Promise<Row[]> {
   const rows: Row[] = [];
   const movies = await tmdbGet('discover/movie', `region=US&with_release_type=2%7C3&release_date.gte=${from}&release_date.lte=${to}&sort_by=popularity.desc&include_adult=false&with_original_language=en&page=1`);
   const shows = await tmdbGet('discover/tv', `first_air_date.gte=${from}&first_air_date.lte=${to}&sort_by=popularity.desc&include_adult=false&with_original_language=en&page=1`);
-  const topMovies = (movies?.results || []).filter((m: any) => inWindow.has(String(m.release_date || '')) && (m.popularity || 0) >= 25).slice(0, 6);
-  const topShows = (shows?.results || []).filter((s: any) => inWindow.has(String(s.first_air_date || '')) && (s.popularity || 0) >= 15).slice(0, 6);
+  const topMovies = (movies?.results || []).filter((m: any) => inWindow.has(String(m.release_date || '')) && (m.popularity || 0) >= 10).slice(0, 8);
+  const topShows = (shows?.results || []).filter((s: any) => inWindow.has(String(s.first_air_date || '')) && (s.popularity || 0) >= 8).slice(0, 8);
   for (const m of topMovies) rows.push({
     category: 'pop_culture', title: String(m.title || '').slice(0, 140), subtitle: 'In theaters', league: 'Movie',
-    starts_at: m.release_date + 'T12:00:00.000Z', all_day: true, importance: 2, status: 'scheduled',
+    starts_at: m.release_date + 'T12:00:00.000Z', all_day: true, importance: (m.popularity || 0) >= 25 ? 2 : 1, status: 'scheduled',
     url: 'https://www.themoviedb.org/movie/' + m.id, source: 'tmdb', external_id: 'movie:' + m.id, question_id: null,
   });
   for (const s of topShows) rows.push({
     category: 'pop_culture', title: String(s.name || '').slice(0, 140), subtitle: 'New series', league: 'TV',
-    starts_at: s.first_air_date + 'T12:00:00.000Z', all_day: true, importance: 2, status: 'scheduled',
+    starts_at: s.first_air_date + 'T12:00:00.000Z', all_day: true, importance: (s.popularity || 0) >= 15 ? 2 : 1, status: 'scheduled',
     url: 'https://www.themoviedb.org/tv/' + s.id, source: 'tmdb', external_id: 'tv:' + s.id, question_id: null,
   });
   report.tmdb = {
