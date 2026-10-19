@@ -22,22 +22,17 @@
 
 :root{ --gold:#F2C14E; }
 
-/* ---------- 2. Background: deep charcoal gradient, dotted side rails on wide screens ---------- */
+/* ---------- 2. Background: deep charcoal gradient with a fine film grain over everything ---------- */
 html{
   background-color:#0B0D11;
   background-image:linear-gradient(180deg,#191C23 0%,#101218 50%,#0B0D11 100%);
   background-attachment:fixed;background-repeat:no-repeat;background-size:100% 100%;
 }
 body{background:transparent;}
-/* On wide screens the empty space either side of the content gets a fine dot grid (hard edge, no fade). */
-@media (min-width:1180px){
-  html::before{
-    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-    background-image:radial-gradient(rgba(255,255,255,.085) 1px,transparent 1.4px);
-    background-size:20px 20px;
-    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(50% - 548px),transparent calc(50% - 548px),transparent calc(50% + 548px),#000 calc(50% + 548px));
-            mask-image:linear-gradient(90deg,#000 0,#000 calc(50% - 548px),transparent calc(50% - 548px),transparent calc(50% + 548px),#000 calc(50% + 548px));
-  }
+html::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.09;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.1 -.35'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size:220px 220px;
 }
 
 /* ---------- 1. Varied, moderate corners ---------- */
@@ -474,15 +469,17 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 /* ---- Profile picker: icon tiles and color swatches ---- */
 .pc-label{margin:16px 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);}
 .pc-label:first-child{margin-top:0;}
-.pc-icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:6px;padding:10px;border:1px solid #2A2D33;border-radius:10px;background:#15171B;margin-bottom:6px;}
-.pc-icons .av-tile{width:100%;height:auto;aspect-ratio:1;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--ac);}
-.pc-icons .av-tile:hover{background:#1E2127;transform:none;}
-.pc-icons .av-tile.sel{background:#22262D;color:var(--ac);border-color:var(--gold);box-shadow:inset 0 -3px 0 var(--gold);}
-.pc-icons .av-tile .av-glyph{width:52%;height:52%;}
-.pc-colors{display:flex;flex-wrap:wrap;gap:0;margin-bottom:16px;border:1px solid #2A2D33;border-radius:10px;overflow:hidden;width:max-content;max-width:100%;}
-.pc-swatch{width:44px;height:34px;border:0;border-radius:0;cursor:pointer;position:relative;padding:0;}
-.pc-swatch.sel::after{content:"";position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px rgba(0,0,0,.35);}
-.pc-swatch:hover{filter:brightness(1.12);}
+/* Quiet, single-tone icons (no rainbow); the chosen one gets a light ring. Colors are small round chips. */
+.pc-icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:4px;padding:6px;border:0;border-radius:0;background:transparent;margin-bottom:4px;}
+.pc-icons .av-tile{width:100%;height:auto;aspect-ratio:1;border-radius:10px;background:transparent;border:1px solid transparent;color:#9AA0A9;box-shadow:none;}
+.pc-icons .av-tile:hover{background:#1B1E24;color:#E4E6EA;transform:none;}
+.pc-icons .av-tile.sel{background:#22262D;color:#F1F2F4;border-color:#4A4F59;box-shadow:none;}
+.pc-icons .av-tile .av-glyph{width:50%;height:50%;stroke-width:1.4;}
+.pc-colors{display:grid;grid-template-columns:repeat(6,30px);gap:14px 16px;margin:2px 0 18px;padding:4px 6px;border:0;border-radius:0;overflow:visible;width:auto;max-width:100%;}
+.pc-swatch{width:30px;height:30px;border:0;border-radius:50%;cursor:pointer;position:relative;padding:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);transition:transform .15s ease;}
+.pc-swatch.sel{box-shadow:0 0 0 2px #0F1115,0 0 0 3.5px #E4E6EA;}
+.pc-swatch.sel::after{content:none;}
+.pc-swatch:hover{transform:scale(1.08);filter:none;}
 
 /* ---- Trending cards: round photo of the main person, floated beside the title ---- */
 .news-card.is-trend .trend-face{

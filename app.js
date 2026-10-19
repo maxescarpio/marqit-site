@@ -46,8 +46,8 @@
     pad:     '<rect x="3" y="8" width="18" height="10" rx="5"/><path d="M8 11v4M6 13h4"/><circle cx="15.5" cy="12" r=".9" fill="currentColor"/><circle cx="17.5" cy="14" r=".9" fill="currentColor"/>',
     owl:     '<path d="M6 8c0-2 1.5-4 3-4 1 0 2 .6 3 .6s2-.6 3-.6c1.5 0 3 2 3 4v6a6 6 0 0 1-12 0z"/><circle cx="9.5" cy="10" r="1.8"/><circle cx="14.5" cy="10" r="1.8"/><path d="M12 12.6l-.8 1.4h1.6z"/>',
     wolf:    '<path d="M4 4l4 3h8l4-3v8a8 8 0 0 1-16 0z"/><path d="M9 12h.01M15 12h.01M10 16l2 1.5 2-1.5"/>',
-    wing:    '<path d="M3 8l6 2 3-4 3 4 6-2-3 7-6 5-6-5z"/>',
-    turtle:  '<path d="M5 15a7 7 0 0 1 14 0z"/><path d="M9 15l1.5-5M15 15l-1.5-5M5 15l-2 2M19 15l2 2M12 15v3"/>',
+    wing:    '<path d="M19.5 4.5c-8 .3-13 4.7-13 11.5v3.5H10c6.8 0 9.200-5 9.500-15z"/><path d="M4 20.500l9-9"/>',
+    turtle:  '<path d="M5 16a7 6 0 0 1 14 0z"/><path d="M9.500 16l1-5.500h3l1 5.500M12 10.500V16"/><path d="M19 13.500c1.500-.5 2.800 0 3 1.200-.2 1-1.600 1.300-3 .8M7 16v2.500M16 16v2.500"/>',
     clover:  '<circle cx="9" cy="9" r="3.2"/><circle cx="15" cy="9" r="3.2"/><circle cx="9" cy="15" r="3.2"/><circle cx="15" cy="15" r="3.2"/><path d="M12 12l5 8"/>',
     coffee:  '<path d="M5 9h11v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2"/><path d="M8 4v2M12 4v2"/>',
     moon:    '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
@@ -1381,7 +1381,8 @@
     }
   }
 
-    const AVATAR_COLORS = ['#17191D','#128A50','#C2372A','#2D5FA6','#8A4FBF','#C77D2E','#3B8C8C','#6B7280','#E8458B','#2F7BFF','#FF8A1F','#14B8A6','#8B5CF6','#E6B800'];
+    // Muted, slightly desaturated tones (first one stays the default so saved profiles keep working).
+    const AVATAR_COLORS = ['#17191D','#3E4A5C','#2F4B6E','#2F5D5A','#4A6B52','#8A7A3E','#B07A3C','#9A4A3A','#7A3B4A','#6A4C7A','#5B5F8A','#6B6F76'];
   let selectedAvatarEmoji = null;
   let selectedAvatarColor = null;
 
