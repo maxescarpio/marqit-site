@@ -445,3 +445,12 @@ body.mq-evopen{overflow:hidden;}
 .kp-t em{font-style:normal;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .kp-row .cmp-l{font-size:10.5px;}
 @media (max-width:520px){.kp-row{grid-template-columns:1fr 40px 1fr;gap:6px;}.kp-num{width:26px;height:26px;font-size:12px;}}
+
+/* ---- iPhone notch / status bar: the ribbon is the first thing on the page, so it takes the safe-area
+   space itself and the header below no longer adds its own (that was a big empty gap, and the ribbon
+   sat underneath the status bar). ---- */
+.sched-today{padding-top:env(safe-area-inset-top);}
+body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
+@media (max-width:480px){
+  body:has(.sched-today:not([style*="none"])) nav{padding-top:20px;}
+}
