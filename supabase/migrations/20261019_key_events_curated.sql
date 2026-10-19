@@ -1,0 +1,50 @@
+-- Curated Schedule rows (tech launches, awards shows, albums, Fed/jobs/inflation releases, Election Day).
+-- Dates come from official or widely published calendars as of 2026-10-19; subtitles say "Expected" or "Rumored" where a date is not confirmed.
+-- Safe to re-run: rows are keyed on (source, external_id). Removing one in the admin page hides it for good.
+insert into public.key_events (category, title, subtitle, league, starts_at, all_day, importance, source, external_id)
+values
+('tech','iPhone Duo goes on sale','First launch markets','Apple','2026-10-23T12:00:00Z',true,2,'curated','apple-iphone-duo-launch'),
+('tech','Apple event (rumored)','Rumored, not confirmed by Apple: new Macs and iPad mini','Apple','2026-10-27T12:00:00Z',true,2,'curated','apple-event-oct-27'),
+('tech','iPhone Duo arrives in more countries','28 more countries and regions','Apple','2026-10-30T12:00:00Z',true,1,'curated','apple-iphone-duo-wave2'),
+('tech','HomePod mini 2 launch','Expected date','Apple','2026-10-30T12:00:00Z',true,1,'curated','apple-homepod-mini-2'),
+('tech','Apple TV and HomeView launch','Expected date','Apple','2026-11-13T12:00:00Z',true,1,'curated','apple-tv-homeview'),
+('tech','NVIDIA GTC Berlin','Oct 20 to 22','NVIDIA','2026-10-20T12:00:00Z',true,1,'curated','nvidia-gtc-berlin'),
+('tech','Microsoft Ignite','Nov 17 to 20, San Francisco and online','Microsoft','2026-11-17T12:00:00Z',true,2,'curated','microsoft-ignite-2026'),
+('pop_culture','Grand Theft Auto VI','PS5 and Xbox Series X|S','Game','2026-11-19T12:00:00Z',true,2,'curated','gta-vi-release'),
+('pop_culture','Billboard Latin Music Awards','Telemundo and Peacock','Awards','2026-10-22T12:00:00Z',true,1,'curated','award-billboard-latin-2026'),
+('pop_culture','Daytime Emmy Awards','The 53rd ceremony','Awards','2026-10-30T12:00:00Z',true,1,'curated','award-daytime-emmys-2026'),
+('pop_culture','Latin Grammy Awards','The 27th ceremony, on Univision','Awards','2026-11-12T12:00:00Z',true,2,'curated','award-latin-grammys-2026'),
+('pop_culture','Grammy nominations announced','For the 69th Grammy Awards','Grammys','2026-11-16T12:00:00Z',true,2,'curated','award-grammy-noms-2027'),
+('pop_culture','CMA Awards','The 60th ceremony, on ABC','Awards','2026-11-19T01:00:00Z',false,2,'curated','award-cma-2026'),
+('pop_culture','Critics’ Choice nominations announced',null,'Awards','2026-12-04T12:00:00Z',true,1,'curated','award-cca-noms-2027'),
+('pop_culture','Golden Globe nominations announced',null,'Awards','2026-12-07T12:00:00Z',true,1,'curated','award-globes-noms-2027'),
+('pop_culture','Oscar shortlists announced',null,'Oscars','2026-12-15T12:00:00Z',true,1,'curated','award-oscar-shortlist-2027'),
+('pop_culture','Critics’ Choice Awards','The 32nd ceremony, on E! and USA','Awards','2027-01-04T00:00:00Z',false,2,'curated','award-cca-2027'),
+('pop_culture','Golden Globe Awards','Hosted by Nikki Glaser, on CBS','Awards','2027-01-11T01:00:00Z',false,2,'curated','award-globes-2027'),
+('pop_culture','Oscar nominations announced',null,'Oscars','2027-01-21T12:00:00Z',true,2,'curated','award-oscar-noms-2027'),
+('pop_culture','Grammy Awards','The 69th ceremony, on ABC','Grammys','2027-02-07T12:00:00Z',true,2,'curated','award-grammys-2027'),
+('pop_culture','BAFTA Film Awards','The 80th ceremony','Awards','2027-02-21T12:00:00Z',true,1,'curated','award-bafta-2027'),
+('pop_culture','Actor Awards (SAG)','The 33rd ceremony, on Netflix','Awards','2027-02-28T12:00:00Z',true,1,'curated','award-actor-2027'),
+('pop_culture','Academy Awards','The 99th Oscars, on ABC','Oscars','2027-03-14T23:00:00Z',false,2,'curated','award-oscars-2027'),
+('pop_culture','Anderson .Paak and Cordae: Heavy Is the Crown','New album','Album','2026-10-23T12:00:00Z',true,2,'curated','album-anderson-paak-and-cordae-heavy-is-the-crown'),
+('pop_culture','Michael Kiwanuka: Fudge','New album','Album','2026-10-23T12:00:00Z',true,1,'curated','album-michael-kiwanuka-fudge'),
+('pop_culture','Queens of the Stone Age: Perfecth','New album','Album','2026-10-30T12:00:00Z',true,2,'curated','album-queens-of-the-stone-age-perfecth'),
+('pop_culture','Nickelback: Everything Under the Sun','New album','Album','2026-10-30T12:00:00Z',true,2,'curated','album-nickelback-everything-under-the-sun'),
+('pop_culture','Editors: Surface, Echo & Sound','New album','Album','2026-10-30T12:00:00Z',true,1,'curated','album-editors-surface-echo-sound'),
+('pop_culture','Kings of Leon: O My Beloved','New album','Album','2026-11-06T12:00:00Z',true,2,'curated','album-kings-of-leon-o-my-beloved'),
+('pop_culture','Sufjan Stevens: Worst Christmas Ever!','New album','Album','2026-11-06T12:00:00Z',true,1,'curated','album-sufjan-stevens-worst-christmas-ever'),
+('pop_culture','James Blunt: Airplane Mode','New album','Album','2026-11-06T12:00:00Z',true,1,'curated','album-james-blunt-airplane-mode'),
+('pop_culture','Rex Orange County: Dream Fatigue','New album','Album','2026-11-06T12:00:00Z',true,1,'curated','album-rex-orange-county-dream-fatigue'),
+('pop_culture','U2: Carnaval De Luz','New album','Album','2026-11-13T12:00:00Z',true,2,'curated','album-u2-carnaval-de-luz'),
+('pop_culture','Take That: Dreamers','New album','Album','2026-11-20T12:00:00Z',true,2,'curated','album-take-that-dreamers'),
+('finance','Fed interest rate decision','FOMC announcement, 2:00 PM ET','Fed','2026-10-28T18:00:00Z',false,2,'curated','fed-fomc-2026-10-28'),
+('finance','Fed interest rate decision','FOMC announcement, 2:00 PM ET','Fed','2026-12-09T19:00:00Z',false,2,'curated','fed-fomc-2026-12-09'),
+('finance','Jobs report','October employment report, 8:30 AM ET','Jobs','2026-11-06T13:30:00Z',false,2,'curated','bls-jobs-2026-11-06'),
+('finance','Jobs report','November employment report, 8:30 AM ET','Jobs','2026-12-04T13:30:00Z',false,2,'curated','bls-jobs-2026-12-04'),
+('finance','Inflation report (CPI)','October CPI, 8:30 AM ET','CPI','2026-11-10T13:30:00Z',false,2,'curated','bls-cpi-2026-11-10'),
+('finance','Inflation report (CPI)','November CPI, 8:30 AM ET','CPI','2026-12-10T13:30:00Z',false,2,'curated','bls-cpi-2026-12-10'),
+('news','Election Day','US midterm elections','Politics','2026-11-03T12:00:00Z',true,2,'curated','us-midterms-2026')
+on conflict (source, external_id) do update set
+  category=excluded.category, title=excluded.title, subtitle=excluded.subtitle, league=excluded.league,
+  starts_at=excluded.starts_at, all_day=excluded.all_day, importance=excluded.importance, updated_at=now()
+where not public.key_events.admin_hidden;
