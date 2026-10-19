@@ -1,4 +1,11 @@
 /* ==========================================================================
+   LOCKED DESIGN (owner approved, do not change without asking):
+   the game panel (scoreboard header, Team leaders, comparison rows), the stock
+   panel and chart, and the stock earnings cells in the ribbon (price + change).
+   Everything else on the site is still open for redesign.
+   ========================================================================== */
+
+/* ==========================================================================
    Marqit design refresh. Loaded AFTER style.css, so everything here is an
    override. To roll back, remove the <link> to refresh.css in index.html.
 
