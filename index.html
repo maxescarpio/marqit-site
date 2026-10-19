@@ -45,9 +45,9 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261016j">
-<link rel="stylesheet" href="refresh.css?v=20261019b">
+<link rel="stylesheet" href="refresh.css?v=20261019c">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -67,6 +67,11 @@
 </script>
 </head>
 <body>
+
+<!-- Scoreboard ribbon: today's key events as one square, swipeable row above the header, like the top bar on ESPN. Filled by loadSchedule() in app.js; stays hidden until there is something to show. -->
+<section class="sched-today" id="sched-today" style="display:none;" aria-label="Today's key events">
+  <div class="sstrip-host" id="sched-today-cards"></div>
+</section>
 
 <nav style="position:relative;">
   <div class="wrap" style="display:flex; align-items:center; justify-content:space-between;">
@@ -299,16 +304,6 @@
 </div>
 
 <div id="page-home" class="page">
-<!-- Today's key events: a still, swipeable row under the headline ticker. Filled by loadSchedule() in app.js; stays hidden until there is something to show. -->
-<section class="sched-today" id="sched-today" style="display:none;" aria-label="Today's key events">
-  <div class="wrap">
-    <div class="sched-today-head">
-      <h3 class="sched-today-title">Today's key events</h3>
-      <button type="button" class="sched-see-all" id="sched-see-all">Full schedule &rsaquo;</button>
-    </div>
-    <div class="sstrip-host" id="sched-today-cards"></div>
-  </div>
-</section>
 <header class="hero hero-play">
   <div class="wrap">
     <p id="play-status" class="play-status" style="display:none;"></p>
@@ -909,12 +904,14 @@
 </section>
 </div>
 
+<!-- Sign-up bar: only shows for signed-out visitors, and only on the Play page (see refresh.css). -->
 <section class="cta-band">
-  <div class="wrap">
-    <h2>Make your first call.</h2>
-    <p>Free Predictions. Real Life Events.</p>
-    <button type="button" id="cta-open-signup" style="margin-top:16px; padding:12px 24px; border:none; border-radius:10px; background:#FFFFFF; color:#17191D; font-weight:600; font-size:15px; cursor:pointer;">Sign up free</button>
-    <div class="signup-note">Takes under 20 seconds.</div>
+  <div class="wrap cta-row">
+    <div class="cta-copy">
+      <h2>Make your first call.</h2>
+      <p>Free predictions on real events. Takes under 20 seconds.</p>
+    </div>
+    <button type="button" id="cta-open-signup" style="padding:12px 24px; border:none; border-radius:10px; background:#FFFFFF; color:#17191D; font-weight:600; font-size:15px; cursor:pointer;">Sign up free</button>
   </div>
 </section>
 

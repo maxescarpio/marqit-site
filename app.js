@@ -8245,11 +8245,37 @@
     return m ? [m[1].trim(), m[2].trim()] : null;
   }
 
+  // Team nicknames to the short codes ESPN uses (WSH, SF, CLE, TB), per league so that "Giants" or
+  // "Panthers" resolve correctly. A team with no match simply shows its full name.
+  var MQ_TEAM_ABBR = {
+    NFL: { cardinals:'ARI', falcons:'ATL', ravens:'BAL', bills:'BUF', panthers:'CAR', bears:'CHI', bengals:'CIN', browns:'CLE', cowboys:'DAL', broncos:'DEN', lions:'DET', packers:'GB', texans:'HOU', colts:'IND', jaguars:'JAX', chiefs:'KC', raiders:'LV', chargers:'LAC', rams:'LAR', dolphins:'MIA', vikings:'MIN', patriots:'NE', saints:'NO', giants:'NYG', jets:'NYJ', eagles:'PHI', steelers:'PIT', '49ers':'SF', seahawks:'SEA', buccaneers:'TB', titans:'TEN', commanders:'WSH' },
+    MLB: { diamondbacks:'ARI', braves:'ATL', orioles:'BAL', 'red sox':'BOS', cubs:'CHC', 'white sox':'CWS', reds:'CIN', guardians:'CLE', rockies:'COL', tigers:'DET', astros:'HOU', royals:'KC', angels:'LAA', dodgers:'LAD', marlins:'MIA', brewers:'MIL', twins:'MIN', mets:'NYM', yankees:'NYY', athletics:'ATH', phillies:'PHI', pirates:'PIT', padres:'SD', giants:'SF', mariners:'SEA', cardinals:'STL', rays:'TB', rangers:'TEX', 'blue jays':'TOR', nationals:'WSH' },
+    NBA: { hawks:'ATL', celtics:'BOS', nets:'BKN', hornets:'CHA', bulls:'CHI', cavaliers:'CLE', mavericks:'DAL', nuggets:'DEN', pistons:'DET', warriors:'GS', rockets:'HOU', pacers:'IND', clippers:'LAC', lakers:'LAL', grizzlies:'MEM', heat:'MIA', bucks:'MIL', timberwolves:'MIN', pelicans:'NO', knicks:'NY', thunder:'OKC', magic:'ORL', '76ers':'PHI', suns:'PHX', 'trail blazers':'POR', kings:'SAC', spurs:'SA', raptors:'TOR', jazz:'UTAH', wizards:'WSH' },
+    NHL: { ducks:'ANA', bruins:'BOS', sabres:'BUF', flames:'CGY', hurricanes:'CAR', blackhawks:'CHI', avalanche:'COL', 'blue jackets':'CBJ', stars:'DAL', 'red wings':'DET', oilers:'EDM', panthers:'FLA', kings:'LA', wild:'MIN', canadiens:'MTL', predators:'NSH', devils:'NJ', islanders:'NYI', rangers:'NYR', senators:'OTT', flyers:'PHI', penguins:'PIT', sharks:'SJ', kraken:'SEA', blues:'STL', lightning:'TB', 'maple leafs':'TOR', mammoth:'UTA', 'utah hockey club':'UTA', canucks:'VAN', 'golden knights':'VGK', capitals:'WSH', jets:'WPG' }
+  };
+  function mqTeamAbbr(league, name){
+    var map = MQ_TEAM_ABBR[String(league || '').toUpperCase()];
+    if(!map) return null;
+    var n = String(name || '').toLowerCase().trim();
+    for(var k in map){
+      if(!Object.prototype.hasOwnProperty.call(map, k)) continue;
+      if(n === k) return map[k];
+      var at = n.length - k.length;
+      if(at > 0 && n.slice(at) === k && n.charAt(at - 1) === ' ') return map[k];
+    }
+    return null;
+  }
+  function mqTeamRowHtml(league, name){
+    var abbr = mqTeamAbbr(league, name);
+    return abbr
+      ? '<div class="sstrip-team" title="' + escapeHtml(name) + '"><b>' + escapeHtml(abbr) + '</b></div>'
+      : '<div class="sstrip-team long" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</div>';
+  }
+
   function mqSchedCellHtml(ev, clickable){
     var teams = mqSchedTeams(ev);
     var body = teams
-      ? '<div class="sstrip-teams"><div class="sstrip-team">' + escapeHtml(teams[0]) + '</div>' +
-          '<div class="sstrip-team">' + escapeHtml(teams[1]) + '</div></div>'
+      ? '<div class="sstrip-teams">' + mqTeamRowHtml(ev.league, teams[0]) + mqTeamRowHtml(ev.league, teams[1]) + '</div>'
       : '<div class="sstrip-title">' + escapeHtml(ev.title) + '</div>';
     var tags = mqSchedTagsHtml(ev, clickable);
     return '<div class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + '">' +
@@ -8260,7 +8286,7 @@
     '</div>';
   }
 
-  function mqSchedStripHtml(list, clickable){
+  function mqSchedStripHtml(list, clickable, lead){
     var groups = [], byKey = {};
     mqSchedSort(list).forEach(function(ev){
       var key = ev.league || (MQ_SCHED_CATS.filter(function(c){ return c[0] === ev.category; })[0] || [0, 'Events'])[1];
@@ -8273,7 +8299,9 @@
     }).join('');
     return '<div class="sstrip">' +
       '<button type="button" class="sstrip-arrow prev" aria-label="Scroll left">&lsaquo;</button>' +
-      '<div class="sstrip-track">' + cells + '</div>' +
+      '<div class="sstrip-track">' +
+        (lead ? '<button type="button" class="sstrip-lead"><b>Today’s events</b><span>Full schedule ›</span></button>' : '') +
+        cells + '</div>' +
       '<button type="button" class="sstrip-arrow next" aria-label="Scroll right">&rsaquo;</button>' +
     '</div>';
   }
@@ -8289,7 +8317,7 @@
     })).slice(0, 12);
     box.style.display = '';
     cards.innerHTML = list.length
-      ? mqSchedStripHtml(list, false)
+      ? mqSchedStripHtml(list, false, true)
       : '<p class="sched-empty">Nothing big today. Check the rest of the week.</p>';
   }
 
@@ -8364,6 +8392,13 @@
     ['sched-list', 'sched-today-cards'].forEach(function(id){
       var host = document.getElementById(id);
       if(host) stripObs.observe(host, { childList: true });
+    });
+    // The "Today's events / Full schedule" cell at the left of the top ribbon opens the Schedule tab.
+    document.addEventListener('click', function(e){
+      if(!e.target.closest('.sstrip-lead')) return;
+      var t = document.querySelector('.pagenav-tab[data-page="schedule"]');
+      if(t) t.click();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
     // Arrow buttons on every strip scroll it sideways (the strip also swipes and scrolls natively).
     document.addEventListener('click', function(e){

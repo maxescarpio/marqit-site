@@ -1,40 +1,31 @@
 /* ==========================================================================
-   Marqit design refresh (soft version): keeps the site from looking like a
-   stock template without going boxy. Loaded AFTER style.css, so everything
-   here is an override. To roll back, remove the <link> to refresh.css in
-   index.html.
+   Marqit design refresh. Loaded AFTER style.css, so everything here is an
+   override. To roll back, remove the <link> to refresh.css in index.html.
 
    1. Varied, moderate corner radii (not one radius everywhere, not square)
-   2. Quiet monospace tags instead of generic pills
-   3. Grain + faint navy glow background
-   4. Varied section rhythm
-   5. Buttons and inputs: no shadows or stripes, just a different shape
-      from the cards around them
+   2. Clean navy gradient background (no glows, no fade spots)
+   3. Varied section rhythm
+   4. Buttons and inputs: a different shape from the cards around them
+   5. ESPN-style scoreboard ribbon (square cells) on top of every page
+   6. Slim sign-up bar for signed-out visitors, Play page only
+   7. @mention styles
+   Chips and tags (Live, Locks in, Worth 100 points...) use the original
+   oval look from style.css; nothing here changes them.
    ========================================================================== */
 
-:root{
-  --mono:'JetBrains Mono','SFMono-Regular',Menlo,Consolas,monospace;
-  --gold:#F2C14E;
-}
+:root{ --gold:#F2C14E; }
 
-/* ---------- 3. Textured background ---------- */
+/* ---------- 2. Navy gradient background ---------- */
+html{background:#0C111F;}
 body{
-  background:
-    radial-gradient(1100px 620px at 100% -8%, rgba(46,64,112,.42), transparent 62%),
-    radial-gradient(800px 520px at -10% 108%, rgba(46,64,112,.22), transparent 60%),
-    var(--paper);
+  background-color:#0C111F;
+  background-image:linear-gradient(180deg,#1B2748 0%,#131C36 45%,#0C111F 100%);
   background-attachment:fixed;
-}
-/* film grain: behind all content, never blocks clicks */
-body::before{
-  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.07;
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-  background-size:180px 180px;
+  background-repeat:no-repeat;
+  background-size:100% 100%;
 }
 
 /* ---------- 1. Varied, moderate corners ---------- */
-/* Each kind of block gets its own radius, so nothing repeats mechanically.
-   All of them sit between the old pill-round look and a hard box. */
 .predict-card,
 .predict-card[data-cat]{border-radius:12px;}
 .board,
@@ -46,58 +37,9 @@ body::before{
 .tier-chip,.tier-chip.active{border-radius:8px;}
 .news-card,.trending-strip{border-radius:10px;}
 .sec-ico{border-radius:8px;}
+.lb-pts b,.trend-rank b,.sched-row-time,.sched-day span{font-variant-numeric:tabular-nums;}
 
-/* ---------- 2. Quiet monospace tags ---------- */
-/* Same small size and soft tinted fill as before, but a monospace face and
-   a 4px corner, so they read as labels rather than rounded pills. */
-.status-pill,
-.pts-chip,
-.lock-chip,
-.boost-chip,
-.buddy-chip,
-.lb-you,
-.sched-flag,
-.sched-badge{
-  font-family:var(--mono);
-  text-transform:uppercase;
-  letter-spacing:.06em;
-  font-size:10.5px;
-  font-weight:700;
-  border-radius:4px;
-  padding:3px 8px;
-}
-.sched-sec-title em{
-  font-family:var(--mono);
-  text-transform:uppercase;
-  letter-spacing:.06em;
-  font-size:11px;
-}
-.result-tag{
-  font-family:var(--mono);
-  text-transform:uppercase;
-  letter-spacing:.05em;
-  font-size:11px;
-  border-radius:6px;
-}
-.cat-chip{
-  font-family:var(--mono);
-  text-transform:uppercase;
-  letter-spacing:.08em;
-  font-size:11px;
-  font-weight:700;
-  color:var(--ink-soft);
-}
-/* point values, countdowns and rank numbers use tabular numerals */
-.lb-pts b,.trend-rank b,.sched-card-time,.sched-row-time,.sched-day span{
-  font-variant-numeric:tabular-nums;
-}
-.slate-pts b,.tier-row,.countdown,[class*="countdown"],[id*="countdown"]{
-  font-family:var(--mono);
-  font-variant-numeric:tabular-nums;
-}
-.tier-chip span{font-family:var(--mono);letter-spacing:.05em;}
-
-/* ---------- 4. Section rhythm ---------- */
+/* ---------- 3. Section rhythm ---------- */
 .section{padding:44px 0 30px;}
 .section:nth-of-type(even){padding:26px 0 54px;}
 #page-home .section{border-top:none;}
@@ -112,9 +54,7 @@ body::before{
   .section:nth-of-type(even) .sec-head{margin-left:34px;}
 }
 
-/* ---------- 5. Buttons and inputs ---------- */
-/* YES / NO: a smaller radius than the cards, so the choice buttons are
-   clearly a different shape from the card they sit in. No shadows. */
+/* ---------- 4. Buttons and inputs ---------- */
 .predict-card .opt,
 .predict-card .opt.yes,
 .predict-card .opt.no,
@@ -123,8 +63,6 @@ body::before{
 .take-no{
   border-radius:8px;
 }
-
-/* main action buttons: rounded rectangle, not a pill, not a box */
 .hw-cta,
 .signup button,
 .lb-share-btn,
@@ -143,8 +81,6 @@ body::before{
   letter-spacing:.05em;
   text-transform:uppercase;
 }
-
-/* inputs: a gentler radius than the cards around them */
 input[type=text],input[type=email],input[type=password],input[type=search],textarea,select{
   border-radius:8px;
 }
@@ -157,20 +93,24 @@ input[type=search]:focus,textarea:focus,select:focus{
 #reset-email-input,#profile-state-input{border-radius:8px !important;}
 
 /* ==========================================================================
-   Scoreboard strip (Schedule page + "Today's key events" on Play).
-   A boxed, edge-to-edge band like ESPN's top bar: league label cells and
-   game cells separated by thin dividers, swipeable sideways.
+   5. Scoreboard ribbon: square cells like ESPN's top bar.
+   Used for the ribbon above the header (today's events, every page) and for
+   the day view on the Schedule page. League label cells and game cells sit in
+   one row, split by thin 1px lines, and swipe sideways. No rounded corners.
    ========================================================================== */
 .page{overflow-x:clip;}
+.sched-today{background:#0B1020;border-bottom:1px solid #26304A;}
 .sstrip{
   position:relative;
   width:100vw;
   margin-left:calc(50% - 50vw);
   margin-top:10px;
-  background:#15171C;
-  border-top:1px solid var(--line);
-  border-bottom:1px solid var(--line);
+  background:#0B1020;
+  border-top:1px solid #26304A;
+  border-bottom:1px solid #26304A;
+  border-radius:0;
 }
+.sched-today .sstrip{width:100%;margin:0;border:0;}
 .sstrip-track{
   display:flex;
   overflow-x:auto;
@@ -179,59 +119,85 @@ input[type=search]:focus,textarea:focus,select:focus{
   -webkit-overflow-scrolling:touch;
 }
 .sstrip-track::-webkit-scrollbar{display:none;}
+
+/* "Today's events / Full schedule" cell at the left end of the ribbon */
+.sstrip-lead{
+  flex:0 0 132px;
+  display:flex;flex-direction:column;justify-content:center;gap:3px;
+  padding:8px 14px;
+  background:#0B1020;
+  border:0;border-right:1px solid #26304A;border-radius:0;
+  color:var(--ink);font:inherit;text-align:left;cursor:pointer;
+  scroll-snap-align:start;
+}
+.sstrip-lead b{font-size:13.5px;font-weight:700;line-height:1.15;}
+.sstrip-lead span{font-size:12px;font-weight:600;color:var(--ink-soft);white-space:nowrap;}
+.sstrip-lead:hover span{color:var(--ink);}
+
+/* league label cell: NFL, MLB, Earnings... */
 .sstrip-league{
-  flex:0 0 88px;
+  flex:0 0 66px;
   display:flex;align-items:center;justify-content:center;
   padding:8px 6px;
-  background:#101216;
-  border-right:1px solid var(--line);
-  font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.04em;
-  text-transform:uppercase;text-align:center;overflow-wrap:normal;word-break:normal;
+  background:#0B1020;
+  border-right:1px solid #26304A;
+  font-size:13.5px;font-weight:700;letter-spacing:.02em;
+  text-transform:uppercase;text-align:center;
   color:var(--ink);
   scroll-snap-align:start;
 }
+
+/* one game or event */
 .sstrip-cell{
-  flex:0 0 196px;
-  min-height:118px;
-  padding:11px 14px 12px;
-  display:flex;flex-direction:column;gap:7px;
-  border-right:1px solid var(--line);
+  flex:0 0 168px;
+  min-height:104px;
+  padding:10px 14px 10px;
+  display:flex;flex-direction:column;gap:6px;
+  border-right:1px solid #26304A;
   scroll-snap-align:start;
 }
 .sstrip-time{
   font-size:12px;font-weight:600;color:var(--ink-soft);
-  font-variant-numeric:tabular-nums;
+  font-variant-numeric:tabular-nums;line-height:1.1;
 }
-.sstrip-teams{display:flex;flex-direction:column;gap:6px;}
+.sstrip-teams{display:flex;flex-direction:column;gap:5px;}
 .sstrip-team{
-  font-size:14.5px;font-weight:600;color:var(--ink);line-height:1.2;
+  font-size:14px;font-weight:600;color:var(--ink);line-height:1.2;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
+.sstrip-team b{font-weight:700;font-size:15px;letter-spacing:.01em;}
+.sstrip-team.long{font-size:13px;}
 .sstrip-title{
-  font-size:14.5px;font-weight:600;color:var(--ink);line-height:1.25;
-  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:14px;font-weight:700;color:var(--ink);line-height:1.25;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
 }
 .sstrip-sub{
   font-size:11.5px;color:var(--ink-soft);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .sstrip-tags{margin-top:auto;display:flex;gap:10px;align-items:baseline;}
-.sstrip-cell .sched-pick{font-size:12px;margin:0;}
+.sstrip-cell .sched-pick{font-size:11.5px;margin:0;}
+.sstrip-cell.has-q{box-shadow:inset 0 -2px 0 var(--gold);}
+
+/* chevron cells at the ends, like ESPN's right arrow */
 .sstrip-arrow{
   position:absolute;top:0;bottom:0;z-index:2;
-  width:34px;border:0;cursor:pointer;
-  background:linear-gradient(90deg,#15171C 35%,rgba(21,23,28,0));
-  color:var(--ink);font-size:26px;line-height:1;font-family:inherit;
+  width:42px;padding:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  background:#0B1020;border:0;border-radius:0;
+  color:var(--ink);font-size:30px;line-height:1;font-family:inherit;
 }
-.sstrip-arrow.prev{left:0;}
-.sstrip-arrow.next{right:0;transform:scaleX(-1);}
+.sstrip-arrow.prev{left:0;border-right:1px solid #26304A;}
+.sstrip-arrow.next{right:0;border-left:1px solid #26304A;}
+.sstrip-arrow:hover{background:#151D35;}
 /* arrows only show when there is more to scroll to in that direction */
 .sstrip:not(.can-prev) .sstrip-arrow.prev,
 .sstrip:not(.can-next) .sstrip-arrow.next{display:none;}
 @media (hover:none){.sstrip-arrow{display:none;}}
 @media (max-width:640px){
-  .sstrip-league{flex-basis:78px;font-size:11px;}
-  .sstrip-cell{flex-basis:172px;}
+  .sstrip-lead{flex-basis:112px;padding:8px 12px;}
+  .sstrip-league{flex-basis:58px;font-size:12.5px;}
+  .sstrip-cell{flex-basis:148px;padding:10px 12px;}
 }
 /* selected day tab on the Schedule page */
 .sched-day.sel{border-bottom-color:var(--ink);}
@@ -239,7 +205,18 @@ input[type=search]:focus,textarea:focus,select:focus{
 .sched-sel-title{margin-top:18px;}
 
 /* ==========================================================================
-   @mentions: tagged names in comments, username suggestions, and the
+   6. Sign-up bar: slim, signed-out visitors only, Play page only.
+   ========================================================================== */
+body:has(#nav-signed-out[style*="none"]) .cta-band,
+body:has(#page-home[style*="none"]) .cta-band{display:none;}
+.cta-band{padding:22px 0;background:#0F1530;border-top:1px solid #26304A;}
+.cta-band .cta-row{display:flex;align-items:center;justify-content:space-between;gap:14px 24px;flex-wrap:wrap;}
+.cta-band h2{font-size:clamp(22px,4vw,28px);max-width:none;line-height:1;}
+.cta-band p{margin-top:5px;font-size:14.5px;max-width:none;}
+.cta-band #cta-open-signup{margin-top:0 !important;flex:none;}
+
+/* ==========================================================================
+   7. @mentions: tagged names in comments, username suggestions, and the
    "mentioned you" notice.
    ========================================================================== */
 .cmt-mention{color:#7FA8FF;font-weight:600;}
