@@ -47,7 +47,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261016j">
-<link rel="stylesheet" href="refresh.css?v=20261020m">
+<link rel="stylesheet" href="refresh.css?v=20261020p">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -662,6 +662,17 @@
     </div>
 
     <div id="group-in-group" style="display:none;">
+      <div class="gp-grid">
+      <div class="gp-main">
+      <div class="boards">
+        <div class="board" style="--tint:51,209,139;">
+          <div class="board-title" style="display:flex; align-items:center; gap:8px;"><span id="group-name-display">Your group</span><button id="group-rename-btn" style="display:none; background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:12px; text-decoration:underline; padding:0;">Rename</button></div>
+          <div class="board-rows" id="board-group"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
+        </div>
+      </div>
+
+      </div>
+      <div class="gp-side">
       <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">
         Invite link: <code id="group-invite-code" style="background:var(--yes-bg); color:var(--yes); border:1px solid var(--yes); padding:3px 9px; border-radius:10px; font-weight:700;"></code>
         <button id="copy-invite-btn" style="margin-left:8px; padding:6px 14px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-size:13px; font-weight:600; cursor:pointer;">Copy</button>
@@ -691,13 +702,6 @@
         <span>On a shared group card, show me as "Player" instead of my username</span>
       </label>
 
-      <div class="boards">
-        <div class="board" style="--tint:51,209,139;">
-          <div class="board-title" style="display:flex; align-items:center; gap:8px;"><span id="group-name-display">Your group</span><button id="group-rename-btn" style="display:none; background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:12px; text-decoration:underline; padding:0;">Rename</button></div>
-          <div class="board-rows" id="board-group"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
-        </div>
-      </div>
-
       <div style="margin-top:16px; padding:14px 16px; background:var(--panel); border:1px solid var(--line); border-radius:12px;">
         <div style="font-size:12.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:8px;">Today's participation</div>
         <p style="font-size:11.5px; color:var(--ink-soft); margin:0 0 8px;">Your chapter's points depend on everyone answering &mdash; chase down whoever hasn't yet.</p>
@@ -705,6 +709,8 @@
       </div>
       <button type="button" id="share-group-card-btn" class="lb-share-btn" style="display:none;">Share this week's group card</button>
       <div id="champion-card-btn-wrap"></div>
+      </div>
+      </div>
     </div>
 
     <div id="greek-section" style="display:none;">

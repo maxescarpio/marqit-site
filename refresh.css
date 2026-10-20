@@ -1106,3 +1106,45 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 /* Leader avatars: initials in the team color until a photo loads (or when none exists) */
 .kp-num{width:40px;height:40px;font-size:14px;letter-spacing:.02em}
 @media (max-width:520px){.kp-num,.kp-ph{width:34px;height:34px}.kp-num{font-size:12px}}
+
+/* Leaderboard, quieter and tighter: nothing floats alone, fewer colors, no medals */
+#page-leaderboard .recap-card{background:var(--panel);border:1px solid var(--line);border-top:1px solid var(--line) !important;border-radius:10px;padding:12px 16px}
+#page-leaderboard .recap-head{font:600 11px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#8B909A;margin-bottom:6px}
+#page-leaderboard .recap-stats strong,#page-leaderboard .rs-streak strong{color:var(--ink) !important}
+#record-card .rec-ring svg{filter:saturate(.55);opacity:.92}
+.rec-cal i,.rec-legend i{filter:saturate(.5)}
+.rec-cal i[style*="linear-gradient"],.rec-legend i[style*="linear-gradient"]{background:#B99A4C !important}
+#page-leaderboard .lb.m1 .lb-rank,#page-leaderboard .lb.m2 .lb-rank,#page-leaderboard .lb.m3 .lb-rank{background:rgba(255,255,255,.08);color:var(--ink)}
+#page-leaderboard .lb.m1 .lb-rank{background:rgba(255,255,255,.16)}
+#page-leaderboard .brow.lb{padding:5px 10px}
+#page-leaderboard .bb-head svg{display:none}
+#page-leaderboard .bb-head .ex-title{font-size:20px}
+#page-leaderboard .board-title{font:600 11px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#8B909A}
+#page-leaderboard .board-title #group-name-display{font:600 15px 'Barlow',sans-serif;letter-spacing:0;text-transform:none;color:var(--ink)}
+#page-leaderboard .ex-title{font-size:18px;margin-bottom:2px}
+#page-leaderboard .ex-sub{margin-bottom:8px}
+#page-leaderboard .lb-big{margin-top:16px !important}
+#page-leaderboard h3.ex-title{margin-top:18px !important}
+#page-leaderboard .section:nth-of-type(2) .ex-title:first-child{margin-top:0 !important}
+
+/* Group: standings on the left, everything else stacked on the right */
+.gp-grid{display:grid;gap:12px;align-items:start}
+.gp-side{display:flex;flex-direction:column;gap:10px;min-width:0}
+.gp-side > *{margin:0 !important;max-width:none !important}
+.gp-side > p:first-child{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.gp-side > p:first-child button{margin-left:0 !important}
+.gp-side > div[style*="max-width:420px"]{display:flex}
+.gp-side #group-card-owner-settings{padding:10px 12px !important;font-size:12px}
+.gp-side #group-card-owner-settings label{margin-bottom:6px !important}
+.gp-side #group-card-owner-settings p{display:none}
+.gp-side .lb-share-btn{margin-top:0 !important;width:100%;text-align:center}
+.gp-side > div[style*="padding:14px 16px"]{padding:10px 12px !important}
+.gp-main .boards{margin:0}
+@media(min-width:820px){.gp-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.gp-main .boards{display:block !important;max-width:none !important}
+.gp-main .board{width:100%;max-width:none}
+#page-leaderboard .lb-pts,#page-leaderboard .brow.lb > span:last-child{white-space:nowrap}
+#page-leaderboard .brow.lb.medal{border-color:rgba(255,255,255,.10) !important;background:none !important;box-shadow:none}
+#page-leaderboard .brow.lb.mine{box-shadow:inset 0 0 0 1px rgba(51,209,139,.45)}
+#page-leaderboard .lb-big .board{padding-top:14px}
+#page-leaderboard .bb-head{margin:0}
