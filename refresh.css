@@ -1433,3 +1433,6 @@ details.co-cr[open] summary::after{content:" ⌃"}
 details.co-cr .co-cr-list{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px;line-height:1.5}
 details.co-cr a{color:#8a93a3;text-decoration:none}
 details.co-cr a:hover{text-decoration:underline}
+.rs-streak strong{font-size:34px !important}
+.rs-streak span{font-size:10.5px}
+@media (max-width:640px){.rs-streak strong{font-size:30px !important}}
