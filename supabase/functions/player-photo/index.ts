@@ -31,7 +31,10 @@ async function recent(name: string, team: string, trace: string[], teamOnPage = 
   const words = team.split(/\s+/).filter(Boolean);
   if (!words.length) return null;
   const nick = norm(words[words.length - 1]), full = norm(team);
-  const last = norm(name).split(' ').slice(-1)[0];
+  // First and last name with generational suffixes dropped ("Ollie Gordon II" -> ollie / gordon). The file title must
+  // contain BOTH, so a last-name-only match (a different Washington, a teammate, a relative) is never accepted.
+  const ntoks = norm(name).split(' ').filter((t) => t && !/^(jr|sr|ii|iii|iv|v)$/.test(t));
+  const first = ntoks[0] || '', last = ntoks[ntoks.length - 1] || '';
   const seen = new Set<string>();
   const cands: any[] = [];
   for (const term of [`${name} ${words[words.length - 1]}`, name]) {
@@ -44,7 +47,8 @@ async function recent(name: string, team: string, trace: string[], teamOnPage = 
       if (seen.has(p.title)) continue; seen.add(p.title);
       const ii = p.imageinfo?.[0]; if (!ii) continue;
       const title = String(p.title).replace(/^File:/, '');
-      if (!/\.(jpe?g|png)$/i.test(title) || !norm(title).includes(last)) continue;
+      const nt = norm(title);
+      if (!/\.(jpe?g|png)$/i.test(title) || !last || !nt.includes(last) || (ntoks.length > 1 && !nt.includes(first))) continue;
       const m = ii.extmetadata || {};
       const lic = KNOWN(m, 'LicenseShortName');
       if (!OPEN_LICENSE.test(lic)) continue;
@@ -53,8 +57,14 @@ async function recent(name: string, team: string, trace: string[], teamOnPage = 
       const hay = norm(title + ' ' + KNOWN(m, 'Categories') + ' ' + KNOWN(m, 'ImageDescription'));
       const teamHit = hay.includes(nick) || hay.includes(full);
       const yr = parseInt((KNOWN(m, 'DateTimeOriginal') || KNOWN(m, 'DateTime') || ii.timestamp || '').match(/(19|20)\d\d/)?.[0] || '0', 10);
-      const pen = /injur|white house|trump|biden|obama|ceremony|visit|draft|celebrat|bobblehead|card|statue/i.test(title) || /[&,]| and | with /i.test(title) ? 1 : 0;
-      cands.push({ title, teamHit, yr, ratio, lic, m, ii, pen });
+      // Hard rejects (not just a lower score): more than one person, event/appearance shots, college or pre-pro shots,
+      // and non-photos. A photo that might show anyone but this player is worse than showing the initials badge.
+      const multi = /[&,+]|\band\b|\bwith\b|\bvs\.?\b|\bversus\b|\bfeat\b|\bteammates?\b|\bbrothers?\b|\bduo\b|\btrio\b|\bplayers\b/i.test(title)
+        || /left to right|from left|l-r|pictured with|alongside|\bwith (his|her|teammate)/i.test(KNOWN(m, 'ImageDescription'));
+      const offField = /injur|white house|trump|biden|obama|ceremony|visit|demonstration|raptor|draft|combine|pro day|celebrat|bobblehead|card|statue|mural|autograph|fans?\b|college|universit|\bumd\b|\bncaa\b|high school|signing|press conference|parade|award|gala|interview/i.test(title)
+        || /college|universit|\bncaa\b|high school/i.test(KNOWN(m, 'Categories'));
+      if (multi || offField) continue;
+      cands.push({ title, teamHit, yr, ratio, lic, m, ii, pen: 0 });
     }
     if (cands.some((x) => x.teamHit)) break;
   }
@@ -62,7 +72,9 @@ async function recent(name: string, team: string, trace: string[], teamOnPage = 
   // A photo counts as "current team" if its file says so, or if it is from the last two seasons and the player's
   // Wikipedia article names this team (file descriptions rarely mention the team).
   const thisYr = new Date().getUTCFullYear();
-  const pool = cands.filter((x) => x.teamHit || (teamOnPage && x.yr >= thisYr - 1));
+  // Strict: the file itself must tie the photo to the player's CURRENT team, and it must be from the last 3 calendar
+  // years (a Wikipedia article naming the team is no longer enough, which let a college photo through).
+  const pool = cands.filter((x) => x.teamHit && x.yr >= thisYr - 2);
   // Prefer: clean single-player shots, newest year, close crops (portrait/square, "cropped") over wide action shots.
   const score = (x: any) => x.yr * 10 - x.pen * 60 + (x.teamHit ? 6 : 0) + (/cropped|portrait|headshot|profile/i.test(x.title) ? 8 : 0) + (x.ratio <= 1.1 ? 8 : x.ratio <= 1.4 ? 3 : 0);
   const ok = pool.sort((a, b) => score(b) - score(a));
@@ -160,7 +172,7 @@ Deno.serve(async (req: Request) => {
   const name = (u.searchParams.get('name') || '').trim(), team = (u.searchParams.get('team') || '').trim().slice(0, 60), sport = (u.searchParams.get('sport') || '').toLowerCase();
   const isPerson = u.searchParams.get('kind') === 'person';
   if (!/^[\p{L}][\p{L} .'\-]{2,59}$/u.test(name) || (!isPerson && !SPORT_WORDS[sport])) return new Response(JSON.stringify({ found: false, error: 'bad request' }), { status: 400, headers: CORS });
-  const key = isPerson ? 'person|' + norm(name) + '|' + norm(team) : 'v3|' + norm(name) + '|' + norm(team) + '|' + sport;
+  const key = isPerson ? 'person|' + norm(name) + '|' + norm(team) : 'v4|' + norm(name) + '|' + norm(team) + '|' + sport;
   const send = (o: any) => new Response(JSON.stringify(o), { headers: { ...CORS, 'cache-control': 'public, max-age=86400' } });
   try {
     const hit = u.searchParams.get('debug') ? null : await dbGet(key);
