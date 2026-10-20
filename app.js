@@ -8532,47 +8532,23 @@
     var hs = /^https:\/\/a\.espncdn\.com\/i\/headshots\//.test(l.hs || '') ? ' data-ph="' + escapeHtml(l.hs) + '"' : '';
     return (sp && l.full) ? ' data-pn="' + escapeHtml(l.full) + '" data-pt="' + escapeHtml(team || '') + '" data-ps="' + sp + '"' + hs : '';
   }
-  // Swap the jersey-number circle for a real photo when Wikimedia Commons has an openly licensed one.
-  // Falls back to the number circle otherwise. Each photo carries its photographer and license.
+  // Swap the jersey-number circle for the player's ESPN headshot (one player, same framing for everyone).
+  // The headshot link comes with the leaders data (field hs). No headshot available: the badge stays.
   function mqPlayerPhotos(root){
     if(!root) return;
-    var seen = {};
     [].forEach.call(root.querySelectorAll('.kp[data-pn]'), function(k){
-      var n = k.getAttribute('data-pn'), key = n + '|' + k.getAttribute('data-ps');
-      (seen[key] = seen[key] || fetch(SUPABASE_URL + '/functions/v1/player-photo?v=4&name=' + encodeURIComponent(n) + '&team=' + encodeURIComponent(k.getAttribute('data-pt') || '') + '&sport=' + k.getAttribute('data-ps'))
-        .then(function(r){ return r.json(); }).catch(function(){ return null; })).then(function(d){
-        if(!k.isConnected) return;
-        var num = k.querySelector('.kp-num'), t = k.querySelector('.kp-t');
-        if(!num || !t) return;
-        // Fallback: ESPN's single-player headshot, only for players with no free photo. No credit line.
-        var espn = k.getAttribute('data-ph');
-        function useEspn(){
-          if(!/^https:\/\/a\.espncdn\.com\/i\/headshots\//.test(espn || '')) return;
-          var e = new Image();
-          e.onload = function(){
-            e.onload = null;
-            if(!k.isConnected || k.querySelector('.kp-ph')) return;
-            e.className = 'kp-ph'; e.alt = ''; e.referrerPolicy = 'no-referrer';
-            num.replaceWith(e);
-          };
-          e.src = espn;
-        }
-        if(!d || !d.found || !/^https:\/\/commons\.wikimedia\.org\//.test(d.photo || '')){ useEspn(); return; }
-        var img = new Image();
-        img.onerror = useEspn;
-        img.onload = function(){
-          img.onload = null;
-          if(!k.isConnected || k.querySelector('.kp-cr')) return;
-          img.className = 'kp-ph'; img.alt = ''; img.referrerPolicy = 'no-referrer';
-          num.replaceWith(img);
-          var cr = document.createElement('a');
-          cr.className = 'kp-cr'; cr.target = '_blank'; cr.rel = 'noopener noreferrer';
-          cr.href = /^https:\/\/commons\.wikimedia\.org\//.test(d.pageUrl || '') ? d.pageUrl : 'https://commons.wikimedia.org';
-          cr.textContent = 'Photo: ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || '');
-          t.appendChild(cr);
-        };
-        img.src = d.photo;
-      });
+      var src = k.getAttribute('data-ph');
+      if(!/^https:\/\/a\.espncdn\.com\/i\/headshots\//.test(src || '')) return;
+      var num = k.querySelector('.kp-num');
+      if(!num) return;
+      var e = new Image();
+      e.onload = function(){
+        e.onload = null;
+        if(!k.isConnected || k.querySelector('.kp-ph')) return;
+        e.className = 'kp-ph'; e.alt = ''; e.referrerPolicy = 'no-referrer';
+        num.replaceWith(e);
+      };
+      e.src = src;
     });
   }
   function mqKeyPlayersHtml(g){
