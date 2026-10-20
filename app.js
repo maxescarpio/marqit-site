@@ -8805,11 +8805,22 @@
         '<span class="m"><b>' + escapeHtml(t) + '</b>' + (artist || !a ? '' : '<em>' + escapeHtml(a) + '</em>') + '</span><span class="rk-chev">›</span></li>';
     }).join('') + '</ol>';
   }
+  // Company tiles: brand-colored square with the ticker (no logos). Colors are the companies' well-known brand hues.
+  var MQ_CO_COLOR = { NVDA:'#76B900', AAPL:'#8E9AA6', GOOGL:'#4285F4', GOOG:'#4285F4', MSFT:'#00A4EF', AMZN:'#FF9900', TSM:'#D4262C', META:'#0866FF', AVGO:'#CC092F', TSLA:'#E31937', SPCX:'#3A6EA5', BRK:'#6B4C9A', WMT:'#0071CE', LLY:'#D52B1E', JPM:'#117ACA', V:'#3B4BB8', XOM:'#ED1B2D', ORCL:'#F80000', MA:'#EB001B', NFLX:'#E50914', COST:'#E31837', JNJ:'#D51900', PG:'#3F6FD8', HD:'#F96302', BAC:'#E31837', ABBV:'#3B6FB6', KO:'#F40009', CVX:'#0054A4', CRM:'#00A1E0', AMD:'#ED1C24', PLTR:'#6E7681', ASML:'#00A0E1', MU:'#1D6FB8', CSCO:'#049FD9', IBM:'#1F70C1', INTC:'#0071C5', QCOM:'#3253DC', ADBE:'#EB1000', DIS:'#2A5CAA', NKE:'#F36F21', PEP:'#2A5DB0', UNH:'#2A7DE1', MRK:'#00857C', PFE:'#2E6FD0', T:'#00A8E0', VZ:'#CD040B', SHOP:'#7AB55C', UBER:'#5E6672', SAP:'#1A8FD8' };
+  function mqCoColor(sym){
+    var k = String(sym || '').toUpperCase();
+    if(MQ_CO_COLOR[k]) return MQ_CO_COLOR[k];
+    var h = 0; for(var i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) % 360;
+    return 'hsl(' + h + ',48%,46%)';
+  }
   function mqRkMarkets(d){
     if(!d || !d.companies || !d.companies.length) return '<p class="evp-muted">Market data isn’t available right now.</p>';
-    return '<table class="rk-t"><thead><tr><th>#</th><th>Company</th><th>Value</th><th>Price</th><th>Today</th></tr></thead><tbody>' + d.companies.map(function(c, i){
-      var pc = mqRkNum(c.pct), px = mqRkNum(c.price), up = (pc || 0) >= 0;
-      return '<tr class="rk-go" data-act="co" data-i="' + i + '" tabindex="0"><td class="n">' + c.rank + '</td><td class="t">' + mqRkLogo(c.symbol, c.name) + escapeHtml(c.name) + ' <small>' + escapeHtml(c.symbol) + '</small></td><td>' + escapeHtml(mqMoney(Number(c.cap))) + '</td><td>' + (px != null ? '$' + px.toFixed(2) : '') + '</td><td class="' + (up ? 'up' : 'dn') + '">' + (pc == null ? '' : (up ? '+' : '') + pc.toFixed(2) + '%') + '</td></tr>';
+    var max = Math.max.apply(null, d.companies.map(function(c){ return Number(c.cap) || 0; })) || 1;
+    return '<table class="rk-t co-t"><thead><tr><th>#</th><th>Company</th><th>Value</th><th>Price</th><th>Today</th></tr></thead><tbody>' + d.companies.map(function(c, i){
+      var pc = mqRkNum(c.pct), px = mqRkNum(c.price), up = (pc || 0) >= 0, col = mqCoColor(c.symbol), sym = String(c.symbol || '');
+      var tile = '<span class="co-tile' + (sym.length > 3 ? ' sm' : '') + '" style="background:' + col + '">' + escapeHtml(sym.slice(0, 4)) + '</span>';
+      var bar = '<span class="co-bar"><i style="width:' + Math.max(3, Math.round((Number(c.cap) || 0) / max * 100)) + '%;background:' + col + '"></i></span>';
+      return '<tr class="rk-go" data-act="co" data-i="' + i + '" tabindex="0" style="--tc:' + col + '"><td class="n">' + c.rank + '</td><td class="t">' + tile + '<span class="co-m"><b>' + escapeHtml(c.name) + '</b>' + bar + '</span></td><td class="cap">' + escapeHtml(mqMoney(Number(c.cap))) + '</td><td>' + (px != null ? '$' + px.toFixed(2) : '') + '</td><td class="' + (up ? 'up' : 'dn') + '">' + (pc == null ? '' : '<span class="co-chg ' + (up ? 'up' : 'dn') + '">' + (up ? '+' : '') + pc.toFixed(2) + '%</span>') + '</td></tr>';
     }).join('') + '</tbody></table>';
   }
   var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', country: 'Apple iTunes charts, album art © its owners', songs: 'Apple iTunes charts, album art © its owners', artists: 'Deezer, photos © their owners', markets: 'Nasdaq' };

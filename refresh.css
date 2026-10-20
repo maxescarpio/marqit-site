@@ -1314,3 +1314,20 @@ section:has(> .wrap > .challenge-banner){padding-bottom:16px !important}
 button[style*="text-align:left"]:not(.hw-step):not(.sf-links button){text-align:center !important}
 .challenge-option-btn{text-align:center !important}
 #nav-badge{justify-content:center}
+
+/* Biggest companies: brand-colored ticker tiles, market-cap bars, change chips */
+.co-t td.t{display:flex;align-items:center;gap:14px;border-top:0}
+.co-t td.t .co-tile{margin:0}
+.co-tile{flex:none;width:44px;height:44px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font:700 13px 'Barlow',sans-serif;letter-spacing:.03em;text-shadow:0 1px 2px rgba(0,0,0,.25);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.co-tile.sm{font-size:11px}
+.co-m{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+.co-m b{font-weight:600;font-size:15px;color:#F2F3F5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.co-bar{display:block;height:4px;max-width:260px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden}
+.co-bar i{display:block;height:100%;border-radius:2px;opacity:.9}
+.co-t td.cap{font-weight:600;color:#E4E6EA}
+.co-t tbody tr{border-top:1px solid #23262C}
+.co-t td{border-top:0 !important}
+.co-t tbody tr.rk-go:hover{background:linear-gradient(90deg,color-mix(in srgb,var(--tc) 14%,transparent),transparent 70%)}
+.co-chg{display:inline-block;min-width:68px;text-align:center;padding:4px 10px;border-radius:6px;font-size:13px;font-weight:700}
+.co-chg.up{background:rgba(51,209,139,.14);color:#4FD69A}
+.co-chg.dn{background:rgba(224,112,95,.14);color:#E58474}
