@@ -8928,31 +8928,34 @@
     return open ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '';
   }
   function mqSchedDot(t){ return '<i class="sr-dot" style="background:' + mqTeamColor(t) + '"></i>'; }
-  // One game per line, scoreboard style: status | away  score  home | network. No boxes, just hairlines.
-  function mqSchedBar(t){ return '<i class="gm-bar" style="background:' + mqTeamColor(t) + '"></i>'; }
-  function mqSchedRowHtml(ev, x){
-    var g = x.g, st = x.st, status, mid, tail = '';
+  // Classic scoreboard rows: status on the left, the two teams stacked with their scores, network on the right.
+  var MQ_LG_NAMES = { EPL: 'Premier League', UCL: 'Champions League', MLS: 'MLS', NCAAF: 'College football', NFL: 'NFL', NBA: 'NBA', WNBA: 'WNBA', NHL: 'NHL', MLB: 'MLB' };
+  function mqLgName(k){ return MQ_LG_NAMES[k] || k; }
+  function mqSchedRowHtml(ev, x, showLg){
+    var g = x.g, st = x.st, status, body, tail = '';
     if(g){
       var started = st !== 'pre', hs = parseInt(g.home.score, 10), as = parseInt(g.away.score, 10), done = st === 'post';
       status = st === 'in' ? (g.detail || 'Live') : done ? (/^f/i.test(g.detail || '') ? g.detail : 'Final') : mqSchedTime(ev);
-      mid = '<span class="gm-a' + (done && as < hs ? ' lost' : '') + '"><b>' + escapeHtml(g.away.name) + '</b>' + mqSchedBar(g.away) + '</span>' +
-        '<span class="gm-s">' + (started ? '<em class="' + (done && as < hs ? 'lost' : '') + '">' + escapeHtml(g.away.score == null ? '0' : g.away.score) + '</em><u>–</u><em class="' + (done && hs < as ? 'lost' : '') + '">' + escapeHtml(g.home.score == null ? '0' : g.home.score) + '</em>' : '<u>at</u>') + '</span>' +
-        '<span class="gm-h' + (done && hs < as ? ' lost' : '') + '">' + mqSchedBar(g.home) + '<b>' + escapeHtml(g.home.name) + '</b></span>';
+      var line = function(t, lost){
+        return '<div class="gm-tm' + (lost ? ' lost' : '') + '"><b>' + escapeHtml(t.name) + '</b><span>' +
+          (started ? escapeHtml(t.score == null ? '0' : t.score) : (t.record ? '<small>' + escapeHtml(t.record) + '</small>' : '')) + '</span></div>';
+      };
+      body = line(g.away, done && as < hs) + line(g.home, done && hs < as);
       tail = g.network || '';
     } else if(ev.category === 'finance' && ev.league){
       status = 'All day';
-      mid = '<span class="gm-one"><b>' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</b> <small>earnings · ' + escapeHtml(/before/i.test(ev.subtitle || '') ? 'before the open' : /after/i.test(ev.subtitle || '') ? 'after the close' : (ev.subtitle || 'report')) + '</small></span>';
+      body = '<div class="gm-tm"><b>' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</b></div><div class="gm-sub">Earnings report · ' +
+        escapeHtml(/before/i.test(ev.subtitle || '') ? 'before the open' : /after/i.test(ev.subtitle || '') ? 'after the close' : (ev.subtitle || 'time to be announced')) + '</div>';
     } else {
       var teams = mqSchedTeams(ev);
       status = mqSchedTime(ev);
-      mid = teams
-        ? '<span class="gm-a"><b>' + escapeHtml(teams[0]) + '</b></span><span class="gm-s"><u>at</u></span><span class="gm-h"><b>' + escapeHtml(teams[1]) + '</b></span>'
-        : '<span class="gm-one"><b>' + escapeHtml(ev.title) + '</b></span>';
+      body = teams ? '<div class="gm-tm"><b>' + escapeHtml(teams[0]) + '</b></div><div class="gm-tm"><b>' + escapeHtml(teams[1]) + '</b></div>' : '<div class="gm-tm"><b>' + escapeHtml(ev.title) + '</b></div>';
       tail = ev.subtitle || '';
     }
+    var lg = showLg ? '<small class="gm-lg">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</small>' : '';
     return '<div class="gm ' + (st === 'in' ? 'is-live' : st === 'post' ? 'is-done' : '') + (x.open ? ' is-click' : '') + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
-      '<span class="gm-t">' + escapeHtml(status) + '</span><span class="gm-m">' + mid + '</span>' +
-      '<span class="gm-n">' + (ev.question_id ? '<button type="button" class="sched-pick">Play ›</button>' : escapeHtml(tail)) + '</span></div>';
+      '<span class="gm-t">' + lg + '<span>' + escapeHtml(status) + '</span></span><span class="gm-m">' + body + '</span>' +
+      '<span class="gm-n">' + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + (tail ? '<small>' + escapeHtml(tail) + '</small>' : '') + '</span></div>';
   }
   function mqSchedAgendaHtml(list){
     var live = [], groups = [], byKey = {};
@@ -8963,12 +8966,12 @@
       if(!byKey[k]){ byKey[k] = []; groups.push(k); }
       byKey[k].push(item);
     });
-    var rows = function(l){ return l.map(function(p){ return mqSchedRowHtml(p[0], p[1]); }).join(''); };
+    var rows = function(l, lg){ return l.map(function(p){ return mqSchedRowHtml(p[0], p[1], lg); }).join(''); };
     var out = '';
-    if(live.length) out += '<section class="ag-sec ag-live"><h5 class="ag-h"><span class="live"><i class="ag-pulse"></i>Live</span></h5>' + rows(live) + '</section>';
+    if(live.length) out += '<section class="ag-sec ag-live"><h5 class="ag-h"><span class="live"><i class="ag-pulse"></i>Live now</span></h5>' + rows(live, true) + '</section>';
     groups.forEach(function(k){
       var l = byKey[k].filter(function(p){ return p[1].st !== 'in'; });
-      if(l.length) out += '<section class="ag-sec"><h5 class="ag-h"><span>' + escapeHtml(k) + '</span></h5>' + rows(l) + '</section>';
+      if(l.length) out += '<section class="ag-sec"><h5 class="ag-h"><span>' + escapeHtml(mqLgName(k)) + '</span></h5>' + rows(l, false) + '</section>';
     });
     return '<div class="agenda">' + out + '</div>';
   }
@@ -9017,7 +9020,7 @@
     var filter = mqSched.cat && counts[mqSched.cat] ? mqSched.cat : 'all';
     chips.style.display = order.length > 1 ? '' : 'none';
     chips.innerHTML = [['all', 'All']].concat(order.map(function(k){ return [k, k]; })).map(function(c){
-      return '<button type="button" class="scope-tab' + (filter === c[0] ? ' active' : '') + '" data-cat="' + escapeHtml(c[0]) + '">' + escapeHtml(c[1]) + '</button>';
+      return '<button type="button" class="scope-tab' + (filter === c[0] ? ' active' : '') + '" data-cat="' + escapeHtml(c[0]) + '">' + escapeHtml(c[0] === 'all' ? 'All' : mqLgName(c[1])) + '</button>';
     }).join('');
     var byDay = {};
     days.forEach(function(d){

@@ -1016,3 +1016,33 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
   .gm-m{grid-template-columns:minmax(0,1fr) 54px minmax(0,1fr);gap:6px}
   .gm b{font-size:14px}
 }
+
+/* Schedule, final pass: classic stacked scoreboard rows, no team colors */
+.agenda{max-width:720px}
+.ag-sec{margin-top:26px}
+.ag-sec .ag-h{padding-bottom:8px;border-bottom:1px solid #353A44;font:700 13px 'Barlow',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#E4E6EA}
+.ag-sec .ag-h .live{color:#FF6B5B}
+.gm{grid-template-columns:104px minmax(0,1fr) 112px;gap:14px;align-items:center;padding:12px 6px;border-bottom:1px solid #23262C}
+.gm-t{display:flex;flex-direction:column;gap:2px;font-size:13.5px;font-weight:600;color:#C9CDD4;line-height:1.25}
+.gm-lg{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#7E838D}
+.gm.is-live .gm-t>span{color:#FF6B5B}
+.gm.is-done .gm-t{color:#7E838D}
+.gm-m{display:flex;flex-direction:column;gap:5px;grid-template-columns:none}
+.gm-tm{display:flex;align-items:baseline;justify-content:space-between;gap:12px;max-width:380px}
+.gm-tm b{font-size:16px;font-weight:600;color:#F2F3F5}
+.gm-tm span{font:700 20px 'Big Shoulders Display','Barlow',sans-serif;color:#fff;font-variant-numeric:tabular-nums;min-width:26px;text-align:right}
+.gm-tm span small{font:500 12.5px 'Barlow',sans-serif;color:#7E838D}
+.gm-tm.lost b,.gm-tm.lost span{color:#7E838D;font-weight:500}
+.gm-sub{font-size:13px;color:#8B909A}
+.gm-n{display:flex;flex-direction:column;align-items:flex-end;gap:6px;text-align:right}
+.gm-n small{font-size:12px;color:#7E838D}
+.gm .sched-pick{font-size:12px;font-weight:600;color:#F6C430;border:1px solid rgba(246,196,48,.45);border-radius:999px;padding:3px 10px;background:none;margin:0}
+.gm .sched-pick:hover{background:rgba(246,196,48,.1);text-decoration:none}
+@media(max-width:620px){
+  .gm{grid-template-columns:76px minmax(0,1fr);gap:10px}
+  .gm-n{grid-column:2;align-items:flex-start;flex-direction:row;gap:10px}
+  .gm-tm{max-width:none}
+}
+.gm-m{align-items:stretch;justify-content:center}
+.gm-tm{width:100%;text-align:left}
+.gm-tm b{text-align:left;overflow:visible}
