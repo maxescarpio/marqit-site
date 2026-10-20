@@ -1308,3 +1308,9 @@ section:has(> .wrap > .challenge-banner){padding-bottom:16px !important}
 .sched-day.today:not(.sel) b{color:#F6C430 !important}
 .wpb i{background:color-mix(in srgb,var(--tc,#8B909A) 60%,#fff)}
 .rk-t tr.lead{background:linear-gradient(90deg,color-mix(in srgb,var(--tc,#8B909A) 22%,transparent),transparent 65%)}
+
+/* Button text is centered everywhere (footer link lists, how-to step cards and tile rows are content, not labels) */
+:where(button){text-align:center}
+button[style*="text-align:left"]:not(.hw-step):not(.sf-links button){text-align:center !important}
+.challenge-option-btn{text-align:center !important}
+#nav-badge{justify-content:center}
