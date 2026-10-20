@@ -24,7 +24,7 @@ async function wiki(host: string, params: Record<string, string>): Promise<any> 
   return r.json();
 }
 const strip = (h: string) => String(h || '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/\s+/g, ' ').trim();
-const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 
 const KNOWN = (m: any, k: string) => strip(m?.[k]?.value || '');
 async function recent(name: string, team: string, trace: string[], teamOnPage = false) {
