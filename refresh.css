@@ -1363,3 +1363,25 @@ button[style*="text-align:left"]:not(.hw-step):not(.sf-links button){text-align:
 @keyframes fdsk{to{background-position:-200% 0}}
 .co-t th.ceo-h,.co-t td.ceo{text-align:left !important;padding-left:18px}
 @media (max-width:640px){.co-t th:nth-child(5),.co-t td:nth-child(5){display:none}.co-t td.t{gap:10px}.co-tile{width:40px;height:40px}.co-bar{max-width:90px}.co-t td.ceo{padding-left:6px !important}.co-ceo .ceo-ph{width:30px;height:30px}}
+
+/* How to play: quieter type */
+.hw-step{padding:12px 16px;gap:12px;grid-template-columns:36px 1fr}
+.hw-step-n{font-size:34px}
+.hw-step-h{font-size:18px}
+.hw-step-t{font-size:13px;gap:3px}
+.hw-pts div{padding:11px 14px;gap:4px}
+.hw-pts b{font-size:26px}
+.hw-pts span{font-size:12.5px}
+.hw-tiers div{padding:10px 8px}
+.hw-tiers span{font-size:11.5px}.hw-tiers b{font-size:16px}
+.hw-eyebrow{font-size:11px;margin:26px 0 10px}
+.hw-fact{padding:13px 16px 4px}
+.hw-fact h4{font-size:17px;margin-bottom:8px}
+.hw-fact p{font-size:13px;margin-bottom:8px}
+/* Schedule day strip: no gold */
+.sched-day.sel{background:none !important;border-bottom-color:#E4E6EA !important}
+.sched-day.sel em{color:#9AA0AB}
+.sched-day.today:not(.sel) b,.sched-day.today:not(.sel) span{color:#C9CDD4 !important}
+/* News: label the second block */
+.news-sec{grid-column:1 / -1;margin:10px 0 -4px;padding-top:14px;border-top:1px solid #23262C;font:700 11px 'Barlow',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8a93a3}
+.news-top3 .nt3-h{font:700 11px 'Barlow',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8a93a3;padding:14px 16px 10px}

@@ -10156,7 +10156,7 @@
       }else if(this.cfg.kind === 'trending'){
         topHtml = risersHtml(list);
       }
-      this.grid.innerHTML = topHtml + list.map(cardHtml).join('') || '<p class="news-empty">' + (this.cfg.kind === 'news' ? 'No stories in this lane right now. Check back soon.' : 'Nothing trending in this lane right now. Check back soon.') + '</p>';
+      this.grid.innerHTML = topHtml + (topHtml && list.length && this.cfg.kind === 'news' ? '<div class="news-sec">Latest stories</div>' : '') + list.map(cardHtml).join('') || '<p class="news-empty">' + (this.cfg.kind === 'news' ? 'No stories in this lane right now. Check back soon.' : 'Nothing trending in this lane right now. Check back soon.') + '</p>';
       if(chartMode){ var cr = this.grid.querySelector('.nt3-rows'); if(cr) mqFoldList(cr, 5, { one: 'more', many: 'more' }); }
       // Updated line: newest row of this tab's kind
       var kinds = this.cfg.kind === 'news' ? ['news'] : ['trend', 'post'];
