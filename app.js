@@ -8642,11 +8642,22 @@
     var mid = show
       ? '<div class="gh-mid"><b class="gh-sc">' + escapeHtml(away.score) + '</b><span class="gh-dash">–</span><b class="gh-sc">' + escapeHtml(home.score) + '</b></div>'
       : '<div class="gh-mid"><span class="gh-at">at</span></div>';
+    // Plain-language description shown for every game, so a panel never opens empty.
+    function blurb(){
+      var ar = away.record ? ' (' + away.record + ')' : '', hr = home.record ? ' (' + home.record + ')' : '', t = mqSchedTime(ev), parts = [];
+      if(g && g.state === 'in') parts.push(escapeHtml(away.name + ar) + ' and ' + escapeHtml(home.name + hr) + ' are playing now in the ' + escapeHtml(ev.league) + '.');
+      else if(g && g.state === 'post') parts.push(escapeHtml(away.name + ar) + ' played ' + escapeHtml(home.name + hr) + ' in the ' + escapeHtml(ev.league) + '.');
+      else parts.push(escapeHtml(away.name + ar) + ' visit ' + escapeHtml(home.name + hr) + ' in the ' + escapeHtml(ev.league) + (t ? ', scheduled for ' + escapeHtml(t) : '') + '.');
+      var pa = mqWinPct(away.record), ph = mqWinPct(home.record);
+      if(pa != null && ph != null && Math.abs(pa - ph) >= 0.05) parts.push(escapeHtml(pa > ph ? away.name : home.name) + ' comes in with the better record.');
+      if(net && g && g.state !== 'post') parts.push('Watch on ' + escapeHtml(net) + '.');
+      return '<p class="evp-desc">' + parts.join(' ') + '</p>';
+    }
     var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + escapeHtml(ev.league) + (net ? ' · ' + escapeHtml(net) : '') + '</div>' +
       '<div class="gh">' + side(away, 'a') + mid + side(home, 'h') + '</div>' +
       '<div class="gh-status' + (g && g.state === 'in' ? ' live' : '') + '">' + escapeHtml(status) + '</div>' +
       (g && g.state !== 'pre' && g.id ? '<div class="lvp" id="lvp"><p class="evp-muted">Loading live stats…</p></div>' : '') +
-      '<div class="evp-body">' + (g ? '<p class="evp-muted">Loading season numbers…</p>' : '<p class="evp-muted">Season numbers show up once the game is on today’s scoreboard.</p>') + '</div>');
+      '<div class="evp-body">' + blurb() + (g ? '<p class="evp-muted">Loading season numbers…</p>' : '') + '</div>');
     if(!g) return;
     if(g.state !== 'pre' && g.id) mqLiveStart(el, g);
     var get = function(t){
@@ -8655,7 +8666,11 @@
     };
     Promise.all([get(g.away), get(g.home)]).then(function(r){
       var body = el.querySelector('.evp-body');
-      if(body && body.isConnected){ body.innerHTML = mqKeyPlayersHtml(g) + mqCompareHtml(r[0], r[1]); mqPlayerPhotos(body); }
+      if(body && body.isConnected){
+        var okA = r[0] && !r[0].error, okB = r[1] && !r[1].error;
+        body.innerHTML = blurb() + mqKeyPlayersHtml(g) + (okA && okB ? mqCompareHtml(r[0], r[1]) : '');
+        mqPlayerPhotos(body);
+      }
     });
   }
 
@@ -8937,6 +8952,30 @@
       }).join('') + '</ol>' : '') + (/^https:\/\//.test(d.link || '') ? '<a class="sg-link" href="' + escapeHtml(d.link) + '" target="_blank" rel="noopener noreferrer">Open on Deezer ↗</a>' : '');
     });
   }
+  // ---- Standings | Leaders subtabs for NBA / NFL / NHL / MLB (leaders = season stat leaders with ESPN headshots) ----
+  var MQ_SPORT_KINDS = { nba: 1, nfl: 1, nhl: 1, mlb: 1 };
+  MQ_RK.sub = 'standings'; MQ_RK.lcat = 0;
+  function mqRkLeadersFetch(k){
+    var c = MQ_RK.lead = MQ_RK.lead || {};
+    if(c[k] && Date.now() - c[k].at < 1800000) return Promise.resolve(c[k].d);
+    return fetch(SUPABASE_URL + '/functions/v1/leaders?league=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      .then(function(d){ if(d && !d.error && d.categories && d.categories.length) c[k] = { at: Date.now(), d: d }; return c[k] ? c[k].d : null; });
+  }
+  function mqRkSubBar(k){
+    if(!MQ_SPORT_KINDS[k]) return '';
+    var s = MQ_RK.sub || 'standings';
+    return '<div class="co-per rk-sub" role="tablist"><button type="button" data-sub="standings"' + (s === 'standings' ? ' class="on"' : '') + '>Standings</button><button type="button" data-sub="leaders"' + (s === 'leaders' ? ' class="on"' : '') + '>Leaders</button></div>';
+  }
+  function mqRkLeadersHtml(k, d){
+    if(!d || !d.categories || !d.categories.length) return '<p class="evp-muted">Season leaders aren’t available right now.</p>';
+    var ci = Math.min(MQ_RK.lcat || 0, d.categories.length - 1), cat = d.categories[ci];
+    var chips = '<div class="rk-cats">' + d.categories.map(function(c, i){ return '<button type="button" data-lcat="' + i + '"' + (i === ci ? ' class="on"' : '') + '>' + escapeHtml(c.label) + '</button>'; }).join('') + '</div>';
+    return chips + '<ol class="rk-l rk-lead">' + cat.leaders.map(function(l){
+      return '<li style="--tc:' + (l.color || '#3A3F48') + '"><span class="n">' + l.rank + '</span><span class="rk-ph"><i>' + escapeHtml(mqInitials({ full: l.name })) + '</i>' +
+        (l.hs ? '<img src="' + escapeHtml(l.hs) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</span>' +
+        '<span class="m"><b>' + escapeHtml(l.name) + '</b><em>' + escapeHtml([l.pos, l.team].filter(Boolean).join(' · ')) + '</em></span><span class="rk-val">' + escapeHtml(l.value) + '</span></li>';
+    }).join('') + '</ol>';
+  }
   // Standings & charts lives on its own page (the last nav tab). Team, song and artist details still open as a panel on top.
   var mqRkReady = false, mqRkCur = null;
   function mqRkShow(k){
@@ -8945,12 +8984,19 @@
     root.querySelectorAll('.rk-tabs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-k') === k); });
     var body = root.querySelector('#rk-body'); body.innerHTML = '<p class="evp-muted">Loading…</p>';
     root.querySelector('#rk-foot').textContent = 'Source: ' + MQ_RK_SRC[k] + '. Unofficial feed, may lag. Click any row for details.';
+    if(MQ_SPORT_KINDS[k] && MQ_RK.sub === 'leaders'){
+      mqRkLeadersFetch(k).then(function(d){
+        if(MQ_RK.kind !== k || !body.isConnected) return;
+        body.innerHTML = mqRkSubBar(k) + mqRkLeadersHtml(k, d);
+      });
+      return;
+    }
     mqRkFetch(k).then(function(d){
       if(MQ_RK.kind !== k || !body.isConnected) return;
       if(!d){ body.innerHTML = '<p class="evp-muted">Couldn’t load this right now. Try again in a minute.</p>'; return; }
       mqRkCur = d;
       if(k === 'markets') MQ_RK.per = MQ_RK.per || 'd';
-      body.innerHTML = k === 'markets' ? mqRkMarkets(d) : k === 'country' ? mqRkList(d.countrySongs) : k === 'songs' ? mqRkList(d.songs) : k === 'artists' ? mqRkList(d.artists, true) : mqRkStandings(k, d);
+      body.innerHTML = mqRkSubBar(k) + (k === 'markets' ? mqRkMarkets(d) : k === 'country' ? mqRkList(d.countrySongs) : k === 'songs' ? mqRkList(d.songs) : k === 'artists' ? mqRkList(d.artists, true) : mqRkStandings(k, d));
       if(k === 'markets'){ mqRkMarketsAfter(body, d); if(MQ_RK.per !== 'd') mqRkSetPer(MQ_RK.per); }
     });
   }
@@ -8975,7 +9021,12 @@
       mqRkReady = true;
       root.querySelector('.rk-tabs').innerHTML = MQ_RK_TABS.map(function(t){ return '<button type="button" role="tab" data-k="' + t[0] + '">' + t[1] + '</button>'; }).join('');
       root.querySelector('.rk-tabs').addEventListener('click', function(e){ var b = e.target.closest('button[data-k]'); if(b) mqRkShow(b.getAttribute('data-k')); });
-      root.querySelector('#rk-body').addEventListener('click', function(e){ var pb = e.target.closest('button[data-per]'); if(pb){ mqRkSetPer(pb.getAttribute('data-per')); return; } mqRkAct(e.target.closest('.rk-go')); });
+      root.querySelector('#rk-body').addEventListener('click', function(e){
+        var sb = e.target.closest('button[data-sub]');
+        if(sb){ MQ_RK.sub = sb.getAttribute('data-sub'); MQ_RK.lcat = 0; mqRkShow(MQ_RK.kind); return; }
+        var lb = e.target.closest('button[data-lcat]');
+        if(lb){ MQ_RK.lcat = Number(lb.getAttribute('data-lcat')) || 0; var ld = (MQ_RK.lead || {})[MQ_RK.kind]; if(ld){ var bd = root.querySelector('#rk-body'); bd.innerHTML = mqRkSubBar(MQ_RK.kind) + mqRkLeadersHtml(MQ_RK.kind, ld.d); } return; }
+        var pb = e.target.closest('button[data-per]'); if(pb){ mqRkSetPer(pb.getAttribute('data-per')); return; } mqRkAct(e.target.closest('.rk-go')); });
       root.querySelector('#rk-body').addEventListener('keydown', function(e){ if(e.key === 'Enter') mqRkAct(e.target.closest('.rk-go')); });
     }
     if(kind) MQ_RK.kind = kind;

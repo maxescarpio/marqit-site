@@ -1450,3 +1450,26 @@ details.co-cr a:hover{text-decoration:underline}
 .rs-streak strong{font-size:34px !important}
 .rs-streak span{font-size:10.5px}
 @media (max-width:640px){.rs-streak strong{font-size:30px !important}}
+
+/* ---- Rankings: Standings | Leaders subtabs, league leaders list ---- */
+.rk-sub{margin:4px 0 14px}
+.rk-cats{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 6px}
+.rk-cats button{background:none;border:1px solid #2a2e36;color:#9aa2b1;font:600 12px 'Barlow',sans-serif;letter-spacing:.04em;padding:6px 11px;border-radius:100px;cursor:pointer}
+.rk-cats button.on{background:#262a32;color:#F2F3F5;border-color:#3a3f48}
+.rk-lead li{gap:14px}
+.rk-lead .rk-ph{flex:none;position:relative;width:48px;height:48px;border-radius:50%;overflow:hidden;background:#2A2D33;box-shadow:0 0 0 2px var(--tc,#3A3F48);display:inline-flex;align-items:center;justify-content:center}
+.rk-lead .rk-ph i{position:absolute;font:700 16px 'Barlow',sans-serif;color:#8B909A;font-style:normal}
+.rk-lead .rk-ph img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover;object-position:50% 12%;background:#2A2D33}
+.rk-lead .rk-val{margin-left:auto;font:700 22px 'Big Shoulders Display','Barlow',sans-serif;color:#F2F3F5;padding-left:10px}
+.evp-desc{font-size:14.5px;line-height:1.5;color:#C9CDD4;margin:14px 0 0}
+
+/* News trending strip (wide screens): the rank number stands alone on the left, the source and time sit
+   right beside it on the same line, and the headline runs underneath across the full card. */
+@media (min-width:900px){
+  #news-grid .news-top3:not(.chart) .top-row{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto 1fr;column-gap:12px;row-gap:10px;align-items:center}
+  #news-grid .news-top3:not(.chart) .top-row .tr-main{display:contents}
+  #news-grid .news-top3:not(.chart) .top-row .tr-n{grid-column:1;grid-row:1;order:0}
+  #news-grid .news-top3:not(.chart) .top-row .news-meta{grid-column:2;grid-row:1;min-width:0}
+  #news-grid .news-top3:not(.chart) .top-row .news-h{grid-column:1 / -1;grid-row:2;margin:0}
+  #news-grid .news-top3:not(.chart) .top-row .tr-tag{grid-column:1 / -1;grid-row:3;align-self:end;margin-top:0}
+}
