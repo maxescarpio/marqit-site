@@ -8421,6 +8421,7 @@
         .then(function(d){
           mqQuotes[sym] = { busy: false, at: Date.now(), d: d && d.points ? { last: d.last, prev: d.prevClose } : prev };
           try{ renderSchedToday(true); }catch(e){}
+          try{ var pg = document.getElementById('page-schedule'); if(pg && pg.offsetParent) renderSchedPage(); }catch(e){}
         });
     });
   }
@@ -8931,31 +8932,55 @@
   // Classic scoreboard rows: status on the left, the two teams stacked with their scores, network on the right.
   var MQ_LG_NAMES = { EPL: 'Premier League', UCL: 'Champions League', MLS: 'MLS', NCAAF: 'College football', NFL: 'NFL', NBA: 'NBA', WNBA: 'WNBA', NHL: 'NHL', MLB: 'MLB' };
   function mqLgName(k){ return MQ_LG_NAMES[k] || k; }
+  var MQ_ICO = {
+    basketball: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M5.6 5.6c3 3 3 9.8 0 12.8M18.4 5.6c-3 3-3 9.8 0 12.8"/>',
+    football: '<ellipse cx="12" cy="12" rx="10" ry="6" transform="rotate(-35 12 12)"/><path d="M9.5 14.5l5-5M11 11.8l1.4 1.4M12.8 10l1.4 1.4M9.4 13.4L8 12M13 7.4l-1.4-1.4"/>',
+    hockey: '<ellipse cx="12" cy="9.5" rx="8" ry="3.5"/><path d="M4 9.5v4.5c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5V9.5"/>',
+    baseball: '<circle cx="12" cy="12" r="9"/><path d="M5.5 5.5c2.5 2.5 2.5 10.5 0 13M18.5 5.5c-2.5 2.5-2.5 10.5 0 13"/>',
+    soccer: '<circle cx="12" cy="12" r="9"/><path d="M12 8.6l3 2.2-1.1 3.5h-3.8L9 10.8zM12 8.6V3.2M15 10.8l5-1.6M13.9 14.3l3.2 4.2M10.1 14.3l-3.2 4.2M9 10.8L4 9.2"/>',
+    finance: '<path d="M3 17l6-6 4 4 7-8M15 7h5v5"/>',
+    other: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'
+  };
+  var MQ_LG_ICON = { NFL: 'football', NCAAF: 'football', NBA: 'basketball', WNBA: 'basketball', NHL: 'hockey', MLB: 'baseball', EPL: 'soccer', UCL: 'soccer', MLS: 'soccer', Earnings: 'finance' };
+  function mqLgIcon(k){
+    return '<i class="ag-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (MQ_ICO[MQ_LG_ICON[k] || 'other']) + '</svg></i>';
+  }
+  function mqBadge(side){
+    var ab = String(side.abbr || side.name || '?').slice(0, 3);
+    return '<i class="gm-bd" style="' + mqBadgeStyle(side) + '" aria-hidden="true">' + escapeHtml(ab) + '</i>';
+  }
+  function mqUntil(ev){
+    var ms = new Date(ev.starts_at).getTime() - Date.now();
+    if(!(ms > 0) || ms > 86400000 || ev.all_day) return '';
+    var m = Math.round(ms / 60000);
+    return m < 60 ? 'in ' + m + 'm' : 'in ' + Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '');
+  }
   function mqSchedRowHtml(ev, x, showLg){
     var g = x.g, st = x.st, status, body, tail = '';
     if(g){
       var started = st !== 'pre', hs = parseInt(g.home.score, 10), as = parseInt(g.away.score, 10), done = st === 'post';
       status = st === 'in' ? (g.detail || 'Live') : done ? (/^f/i.test(g.detail || '') ? g.detail : 'Final') : mqSchedTime(ev);
       var line = function(t, lost){
-        return '<div class="gm-tm' + (lost ? ' lost' : '') + '"><b>' + escapeHtml(t.name) + '</b><span>' +
+        return '<div class="gm-tm' + (lost ? ' lost' : '') + '">' + mqBadge(t) + '<b>' + escapeHtml(t.name) + '</b>' + (t.rank ? '<em class="gm-rk">' + t.rank + '</em>' : '') + '<span>' +
           (started ? escapeHtml(t.score == null ? '0' : t.score) : (t.record ? '<small>' + escapeHtml(t.record) + '</small>' : '')) + '</span></div>';
       };
       body = line(g.away, done && as < hs) + line(g.home, done && hs < as);
       tail = g.network || '';
     } else if(ev.category === 'finance' && ev.league){
       status = 'All day';
-      body = '<div class="gm-tm"><b>' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</b></div><div class="gm-sub">Earnings report · ' +
+      tail = mqQuoteHtml(ev.league);
+      body = '<div class="gm-tm"><i class="gm-bd tick">' + escapeHtml(String(ev.league).slice(0, 4)) + '</i><b>' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</b></div><div class="gm-sub">Earnings report · ' +
         escapeHtml(/before/i.test(ev.subtitle || '') ? 'before the open' : /after/i.test(ev.subtitle || '') ? 'after the close' : (ev.subtitle || 'time to be announced')) + '</div>';
     } else {
       var teams = mqSchedTeams(ev);
       status = mqSchedTime(ev);
-      body = teams ? '<div class="gm-tm"><b>' + escapeHtml(teams[0]) + '</b></div><div class="gm-tm"><b>' + escapeHtml(teams[1]) + '</b></div>' : '<div class="gm-tm"><b>' + escapeHtml(ev.title) + '</b></div>';
+      body = teams ? '<div class="gm-tm"><i class="gm-bd">' + escapeHtml(String(teams[0]).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) + '</i><b>' + escapeHtml(teams[0]) + '</b></div><div class="gm-tm"><i class="gm-bd">' + escapeHtml(String(teams[1]).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) + '</i><b>' + escapeHtml(teams[1]) + '</b></div>' : '<div class="gm-tm"><b>' + escapeHtml(ev.title) + '</b></div>';
       tail = ev.subtitle || '';
     }
     var lg = showLg ? '<small class="gm-lg">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</small>' : '';
     return '<div class="gm ' + (st === 'in' ? 'is-live' : st === 'post' ? 'is-done' : '') + (x.open ? ' is-click' : '') + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
-      '<span class="gm-t">' + lg + '<span>' + escapeHtml(status) + '</span></span><span class="gm-m">' + body + '</span>' +
-      '<span class="gm-n">' + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + (tail ? '<small>' + escapeHtml(tail) + '</small>' : '') + '</span></div>';
+      '<span class="gm-t">' + lg + '<span>' + (st === 'in' ? '<i class="ag-pulse"></i>' : '') + escapeHtml(status) + '</span>' + (st === 'pre' && mqUntil(ev) ? '<em class="gm-in">' + mqUntil(ev) + '</em>' : '') + '</span><span class="gm-m">' + body + '</span>' +
+      '<span class="gm-n">' + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + (tail ? (/^</.test(tail) ? tail : '<small>' + escapeHtml(tail) + '</small>') : '') + '</span></div>';
   }
   function mqSchedAgendaHtml(list){
     var live = [], groups = [], byKey = {};
@@ -8968,10 +8993,10 @@
     });
     var rows = function(l, lg){ return l.map(function(p){ return mqSchedRowHtml(p[0], p[1], lg); }).join(''); };
     var out = '';
-    if(live.length) out += '<section class="ag-sec ag-live"><h5 class="ag-h"><span class="live"><i class="ag-pulse"></i>Live now</span></h5>' + rows(live, true) + '</section>';
+    if(live.length) out += '<section class="ag-sec ag-live"><h5 class="ag-h"><span class="live"><i class="ag-pulse"></i>Live now</span><em>' + live.length + (live.length === 1 ? ' game' : ' games') + '</em></h5>' + rows(live, true) + '</section>';
     groups.forEach(function(k){
       var l = byKey[k].filter(function(p){ return p[1].st !== 'in'; });
-      if(l.length) out += '<section class="ag-sec"><h5 class="ag-h"><span>' + escapeHtml(mqLgName(k)) + '</span></h5>' + rows(l, false) + '</section>';
+      if(l.length) out += '<section class="ag-sec"><h5 class="ag-h"><span>' + mqLgIcon(k) + escapeHtml(mqLgName(k)) + '</span><em>' + l.length + (l.length === 1 ? ' game' : ' games') + '</em></h5>' + rows(l, false) + '</section>';
     });
     return '<div class="agenda">' + out + '</div>';
   }
@@ -9036,6 +9061,7 @@
     listEl.innerHTML =
       (byDay[sel].length ? mqSchedAgendaHtml(byDay[sel]) : '<p class="sched-none">Nothing scheduled</p>');
     var ns = listEl.querySelector('.lv-row'); if(ns && keep) ns.scrollLeft = keep;
+    mqLoadQuotes(byDay[sel]);
   }
 
   (function(){
