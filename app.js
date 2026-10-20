@@ -8530,7 +8530,7 @@
     var seen = {};
     [].forEach.call(root.querySelectorAll('.kp[data-pn]'), function(k){
       var n = k.getAttribute('data-pn'), key = n + '|' + k.getAttribute('data-ps');
-      (seen[key] = seen[key] || fetch(SUPABASE_URL + '/functions/v1/player-photo?name=' + encodeURIComponent(n) + '&team=' + encodeURIComponent(k.getAttribute('data-pt') || '') + '&sport=' + k.getAttribute('data-ps'))
+      (seen[key] = seen[key] || fetch(SUPABASE_URL + '/functions/v1/player-photo?v=2&name=' + encodeURIComponent(n) + '&team=' + encodeURIComponent(k.getAttribute('data-pt') || '') + '&sport=' + k.getAttribute('data-ps'))
         .then(function(r){ return r.json(); }).catch(function(){ return null; })).then(function(d){
         if(!d || !d.found || !/^https:\/\/commons\.wikimedia\.org\//.test(d.photo || '') || !k.isConnected) return;
         var num = k.querySelector('.kp-num'), t = k.querySelector('.kp-t');

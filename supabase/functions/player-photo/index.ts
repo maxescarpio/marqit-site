@@ -26,6 +26,47 @@ async function wiki(host: string, params: Record<string, string>): Promise<any> 
 const strip = (h: string) => String(h || '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/\s+/g, ' ').trim();
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
 
+const KNOWN = (m: any, k: string) => strip(m?.[k]?.value || '');
+async function recent(name: string, team: string, trace: string[]) {
+  const words = team.split(/\s+/).filter(Boolean);
+  if (!words.length) return null;
+  const nick = norm(words[words.length - 1]), full = norm(team);
+  const last = norm(name).split(' ').slice(-1)[0];
+  const seen = new Set<string>();
+  const cands: any[] = [];
+  for (const term of [`${name} ${words[words.length - 1]}`, name]) {
+    const c = await wiki('commons.wikimedia.org', {
+      action: 'query', generator: 'search', gsrnamespace: '6', gsrsearch: term, gsrlimit: '40',
+      prop: 'imageinfo', iiprop: 'url|extmetadata|size|timestamp', iiurlwidth: '240',
+      iiextmetadatafilter: 'DateTimeOriginal|DateTime|LicenseShortName|LicenseUrl|Artist|Categories|ImageDescription',
+    });
+    for (const p of Object.values(c?.query?.pages || {}) as any[]) {
+      if (seen.has(p.title)) continue; seen.add(p.title);
+      const ii = p.imageinfo?.[0]; if (!ii) continue;
+      const title = String(p.title).replace(/^File:/, '');
+      if (!/\.(jpe?g|png)$/i.test(title) || !norm(title).includes(last)) continue;
+      const m = ii.extmetadata || {};
+      const lic = KNOWN(m, 'LicenseShortName');
+      if (!OPEN_LICENSE.test(lic)) continue;
+      const ratio = Number(ii.width) / Number(ii.height);
+      if (!(ratio >= 0.55 && ratio <= 1.8)) continue;
+      const hay = norm(title + ' ' + KNOWN(m, 'Categories') + ' ' + KNOWN(m, 'ImageDescription'));
+      const teamHit = hay.includes(nick) || hay.includes(full);
+      const yr = parseInt((KNOWN(m, 'DateTimeOriginal') || KNOWN(m, 'DateTime') || ii.timestamp || '').match(/(19|20)\d\d/)?.[0] || '0', 10);
+      cands.push({ title, teamHit, yr, ratio, lic, m, ii });
+    }
+    if (cands.some((x) => x.teamHit)) break;
+  }
+  trace.push('cands:' + cands.map((x) => `${x.title}|team=${x.teamHit}|${x.yr}`).join(' ; '));
+  const ok = cands.filter((x) => x.teamHit).sort((a, b) => b.yr - a.yr || Math.abs(a.ratio - 0.85) - Math.abs(b.ratio - 0.85));
+  const w = ok[0];
+  if (!w) return null;
+  return {
+    found: true, photo: 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(w.title) + '?width=240',
+    author: KNOWN(w.m, 'Artist') || 'Wikimedia Commons contributor', license: w.lic, licenseUrl: KNOWN(w.m, 'LicenseUrl'), pageUrl: String(w.ii.descriptionurl || ''),
+  };
+}
+
 async function lookup(name: string, team: string, sport: string, trace: string[] = []) {
   const sw = SPORT_WORDS[sport] || /./;
   const q = await wiki('en.wikipedia.org', {
@@ -39,24 +80,10 @@ async function lookup(name: string, team: string, sport: string, trace: string[]
     const t = norm(String(p.title || '').replace(/\s*\(.*\)$/, ''));
     const okName = t === want || (t.includes(last) && want.split(' ')[0][0] === t[0]);
     if (!okName || !sw.test(String(p.extract || ''))) { trace.push('skip ' + p.title + ' name=' + okName); continue; }
-    const file = p.pageimage; // file name on Wikipedia or Commons
-    if (!file) return null;
-    // Only files hosted on Commons (the non-free ones used on Wikipedia are not on Commons, so they fall out here).
-    const c = await wiki('commons.wikimedia.org', { action: 'query', titles: 'File:' + file, prop: 'imageinfo', iiprop: 'url|extmetadata', iiurlwidth: '240' });
-    const page: any = Object.values(c?.query?.pages || {})[0];
-    const ii = page?.imageinfo?.[0];
-    trace.push('commons:' + (ii ? 'ok' : 'missing') + ' ' + file);
-    if (!ii) return null;
-    const m = ii.extmetadata || {};
-    const lic = strip(m.LicenseShortName?.value || '');
-    trace.push('license:' + lic);
-    if (!OPEN_LICENSE.test(lic)) return null;
-    // Special:FilePath redirects to a ready-made 240px thumbnail on upload.wikimedia.org.
-    const thumb = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(file) + '?width=240';
-    return {
-      found: true, photo: thumb, author: strip(m.Artist?.value || '') || 'Wikimedia Commons contributor',
-      license: lic, licenseUrl: strip(m.LicenseUrl?.value || ''), pageUrl: String(ii.descriptionurl || ''),
-    };
+    // Newest photo that shows the player with his CURRENT team (Wikipedia's lead image is often a college or old-team shot).
+    const best = await recent(name, team, trace);
+    if (best) return best;
+    return null;
   }
   return null;
 }
@@ -75,7 +102,7 @@ Deno.serve(async (req: Request) => {
   const u = new URL(req.url);
   const name = (u.searchParams.get('name') || '').trim(), team = (u.searchParams.get('team') || '').trim().slice(0, 60), sport = (u.searchParams.get('sport') || '').toLowerCase();
   if (!/^[\p{L}][\p{L} .'\-]{2,59}$/u.test(name) || !SPORT_WORDS[sport]) return new Response(JSON.stringify({ found: false, error: 'bad request' }), { status: 400, headers: CORS });
-  const key = norm(name) + '|' + norm(team) + '|' + sport;
+  const key = 'v2|' + norm(name) + '|' + norm(team) + '|' + sport;
   const send = (o: any) => new Response(JSON.stringify(o), { headers: { ...CORS, 'cache-control': 'public, max-age=86400' } });
   try {
     const hit = u.searchParams.get('debug') ? null : await dbGet(key);
