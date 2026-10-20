@@ -1174,3 +1174,8 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 #greek-section [id^="h2h-mode"]{padding:5px 12px !important;font-size:12.5px !important}
 #greek-section #h2h-select-a,#greek-section #h2h-select-b{padding:7px 10px !important}
 @media(min-width:900px){#greek-section .boards.one{max-width:640px}}
+
+/* Standings & charts is now the last nav tab, styled like the others (no pill) */
+.pagenav-rk{margin-left:0 !important;align-self:auto !important;height:auto !important;top:0 !important;border:0 !important;border-radius:0 !important;background:none !important;padding:14px 20px !important;color:#9A9CA3 !important;font:600 13.5px 'Barlow',sans-serif !important;border-bottom:3px solid transparent !important;transition:color .15s}
+.pagenav-rk:hover{color:#D8D9DC !important;background:none !important}
+@media(max-width:700px){.pagenav-rk{display:inline-flex !important}}

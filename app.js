@@ -4531,7 +4531,7 @@
       })();
     }
     function openMention(m){
-      var page = m.kind === 'question' ? 'home' : (m.where_label === 'Trending' ? 'trending' : 'news');
+      var page = m.kind === 'question' ? 'home' : 'news';
       var tab = document.querySelector('.pagenav-tab[data-page="' + page + '"]');
       if(tab) tab.click();
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -10031,9 +10031,9 @@
         this.srcChips.innerHTML = '<button type="button" class="feed-chip' + (this.source === 'all' ? ' on' : '') + '" data-source="all">All sources</button>' +
           SRC_CHIPS.filter(function(c){ return have[c[0]]; }).map(function(c){ return '<button type="button" class="feed-chip' + (self.source === c[0] ? ' on' : '') + '" data-source="' + c[0] + '">' + c[1] + '</button>'; }).join('');
       }
-      if(this.cfg.kind === 'news' && list.length > 3){
+      if(this.cfg.kind === 'news' && list.length > 5){
         // "Most trending" = the same hot score as the Hot sort: comments and votes, fading with age.
-        var hottest = list.slice().sort(function(a, b){ return hot(b) - hot(a); }).slice(0, 3);
+        var hottest = list.slice().sort(function(a, b){ return hot(b) - hot(a); }).slice(0, 5);
         var topIds = {}; hottest.forEach(function(r){ topIds[r.id] = 1; });
         list = list.filter(function(r){ return !topIds[r.id]; });
         topHtml = '<div class="news-top3"><div class="nt3-h">Trending</div>' + hottest.map(function(r, i){ return topRowHtml(r, i + 1); }).join('') + '</div>';
