@@ -8804,8 +8804,8 @@
   }
   var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', country: 'Apple iTunes charts, album art © its owners', songs: 'Apple iTunes charts, album art © its owners', artists: 'Deezer, photos © their owners', markets: 'Nasdaq' };
   function mqRkBack(el){
-    var b = document.createElement('button'); b.type = 'button'; b.className = 'rk-back'; b.textContent = '‹ Rankings';
-    b.addEventListener('click', function(){ mqOpenRankings(MQ_RK.kind); });
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'rk-back'; b.textContent = '‹ Back';
+    b.addEventListener('click', function(){ mqPanelClose(); });
     el.insertBefore(b, el.querySelector('.evp-bar'));
   }
   function mqOpenTeamPanel(kind, r){
@@ -8852,37 +8852,46 @@
       }).join('') + '</ol>' : '') + (/^https:\/\//.test(d.link || '') ? '<a class="sg-link" href="' + escapeHtml(d.link) + '" target="_blank" rel="noopener noreferrer">Open on Deezer ↗</a>' : '');
     });
   }
-  function mqOpenRankings(kind){
-    MQ_RK.kind = kind || MQ_RK.kind;
-    var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">Rankings</div><h3 class="evp-title">Standings &amp; charts</h3>' +
-      '<div class="rk-tabs" role="tablist">' + MQ_RK_TABS.map(function(t){ return '<button type="button" role="tab" data-k="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>' +
-      '<div id="rk-body" class="rk-body"></div><p class="evp-foot" id="rk-foot"></p>');
-    var cur = null;
-    function show(k){
-      MQ_RK.kind = k; cur = null;
-      el.querySelectorAll('.rk-tabs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-k') === k); });
-      var body = el.querySelector('#rk-body'); body.innerHTML = '<p class="evp-muted">Loading…</p>';
-      el.querySelector('#rk-foot').textContent = 'Source: ' + MQ_RK_SRC[k] + '. Unofficial feed, may lag. Tap any row for details.';
-      mqRkFetch(k).then(function(d){
-        if(MQ_RK.kind !== k || !body.isConnected) return;
-        if(!d){ body.innerHTML = '<p class="evp-muted">Couldn’t load this right now. Try again in a minute.</p>'; return; }
-        cur = d;
-        body.innerHTML = k === 'markets' ? mqRkMarkets(d) : k === 'country' ? mqRkList(d.countrySongs) : k === 'songs' ? mqRkList(d.songs) : k === 'artists' ? mqRkList(d.artists, true) : mqRkStandings(k, d);
-      });
-    }
-    function act(row){
-      if(!row || !cur) return;
-      var a = row.getAttribute('data-act'), k = MQ_RK.kind, i = Number(row.getAttribute('data-i'));
-      if(a === 'team') mqOpenTeamPanel(k, cur.groups[Number(row.getAttribute('data-g'))].rows[Number(row.getAttribute('data-r'))]);
-      else if(a === 'co'){ var c = cur.companies[i]; mqOpenStockPanel({ league: c.symbol, title: c.name + ' earnings', subtitle: 'Largest companies' }); var p = document.querySelector('#mq-evpanel .evp'); if(p) mqRkBack(p); }
-      else if(a === 'song') mqOpenSongPanel((k === 'country' ? cur.countrySongs : cur.songs)[i], k === 'country' ? 'Country songs' : 'Top songs');
-      else if(a === 'artist') mqOpenArtistPanel(cur.artists[i]);
-    }
-    el.querySelector('.rk-tabs').addEventListener('click', function(e){ var b = e.target.closest('button[data-k]'); if(b) show(b.getAttribute('data-k')); });
-    el.querySelector('#rk-body').addEventListener('click', function(e){ act(e.target.closest('.rk-go')); });
-    el.querySelector('#rk-body').addEventListener('keydown', function(e){ if(e.key === 'Enter') act(e.target.closest('.rk-go')); });
-    show(MQ_RK.kind);
+  // Standings & charts lives on its own page (the last nav tab). Team, song and artist details still open as a panel on top.
+  var mqRkReady = false, mqRkCur = null;
+  function mqRkShow(k){
+    var root = document.getElementById('rk-page'); if(!root) return;
+    MQ_RK.kind = k; mqRkCur = null;
+    root.querySelectorAll('.rk-tabs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-k') === k); });
+    var body = root.querySelector('#rk-body'); body.innerHTML = '<p class="evp-muted">Loading…</p>';
+    root.querySelector('#rk-foot').textContent = 'Source: ' + MQ_RK_SRC[k] + '. Unofficial feed, may lag. Click any row for details.';
+    mqRkFetch(k).then(function(d){
+      if(MQ_RK.kind !== k || !body.isConnected) return;
+      if(!d){ body.innerHTML = '<p class="evp-muted">Couldn’t load this right now. Try again in a minute.</p>'; return; }
+      mqRkCur = d;
+      body.innerHTML = k === 'markets' ? mqRkMarkets(d) : k === 'country' ? mqRkList(d.countrySongs) : k === 'songs' ? mqRkList(d.songs) : k === 'artists' ? mqRkList(d.artists, true) : mqRkStandings(k, d);
+    });
   }
+  function mqRkAct(row){
+    var cur = mqRkCur;
+    if(!row || !cur) return;
+    var a = row.getAttribute('data-act'), k = MQ_RK.kind, i = Number(row.getAttribute('data-i'));
+    if(a === 'team') mqOpenTeamPanel(k, cur.groups[Number(row.getAttribute('data-g'))].rows[Number(row.getAttribute('data-r'))]);
+    else if(a === 'co'){ var c = cur.companies[i]; mqOpenStockPanel({ league: c.symbol, title: c.name + ' earnings', subtitle: 'Largest companies' }); var p = document.querySelector('#mq-evpanel .evp'); if(p) mqRkBack(p); }
+    else if(a === 'song') mqOpenSongPanel((k === 'country' ? cur.countrySongs : cur.songs)[i], k === 'country' ? 'Country songs' : 'Top songs');
+    else if(a === 'artist') mqOpenArtistPanel(cur.artists[i]);
+  }
+  function mqOpenRankings(kind){
+    var root = document.getElementById('rk-page'); if(!root) return;
+    if(!mqRkReady){
+      mqRkReady = true;
+      root.querySelector('.rk-tabs').innerHTML = MQ_RK_TABS.map(function(t){ return '<button type="button" role="tab" data-k="' + t[0] + '">' + t[1] + '</button>'; }).join('');
+      root.querySelector('.rk-tabs').addEventListener('click', function(e){ var b = e.target.closest('button[data-k]'); if(b) mqRkShow(b.getAttribute('data-k')); });
+      root.querySelector('#rk-body').addEventListener('click', function(e){ mqRkAct(e.target.closest('.rk-go')); });
+      root.querySelector('#rk-body').addEventListener('keydown', function(e){ if(e.key === 'Enter') mqRkAct(e.target.closest('.rk-go')); });
+    }
+    if(kind) MQ_RK.kind = kind;
+    var tab = document.querySelector('.pagenav-tab[data-page="standings"]');
+    if(tab && !document.getElementById('page-standings').offsetParent){ mqRkClicking = true; tab.click(); mqRkClicking = false; }
+    mqRkShow(MQ_RK.kind);
+  }
+  var mqRkClicking = false;
+  (function(){ var t = document.querySelector('.pagenav-tab[data-page="standings"]'); if(t) t.addEventListener('click', function(){ if(!mqRkClicking) mqOpenRankings(); }); })();
   window.mqOpenRankings = mqOpenRankings;
   (function(){
     function bind(id){ var b = document.getElementById(id); if(b) b.addEventListener('click', function(){ var h = document.getElementById('hamburger-menu'); if(h) h.style.display = 'none'; mqOpenRankings(); }); }

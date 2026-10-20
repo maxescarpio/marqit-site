@@ -1111,9 +1111,6 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 #page-leaderboard .recap-card{background:var(--panel);border:1px solid var(--line);border-top:1px solid var(--line) !important;border-radius:10px;padding:12px 16px}
 #page-leaderboard .recap-head{font:600 11px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#8B909A;margin-bottom:6px}
 #page-leaderboard .recap-stats strong,#page-leaderboard .rs-streak strong{color:var(--ink) !important}
-#record-card .rec-ring svg{filter:saturate(.55);opacity:.92}
-.rec-cal i,.rec-legend i{filter:saturate(.5)}
-.rec-cal i[style*="linear-gradient"],.rec-legend i[style*="linear-gradient"]{background:#B99A4C !important}
 #page-leaderboard .lb.m1 .lb-rank,#page-leaderboard .lb.m2 .lb-rank,#page-leaderboard .lb.m3 .lb-rank{background:rgba(255,255,255,.08);color:var(--ink)}
 #page-leaderboard .lb.m1 .lb-rank{background:rgba(255,255,255,.16)}
 #page-leaderboard .brow.lb{padding:5px 10px}
@@ -1151,8 +1148,6 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 
 /* Record card: small calendar, one-line legend */
 .rc{border-radius:4px !important}
-.rc.perfect{background:#B99A4C !important}
-.rc.l2{background:rgba(51,209,139,.6) !important}
 @media(min-width:760px){
   #record-card{grid-template-columns:minmax(0,1fr) 196px;column-gap:20px}
   #record-card .rec-cal-wrap>*{max-width:196px !important}
@@ -1179,3 +1174,49 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .pagenav-rk{margin-left:0 !important;align-self:auto !important;height:auto !important;top:0 !important;border:0 !important;border-radius:0 !important;background:none !important;padding:14px 20px !important;color:#9A9CA3 !important;font:600 13.5px 'Barlow',sans-serif !important;border-bottom:3px solid transparent !important;transition:color .15s}
 .pagenav-rk:hover{color:#D8D9DC !important;background:none !important}
 @media(max-width:700px){.pagenav-rk{display:inline-flex !important}}
+
+/* News: Trending block, compact */
+.news-top3 .nt3-h{padding:9px 14px 7px;font-size:16px}
+.news-card.top-row{padding:7px 14px;gap:11px}
+.top-row .tr-n{width:22px;font-size:24px}
+.top-row .tr-img{width:56px;height:42px;border-radius:7px}
+.top-row .news-h{font-size:14px;line-height:1.25;-webkit-line-clamp:1}
+.top-row .tr-main{gap:2px}
+.top-row .news-meta,.top-row .tr-main>div:first-child:not(.news-h){font-size:11.5px}
+
+/* Group panel: one card, sections divided by hairlines */
+.gp-side{gap:0 !important;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.gp-side > *{padding:12px 16px !important;border:0 !important;border-radius:0 !important;background:none !important;box-sizing:border-box}
+.gp-side > * + *{border-top:1px solid var(--line) !important}
+.gp-side > .form-msg:empty{display:none}
+.gp-side > p:first-child{display:flex !important;align-items:center;gap:10px !important;font-size:12px !important;color:#8B909A !important;text-transform:uppercase;letter-spacing:.12em;font-weight:600}
+.gp-side #group-invite-code{font:600 15px 'Barlow',sans-serif !important;letter-spacing:.14em;background:#15171B !important;color:#E8EAEE !important;border:1px solid var(--line) !important;border-radius:8px !important;padding:5px 12px !important}
+.gp-side #copy-invite-btn{margin-left:auto !important;padding:6px 14px !important;border-radius:8px !important;font-size:12.5px !important}
+.gp-side #leave-group-btn{border:0 !important;background:none !important;color:#8B909A !important;text-decoration:underline;font-size:12px !important;padding:4px !important;text-transform:none;letter-spacing:0;font-weight:500}
+.gp-side #leave-group-btn:hover{color:#E0705F !important}
+.gp-side > div[style*="max-width:420px"] input{border-radius:8px !important;padding:9px 12px !important;font-size:14px !important}
+.gp-side > div[style*="max-width:420px"] button{border-radius:8px !important;padding:9px 16px !important}
+.gp-side #group-card-owner-settings{font-size:13px}
+.gp-side #group-card-owner-settings > div:first-child{font-size:11px !important;letter-spacing:.14em !important;color:#8B909A !important;margin-bottom:8px !important}
+.gp-side #group-card-owner-settings label{font-size:13px !important;color:#C9CDD4}
+.gp-side #group-card-owner-settings input[type=checkbox],.gp-side label input[type=checkbox]{accent-color:#33D18B;width:15px !important;height:15px !important}
+.gp-side > label{font-size:12.5px !important;color:#8B909A !important}
+.gp-side > div[style*="padding:14px 16px"] > div:first-child{font-size:11px !important;letter-spacing:.14em !important;color:#8B909A !important}
+.gp-side .lb-share-btn{width:100%;text-align:center;font-weight:600;font-size:14px;color:#111 !important;background:#EEF0F4 !important;border-radius:0 !important;padding:13px 16px !important}
+.gp-side .lb-share-btn:hover{background:#fff !important}
+.gp-side #champion-card-btn-wrap:empty{display:none}
+
+/* Schedule: no tinted background on live rows; league filter as a segmented control */
+.gm.is-live{background:none !important}
+#sched-chips{display:flex}
+#sched-chips.scope-tab-row,#page-schedule #sched-chips{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:10px;background:#16181C;overflow-x:auto;max-width:100%;scrollbar-width:none}
+#page-schedule #sched-chips::-webkit-scrollbar{display:none}
+#page-schedule #sched-chips .scope-tab{padding:7px 14px;font-size:11.5px;letter-spacing:.1em;border-radius:7px;color:#868B95;background:none}
+#page-schedule #sched-chips .scope-tab::before{display:none !important}
+#page-schedule #sched-chips .scope-tab:hover{color:#D5D8DE}
+#page-schedule #sched-chips .scope-tab.active,#page-schedule #sched-chips .scope-tab.active[style*="--lg"]:not([data-cat="all"]){background:#262A32;color:#fff;box-shadow:inset 0 -2px 0 var(--lg)}
+
+/* Standings & charts page */
+#rk-page .rk-tabs{flex-wrap:wrap;margin:12px 0 10px}
+#rk-page .rk-body{max-width:900px}
+#rk-page .evp-foot{max-width:900px}
