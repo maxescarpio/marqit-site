@@ -1492,3 +1492,43 @@ details.co-cr a:hover{text-decoration:underline}
 .chal-done{display:flex;flex-direction:column;gap:4px;padding:16px 18px;border:1px solid #343944;border-left:4px solid #F6C430;border-radius:10px;background:#1D2025;text-align:left}
 .chal-done b{font-size:16px;color:#F2F3F5}
 .chal-done span{font-size:13.5px;color:#A8ADB6}
+
+/* ---- Rankings leaders: grouped cards, readable type (Barlow, not the condensed display face) ---- */
+.rk-grp{margin:6px 0 22px}
+.rk-grp-h{margin:0 0 10px;font:700 12px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#F6C430}
+.rk-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.rk-card{background:#1D2025;border:1px solid #2A2E36;border-radius:14px;padding:14px 16px 8px}
+.rk-card-h{font:700 13px 'Barlow',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#A8ADB6;margin-bottom:12px}
+.rk-top{display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid #2A2E36}
+.rk-card .m{display:flex;flex-direction:column;min-width:0;flex:1}
+.rk-card .m b{font:600 15px 'Barlow',sans-serif;color:#F2F3F5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-card .m em{font:500 12.5px 'Barlow',sans-serif;font-style:normal;color:#8B909A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-card .m small{font:500 11.5px 'Barlow',sans-serif;color:#6E737D}
+.rk-bigval{font:700 28px 'Barlow',sans-serif;color:#F6C430;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.rk-card .rk-ph{flex:none;position:relative;border-radius:50%;overflow:hidden;background:#2A2D33;box-shadow:0 0 0 2px var(--tc,#3A3F48);display:inline-flex;align-items:center;justify-content:center}
+.rk-card .rk-ph.lg{width:56px;height:56px}.rk-card .rk-ph.sm{width:30px;height:30px}
+.rk-card .rk-ph i{position:absolute;font:700 14px 'Barlow',sans-serif;color:#8B909A;font-style:normal}
+.rk-card .rk-ph img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover;object-position:50% 12%;background:#2A2D33}
+.rk-mini{list-style:none;margin:0;padding:0}
+.rk-mini li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #23262C}
+.rk-mini li:first-child{border-top:0}
+.rk-mini .n{width:16px;font:600 13px 'Barlow',sans-serif;color:#6E737D;text-align:center}
+.rk-mini .rk-val{margin-left:auto;font:600 15px 'Barlow',sans-serif;color:#F2F3F5;font-variant-numeric:tabular-nums}
+.rk-more{border-top:1px solid #23262C}
+.rk-more summary{cursor:pointer;list-style:none;padding:9px 0;font:600 12.5px 'Barlow',sans-serif;color:#A8ADB6;text-align:center}
+.rk-more summary::-webkit-details-marker{display:none}
+.rk-more[open] summary{display:none}
+
+/* ---- Play page buttons: gold = main action, gold outline = alternate, grey outline = low-key ---- */
+#share-picks-btn,#play-add-buddy-btn,#submit-all-btn{background:#F6C430 !important;color:#15171B !important;border:1.5px solid #F6C430 !important;border-radius:10px !important;font-weight:700 !important}
+#play-add-rival-btn{background:transparent !important;color:#F6C430 !important;border:1.5px solid #F6C430 !important;border-radius:10px !important;font-weight:700 !important}
+#edit-predictions-btn{background:#262A32 !important;color:#F2F3F5 !important;border:1.5px solid #3A3F48 !important;border-radius:10px !important}
+#share-picks-btn{display:block;width:100%;margin:4px 0 12px !important;padding:14px 22px !important;font-size:15px}
+#share-picks-btn:hover,#play-add-buddy-btn:hover,#submit-all-btn:not(:disabled):hover{filter:brightness(1.08)}
+#play-add-rival-btn:hover{background:rgba(246,196,48,.1) !important}
+#edit-predictions-btn:hover{background:#2E333B !important}
+#play-social-prompt{background:#1D2025 !important;border:1px solid #2A2E36;border-radius:14px !important;padding:16px 18px !important}
+#play-social-prompt>div:first-child{font:700 12px 'Barlow',sans-serif !important;letter-spacing:.14em;text-transform:uppercase;color:#F6C430;margin-bottom:10px !important}
+#play-social-username-input{background:#15171B !important;border:1.5px solid #343944 !important;border-radius:10px !important;padding:12px 14px !important}
+#play-social-username-input:focus{outline:2px solid #F6C430;outline-offset:1px}
+#play-add-buddy-btn,#play-add-rival-btn{padding:12px 14px !important;border-radius:10px !important}

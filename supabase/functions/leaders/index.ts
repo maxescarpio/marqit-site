@@ -8,6 +8,17 @@ const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers
 const SPORTS: Record<string, string> = { nba: 'basketball/nba', nfl: 'football/nfl', nhl: 'hockey/nhl', mlb: 'baseball/mlb' };
 const cache = new Map<string, { at: number; body: string }>();
 const hex = (v: unknown) => (/^[0-9a-f]{6}$/i.test(String(v || '')) ? '#' + String(v).toLowerCase() : null);
+// Some feeds put a whole game line in displayValue (e.g. "8-19, 4 HR, 9 RBI"). Show the real number as the value and keep the line as small text.
+function fmt(label: string, l: any): { value: string; sub: string } {
+  const dv = String(l?.displayValue ?? ''), n = Number(l?.value);
+  if (/^[-+]?[\d.,]+%?$/.test(dv)) return { value: dv, sub: '' };
+  if (!isFinite(n)) return { value: dv, sub: '' };
+  let v: string;
+  if (Number.isInteger(n)) v = String(n);
+  else if (/average|slugging|on.base|percentage|ops/i.test(label)) v = n >= 1 ? n.toFixed(3) : n.toFixed(3).replace(/^0/, '');
+  else v = n.toFixed(2);
+  return { value: v, sub: dv.length > 18 ? '' : dv };
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -26,7 +37,7 @@ Deno.serve(async (req: Request) => {
         return {
           rank: i + 1, id: String(a?.id || ''), name: String(a?.displayName || a?.fullName || ''), pos: String(a?.position?.abbreviation || ''),
           team: String(t?.displayName || ''), abbr: String(t?.abbreviation || ''), color: hex(t?.color), alt: hex(t?.alternateColor),
-          value: String(l?.displayValue ?? l?.value ?? ''),
+          ...fmt(String(c?.displayName || ''), l),
           hs: /^https:\/\/a\.espncdn\.com\/i\/headshots\/[a-z0-9\/_\-.]+\.png$/i.test(hs) ? hs : null,
         };
       }),

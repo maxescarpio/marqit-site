@@ -6011,7 +6011,7 @@
     if(session && __mqPreResultData.length){
       const preResultBtn = document.createElement('button');
       preResultBtn.type = 'button';
-      preResultBtn.className = 'cb-btn';
+      preResultBtn.className = 'cb-btn'; preResultBtn.id = 'share-picks-btn';
       preResultBtn.style.cssText = 'margin-bottom:16px; background:var(--panel); color:var(--ink); border:1px solid var(--line);';
       preResultBtn.textContent = 'Share my picks';
       preResultBtn.addEventListener('click', function(){ mqSharePreResultCard(); });
@@ -8966,15 +8966,34 @@
     var s = MQ_RK.sub || 'standings';
     return '<div class="co-per rk-sub" role="tablist"><button type="button" data-sub="standings"' + (s === 'standings' ? ' class="on"' : '') + '>Standings</button><button type="button" data-sub="leaders"' + (s === 'leaders' ? ' class="on"' : '') + '>Leaders</button></div>';
   }
+  // Leaders are grouped (Passing / Rushing / Receiving ...) and shown as one card per stat: the leader big, the next four under him, the rest behind "Show more".
+  var MQ_LEAD_GROUPS = {
+    nba: [['Rebounding', /rebound/i], ['Playmaking', /assist|turnover/i], ['Defense', /steal|block|foul/i], ['Scoring', /./]],
+    nfl: [['Passing', /pass(?!es defended)|quarterback/i], ['Rushing', /rush/i], ['Receiving', /receiv|reception/i], ['Defense', /tackle|sack|interception|passes defended/i], ['Scoring', /touchdown|total points/i], ['Kicking & punting', /./]],
+    nhl: [['Goaltending', /save|against|shutout|^wins$|goalie/i], ['Scoring', /./]],
+    mlb: [['Pitching', /earned run|^wins$|strikeout|saves|walks plus|quality|opponent|holds/i], ['Overall', /replacement|rating|game score/i], ['Hitting', /./]]
+  };
+  function mqLeadPh(l, cls){
+    return '<span class="rk-ph ' + cls + '" style="--tc:' + (l.color || '#3A3F48') + '"><i>' + escapeHtml(mqInitials({ full: l.name })) + '</i>' +
+      (l.hs ? '<img src="' + escapeHtml(l.hs) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</span>';
+  }
+  function mqLeadCard(c){
+    var top = c.leaders[0], rest = c.leaders.slice(1, 5), more = c.leaders.slice(5);
+    function row(l){
+      return '<li>' + '<span class="n">' + l.rank + '</span>' + mqLeadPh(l, 'sm') + '<span class="m"><b>' + escapeHtml(l.name) + '</b><em>' + escapeHtml([l.pos, l.abbr].filter(Boolean).join(' · ')) + '</em></span><span class="rk-val">' + escapeHtml(l.value) + '</span></li>';
+    }
+    return '<div class="rk-card"><div class="rk-card-h">' + escapeHtml(c.label) + '</div>' +
+      '<div class="rk-top">' + mqLeadPh(top, 'lg') + '<span class="m"><b>' + escapeHtml(top.name) + '</b><em>' + escapeHtml([top.pos, top.team].filter(Boolean).join(' · ')) + '</em>' + (top.sub ? '<small>' + escapeHtml(top.sub) + '</small>' : '') + '</span><span class="rk-bigval">' + escapeHtml(top.value) + '</span></div>' +
+      (rest.length ? '<ol class="rk-mini" start="2">' + rest.map(row).join('') + '</ol>' : '') +
+      (more.length ? '<details class="rk-more"><summary>Show more</summary><ol class="rk-mini" start="6">' + more.map(row).join('') + '</ol></details>' : '') + '</div>';
+  }
   function mqRkLeadersHtml(k, d){
     if(!d || !d.categories || !d.categories.length) return '<p class="evp-muted">Season leaders aren’t available right now.</p>';
-    var ci = Math.min(MQ_RK.lcat || 0, d.categories.length - 1), cat = d.categories[ci];
-    var chips = '<div class="rk-cats">' + d.categories.map(function(c, i){ return '<button type="button" data-lcat="' + i + '"' + (i === ci ? ' class="on"' : '') + '>' + escapeHtml(c.label) + '</button>'; }).join('') + '</div>';
-    return chips + '<ol class="rk-l rk-lead">' + cat.leaders.map(function(l){
-      return '<li style="--tc:' + (l.color || '#3A3F48') + '"><span class="n">' + l.rank + '</span><span class="rk-ph"><i>' + escapeHtml(mqInitials({ full: l.name })) + '</i>' +
-        (l.hs ? '<img src="' + escapeHtml(l.hs) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</span>' +
-        '<span class="m"><b>' + escapeHtml(l.name) + '</b><em>' + escapeHtml([l.pos, l.team].filter(Boolean).join(' · ')) + '</em></span><span class="rk-val">' + escapeHtml(l.value) + '</span></li>';
-    }).join('') + '</ol>';
+    var defs = MQ_LEAD_GROUPS[k] || [['Leaders', /./]], groups = defs.map(function(g){ return { name: g[0], re: g[1], cats: [] }; });
+    d.categories.forEach(function(c){ for(var i = 0; i < groups.length; i++){ if(groups[i].re.test(c.label)){ groups[i].cats.push(c); return; } } });
+    return groups.filter(function(g){ return g.cats.length; }).map(function(g){
+      return '<section class="rk-grp"><h4 class="rk-grp-h">' + escapeHtml(g.name) + '</h4><div class="rk-cards">' + g.cats.map(mqLeadCard).join('') + '</div></section>';
+    }).join('');
   }
   // Standings & charts lives on its own page (the last nav tab). Team, song and artist details still open as a panel on top.
   var mqRkReady = false, mqRkCur = null;
