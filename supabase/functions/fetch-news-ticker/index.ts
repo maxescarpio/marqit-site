@@ -308,6 +308,7 @@ Bad (generic, never write these): "Is this a big deal?", "Is this story overhype
 
 Rules:
 - FORMAT: one or two short sentences, max 190 characters, plain spoken. First give the specific fact from THIS story that sets up the argument (a number, a move, a quote-free claim straight from the headline or summary), then ask the Yes/No question that fact raises. Example: "Nvidia just passed $5 trillion in value on AI chip demand. Is that a fair price or a bubble?" Another: "Amazon plans to fund a new nuclear plant in Indiana for its data centers. Is nuclear the right way to power AI?" The setup must be a fact the story states, never your own background knowledge. The question after it must have a real case on both sides, so a reader is pulled to pick Yes or No and then argue it in the comments. Never make the answer obvious, never ask something that is just a fact lookup, and never lead the reader to one side. No "Do you think", no "Should fans". Start the question sentence with Is, Are, Was, Were, Did, Does, Do, Will, Can or Has, not with a name.
+- Give the question real tension: where it fits, name both sides in it ("Is that a fair price or a bubble?", "Smart bet or overpay?", "Right call or a mistake?"). Never write empty questions like "Will this live up to the hype?", "Is this what Apple needs?" or "Can they pull it off?" because nobody has a real argument to make.
 - Make it detailed but not complicated: a smart friend should get it in one read, with no jargon left unexplained (say "profit per share" not "EPS" unless the story uses the term).
 - Take a firm position: "Is X the best...", "Is X overrated?", "Will X win...", "Is X worth $Y?", "Is X a bubble?", "Is X the GOAT?".
 - NEVER write hedged or weak questions: no "one of the best", no "still", no "can ... win together", no spread, odds, "cover", over/under or betting framing, no "could" or "might".
@@ -324,7 +325,7 @@ Reply with JSON only: {"items":[{"i":0,"q":"question or null","lane":"markets"}]
 
 // ---- question safety net -----------------------------------------------------
 const TAB_OF: Record<string, Tab> = { markets: 'news', tech: 'news', news: 'news', sports: 'sports', pop: 'pop', music: 'pop' };
-const WEAK_Q = /\b(one of the (best|worst|greatest)|cover the spread|the spread|over\/under|odds|do you think|should fans|could|might)\b/i;
+const WEAK_Q = /\b(one of the (best|worst|greatest)|cover the spread|the spread|over\/under|odds|do you think|should fans|could|might|still|hype|live up|pull off|needs?)\b/i;
 // Questions that assume a future game, a rematch or an injury comeback. The writer has
 // no schedule or injury feed, so these tend to be wrong ("beat the Seahawks again").
 // "again", "rematch" and "another" are only allowed when the story itself uses the word.
