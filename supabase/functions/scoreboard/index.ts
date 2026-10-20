@@ -37,16 +37,26 @@ async function team(key: string) {
   const stats = (total.stats || []).filter((x: any) => WANT.includes(x.name))
     .sort((a: any, b: any) => WANT.indexOf(a.name) - WANT.indexOf(b.name))
     .map((x: any) => ({ label: String(x.shortDisplayName || x.displayName || x.name), value: String(x.displayValue ?? x.value) }));
-  // Season leaders: ESPN only lists them on a scoreboard game, so look up the team's next (or last) game day.
+  // Season leaders: ESPN only lists them on a scoreboard game that has not started yet, so look up the team's next
+  // game. ESPN's nextEvent is sometimes stale (an old preseason game), so if that finds nothing, scan the next 8 days.
   let lead: any[] = [];
   try {
+    const ymd = (x: Date) => { const et = new Date(x.getTime() - 5 * 3600000); return et.getUTCFullYear() + String(et.getUTCMonth() + 1).padStart(2, '0') + String(et.getUTCDate()).padStart(2, '0'); };
+    const base = `https://site.api.espn.com/apis/site/v2/sports/${PATHS[league]}/scoreboard`;
+    const extra = league === 'NCAAF' ? '&groups=80&limit=300' : '&limit=300';
+    const urls: string[] = [];
     const ev = (t.nextEvent || [])[0];
     const d = ev?.date ? new Date(ev.date) : null;
-    if (d) {
-      const et = new Date(d.getTime() - 5 * 3600000); // close enough to the Eastern calendar day
-      const ds = et.getUTCFullYear() + String(et.getUTCMonth() + 1).padStart(2, '0') + String(et.getUTCDate()).padStart(2, '0');
-      const sb = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${PATHS[league]}/scoreboard?dates=${ds}`, { headers: UA, signal: AbortSignal.timeout(8000) });
-      if (sb.ok) for (const e of (await sb.json())?.events || []) for (const c of e?.competitions?.[0]?.competitors || []) if (String(c?.team?.id) === id) lead = leaders(c);
+    if (d && d.getTime() > Date.now() - 12 * 3600000) urls.push(`${base}?dates=${ymd(d)}${extra}`);
+    urls.push(`${base}?dates=${ymd(new Date())}-${ymd(new Date(Date.now() + 8 * 86400000))}${extra}`);
+    for (const u of urls) {
+      if (lead.length) break;
+      const sb = await fetch(u, { headers: UA, signal: AbortSignal.timeout(8000) });
+      if (!sb.ok) continue;
+      for (const e of (await sb.json())?.events || []) {
+        if (lead.length || e?.status?.type?.state !== 'pre') continue; // only not-yet-started games carry season (not single-game) leaders
+        for (const c of e?.competitions?.[0]?.competitors || []) if (String(c?.team?.id) === id) lead = leaders(c);
+      }
     }
   } catch (_) { /* leaders are optional */ }
   const body = JSON.stringify({
