@@ -8703,8 +8703,7 @@
             var a = document.createElement('a'); a.setAttribute('data-s', sym); a.target = '_blank'; a.rel = 'noopener noreferrer';
             a.href = /^https:\/\/commons\.wikimedia\.org\//.test(d.pageUrl || '') ? d.pageUrl : 'https://commons.wikimedia.org';
             a.textContent = MQ_CEO[sym][0] + ': ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || '');
-            if(!box.firstChild) box.appendChild(document.createTextNode('Photos from Wikimedia Commons. '));
-            box.appendChild(a);
+                        box.appendChild(a);
           }
           if(row.classList.contains('ceo-line') && !row.querySelector('.kp-cr')){
             var cr = document.createElement('a'); cr.className = 'kp-cr'; cr.target = '_blank'; cr.rel = 'noopener noreferrer';
@@ -8887,7 +8886,7 @@
       var bar = '<span class="co-bar"><i style="width:' + Math.max(3, Math.round((Number(c.cap) || 0) / max * 100)) + '%"></i></span>';
       var ceo = MQ_CEO[sym] ? '<td class="ceo co-ceo" data-sym="' + sym + '"><span class="ceo-ph"><i>' + escapeHtml(mqInitials({ name: MQ_CEO[sym][0] })) + '</i></span><span class="ceo-t"><b>' + escapeHtml(MQ_CEO[sym][0]) + '</b></span></td>' : '<td class="ceo"></td>';
       return '<tr class="rk-go" data-act="co" data-i="' + i + '" tabindex="0"><td class="n">' + c.rank + '</td><td class="t">' + tile + '<span class="co-m"><b>' + escapeHtml(c.name) + '</b>' + bar + '</span></td>' + ceo + '<td class="cap">' + escapeHtml(mqMoney(Number(c.cap))) + '</td><td>' + (px != null ? '$' + px.toFixed(2) : '') + '</td><td class="' + (up ? 'up' : 'dn') + '">' + (wait ? '<span class="co-chg wait">…</span>' : pc == null ? '<span class="co-na">–</span>' : '<span class="co-chg ' + (up ? 'up' : 'dn') + '">' + (up ? '+' : '') + pc.toFixed(2) + '%</span>') + '</td></tr>';
-    }).join('') + '</tbody></table><p class="co-cr" id="co-cr"></p>';
+    }).join('') + '</tbody></table><details class="co-cr"><summary>Photo credits · Wikimedia Commons</summary><div class="co-cr-list" id="co-cr"></div></details>';
   }
   // After the company table is drawn: load leaders' faces, and quietly fetch each stock's analyst numbers so opening one is instant.
   function mqRkMarketsAfter(root, d){
