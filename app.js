@@ -9365,8 +9365,35 @@
       document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
       document.getElementById('page-challenge').style.display = 'block';
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      var cn = document.getElementById('chal-name'); if(cn) setTimeout(function(){ cn.focus({ preventScroll: true }); }, 350);
     });
   }
+
+  // ---- Marqit Challenge sign-up: its own short form (name + email), separate from creating a site account ----
+  (function(){
+    var form = document.getElementById('challenge-signup-form'), box = document.getElementById('chal-join');
+    if(!form || !box) return;
+    function done(name, already){
+      box.innerHTML = '<div class="chal-done"><b>' + (already ? 'You’re already on the list' : 'You’re in') + (name ? ', ' + escapeHtml(name) : '') + '.</b><span>We’ll email you before the Challenge kicks off on Nov 16.</span></div>';
+    }
+    var joined = null; try { joined = JSON.parse(localStorage.getItem('mq_chal_joined') || 'null'); } catch(e){}
+    if(joined && joined.email){ done(joined.name, false); return; }
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      var name = document.getElementById('chal-name').value.trim(), email = document.getElementById('chal-email').value.trim();
+      var note = document.getElementById('chal-note'), btn = document.getElementById('chal-submit');
+      if(!name){ note.textContent = 'Add your name.'; note.className = 'signup-note err'; return; }
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ note.textContent = 'Check your email address.'; note.className = 'signup-note err'; return; }
+      btn.disabled = true; btn.textContent = 'Joining…';
+      sb.rpc('challenge_signup', { p_name: name, p_email: email, p_source: 'challenge_page' }).then(function(r){
+        btn.disabled = false; btn.textContent = 'Join the Challenge';
+        var res = r && r.data;
+        if(r.error || (res !== 'ok' && res !== 'already')){ note.textContent = res === 'bad_email' ? 'Check your email address.' : 'Something went wrong. Try again.'; note.className = 'signup-note err'; return; }
+        try { localStorage.setItem('mq_chal_joined', JSON.stringify({ name: name, email: email })); } catch(e){}
+        done(name, res === 'already');
+      });
+    });
+  })();
 
   const navHomeLink = document.getElementById('nav-home-link');
   if(navHomeLink){

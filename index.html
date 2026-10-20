@@ -46,8 +46,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261020k">
-<link rel="stylesheet" href="refresh.css?v=20261020zk">
+<link rel="stylesheet" href="style.css?v=20261020l">
+<link rel="stylesheet" href="refresh.css?v=20261020zl">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -814,9 +814,13 @@
     <p class="sub">The 2026 Marqit Challenge: one big call a week, Nov 16 to Dec 31. Climb to No. 1.</p>
     <div id="challenge-countdown-wrap" class="cd-wrap"><span class="cd-label">Kicks off in</span><strong id="challenge-countdown" class="cd">Nov 16</strong></div>
     <p class="form-msg" id="challenge-hero-status-msg" style="margin-top:14px;"></p>
-    <div style="margin-top:18px;">
-      <button type="button" id="cta-open-signup-challenge" style="padding:12px 24px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Sign up now</button>
-      <div class="signup-note">Takes under 20 seconds.</div>
+    <div class="chal-join" id="chal-join">
+      <form id="challenge-signup-form" class="chal-form" novalidate>
+        <input id="chal-name" type="text" placeholder="Your name" maxlength="60" autocomplete="name" aria-label="Your name" required>
+        <input id="chal-email" type="email" placeholder="Email" maxlength="120" autocomplete="email" aria-label="Email" required>
+        <button type="submit" id="chal-submit">Join the Challenge</button>
+      </form>
+      <div class="signup-note" id="chal-note">No account needed. Takes 10 seconds.</div>
     </div>
   </div>
 </header>
@@ -982,7 +986,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261020y" defer></script>
+<script src="app.js?v=20261020z" defer></script>
 
 
 

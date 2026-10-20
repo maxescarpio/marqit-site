@@ -1473,3 +1473,22 @@ details.co-cr a:hover{text-decoration:underline}
   #news-grid .news-top3:not(.chart) .top-row .news-h{grid-column:1 / -1;grid-row:2;margin:0}
   #news-grid .news-top3:not(.chart) .top-row .tr-tag{grid-column:1 / -1;grid-row:3;align-self:end;margin-top:0}
 }
+
+/* ---- Play page: neutral, flat icon tiles (no blue/green/red). One gold accent, no gradients or glow. ---- */
+.sec-ico{background:#262A32 !important;box-shadow:none !important;border:1px solid #343944;color:#F6C430 !important}
+.mq-fold>summary{transition:background .15s}
+.mq-fold>summary:hover{background:#1D2025}
+.mq-fold[open]>summary .sec-ico{background:#F6C430 !important;border-color:#F6C430;color:#15171B !important}
+
+/* ---- Marqit Challenge: separate name + email sign-up ---- */
+.chal-join{margin-top:18px;max-width:460px}
+.chal-form{display:flex;flex-direction:column;gap:10px}
+.chal-form input{width:100%;padding:13px 14px;border:1px solid #343944;border-radius:10px;background:#15171B;color:#F2F3F5;font:500 15px 'Barlow',sans-serif}
+.chal-form input::placeholder{color:#6E737D}
+.chal-form input:focus{outline:2px solid #F6C430;outline-offset:1px;border-color:#F6C430}
+.chal-form button{padding:13px 24px;border:0;border-radius:10px;background:#F6C430;color:#15171B;font:700 15px 'Barlow',sans-serif;cursor:pointer}
+.chal-form button:disabled{opacity:.6;cursor:default}
+.chal-join .signup-note.err{color:#E5604D}
+.chal-done{display:flex;flex-direction:column;gap:4px;padding:16px 18px;border:1px solid #343944;border-left:4px solid #F6C430;border-radius:10px;background:#1D2025;text-align:left}
+.chal-done b{font-size:16px;color:#F2F3F5}
+.chal-done span{font-size:13.5px;color:#A8ADB6}

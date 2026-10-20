@@ -218,6 +218,14 @@
   <p id="user-search-msg" style="font-size:13px; margin-top:8px; color:var(--ink-soft);"></p>
   <div id="user-search-results"></div>
 
+  <h2>Challenge sign-ups</h2>
+  <p id="chal-su-count" style="font-size:13px; color:var(--ink-soft); margin-bottom:8px;"></p>
+  <div style="display:flex; gap:8px;">
+    <button id="chal-su-load" style="margin-top:0;">Load sign-ups</button>
+    <button id="chal-su-csv" style="margin-top:0;">Download CSV</button>
+  </div>
+  <div id="chal-su-list" style="margin-top:10px; font-size:13px;"></div>
+
   <h2>Add a Challenge question</h2>
   <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Only November (numeric, closest-guess) and December (open-ended) are wired up on the backend. October (multiple choice) isn't built yet, so it isn't offered here — the live site's October card is illustrative only. Saving here creates a draft only — nothing goes live until you publish it below.</p>
   <label>Month</label>
@@ -1461,7 +1469,30 @@
       loadChallengeQuestions();
       loadChapters();
       loadChampionSection();
+      loadChallengeSignups();
     }
+  });
+
+  // ---- Challenge sign-ups (name + email from the Challenge page) ----
+  var chalRows = [];
+  async function loadChallengeSignups(){
+    var cnt = document.getElementById('chal-su-count'), list = document.getElementById('chal-su-list');
+    cnt.textContent = 'Loading…';
+    var r = await sb.rpc('admin_list_challenge_signups');
+    if(r.error){ cnt.textContent = 'Could not load: ' + r.error.message; return; }
+    chalRows = r.data || [];
+    cnt.textContent = chalRows.length + ' sign-up' + (chalRows.length === 1 ? '' : 's');
+    function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    list.innerHTML = chalRows.slice(0, 200).map(function(x){
+      return '<div style="padding:6px 0; border-top:1px solid var(--line);"><b>' + esc(x.name) + '</b> · ' + esc(x.email) + ' <span style="color:var(--ink-soft);">· ' + new Date(x.created_at).toLocaleString() + (x.user_id ? ' · has account' : '') + '</span></div>';
+    }).join('');
+  }
+  document.getElementById('chal-su-load').addEventListener('click', loadChallengeSignups);
+  document.getElementById('chal-su-csv').addEventListener('click', async function(){
+    if(!chalRows.length) await loadChallengeSignups();
+    function q(s){ return '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"'; }
+    var csv = 'name,email,signed_up,has_account\n' + chalRows.map(function(x){ return [q(x.name), q(x.email), q(x.created_at), x.user_id ? 'yes' : 'no'].join(','); }).join('\n');
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'challenge-signups.csv'; a.click();
   });
 })();
 </script>
