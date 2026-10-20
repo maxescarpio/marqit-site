@@ -9126,7 +9126,7 @@
     var filter = mqSched.cat && counts[mqSched.cat] ? mqSched.cat : 'all';
     chips.style.display = order.length > 1 ? '' : 'none';
     chips.innerHTML = [['all', 'All']].concat(order.map(function(k){ return [k, k]; })).map(function(c){
-      return '<button type="button" class="scope-tab' + (filter === c[0] ? ' active' : '') + '" style="--lg:' + (c[0] === 'all' ? '#EEF0F4' : mqLgColor(c[0])) + '" data-cat="' + escapeHtml(c[0]) + '">' + escapeHtml(c[0] === 'all' ? 'All' : mqLgName(c[1])) + '</button>';
+      return '<button type="button" class="scope-tab' + (filter === c[0] ? ' active' : '') + '" style="--lg:' + (c[0] === 'all' ? '#EEF0F4' : mqLgColor(c[0])) + '" data-cat="' + escapeHtml(c[0]) + '">' + escapeHtml(c[0] === 'all' ? 'All' : mqLgName(c[1])) + '<i>' + (c[0] === 'all' ? dayLists[sel].length : counts[c[0]]) + '</i></button>';
     }).join('');
     var byDay = {};
     days.forEach(function(d){

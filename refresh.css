@@ -1157,7 +1157,7 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
   #record-card .rec-dow span{font-size:9px}
   #record-card .rec-legend{margin-top:5px;gap:2px 8px;font-size:9.5px;justify-content:flex-start}
   #record-card .rec-legend i{width:8px;height:8px;margin-right:3px}
-  #record-card .rec-ring svg{width:40px !important;height:40px !important;margin-bottom:2px !important}
+  #record-card .rec-ring svg{width:56px !important;height:56px !important;margin-bottom:3px !important}
   #record-card .rec-ring b{font-size:12px}
   #record-card .rec-ring span{font-size:10.5px}
   #record-card .rec-rings{margin-top:4px}
@@ -1220,3 +1220,31 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 #rk-page .rk-tabs{flex-wrap:wrap;margin:12px 0 10px}
 #rk-page .rk-body{max-width:900px}
 #rk-page .evp-foot{max-width:900px}
+
+/* The tab already names the page: hide the big duplicate headings (kept for screen readers) */
+#page-leaderboard .hero-lite h2,#page-schedule .hero-lite h2,#page-news .hero-lite h2,#page-standings .hero-lite h2{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#page-leaderboard .hero-lite,#page-schedule .hero-lite,#page-news .hero-lite,#page-standings .hero-lite{padding-top:18px}
+#page-schedule .hero-lite{padding-top:20px}
+
+/* Ring percentages: larger */
+.rec-ring text{font-size:20px !important}
+
+/* Schedule league tabs: plain text with counts and a colored underline */
+#page-schedule #sched-chips,#sched-chips.scope-tab-row{display:flex !important;gap:26px;padding:0;margin:0 0 4px;border:0;border-bottom:1px solid #2A2E36;border-radius:0;background:none;overflow-x:auto;max-width:none}
+#page-schedule #sched-chips .scope-tab{padding:10px 0 11px;margin-bottom:-1px;font-size:12px;letter-spacing:.14em;color:#7E838D;background:none !important;border-radius:0;border:0;border-bottom:2px solid transparent;box-shadow:none}
+#page-schedule #sched-chips .scope-tab i{font-style:normal;margin-left:7px;font-size:11px;letter-spacing:0;color:#5C616B;font-weight:600}
+#page-schedule #sched-chips .scope-tab:hover{color:#D5D8DE}
+#page-schedule #sched-chips .scope-tab.active,#page-schedule #sched-chips .scope-tab.active[style*="--lg"]:not([data-cat="all"]){background:none !important;color:#fff;box-shadow:none;border-bottom-color:var(--lg)}
+#page-schedule #sched-chips .scope-tab.active i{color:var(--lg)}
+#page-schedule .sched-days{margin-top:14px}
+
+/* Group panel buttons: one size, one style, text centered */
+.gp-side button:not(.lb-share-btn){display:inline-flex !important;align-items:center;justify-content:center;text-align:center;height:36px;padding:0 18px !important;font:600 13px 'Barlow',sans-serif !important;letter-spacing:.02em;border-radius:999px !important;line-height:1;text-decoration:none !important;text-transform:none}
+.gp-side #copy-invite-btn{background:#EEF0F4 !important;color:#111 !important;border:1px solid #EEF0F4 !important;margin-left:auto !important}
+.gp-side #leave-group-btn{background:none !important;color:#E0705F !important;border:1px solid #8A4A41 !important}
+.gp-side #leave-group-btn:hover{background:rgba(224,112,95,.1) !important;color:#F08A78 !important}
+.gp-side #group-invite-username-btn{background:none !important;color:#E8EAEE !important;border:1px solid #4A4F59 !important}
+.gp-side #group-invite-username-btn:hover{border-color:#8B909A !important}
+.gp-side .lb-share-btn{width:calc(100% - 32px);height:36px;line-height:36px;text-align:center;margin:12px 16px !important;padding:0 18px !important;background:#EEF0F4 !important;color:#111 !important;border:0 !important;border-radius:999px !important;font:600 13px 'Barlow',sans-serif !important}
+.gp-side > .lb-share-btn{border-top:0 !important}
+.gp-side > div[style*="max-width:420px"] input{height:36px;padding:0 14px !important;border-radius:999px !important}
