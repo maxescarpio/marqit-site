@@ -1148,3 +1148,29 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 #page-leaderboard .brow.lb.mine{box-shadow:inset 0 0 0 1px rgba(51,209,139,.45)}
 #page-leaderboard .lb-big .board{padding-top:14px}
 #page-leaderboard .bb-head{margin:0}
+
+/* Record card: small calendar, one-line legend */
+.rc{border-radius:4px !important}
+.rc.perfect{background:#B99A4C !important}
+.rc.l2{background:rgba(51,209,139,.6) !important}
+@media(min-width:760px){
+  #record-card{grid-template-columns:minmax(0,1fr) 196px;column-gap:20px}
+  #record-card .rec-cal-wrap>*{max-width:196px !important}
+  #record-card .rec-cal,#record-card .rec-dow{gap:3px !important}
+  #record-card .rc{aspect-ratio:auto;height:15px}
+  #record-card .rec-dow{margin-bottom:3px}
+  #record-card .rec-dow span{font-size:9px}
+  #record-card .rec-legend{margin-top:5px;gap:2px 8px;font-size:9.5px;justify-content:flex-start}
+  #record-card .rec-legend i{width:8px;height:8px;margin-right:3px}
+  #record-card .rec-ring svg{width:40px !important;height:40px !important;margin-bottom:2px !important}
+  #record-card .rec-ring b{font-size:12px}
+  #record-card .rec-ring span{font-size:10.5px}
+  #record-card .rec-rings{margin-top:4px}
+}
+/* Greek-life sections: tighter */
+#greek-section #chapter-cup-banner{margin-top:14px !important;padding:10px 14px !important}
+#greek-section h3.ex-title{margin-top:16px !important}
+#greek-section .ex-sub{font-size:12.5px;margin-bottom:6px}
+#greek-section [id^="h2h-mode"]{padding:5px 12px !important;font-size:12.5px !important}
+#greek-section #h2h-select-a,#greek-section #h2h-select-b{padding:7px 10px !important}
+@media(min-width:900px){#greek-section .boards.one{max-width:640px}}
