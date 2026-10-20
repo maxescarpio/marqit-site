@@ -307,7 +307,8 @@ Pick a side people can defend, not a forecast. Prefer judgment questions ("Is X 
 Bad (generic, never write these): "Is this a big deal?", "Is this story overhyped?", "Does this change anything?", "Are people overreacting?".
 
 Rules:
-- Yes/No question, max 90 characters, plain spoken, and it must name the subject of the story. No "Do you think", no "Should fans".
+- FORMAT: one or two short sentences, max 190 characters, plain spoken. First give the specific fact from THIS story that sets up the argument (a number, a move, a quote-free claim straight from the headline or summary), then ask the Yes/No question that fact raises. Example: "Nvidia just passed $5 trillion in value on AI chip demand. Is that a fair price or a bubble?" Another: "Amazon plans to fund a new nuclear plant in Indiana for its data centers. Is nuclear the right way to power AI?" The setup must be a fact the story states, never your own background knowledge. The question after it must have a real case on both sides, so a reader is pulled to pick Yes or No and then argue it in the comments. Never make the answer obvious, never ask something that is just a fact lookup, and never lead the reader to one side. No "Do you think", no "Should fans". Start the question sentence with Is, Are, Was, Were, Did, Does, Do, Will, Can or Has, not with a name.
+- Make it detailed but not complicated: a smart friend should get it in one read, with no jargon left unexplained (say "profit per share" not "EPS" unless the story uses the term).
 - Take a firm position: "Is X the best...", "Is X overrated?", "Will X win...", "Is X worth $Y?", "Is X a bubble?", "Is X the GOAT?".
 - NEVER write hedged or weak questions: no "one of the best", no "still", no "can ... win together", no spread, odds, "cover", over/under or betting framing, no "could" or "might".
 - ONLY use facts, names, teams, companies and numbers that appear in the headline or summary. Do not add rosters, current teams, records, stock prices, titles or dates from your own memory, because they may be out of date. If the story depends on a trade, roster, contract or status you are not sure is current, return null.
@@ -335,7 +336,7 @@ function badQuestion(q: string, source: string): boolean {
   if (m && !new RegExp('\\b' + m[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(source)) return true;
   return false;
 }
-const SKIP_WORDS = new Set(['is','are','was','will','can','does','do','did','has','have','the','a','an','and','or','in','on','at','to','of','for','best','worst','new','top','this','that','these','who','what','why','how','when','which','it','he','she','they','we','you','i','yes','no','win','still','than','more','most','better','worse','over','under','worth']);
+const SKIP_WORDS = new Set(['is','are','was','were','will','can','does','do','did','has','have','the','a','an','and','or','in','on','at','to','of','for','best','worst','new','top','this','that','these','who','what','why','how','when','which','it','he','she','they','we','you','i','yes','no','win','still','than','more','most','better','worse','over','under','worth']);
 // Every capitalised word or number in the question must appear in the story
 // text, so the writer cannot bring in names, teams or figures from its own memory.
 function isGrounded(q: string, source: string): boolean {
@@ -472,7 +473,7 @@ async function generateTakes(admin: any) {
   const pending: any[] = [];
   for (const t of TABS) {
     const { data, error } = await inTab(
-      admin.from('news_ticker').select('id, headline, summary, source_name, lane').eq('kind', 'news').eq('take_checked', false),
+      admin.from('news_ticker').select('id, headline, summary, source_name, lane, take_question').eq('kind', 'news').eq('take_checked', false),
       t,
     ).order('fetched_at', { ascending: false }).limit(25);
     if (error) throw error;
@@ -507,8 +508,10 @@ async function generateTakes(admin: any) {
       if (!row) continue;
       let q = typeof it.q === 'string' ? it.q.trim() : null;
       const storyText = `${row.headline} ${row.summary || ''}`;
-      if (q && (q.length < 8 || q.length > 100 || !q.endsWith('?') || isBlockedHeadline(q) || WEAK_Q.test(q) || badQuestion(q, storyText) || !isGrounded(q, storyText))) q = null;
-      const upd: any = { take_question: q, take_checked: true };
+      if (q && (q.length < 8 || q.length > 200 || !q.endsWith('?') || isBlockedHeadline(q) || WEAK_Q.test(q) || badQuestion(q, storyText) || !isGrounded(q, storyText))) q = null;
+      // A rewrite that fails the checks keeps the story's existing question instead of wiping it.
+      const upd: any = { take_checked: true };
+      if (q || !row.take_question) upd.take_question = q;
       if (q && TAB_OF[it.lane] && (!row.lane || row.lane === 'news')) upd.lane = TAB_OF[it.lane];
       const { error: uErr } = await admin.from('news_ticker').update(upd).eq('id', row.id);
       if (!uErr) { checked++; if (q) n++; }

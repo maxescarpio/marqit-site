@@ -10227,7 +10227,7 @@
       facts.push([isTrend ? 'On' : 'Source', escapeHtml(r.source_name || (isTrend ? 'The chart' : '–'))]);
       facts.push([isTrend ? 'Topic' : 'Published', isTrend ? escapeHtml(lane) : (when ? escapeHtml(when) : '–')]);
       if(!isTrend && !isPost) facts.unshift(['Topic', escapeHtml(lane)]);
-      var ks = keyStat(r);
+      var ks = null;
       facts = facts.slice(0, ks ? 2 : 3);
       var statCell = ks ? '<div class="tsc-stat ' + ks.dir + '"><span>' + escapeHtml(ks.label || 'Key number') + '</span><b>' + escapeHtml(ks.value) + '</b></div>' : '';
       return '<div class="tsc-in"><div class="tsc-chips"><span class="tsc-lane">' + escapeHtml(lane) + '</span>' + (isTrend ? '<span class="tsc-tr">Trending</span>' : '') + (when ? '<span class="tsc-when">' + escapeHtml(when) + '</span>' : '') + '</div>' +
