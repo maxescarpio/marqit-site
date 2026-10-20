@@ -7074,14 +7074,30 @@
       foot.textContent = played ? played + (played === 1 ? ' day' : ' days') + ' played in ' + MQ_MONTHS[m - 1] + '.' : (ym === curYm ? 'Your record fills in as your calls get scored.' : 'No calls in ' + MQ_MONTHS[m - 1] + '.');
     }
   }
+  function mqRecHide(){
+    var panel = document.getElementById('rec-day'); if(panel) panel.hidden = true;
+    MQ_REC.sel = '';
+    document.querySelectorAll('#rec-cal .rc.sel').forEach(function(c){ c.classList.remove('sel'); });
+  }
+  // The day card floats next to the tapped day instead of pushing the page down.
+  function mqRecPlace(){
+    var panel = document.getElementById('rec-day'), cell = MQ_REC.sel && document.querySelector('#rec-cal .rc[data-d="' + MQ_REC.sel + '"]');
+    if(!panel || panel.hidden || !cell) return;
+    var r = cell.getBoundingClientRect(), pw = Math.min(310, window.innerWidth - 24);
+    panel.style.width = pw + 'px';
+    panel.style.left = Math.max(12, Math.min(window.innerWidth - pw - 12, r.left + r.width / 2 - pw / 2)) + 'px';
+    var ph = panel.offsetHeight, below = r.bottom + 8;
+    panel.style.top = (below + ph > window.innerHeight - 8 ? Math.max(8, r.top - ph - 8) : below) + 'px';
+  }
   async function mqRecShowDay(d){
     var panel = document.getElementById('rec-day'); if(!panel || !d) return;
+    if(MQ_REC.sel === d && !panel.hidden){ mqRecHide(); return; }
     MQ_REC.sel = d;
     document.querySelectorAll('#rec-cal .rc').forEach(function(c){ c.classList.toggle('sel', c.getAttribute('data-d') === d); });
-    panel.hidden = false;
+    panel.hidden = false; mqRecPlace();
     var qs = MQ_REC.qcache[d];
     if(!qs){
-      panel.innerHTML = '<div class="rd-h">' + mqRecDayLabel(d) + '</div><p class="rd-empty">Loading…</p>';
+      panel.innerHTML = '<div class="rd-h">' + mqRecDayLabel(d) + '</div><p class="rd-empty">Loading…</p>'; mqRecPlace();
       var r = await sb.from('daily_questions').select('id, question_text, category, correct_answer, resolved, voided').eq('question_date', d).order('lock_time', { ascending: true });
       qs = MQ_REC.qcache[d] = r.data || [];
     }
@@ -7096,7 +7112,8 @@
       else { st = 'bad'; ic = '✕'; scored++; line = 'You picked ' + String(ch).toUpperCase() + ' · Answer was ' + String(q.correct_answer || '').toUpperCase(); }
       return '<div class="rd-row ' + st + '"><span class="rd-ic">' + ic + '</span><div class="rd-t"><b>' + escapeHtml(q.question_text) + '</b><em>' + escapeHtml(line) + '</em></div></div>';
     }).join('');
-    panel.innerHTML = '<div class="rd-h">' + mqRecDayLabel(d) + (scored ? '<span>' + right + ' of ' + scored + ' right</span>' : '') + '</div>' + (rows || '<p class="rd-empty">No questions that day.</p>');
+    panel.innerHTML = '<button type="button" class="rd-x" aria-label="Close">&times;</button><div class="rd-h">' + mqRecDayLabel(d) + (scored ? '<span>' + right + ' of ' + scored + ' right</span>' : '') + '</div>' + (rows || '<p class="rd-empty">No questions that day.</p>');
+    mqRecPlace();
   }
   async function loadRecord(){
     var cal = document.getElementById('rec-cal');
@@ -7138,16 +7155,18 @@
     if(!MQ_REC.bound){
       MQ_REC.bound = true;
       var pv = document.getElementById('rec-prev'), nx = document.getElementById('rec-next');
-      function step(n){ var y = Number(MQ_REC.month.slice(0, 4)), m = Number(MQ_REC.month.slice(5, 7)) + n; if(m < 1){ m = 12; y--; } if(m > 12){ m = 1; y++; } MQ_REC.month = y + '-' + String(m).padStart(2, '0'); MQ_REC.sel = ''; var p = document.getElementById('rec-day'); if(p) p.hidden = true; mqRecRenderMonth(); }
+      function step(n){ var y = Number(MQ_REC.month.slice(0, 4)), m = Number(MQ_REC.month.slice(5, 7)) + n; if(m < 1){ m = 12; y--; } if(m > 12){ m = 1; y++; } MQ_REC.month = y + '-' + String(m).padStart(2, '0'); mqRecHide(); mqRecRenderMonth(); }
       if(pv) pv.addEventListener('click', function(){ step(-1); });
       if(nx) nx.addEventListener('click', function(){ step(1); });
-      var hoverT = null;
       cal.addEventListener('click', function(e){ var b = e.target.closest('button[data-d]'); if(b) mqRecShowDay(b.getAttribute('data-d')); });
-      cal.addEventListener('mouseover', function(e){
-        if(!window.matchMedia || !window.matchMedia('(hover:hover)').matches) return;
-        var b = e.target.closest('button[data-d]'); if(!b) return;
-        clearTimeout(hoverT); hoverT = setTimeout(function(){ mqRecShowDay(b.getAttribute('data-d')); }, 120);
+      document.addEventListener('click', function(e){
+        var p = document.getElementById('rec-day'); if(!p || p.hidden) return;
+        if(e.target.closest('.rd-x')){ mqRecHide(); return; }
+        if(!e.target.closest('#rec-day') && !e.target.closest('#rec-cal')) mqRecHide();
       });
+      document.addEventListener('keydown', function(e){ if(e.key === 'Escape') mqRecHide(); });
+      window.addEventListener('scroll', mqRecPlace, { passive: true });
+      window.addEventListener('resize', mqRecPlace);
     }
 
     var defs = [['sports', 'Sports', '255,148,38'], ['pop_culture', 'Pop culture', '170,112,255'], ['news', 'News', '70,140,255']];
@@ -8714,19 +8733,32 @@
       '<div class="gh-status' + (g && g.state === 'in' ? ' live' : '') + '">' + escapeHtml(status) + '</div>' +
       (g && g.state !== 'pre' && g.id ? '<div class="lvp" id="lvp"><p class="evp-muted">Loading live stats…</p></div>' : '') +
       '<div class="evp-body">' + blurb() + (g ? '<p class="evp-muted">Loading season numbers…</p>' : '') + '</div>');
-    if(!g) return;
-    if(g.state !== 'pre' && g.id) mqLiveStart(el, g);
+    if(!g && !teams) return;
+    if(g && g.state !== 'pre' && g.id) mqLiveStart(el, g);
     var get = function(t){
       return fetch(SUPABASE_URL + '/functions/v1/scoreboard?team=' + encodeURIComponent(ev.league + ':' + t.id))
         .then(function(r){ return r.json(); }).catch(function(){ return null; });
     };
-    Promise.all([get(g.away), get(g.home)]).then(function(r){
+    // Not on today's scoreboard feed? Look the teams up by name so the season numbers still load.
+    var sidesP = g ? Promise.resolve([g.away, g.home]) : Promise.all([0, 1].map(function(i){
+      return fetch(SUPABASE_URL + '/functions/v1/team-id?league=' + encodeURIComponent(ev.league) + '&name=' + encodeURIComponent(teams[i]))
+        .then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(d){ return { id: d && d.id, name: teams[i] }; });
+    }));
+    sidesP.then(function(sides){
+      return Promise.all(sides.map(function(t){ return t && t.id ? get(t) : Promise.resolve(null); }));
+    }).then(function(r){
       var body = el.querySelector('.evp-body');
-      if(body && body.isConnected){
-        var okA = r[0] && !r[0].error, okB = r[1] && !r[1].error;
-        body.innerHTML = blurb() + mqKeyPlayersHtml(g) + (okA && okB ? mqCompareHtml(r[0], r[1]) : '');
-        mqPlayerPhotos(body);
-      }
+      if(!body || !body.isConnected) return;
+      var okA = r[0] && !r[0].error, okB = r[1] && !r[1].error;
+      if(okA && !away.record && r[0].record) away.record = r[0].record;
+      if(okB && !home.record && r[1].record) home.record = r[1].record;
+      var kg = g ? g : { league: ev.league, away: { name: away.name }, home: { name: home.name } };
+      var kgAway = Object.assign({}, kg.away), kgHome = Object.assign({}, kg.home);
+      if(okA && !(kgAway.leaders || []).length){ kgAway.leaders = r[0].leaders; kgAway.color = kgAway.color || r[0].color; kgAway.alt = kgAway.alt || r[0].alt; }
+      if(okB && !(kgHome.leaders || []).length){ kgHome.leaders = r[1].leaders; kgHome.color = kgHome.color || r[1].color; kgHome.alt = kgHome.alt || r[1].alt; }
+      kg = Object.assign({}, kg, { away: kgAway, home: kgHome });
+      body.innerHTML = blurb() + mqKeyPlayersHtml(kg) + (okA && okB ? mqCompareHtml(r[0], r[1]) : '');
+      mqPlayerPhotos(body);
     });
   }
 
@@ -8894,23 +8926,28 @@
   }
   function mqRkStandings(kind, d){
     if(!d || !d.groups || !d.groups.length) return '<p class="evp-muted">Standings aren’t available right now.</p>';
-    var hasT = kind === 'nfl', hasOtl = kind === 'nhl', last = '', out = '';
+    var hasT = kind === 'nfl', hasOtl = kind === 'nhl', out = '', confs = [], by = {};
     if(d.phase && /pre/i.test(d.phase)) out += '<p class="rk-note">Preseason records, the regular season hasn’t started.</p>';
     d.groups.forEach(function(g, gi){
-      var conf = mqRkConf(kind, g);
-      if(conf && conf !== last){ out += '<div class="rk-conf">' + escapeHtml(conf) + '</div>'; last = conf; }
+      var conf = mqRkConf(kind, g) || '';
+      if(!by[conf]){ by[conf] = { name: conf, items: [] }; confs.push(by[conf]); }
+      by[conf].items.push([g, gi, conf]);
+    });
+    function table(g, gi, conf){
       var title = g.name && g.name !== conf && !/^(East|West)$/i.test(g.name) ? g.name : '';
-      out += (title ? '<div class="rk-div">' + escapeHtml(title) + '</div>' : '') + '<table class="rk-t"><thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th>' + (hasOtl ? '<th>OTL</th><th>PTS</th>' : hasT ? '<th>T</th>' : '') + '<th>' + (kind === 'nfl' || hasOtl ? 'PCT' : 'GB') + '</th><th class="wp">Win %</th><th>Strk</th></tr></thead><tbody>' +
+      return '<div class="rk-tc">' + (title ? '<div class="rk-div">' + escapeHtml(title) + '</div>' : '') +
+        '<table class="rk-t"><thead><tr><th class="n">#</th><th class="tm">Team</th><th>W</th><th>L</th>' + (hasOtl ? '<th>OTL</th><th>PTS</th>' : hasT ? '<th>T</th>' : '') + '<th>' + (kind === 'nfl' || hasOtl ? 'PCT' : 'GB') + '</th><th>Strk</th></tr></thead><tbody>' +
         g.rows.map(function(r, i){
           var tc = mqTeamColor(r), wp = mqRkWinPct(r, hasOtl);
-          return '<tr class="rk-go' + (i === 0 ? ' lead' : '') + '" data-act="team" data-g="' + gi + '" data-r="' + i + '" tabindex="0" style="--tc:' + tc + '"><td class="n">' + (r.seed || i + 1) + '</td><td class="t">' + mqRkTeamMark(r) + escapeHtml(r.name || r.abbr) + '</td><td>' + (r.w == null ? '' : r.w) + '</td><td>' + (r.l == null ? '' : r.l) + '</td>' +
+          return '<tr class="rk-go' + (i === 0 ? ' lead' : '') + '" data-act="team" data-g="' + gi + '" data-r="' + i + '" tabindex="0" style="--tc:' + tc + '"><td class="n">' + (r.seed || i + 1) + '</td><td class="tm">' + mqRkTeamMark(r) + '<span>' + escapeHtml(r.name || r.abbr) + '</span></td><td>' + (r.w == null ? '' : r.w) + '</td><td>' + (r.l == null ? '' : r.l) + '</td>' +
             (hasOtl ? '<td>' + (r.otl == null ? '' : r.otl) + '</td><td>' + (r.pts == null ? '' : r.pts) + '</td>' : hasT ? '<td>' + (r.t == null ? '' : r.t) + '</td>' : '') +
             '<td>' + escapeHtml(String(kind === 'nfl' || hasOtl ? (r.pct == null ? wp.txt : r.pct) : (r.gb == null ? '' : r.gb))) + '</td>' +
-            '<td class="wp">' + (wp.v == null ? '' : '<span class="wpb"><i style="width:' + Math.round(wp.v * 100) + '%"></i></span>') + '</td>' +
             '<td>' + (r.strk ? '<span class="rk-s ' + (/^W/i.test(r.strk) ? 'w' : /^L/i.test(r.strk) ? 'l' : '') + '">' + escapeHtml(String(r.strk)) + '</span>' : '') + '</td></tr>';
-        }).join('') + '</tbody></table>';
-    });
-    return out;
+        }).join('') + '</tbody></table></div>';
+    }
+    return out + '<div class="rk-confs">' + confs.map(function(c){
+      return '<div class="rk-confcol">' + (c.name ? '<div class="rk-conf">' + escapeHtml(c.name) + '</div>' : '') + c.items.map(function(it){ return table(it[0], it[1], it[2]); }).join('') + '</div>';
+    }).join('') + '</div>';
   }
   function mqRkList(items, artist){
     if(!items || !items.length) return '<p class="evp-muted">This chart isn’t available right now.</p>';
@@ -9033,15 +9070,39 @@
     return '<span class="rk-ph ' + cls + '" style="--tc:' + (l.color || '#3A3F48') + '"><i>' + escapeHtml(mqInitials({ full: l.name })) + '</i>' +
       (l.hs ? '<img src="' + escapeHtml(l.hs) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</span>';
   }
+  function mqLeadRow(l, first){
+    return '<li class="rk-go" data-act="player" data-pid="' + escapeHtml(l.id) + '" data-pn="' + escapeHtml(l.name) + '" data-pm="' + escapeHtml([l.pos, l.team].filter(Boolean).join(' · ')) + '" data-ph="' + escapeHtml(l.hs || '') + '" tabindex="0">' +
+      '<span class="n">' + l.rank + '</span>' + mqLeadPh(l, 'sm') + '<span class="m"><b>' + escapeHtml(l.name) + '</b><em>' + escapeHtml([l.pos, l.abbr].filter(Boolean).join(' · ')) + '</em></span><span class="rk-val' + (first ? ' top' : '') + '">' + escapeHtml(l.value) + '</span></li>';
+  }
   function mqLeadCard(c){
-    var top = c.leaders[0], rest = c.leaders.slice(1, 5), more = c.leaders.slice(5);
-    function row(l){
-      return '<li>' + '<span class="n">' + l.rank + '</span>' + mqLeadPh(l, 'sm') + '<span class="m"><b>' + escapeHtml(l.name) + '</b><em>' + escapeHtml([l.pos, l.abbr].filter(Boolean).join(' · ')) + '</em></span><span class="rk-val">' + escapeHtml(l.value) + '</span></li>';
-    }
-    return '<div class="rk-card"><div class="rk-card-h">' + escapeHtml(c.label) + '</div>' +
-      '<div class="rk-top">' + mqLeadPh(top, 'lg') + '<span class="m"><b>' + escapeHtml(top.name) + '</b><em>' + escapeHtml([top.pos, top.team].filter(Boolean).join(' · ')) + '</em>' + (top.sub ? '<small>' + escapeHtml(top.sub) + '</small>' : '') + '</span><span class="rk-bigval">' + escapeHtml(top.value) + '</span></div>' +
-      (rest.length ? '<ol class="rk-mini" start="2">' + rest.map(row).join('') + '</ol>' : '') +
-      (more.length ? '<details class="rk-more"><summary>Show more</summary><ol class="rk-mini" start="6">' + more.map(row).join('') + '</ol></details>' : '') + '</div>';
+    var rows = c.leaders.map(function(l, i){ return mqLeadRow(l, i === 0); });
+    return '<div class="rk-card"><div class="rk-card-h">' + escapeHtml(c.label) + '</div><ol class="rk-mini">' + rows.slice(0, 5).join('') + '</ol>' +
+      (rows.length > 5 ? '<details class="rk-more"><summary>Top 10</summary><ol class="rk-mini">' + rows.slice(5).join('') + '</ol></details>' : '') + '</div>';
+  }
+  // Click any leader: season stats plus status and injury report.
+  function mqOpenPlayerPanel(row){
+    var id = row.getAttribute('data-pid'), k = MQ_RK.kind; if(!id) return;
+    var nm = row.getAttribute('data-pn') || '', meta = row.getAttribute('data-pm') || '', hs = row.getAttribute('data-ph') || '';
+    var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + escapeHtml(k.toUpperCase()) + '</div><div class="sg-head pl-head">' +
+      (/^https:\/\/a\.espncdn\.com\//.test(hs) ? '<img class="sg-art round" src="' + escapeHtml(hs) + '" alt="" referrerpolicy="no-referrer">' : '') +
+      '<div><h3 class="evp-title">' + escapeHtml(nm) + '</h3><div class="tp-sub" id="pl-sub">' + escapeHtml(meta) + '</div></div></div><div class="evp-body"><p class="evp-muted">Loading stats…</p></div>');
+    mqRkBack(el);
+    fetch(SUPABASE_URL + '/functions/v1/athlete?league=' + encodeURIComponent(k) + '&id=' + encodeURIComponent(id)).then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(d){
+      var body = el.querySelector('.evp-body'); if(!body || !body.isConnected) return;
+      if(!d || d.error){ body.innerHTML = '<p class="evp-muted">Player details aren’t available right now.</p>'; return; }
+      var sub = el.querySelector('#pl-sub'); if(sub) sub.textContent = [d.pos, d.team].filter(Boolean).join(' · ');
+      var bio = [d.jersey ? '#' + d.jersey : '', d.age ? d.age + ' yrs' : '', d.height, d.weight, d.exp ? d.exp + ' exp' : ''].filter(Boolean).join(' · ');
+      var inj = d.injuries || [], out = '';
+      out += '<div class="pl-status ' + (inj.length ? 'inj' : 'ok') + '"><b>' + escapeHtml(inj.length ? inj[0].status || 'Injured' : (d.status || 'Active')) + '</b>' + (inj.length ? '' : '<span>No injuries reported</span>') + '</div>';
+      inj.forEach(function(i){
+        out += '<div class="pl-inj"><b>' + escapeHtml(i.status || 'Injury') + (i.detail ? ' · ' + escapeHtml(i.detail) : '') + '</b>' + (i.comment ? '<p>' + escapeHtml(i.comment) + '</p>' : '') +
+          (i.returns ? '<em>Expected back ' + escapeHtml(i.returns) + '</em>' : (i.date ? '<em>Updated ' + escapeHtml(i.date) + '</em>' : '')) + '</div>';
+      });
+      if(bio) out += '<div class="pl-bio">' + escapeHtml(bio) + '</div>';
+      if(d.stats && d.stats.length) out += '<div class="kp-head">' + escapeHtml(d.split || 'Season') + '</div><div class="tp-grid">' + d.stats.map(function(c){ return '<div><span>' + escapeHtml(c.label) + '</span><b>' + escapeHtml(c.value) + '</b></div>'; }).join('') + '</div>';
+      else out += '<p class="evp-muted">Season stats aren’t available yet.</p>';
+      body.innerHTML = out;
+    });
   }
   function mqRkLeadersHtml(k, d){
     if(!d || !d.categories || !d.categories.length) return '<p class="evp-muted">Season leaders aren’t available right now.</p>';
@@ -9083,6 +9144,7 @@
   }
   function mqRkAct(row){
     var cur = mqRkCur;
+    if(row && row.getAttribute('data-act') === 'player'){ mqOpenPlayerPanel(row); return; }
     if(!row || !cur) return;
     var a = row.getAttribute('data-act'), k = MQ_RK.kind, i = Number(row.getAttribute('data-i'));
     if(a === 'team') mqOpenTeamPanel(k, cur.groups[Number(row.getAttribute('data-g'))].rows[Number(row.getAttribute('data-r'))]);
@@ -9186,13 +9248,13 @@
     if(ev.category === 'finance') mqOpenStockPanel(ev); else mqOpenGamePanel(ev);
   }
   document.addEventListener('click', function(e){
-    var c = e.target.closest('.sstrip-cell.is-click, .gm.is-click');
+    var c = e.target.closest('.sstrip-cell.is-click, .gm.is-click, .gc.is-click, .gx-tile.is-click');
     if(!c || e.target.closest('.sched-pick')) return;
     mqEventPanel(c);
   });
   document.addEventListener('keydown', function(e){
     if(e.key !== 'Enter' && e.key !== ' ') return;
-    var c = e.target.closest && e.target.closest('.sstrip-cell.is-click, .gm.is-click');
+    var c = e.target.closest && e.target.closest('.sstrip-cell.is-click, .gm.is-click, .gc.is-click, .gx-tile.is-click');
     if(c){ e.preventDefault(); mqEventPanel(c); }
   });
 
@@ -9282,6 +9344,47 @@
       '<span class="gm-t"><span>' + (st === 'in' ? '<i class="ag-pulse"></i>' : '') + escapeHtml(status) + '</span>' + (st === 'pre' && mqUntil(ev) ? '<em class="gm-in">' + mqUntil(ev) + '</em>' : '') + '</span><span class="gm-m">' + lg + body + '</span>' +
       '<span class="gm-n">' + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + (tail ? (/^</.test(tail) ? tail : '<small>' + escapeHtml(tail) + '</small>') : '') + '</span></div>';
   }
+  // Schedule, boards layout: a grid of game cards per league, live games on top, earnings split by before/after the market.
+  function mqSchedCardHtml(ev, x, showLg){
+    var g = x.g, st = x.st, status, body, net = '';
+    if(g){
+      var started = st !== 'pre', hs = parseInt(g.home.score, 10), as = parseInt(g.away.score, 10), done = st === 'post';
+      status = st === 'in' ? (g.detail || 'Live') : done ? (/^f/i.test(g.detail || '') ? g.detail : 'Final') : mqSchedTime(ev);
+      var line = function(t, lost){
+        return '<div class="gc-tm' + (lost ? ' lost' : '') + '">' + mqBadge(t) + '<b>' + escapeHtml(t.name) + '</b><span>' +
+          (started ? escapeHtml(t.score == null ? '0' : t.score) : (t.record ? '<small>' + escapeHtml(t.record) + '</small>' : '')) + '</span></div>';
+      };
+      body = line(g.away, done && as < hs) + line(g.home, done && hs < as);
+      net = g.network || '';
+    } else {
+      var teams = mqSchedTeams(ev);
+      status = mqSchedTime(ev);
+      body = teams
+        ? [teams[0], teams[1]].map(function(n){ return '<div class="gc-tm"><i class="gm-bd">' + escapeHtml(String(n).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) + '</i><b>' + escapeHtml(n) + '</b></div>'; }).join('')
+        : '<div class="gc-tm"><b>' + escapeHtml(ev.title) + '</b></div>';
+      net = ev.subtitle || '';
+    }
+    var lgTag = showLg ? '<span class="gc-lg" style="color:' + mqLgColor(mqSchedKey(ev)) + '">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</span>' : '';
+    return '<div class="gc ' + (st === 'in' ? 'is-live ' : st === 'post' ? 'is-done ' : '') + (x.open ? 'is-click' : '') + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
+      '<div class="gc-top"><span class="gc-st">' + (st === 'in' ? '<i class="ag-pulse"></i>' : '') + escapeHtml(status) + (st === 'pre' && mqUntil(ev) ? '<em>' + mqUntil(ev) + '</em>' : '') + '</span>' + lgTag + '</div>' +
+      '<div class="gc-body">' + body + '</div>' +
+      ((net && !/^</.test(net)) || ev.question_id ? '<div class="gc-foot">' + (net ? '<small>' + escapeHtml(net) + '</small>' : '<small></small>') + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + '</div>' : '') + '</div>';
+  }
+  function mqSchedEarnHtml(items){
+    var cols = [['Before the open', []], ['After the close', []], ['Time to be announced', []]];
+    items.forEach(function(p){
+      var ev = p[0], sub = ev.subtitle || '';
+      cols[/before/i.test(sub) ? 0 : /after/i.test(sub) ? 1 : 2][1].push(ev);
+    });
+    var tile = function(ev){
+      return '<div class="gx-tile is-click" data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"><i class="gm-bd tick">' + escapeHtml(String(ev.league || '').slice(0, 4)) + '</i>' +
+        '<span class="gx-n">' + escapeHtml(String(ev.title || '').replace(/ earnings$/i, '')) + '</span>' + mqQuoteHtml(ev.league) + '</div>';
+    };
+    return '<section class="gx"><h5 class="gx-h"><span>' + mqLgIcon('Earnings') + 'Earnings</span><em>' + items.length + (items.length === 1 ? ' report' : ' reports') + '</em></h5><div class="gx-cols">' +
+      cols.filter(function(c){ return c[1].length; }).map(function(c){
+        return '<div class="gx-col"><div class="gx-ch">' + c[0] + '<em>' + c[1].length + '</em></div><div class="gx-tiles">' + c[1].map(tile).join('') + '</div></div>';
+      }).join('') + '</div></section>';
+  }
   function mqSchedAgendaHtml(list){
     var live = [], groups = [], byKey = {};
     mqSchedSort(list).forEach(function(ev){
@@ -9291,14 +9394,15 @@
       if(!byKey[k]){ byKey[k] = []; groups.push(k); }
       byKey[k].push(item);
     });
-    var rows = function(l, lg){ return l.map(function(p){ return mqSchedRowHtml(p[0], p[1], lg); }).join(''); };
+    var cards = function(l, lg){ return '<div class="gc-grid">' + l.map(function(p){ return mqSchedCardHtml(p[0], p[1], lg); }).join('') + '</div>'; };
     var out = '';
-    if(live.length) out += '<section class="ag-sec ag-live"><h5 class="ag-h"><span class="live"><i class="ag-pulse"></i>Live now</span><em>' + live.length + (live.length === 1 ? ' game' : ' games') + '</em></h5>' + rows(live, true) + '</section>';
+    if(live.length) out += '<section class="gx gx-live"><h5 class="gx-h"><span><i class="ag-pulse"></i>Live now</span><em>' + live.length + (live.length === 1 ? ' game' : ' games') + '</em></h5>' + cards(live, true) + '</section>';
     groups.forEach(function(k){
+      if(k === 'Earnings'){ out += mqSchedEarnHtml(byKey[k]); return; }
       var l = byKey[k].filter(function(p){ return p[1].st !== 'in'; });
-      if(l.length) out += '<section class="ag-sec" style="--lg:' + mqLgColor(k) + '"><h5 class="ag-h"><span>' + mqLgIcon(k) + escapeHtml(mqLgName(k)) + '</span><em>' + l.length + (l.length === 1 ? ' game' : ' games') + '</em></h5>' + rows(l, false) + '</section>';
+      if(l.length) out += '<section class="gx" style="--lg:' + mqLgColor(k) + '"><h5 class="gx-h"><span>' + mqLgIcon(k) + escapeHtml(mqLgName(k)) + '</span><em>' + l.length + (l.length === 1 ? ' game' : ' games') + '</em></h5>' + cards(l, false) + '</section>';
     });
-    return '<div class="agenda">' + out + '</div>';
+    return '<div class="sched-boards">' + out + '</div>';
   }
 
   // The still row on the Play page: today's bigger events only. Hidden until the schedule has data.

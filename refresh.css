@@ -1586,3 +1586,99 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 .gm-n{font:500 12px 'Barlow',sans-serif;color:#8B909A}
 .gm-n small{display:inline-block;padding:3px 8px;border:1px solid #2F333B;border-radius:6px;font-size:11px;color:#9AA0AB}
 @media(max-width:620px){.ag-sec,.ag-live{padding:2px 14px 4px !important}.gm{grid-template-columns:70px minmax(0,1fr);gap:12px}}
+
+/* ===== Calendar day card: small popup next to the tapped day ===== */
+.rec-day{position:fixed;z-index:70;margin:0;max-height:min(60vh,420px);overflow:auto;padding:12px 14px 6px;background:#1B1E23;border:1px solid #343944;border-radius:12px;box-shadow:0 14px 36px rgba(0,0,0,.55)}
+.rec-day[hidden]{display:none !important}
+.rd-x{position:absolute;top:4px;right:8px;border:0;background:none;color:#A8ADB6;font-size:22px;line-height:1;cursor:pointer;padding:4px}
+.rd-h{padding-right:26px}
+
+/* ===== Leaders: smaller, denser, uses the full width ===== */
+.rk-grp{margin:0 0 14px}
+.rk-grp-h{margin:0 0 7px;font-size:11px}
+.rk-cards{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.rk-card{padding:10px 12px 4px;border-radius:12px}
+.rk-card-h{font-size:11px;margin-bottom:4px;letter-spacing:.08em}
+.rk-mini li{gap:9px;padding:5px 6px;margin:0 -6px;border-radius:8px}
+.rk-mini li.rk-go{cursor:pointer}
+.rk-mini li.rk-go:hover{background:#23272E}
+.rk-mini .n{width:14px;font-size:12px}
+.rk-card .rk-ph.sm{width:28px;height:28px;box-shadow:0 0 0 1.5px var(--tc,#3A3F48)}
+.rk-card .m b{font-size:13.5px}
+.rk-card .m em{font-size:11.5px}
+.rk-mini .rk-val{font-size:14px}
+.rk-mini .rk-val.top{color:#F6C430;font-weight:700}
+.rk-more summary{padding:6px 0;font-size:11.5px;color:#8B909A}
+.rk-more[open] summary{display:none}
+
+/* ===== Player panel: status, injuries, season stats ===== */
+.pl-status{display:flex;align-items:center;gap:10px;margin:12px 0 6px;font:600 13px 'Barlow',sans-serif}
+.pl-status b{padding:4px 11px;border-radius:999px;background:rgba(76,211,155,.14);color:#4CD39B}
+.pl-status.inj b{background:rgba(245,100,79,.16);color:#F5644F}
+.pl-status span{color:#8B909A;font-weight:500}
+.pl-inj{margin:6px 0;padding:10px 12px;border:1px solid #2F333B;border-radius:10px;background:#17191D}
+.pl-inj b{display:block;font:600 14px 'Barlow',sans-serif;color:#F2F3F5}
+.pl-inj p{margin:4px 0;font:500 13px/1.45 'Barlow',sans-serif;color:#B5BAC3}
+.pl-inj em{font:500 12px 'Barlow',sans-serif;font-style:normal;color:#8B909A}
+.pl-bio{margin:8px 0 0;font:500 13px 'Barlow',sans-serif;color:#8B909A}
+
+/* ===== Standings: conference columns with one card per division ===== */
+.rk-confs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,430px),1fr));gap:20px;align-items:start}
+.rk-confcol{min-width:0}
+.rk-confcol .rk-conf{margin:0 0 10px;padding:0 0 8px;border-bottom:2px solid #3A3F4A;font:700 12px 'Barlow',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#E4E6EA}
+.rk-tc{background:#1A1D22;border:1px solid #262A31;border-radius:14px;padding:6px 14px 8px;margin-bottom:12px}
+.rk-tc .rk-div{margin:0;padding:8px 0 2px;font:700 11px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#8B909A;border:0}
+.rk-confs .rk-t{width:100%;border-collapse:collapse;margin:0;table-layout:auto}
+.rk-confs .rk-t th{padding:6px 6px;border:0;font:600 10.5px 'Barlow',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#6E737D;text-align:right;background:none}
+.rk-confs .rk-t td{padding:8px 6px;border:0;border-top:1px solid #23262C;font:500 14px 'Barlow',sans-serif;color:#C9CDD4;text-align:right;font-variant-numeric:tabular-nums;background:none}
+.rk-confs .rk-t th.n,.rk-confs .rk-t td.n{width:26px;text-align:center;color:#6E737D}
+.rk-confs .rk-t th.tm,.rk-confs .rk-t td.tm{text-align:left;width:auto}
+.rk-confs .rk-t td.tm span{font-weight:600;color:#F2F3F5;vertical-align:middle}
+.rk-confs .rk-t td.tm .rk-dot{width:26px;height:26px;font-size:9.5px;margin-right:10px;vertical-align:middle}
+.rk-confs .rk-t tr.rk-go{cursor:pointer}
+.rk-confs .rk-t tr.rk-go:hover td{background:#20242A}
+.rk-confs .rk-s{display:inline-block;min-width:30px;padding:2px 7px;border-radius:6px;background:#23262C;font:600 12px 'Barlow',sans-serif;text-align:center;color:#A8ADB6}
+.rk-confs .rk-s.w{background:rgba(76,211,155,.13);color:#4CD39B}
+.rk-confs .rk-s.l{background:rgba(245,100,79,.13);color:#F5644F}
+
+/* ===== Schedule, boards layout: league cards in a grid, earnings by market timing ===== */
+.sched-boards{max-width:1120px}
+.gx{margin-top:26px}
+.gx:first-child{margin-top:8px}
+.gx-h{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:0;border:0;font:700 13px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#E4E6EA}
+.gx-h>span{display:inline-flex;align-items:center;gap:9px}
+.gx-h em{margin-left:auto;font:500 12px 'Barlow',sans-serif;letter-spacing:0;text-transform:none;color:#6E737D;font-style:normal}
+.gx-h .ag-ico{display:inline-flex;color:var(--lg,#9AA0AB)}
+.gx-h .ag-ico svg{width:18px;height:18px}
+.gx-live .gx-h{color:#FF8272}
+.gc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.gc{display:flex;flex-direction:column;gap:10px;padding:12px 14px;background:#1A1D22;border:1px solid #262A31;border-radius:14px;transition:background .15s,border-color .15s}
+.gc.is-click{cursor:pointer}
+.gc.is-click:hover{background:#1F2329;border-color:#3A3F48}
+.gc-top{display:flex;justify-content:space-between;align-items:center;gap:8px;font:600 12.5px 'Barlow',sans-serif;color:#A8ADB6}
+.gc-st{display:inline-flex;align-items:center;font-variant-numeric:tabular-nums}
+.gc-st em{font-style:normal;margin-left:8px;color:#8B909A;font-weight:500}
+.gc.is-live .gc-st{color:#FF8272}
+.gc.is-done .gc-st{color:#7E838D}
+.gc-lg{font:700 10.5px 'Barlow',sans-serif;letter-spacing:.12em;text-transform:uppercase}
+.gc-body{display:flex;flex-direction:column;gap:8px}
+.gc-tm{display:flex;align-items:center;gap:10px;min-width:0}
+.gc-tm b{flex:1;min-width:0;font:600 15px 'Barlow',sans-serif;color:#F2F3F5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc-tm span{font:700 18px 'Barlow',sans-serif;color:#fff;font-variant-numeric:tabular-nums}
+.gc-tm span small{font:500 12px 'Barlow',sans-serif;color:#7E838D}
+.gc-tm.lost b,.gc-tm.lost span{color:#7E838D}
+.gc.is-done .gm-bd{opacity:.55}
+.gc-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:9px;border-top:1px solid #23262C}
+.gc-foot small{font:500 11.5px 'Barlow',sans-serif;color:#8B909A}
+.gx-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px;align-items:start}
+.gx-col{background:#1A1D22;border:1px solid #262A31;border-radius:14px;padding:12px 14px 4px}
+.gx-ch{display:flex;justify-content:space-between;margin-bottom:4px;font:700 11px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#8B909A}
+.gx-ch em{font-style:normal;letter-spacing:0;color:#6E737D}
+.gx-tile{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #23262C;cursor:pointer}
+.gx-tile:hover .gx-n{color:#fff}
+.gx-n{flex:1;min-width:0;font:600 14.5px 'Barlow',sans-serif;color:#E4E6EA;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gx-tile .sstrip-quote{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;font:600 12.5px 'Barlow',sans-serif;min-height:0}
+.gx-tile .sstrip-quote b{color:#F2F3F5}
+.gx-tile .sstrip-quote.up span{color:#4CD39B}
+.gx-tile .sstrip-quote.down span{color:#F5644F}
+@media(max-width:620px){.gc-grid,.gx-cols{grid-template-columns:1fr}}
