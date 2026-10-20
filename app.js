@@ -7038,29 +7038,85 @@
       '<text x="32" y="37" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ink)" style="font-family:\'Big Shoulders Display\',Barlow,sans-serif">' + (has ? pct + '%' : 'New') + '</text></svg>' +
       '<b>' + escapeHtml(label) + '</b><span>' + escapeHtml(sub) + '</span></div>';
   }
+  // Record calendar: one month at a time (switch months with the arrows). Hover or click any day to see that day's calls, right and wrong.
+  var MQ_REC = { month: '', rows: null, byDay: {}, picks: {}, qcache: {}, session: null, bound: false };
+  var MQ_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  function mqRecDayLabel(d){ var t = new Date(d + 'T12:00:00Z'); return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][t.getUTCDay()] + ', ' + MQ_MONTHS[t.getUTCMonth()].slice(0, 3) + ' ' + t.getUTCDate(); }
+  function mqRecRenderMonth(){
+    var cal = document.getElementById('rec-cal'), foot = document.getElementById('rec-foot'); if(!cal) return;
+    var today = getETDateInfo().dateStr, ym = MQ_REC.month, y = Number(ym.slice(0, 4)), m = Number(ym.slice(5, 7));
+    var first = new Date(Date.UTC(y, m - 1, 1, 12)), lead = (first.getUTCDay() + 6) % 7, dim = new Date(Date.UTC(y, m, 0, 12)).getUTCDate();
+    var curYm = today.slice(0, 7), minYm = '2026-09';
+    var lab = document.getElementById('rec-month-label'); if(lab) lab.textContent = MQ_MONTHS[m - 1] + ' ' + y;
+    var pv = document.getElementById('rec-prev'), nx = document.getElementById('rec-next');
+    if(pv) pv.disabled = ym <= minYm; if(nx) nx.disabled = ym >= curYm;
+    var cells = '', played = 0, byDay = MQ_REC.byDay, session = MQ_REC.session;
+    for(var b = 0; b < lead; b++) cells += '<i class="rc blank" aria-hidden="true"></i>';
+    for(var i = 1; i <= dim; i++){
+      var d = ym + '-' + String(i).padStart(2, '0'), v = byDay[d], cls = 'rc', tip = mqRecDayLabel(d);
+      if(d > today){ cls += ' future'; }
+      else if(!v){ cls += ' none'; tip += ': missed'; }
+      else{
+        played++;
+        if(v.resolved === 0 && v.voided > 0 && v.voided === v.total){ cls += ' pend'; tip += ': voided'; }
+        else if(v.resolved === 0){ cls += ' pend'; tip += ': waiting on results'; }
+        else if(v.total >= 3 && v.correct + v.voided === v.total){ cls += ' perfect'; tip += ': Perfect Day'; }
+        else if(v.correct === 0){ cls += ' l0'; tip += ': 0 of ' + v.resolved + ' right'; }
+        else if(v.correct === 1){ cls += ' l1'; tip += ': 1 of ' + v.resolved + ' right'; }
+        else{ cls += ' l2'; tip += ': ' + v.correct + ' of ' + v.resolved + ' right'; }
+      }
+      if(d === today) cls += ' today';
+      if(d === MQ_REC.sel) cls += ' sel';
+      cells += '<button type="button" class="' + cls + '" style="--i:' + (lead + i) + ';" data-d="' + d + '" title="' + escapeHtml(tip) + '"' + (d > today ? ' disabled' : '') + ' aria-label="' + escapeHtml(tip) + '"></button>';
+    }
+    cal.innerHTML = cells;
+    if(foot && session){
+      foot.textContent = played ? played + (played === 1 ? ' day' : ' days') + ' played in ' + MQ_MONTHS[m - 1] + '.' : (ym === curYm ? 'Your record fills in as your calls get scored.' : 'No calls in ' + MQ_MONTHS[m - 1] + '.');
+    }
+  }
+  async function mqRecShowDay(d){
+    var panel = document.getElementById('rec-day'); if(!panel || !d) return;
+    MQ_REC.sel = d;
+    document.querySelectorAll('#rec-cal .rc').forEach(function(c){ c.classList.toggle('sel', c.getAttribute('data-d') === d); });
+    panel.hidden = false;
+    var qs = MQ_REC.qcache[d];
+    if(!qs){
+      panel.innerHTML = '<div class="rd-h">' + mqRecDayLabel(d) + '</div><p class="rd-empty">Loading…</p>';
+      var r = await sb.from('daily_questions').select('id, question_text, category, correct_answer, resolved, voided').eq('question_date', d).order('lock_time', { ascending: true });
+      qs = MQ_REC.qcache[d] = r.data || [];
+    }
+    if(MQ_REC.sel !== d) return;
+    var picks = MQ_REC.picks[d] || {}, right = 0, scored = 0;
+    var rows = qs.map(function(q){
+      var ch = picks[q.id], st, ic, line;
+      if(q.voided){ st = 'void'; ic = '–'; line = 'Voided, doesn’t count'; }
+      else if(!ch){ st = 'none'; ic = '–'; line = q.resolved ? 'You didn’t pick · Answer: ' + String(q.correct_answer || '').toUpperCase() : 'You didn’t pick'; }
+      else if(!q.resolved){ st = 'pend'; ic = '…'; line = 'You picked ' + String(ch).toUpperCase() + ' · waiting on the result'; }
+      else if(ch === q.correct_answer){ st = 'ok'; ic = '✓'; right++; scored++; line = 'You picked ' + String(ch).toUpperCase() + ' · Right'; }
+      else { st = 'bad'; ic = '✕'; scored++; line = 'You picked ' + String(ch).toUpperCase() + ' · Answer was ' + String(q.correct_answer || '').toUpperCase(); }
+      return '<div class="rd-row ' + st + '"><span class="rd-ic">' + ic + '</span><div class="rd-t"><b>' + escapeHtml(q.question_text) + '</b><em>' + escapeHtml(line) + '</em></div></div>';
+    }).join('');
+    panel.innerHTML = '<div class="rd-h">' + mqRecDayLabel(d) + (scored ? '<span>' + right + ' of ' + scored + ' right</span>' : '') + '</div>' + (rows || '<p class="rd-empty">No questions that day.</p>');
+  }
   async function loadRecord(){
     var cal = document.getElementById('rec-cal');
     if(!cal) return;
     var foot = document.getElementById('rec-foot'), ringsEl = document.getElementById('rec-rings');
     var today = getETDateInfo().dateStr;
-    var t = new Date(today + 'T12:00:00Z');
-    var idx = (t.getUTCDay() + 6) % 7;                    // Monday = 0
-    var start = new Date(t.getTime() - (idx + 28) * 86400000);
-    function ds(d){ return d.toISOString().slice(0, 10); }
-    var days = [];
-    for(var i = 0; i < 35; i++) days.push(ds(new Date(start.getTime() + i * 86400000)));
-
-    var byDay = {}, cat = { sports: { c: 0, t: 0 }, pop_culture: { c: 0, t: 0 }, news: { c: 0, t: 0 } };
+    if(!MQ_REC.month) MQ_REC.month = today.slice(0, 7);
+    var t = new Date(today + 'T12:00:00Z'), ringFrom = new Date(t.getTime() - 34 * 86400000).toISOString().slice(0, 10);
+    var byDay = {}, picks = {}, cat = { sports: { c: 0, t: 0 }, pop_culture: { c: 0, t: 0 }, news: { c: 0, t: 0 } };
     var session = null;
     try{ var sr = await sb.auth.getSession(); session = sr && sr.data && sr.data.session; }catch(e){}
     if(session){
       var res = await sb.from('predictions')
-        .select('choice, daily_questions!inner(category, correct_answer, resolved, voided, question_date)')
+        .select('choice, daily_questions!inner(id, category, correct_answer, resolved, voided, question_date)')
         .eq('user_id', session.user.id)
-        .gte('daily_questions.question_date', days[0])
+        .gte('daily_questions.question_date', '2026-09-01')
         .lte('daily_questions.question_date', today);
       (res.data || []).forEach(function(r){
         var dq = r.daily_questions; if(!dq) return;
+        (picks[dq.question_date] = picks[dq.question_date] || {})[dq.id] = r.choice;
         var d = byDay[dq.question_date] = byDay[dq.question_date] || { total: 0, resolved: 0, correct: 0, voided: 0 };
         d.total++;
         if(dq.voided){
@@ -7069,27 +7125,30 @@
           d.resolved++;
           var ok = r.choice === dq.correct_answer;
           if(ok) d.correct++;
-          if(cat[dq.category]){ cat[dq.category].t++; if(ok) cat[dq.category].c++; }
+          if(dq.question_date >= ringFrom && cat[dq.category]){ cat[dq.category].t++; if(ok) cat[dq.category].c++; }
         }
       });
+      Object.keys(byDay).forEach(function(d){
+        var v = byDay[d];
+        if(d >= ringFrom && v.resolved > 0 && v.total >= 3 && v.correct + v.voided === v.total) mqAwardAchievement(session.user.id, 'perfect_day');
+      });
     }
-    var played = 0;
-    cal.innerHTML = days.map(function(d, i){
-      var v = byDay[d], cls = 'rc', tip = d;
-      if(d > today){ cls += ' future'; }
-      else if(!v){ cls += ' none'; tip += ': missed'; }
-      else{
-        played++;
-        if(v.resolved === 0 && v.voided > 0 && v.voided === v.total){ cls += ' pend'; tip += ': voided'; }
-        else if(v.resolved === 0){ cls += ' pend'; tip += ': waiting on results'; }
-        else if(v.total >= 3 && v.correct + v.voided === v.total){ cls += ' perfect'; tip += ': Perfect Day'; if(session) mqAwardAchievement(session.user.id, 'perfect_day'); }
-        else if(v.correct === 0){ cls += ' l0'; tip += ': 0 of ' + v.resolved + ' right'; }
-        else if(v.correct === 1){ cls += ' l1'; tip += ': 1 of ' + v.resolved + ' right'; }
-        else{ cls += ' l2'; tip += ': ' + v.correct + ' of ' + v.resolved + ' right'; }
-      }
-      if(d === today) cls += ' today';
-      return '<i class="' + cls + '" style="--i:' + i + ';" title="' + escapeHtml(tip) + '"></i>';
-    }).join('');
+    MQ_REC.byDay = byDay; MQ_REC.picks = picks; MQ_REC.session = session;
+    mqRecRenderMonth();
+    if(!MQ_REC.bound){
+      MQ_REC.bound = true;
+      var pv = document.getElementById('rec-prev'), nx = document.getElementById('rec-next');
+      function step(n){ var y = Number(MQ_REC.month.slice(0, 4)), m = Number(MQ_REC.month.slice(5, 7)) + n; if(m < 1){ m = 12; y--; } if(m > 12){ m = 1; y++; } MQ_REC.month = y + '-' + String(m).padStart(2, '0'); MQ_REC.sel = ''; var p = document.getElementById('rec-day'); if(p) p.hidden = true; mqRecRenderMonth(); }
+      if(pv) pv.addEventListener('click', function(){ step(-1); });
+      if(nx) nx.addEventListener('click', function(){ step(1); });
+      var hoverT = null;
+      cal.addEventListener('click', function(e){ var b = e.target.closest('button[data-d]'); if(b) mqRecShowDay(b.getAttribute('data-d')); });
+      cal.addEventListener('mouseover', function(e){
+        if(!window.matchMedia || !window.matchMedia('(hover:hover)').matches) return;
+        var b = e.target.closest('button[data-d]'); if(!b) return;
+        clearTimeout(hoverT); hoverT = setTimeout(function(){ mqRecShowDay(b.getAttribute('data-d')); }, 120);
+      });
+    }
 
     var defs = [['sports', 'Sports', '255,148,38'], ['pop_culture', 'Pop culture', '170,112,255'], ['news', 'News', '70,140,255']];
     ringsEl.innerHTML = defs.map(function(x){
@@ -7102,12 +7161,9 @@
 
     var recCard = document.getElementById('record-card');
     if(!session){
-      mqEmptyState(recCard, { icon: 'chart', title: 'Your record starts with one call', sub: 'Make a free account and every call you make builds a streak, a hit rate and a 5-week history.', source: 'record' });
+      mqEmptyState(recCard, { icon: 'chart', title: 'Your record starts with one call', sub: 'Make a free account and every call you make builds a streak, a hit rate and a month-by-month history.', source: 'record' });
       foot.textContent = '';
     }else{ mqClearEmptyState(recCard); }
-    if(!session){ /* handled above */ }
-    else if(!played) foot.textContent = 'Your record fills in as your calls get scored.';
-    else foot.textContent = played + (played === 1 ? ' day' : ' days') + ' played in the last 5 weeks.';
   }
 
 
@@ -9223,7 +9279,7 @@
     }
     var lg = showLg ? '<small class="gm-lg" style="color:' + mqLgColor(mqSchedKey(ev)) + '">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</small>' : '';
     return '<div class="gm ' + (st === 'in' ? 'is-live' : st === 'post' ? 'is-done' : '') + (x.open ? ' is-click' : '') + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
-      '<span class="gm-t">' + lg + '<span>' + (st === 'in' ? '<i class="ag-pulse"></i>' : '') + escapeHtml(status) + '</span>' + (st === 'pre' && mqUntil(ev) ? '<em class="gm-in">' + mqUntil(ev) + '</em>' : '') + '</span><span class="gm-m">' + body + '</span>' +
+      '<span class="gm-t"><span>' + (st === 'in' ? '<i class="ag-pulse"></i>' : '') + escapeHtml(status) + '</span>' + (st === 'pre' && mqUntil(ev) ? '<em class="gm-in">' + mqUntil(ev) + '</em>' : '') + '</span><span class="gm-m">' + lg + body + '</span>' +
       '<span class="gm-n">' + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + (tail ? (/^</.test(tail) ? tail : '<small>' + escapeHtml(tail) + '</small>') : '') + '</span></div>';
   }
   function mqSchedAgendaHtml(list){

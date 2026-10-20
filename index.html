@@ -47,7 +47,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261020l">
-<link rel="stylesheet" href="refresh.css?v=20261020zm">
+<link rel="stylesheet" href="refresh.css?v=20261020zn">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -601,13 +601,15 @@
 <section class="section">
   <div class="wrap">
     <div class="recap-card record-card" id="record-card">
-      <div class="recap-head">Your record · last 5 weeks</div>
+      <div class="recap-head">Your record</div>
       <div class="rec-rings" id="rec-rings"></div>
       <div class="recap-foot" id="rec-foot"></div>
       <div class="rec-cal-wrap">
+        <div class="rec-month"><button type="button" id="rec-prev" aria-label="Previous month">‹</button><span id="rec-month-label"></span><button type="button" id="rec-next" aria-label="Next month">›</button></div>
         <div class="rec-dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
         <div class="rec-cal" id="rec-cal"></div>
         <div class="rec-legend"><span><i style="background:linear-gradient(160deg,#F7D466,#D9A21F)"></i>Perfect Day</span><span><i style="background:rgba(51,209,139,.88)"></i>2 right</span><span><i style="background:rgba(51,209,139,.42)"></i>1 right</span><span><i style="background:rgba(245,100,79,.6)"></i>None right</span><span><i style="background:rgba(128,136,150,.35)"></i>Missed</span></div>
+        <div class="rec-day" id="rec-day" hidden></div>
       </div>
     </div>
     <div class="recap-card" id="recap-card" style="margin-top:14px; border-top:3px solid #128A50;">
@@ -986,7 +988,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261021a" defer></script>
+<script src="app.js?v=20261021b" defer></script>
 
 
 

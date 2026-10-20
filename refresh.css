@@ -1532,3 +1532,57 @@ details.co-cr a:hover{text-decoration:underline}
 #play-social-username-input{background:#15171B !important;border:1.5px solid #343944 !important;border-radius:10px !important;padding:12px 14px !important}
 #play-social-username-input:focus{outline:2px solid #F6C430;outline-offset:1px}
 #play-add-buddy-btn,#play-add-rival-btn{padding:12px 14px !important;border-radius:10px !important}
+
+
+/* ---- Play page: gold turned down (softer, less bright) ---- */
+#share-picks-btn,#play-add-buddy-btn,#submit-all-btn{background:#A88B3D !important;border-color:#A88B3D !important;color:#14161A !important}
+#play-add-rival-btn{color:#BFA24F !important;border-color:#7D672C !important}
+#play-add-rival-btn:hover{background:rgba(168,139,61,.12) !important}
+.sec-ico{color:#BFA24F !important;background:#23262C !important}
+.mq-fold[open]>summary .sec-ico{background:#A88B3D !important;border-color:#A88B3D;color:#14161A !important}
+#play-social-prompt>div:first-child{color:#BFA24F !important}
+
+/* ---- Record calendar: month header, clickable days, day details ---- */
+.rec-month{display:flex;align-items:center;justify-content:space-between;margin:0 0 10px}
+.rec-month span{font:600 12px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#fff}
+.rec-month button{width:28px;height:28px;border:1px solid #2F333B;border-radius:8px;background:none;color:#C9CDD4;font:600 16px/1 'Barlow',sans-serif;cursor:pointer}
+.rec-month button:hover:not(:disabled){background:#23262C}
+.rec-month button:disabled{opacity:.25;cursor:default}
+button.rc{border:0;padding:0;cursor:pointer;font:inherit}
+button.rc:disabled{cursor:default}
+.rc.blank{background:none !important;box-shadow:none !important;animation:none;pointer-events:none}
+button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-offset:1px}
+.rc.sel{outline:2px solid #fff !important;outline-offset:1px}
+.rec-day{margin-top:14px;padding:12px 14px 6px;background:#17191D;border:1px solid #2A2E36;border-radius:12px}
+#record-card .rec-cal-wrap>.rec-day{max-width:none !important}
+.rec-day[hidden]{display:none}
+.rd-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;font:700 12px 'Barlow',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#fff}
+.rd-h span{letter-spacing:0;text-transform:none;font-weight:600;color:#A8ADB6}
+.rd-row{display:flex;gap:10px;padding:9px 0;border-top:1px solid #23262C}
+.rd-ic{flex:none;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:700 12px 'Barlow',sans-serif;background:#2A2E36;color:#A8ADB6}
+.rd-row.ok .rd-ic{background:rgba(51,209,139,.18);color:#4CD39B}
+.rd-row.bad .rd-ic{background:rgba(245,100,79,.18);color:#F5644F}
+.rd-t b{display:block;font:600 13.5px/1.35 'Barlow',sans-serif;color:#F2F3F5}
+.rd-t em{font:500 12px 'Barlow',sans-serif;font-style:normal;color:#8B909A}
+.rd-empty{margin:6px 0 10px;font-size:13px;color:#8B909A}
+
+/* ---- Schedule tab, organized: one card per league, league name only in the header (never behind the teams) ---- */
+.agenda{max-width:860px}
+.ag-sec{background:#1A1D22;border:1px solid #262A31;border-radius:14px;padding:2px 18px 4px;margin-top:16px}
+.ag-sec .ag-h{padding:14px 0 12px;border-bottom:1px solid #2A2E36;font:700 12px 'Barlow',sans-serif;letter-spacing:.16em;color:#E4E6EA;display:flex;align-items:center;justify-content:flex-start;gap:8px}
+.ag-sec .ag-h>span{display:inline-flex;align-items:center;gap:9px}
+.ag-sec:not(.ag-live) .ag-h .ag-ico{color:var(--lg,#9AA0AB)}
+.ag-sec .ag-h em{display:inline;margin-left:auto;font:500 12px 'Barlow',sans-serif;letter-spacing:0;text-transform:none;color:#6E737D}
+.ag-live{border-left:3px solid #FF6B5B;background:#1A1D22 !important;padding:2px 18px 4px !important;margin-top:10px}
+.gm{grid-template-columns:84px minmax(0,1fr) 96px;gap:16px;padding:14px 0;border-bottom:1px solid #23262C}
+.agenda .ag-sec .gm:last-child{border-bottom:0}
+.gm-t{gap:3px}
+.gm-t>span:first-child{font:700 14px 'Barlow',sans-serif;color:#E4E6EA}
+.gm.is-live .gm-t>span:first-child{color:#FF7A69}
+.gm.is-done .gm-t>span:first-child{color:#7E838D}
+.gm-m{gap:8px}
+.gm-lg{display:flex;align-items:center;gap:7px;font:700 10.5px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;line-height:1}
+.gm-lg::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.gm-n{font:500 12px 'Barlow',sans-serif;color:#8B909A}
+.gm-n small{display:inline-block;padding:3px 8px;border:1px solid #2F333B;border-radius:6px;font-size:11px;color:#9AA0AB}
+@media(max-width:620px){.ag-sec,.ag-live{padding:2px 14px 4px !important}.gm{grid-template-columns:70px minmax(0,1fr);gap:12px}}
