@@ -8521,6 +8521,12 @@
     return '<div class="cmp">' + rows.join('') + '</div>';
   }
   var MQ_SPORT = { NFL: 'football', NBA: 'basketball', WNBA: 'basketball', NHL: 'hockey', MLB: 'baseball' };
+  function mqInitials(l){
+    var p = String(l.full || l.name || '').replace(/\b(jr|sr|ii|iii|iv)\.?$/i, '').trim().split(/\s+/).filter(Boolean);
+    if(!p.length) return '?';
+    var a = p[0].replace(/[^A-Za-z\u00C0-\u024F]/g, '').charAt(0), b = p.length > 1 ? p[p.length - 1].replace(/[^A-Za-z\u00C0-\u024F]/g, '').charAt(0) : '';
+    return (a + b).toUpperCase() || '?';
+  }
   function mqPlayerAttr(l, team, league){
     var sp = MQ_SPORT[String(league || '').toUpperCase()];
     return (sp && l.full) ? ' data-pn="' + escapeHtml(l.full) + '" data-pt="' + escapeHtml(team || '') + '" data-ps="' + sp + '"' : '';
@@ -8532,7 +8538,7 @@
     var seen = {};
     [].forEach.call(root.querySelectorAll('.kp[data-pn]'), function(k){
       var n = k.getAttribute('data-pn'), key = n + '|' + k.getAttribute('data-ps');
-      (seen[key] = seen[key] || fetch(SUPABASE_URL + '/functions/v1/player-photo?v=2&name=' + encodeURIComponent(n) + '&team=' + encodeURIComponent(k.getAttribute('data-pt') || '') + '&sport=' + k.getAttribute('data-ps'))
+      (seen[key] = seen[key] || fetch(SUPABASE_URL + '/functions/v1/player-photo?v=3&name=' + encodeURIComponent(n) + '&team=' + encodeURIComponent(k.getAttribute('data-pt') || '') + '&sport=' + k.getAttribute('data-ps'))
         .then(function(r){ return r.json(); }).catch(function(){ return null; })).then(function(d){
         if(!d || !d.found || !/^https:\/\/commons\.wikimedia\.org\//.test(d.photo || '') || !k.isConnected) return;
         var num = k.querySelector('.kp-num'), t = k.querySelector('.kp-t');
@@ -8560,7 +8566,7 @@
       var lb = (g.home.leaders || []).filter(function(x){ return x.label === la.label; })[0];
       if(!lb) return;
       function who(l, side, cls){
-        return '<div class="kp ' + cls + '"' + mqPlayerAttr(l, side.name, g.league) + '><i class="kp-num" style="' + mqBadgeStyle(side) + '">' + escapeHtml(l.num || '–') + '</i>' +
+        return '<div class="kp ' + cls + '"' + mqPlayerAttr(l, side.name, g.league) + '><i class="kp-num" style="' + mqBadgeStyle(side) + '">' + escapeHtml(mqInitials(l)) + '</i>' +
           '<span class="kp-t"><b>' + escapeHtml(l.name) + (l.pos ? ' <small>' + escapeHtml(l.pos) + '</small>' : '') + '</b><em>' + escapeHtml(l.line) + '</em></span></div>';
       }
       rows.push('<div class="kp-row">' + who(la, g.away, 'a') + '<span class="cmp-l">' + escapeHtml(la.label) + '</span>' + who(lb, g.home, 'h') + '</div>');
@@ -8815,7 +8821,7 @@
       var side = { color: t.color || r.color, alt: t.alt || r.alt }, out = '';
       if(t.leaders && t.leaders.length){
         out += '<div class="kp-head">Team leaders</div><div class="tp-leaders">' + t.leaders.map(function(l){
-          return '<div class="kp"' + mqPlayerAttr(l, t.name, lg) + '><i class="kp-num" style="' + mqBadgeStyle(side) + '">' + escapeHtml(l.num || '–') + '</i><span class="kp-t"><b>' + escapeHtml(l.name) + (l.pos ? ' <small>' + escapeHtml(l.pos) + '</small>' : '') + '</b><em>' + escapeHtml(l.label + ' · ' + l.line) + '</em></span></div>';
+          return '<div class="kp"' + mqPlayerAttr(l, t.name, lg) + '><i class="kp-num" style="' + mqBadgeStyle(side) + '">' + escapeHtml(mqInitials(l)) + '</i><span class="kp-t"><b>' + escapeHtml(l.name) + (l.pos ? ' <small>' + escapeHtml(l.pos) + '</small>' : '') + '</b><em>' + escapeHtml(l.label + ' · ' + l.line) + '</em></span></div>';
         }).join('') + '</div>';
       }
       var cells = [['Record', t.record], ['Standing', t.standing], ['Home', t.home], ['Road', t.road]];

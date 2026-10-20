@@ -837,7 +837,7 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 @media(max-width:560px){.agenda .sstrip-cell{grid-template-columns:86px minmax(0,1fr);gap:4px 12px}.agenda .sstrip-tags{grid-column:2}}
 
 /* Player photos (Wikimedia Commons, openly licensed, each credited) */
-.kp-ph{width:34px;height:34px;border-radius:50%;object-fit:cover;object-position:center top;flex:none;background:#e9ecf1}
+.kp-ph{width:40px;height:40px;border-radius:50%;object-fit:cover;object-position:50% 12%;flex:none;background:#e9ecf1;box-shadow:0 0 0 2px rgba(255,255,255,.14)}
 .kp-cr{display:block;margin-top:2px;font-size:10px;line-height:1.3;color:#8a93a3;text-decoration:none;font-weight:400}
 .kp-cr:hover{text-decoration:underline}
 
@@ -1102,3 +1102,7 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .lv-plays li{display:grid;grid-template-columns:84px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid #1F2227;font-size:13.5px;color:#C9CDD4;line-height:1.35}
 .lv-plays li b{font-size:12px;color:#7E838D;font-weight:600;font-variant-numeric:tabular-nums}
 .lv-plays li.score{color:#fff}.lv-plays li.score b{color:#F6C430}
+
+/* Leader avatars: initials in the team color until a photo loads (or when none exists) */
+.kp-num{width:40px;height:40px;font-size:14px;letter-spacing:.02em}
+@media (max-width:520px){.kp-num,.kp-ph{width:34px;height:34px}.kp-num{font-size:12px}}

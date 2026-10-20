@@ -24,10 +24,10 @@ async function wiki(host: string, params: Record<string, string>): Promise<any> 
   return r.json();
 }
 const strip = (h: string) => String(h || '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/\s+/g, ' ').trim();
-const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 
 const KNOWN = (m: any, k: string) => strip(m?.[k]?.value || '');
-async function recent(name: string, team: string, trace: string[]) {
+async function recent(name: string, team: string, trace: string[], teamOnPage = false) {
   const words = team.split(/\s+/).filter(Boolean);
   if (!words.length) return null;
   const nick = norm(words[words.length - 1]), full = norm(team);
@@ -37,7 +37,7 @@ async function recent(name: string, team: string, trace: string[]) {
   for (const term of [`${name} ${words[words.length - 1]}`, name]) {
     const c = await wiki('commons.wikimedia.org', {
       action: 'query', generator: 'search', gsrnamespace: '6', gsrsearch: term, gsrlimit: '40',
-      prop: 'imageinfo', iiprop: 'url|extmetadata|size|timestamp', iiurlwidth: '240',
+      prop: 'imageinfo', iiprop: 'url|extmetadata|size|timestamp', iiurlwidth: '320',
       iiextmetadatafilter: 'DateTimeOriginal|DateTime|LicenseShortName|LicenseUrl|Artist|Categories|ImageDescription',
     });
     for (const p of Object.values(c?.query?.pages || {}) as any[]) {
@@ -53,16 +53,24 @@ async function recent(name: string, team: string, trace: string[]) {
       const hay = norm(title + ' ' + KNOWN(m, 'Categories') + ' ' + KNOWN(m, 'ImageDescription'));
       const teamHit = hay.includes(nick) || hay.includes(full);
       const yr = parseInt((KNOWN(m, 'DateTimeOriginal') || KNOWN(m, 'DateTime') || ii.timestamp || '').match(/(19|20)\d\d/)?.[0] || '0', 10);
-      cands.push({ title, teamHit, yr, ratio, lic, m, ii });
+      const pen = /injur|white house|trump|biden|obama|ceremony|visit|draft|celebrat|bobblehead|card|statue/i.test(title) || /[&,]| and | with /i.test(title) ? 1 : 0;
+      cands.push({ title, teamHit, yr, ratio, lic, m, ii, pen });
     }
     if (cands.some((x) => x.teamHit)) break;
   }
   trace.push('cands:' + cands.map((x) => `${x.title}|team=${x.teamHit}|${x.yr}`).join(' ; '));
-  const ok = cands.filter((x) => x.teamHit).sort((a, b) => b.yr - a.yr || Math.abs(a.ratio - 0.85) - Math.abs(b.ratio - 0.85));
+  // A photo counts as "current team" if its file says so, or if it is from the last two seasons and the player's
+  // Wikipedia article names this team (file descriptions rarely mention the team).
+  const thisYr = new Date().getUTCFullYear();
+  const pool = cands.filter((x) => x.teamHit || (teamOnPage && x.yr >= thisYr - 1));
+  // Prefer: clean single-player shots, newest year, close crops (portrait/square, "cropped") over wide action shots.
+  const score = (x: any) => x.yr * 10 - x.pen * 60 + (x.teamHit ? 6 : 0) + (/cropped|portrait|headshot|profile/i.test(x.title) ? 8 : 0) + (x.ratio <= 1.1 ? 8 : x.ratio <= 1.4 ? 3 : 0);
+  const ok = pool.sort((a, b) => score(b) - score(a));
+  trace.push('pool:' + ok.map((x) => x.title + '=' + score(x)).join(' ; '));
   const w = ok[0];
   if (!w) return null;
   return {
-    found: true, photo: 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(w.title) + '?width=240',
+    found: true, photo: 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(w.title) + '?width=320',
     author: KNOWN(w.m, 'Artist') || 'Wikimedia Commons contributor', license: w.lic, licenseUrl: KNOWN(w.m, 'LicenseUrl'), pageUrl: String(w.ii.descriptionurl || ''),
   };
 }
@@ -71,7 +79,7 @@ async function lookup(name: string, team: string, sport: string, trace: string[]
   const sw = SPORT_WORDS[sport] || /./;
   const q = await wiki('en.wikipedia.org', {
     action: 'query', generator: 'search', gsrsearch: `${name} ${team}`, gsrlimit: '5',
-    prop: 'pageimages|extracts', piprop: 'name', exintro: '1', explaintext: '1', exchars: '400', exlimit: '5',
+    prop: 'pageimages|extracts', piprop: 'name', exintro: '1', explaintext: '1', exchars: '900', exlimit: '5',
   });
   const pages: any[] = Object.values(q?.query?.pages || {}).sort((a: any, b: any) => (a.index || 0) - (b.index || 0));
   trace.push('pages:' + pages.map((p: any) => p.title + '|img=' + p.pageimage).join(' ; '));
@@ -81,9 +89,8 @@ async function lookup(name: string, team: string, sport: string, trace: string[]
     const okName = t === want || (t.includes(last) && want.split(' ')[0][0] === t[0]);
     if (!okName || !sw.test(String(p.extract || ''))) { trace.push('skip ' + p.title + ' name=' + okName); continue; }
     // Newest photo that shows the player with his CURRENT team (Wikipedia's lead image is often a college or old-team shot).
-    const best = await recent(name, team, trace);
-    if (best) return best;
-    return null;
+    const nick = norm(team.split(/\s+/).slice(-1)[0] || '');
+    return await recent(name, team, trace, !!nick && norm(String(p.extract || '')).includes(nick));
   }
   return null;
 }
@@ -102,7 +109,7 @@ Deno.serve(async (req: Request) => {
   const u = new URL(req.url);
   const name = (u.searchParams.get('name') || '').trim(), team = (u.searchParams.get('team') || '').trim().slice(0, 60), sport = (u.searchParams.get('sport') || '').toLowerCase();
   if (!/^[\p{L}][\p{L} .'\-]{2,59}$/u.test(name) || !SPORT_WORDS[sport]) return new Response(JSON.stringify({ found: false, error: 'bad request' }), { status: 400, headers: CORS });
-  const key = 'v2|' + norm(name) + '|' + norm(team) + '|' + sport;
+  const key = 'v3|' + norm(name) + '|' + norm(team) + '|' + sport;
   const send = (o: any) => new Response(JSON.stringify(o), { headers: { ...CORS, 'cache-control': 'public, max-age=86400' } });
   try {
     const hit = u.searchParams.get('debug') ? null : await dbGet(key);
