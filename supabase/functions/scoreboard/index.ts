@@ -70,6 +70,8 @@ function leaders(c: any) {
       key: String(g.name || ''), label: String(g.shortDisplayName || g.displayName || ''),
       name: String(a.shortName || a.displayName), full: String(a.displayName), num: a.jersey != null ? String(a.jersey) : null,
       pos: a.position?.abbreviation ? String(a.position.abbreviation) : null, line: String(l.displayValue || ''),
+      // ESPN's own single-player headshot, used by the app ONLY when no free (Wikimedia Commons) photo exists.
+      hs: /^https:\/\/a\.espncdn\.com\/i\/headshots\/[a-z0-9\/_\-.]+\.png$/i.test(String(a.headshot?.href || a.headshot || '')) ? String(a.headshot?.href || a.headshot) : null,
     });
     if (out.length >= 3) break;
   }
