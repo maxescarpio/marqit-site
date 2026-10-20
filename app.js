@@ -8888,13 +8888,13 @@
     if(ev.category === 'finance') mqOpenStockPanel(ev); else mqOpenGamePanel(ev);
   }
   document.addEventListener('click', function(e){
-    var c = e.target.closest('.sstrip-cell.is-click, .lv.is-click, .tl.is-click');
+    var c = e.target.closest('.sstrip-cell.is-click, .gm.is-click');
     if(!c || e.target.closest('.sched-pick')) return;
     mqEventPanel(c);
   });
   document.addEventListener('keydown', function(e){
     if(e.key !== 'Enter' && e.key !== ' ') return;
-    var c = e.target.closest && e.target.closest('.sstrip-cell.is-click, .lv.is-click, .tl.is-click');
+    var c = e.target.closest && e.target.closest('.sstrip-cell.is-click, .gm.is-click');
     if(c){ e.preventDefault(); mqEventPanel(c); }
   });
 
@@ -8928,60 +8928,48 @@
     return open ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '';
   }
   function mqSchedDot(t){ return '<i class="sr-dot" style="background:' + mqTeamColor(t) + '"></i>'; }
-  // A live score card.
-  function mqLiveCardHtml(ev, x){
-    var g = x.g, row = function(t){
-      return '<div class="lv-t">' + mqSchedDot(t) + '<b>' + escapeHtml(t.abbr) + '</b>' + (t.rank ? '<small>' + t.rank + '</small>' : '') + '<span>' + escapeHtml(t.score == null ? '0' : t.score) + '</span></div>';
-    };
-    return '<div class="lv is-live' + (x.open ? ' is-click' : '') + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
-      '<div class="lv-h"><span class="lv-clock"><i class="ag-pulse"></i>' + escapeHtml(g.detail || 'Live') + '</span><small>' + escapeHtml(ev.league || '') + '</small></div>' +
-      row(g.away) + row(g.home) + (g.network ? '<div class="lv-f">' + escapeHtml(g.network) + '</div>' : '') + '</div>';
-  }
-  // A tile for a game that hasn't started (or has finished).
-  function mqSchedTileHtml(ev, x){
-    var g = x.g, done = x.st === 'post', lg = ev.category === 'finance' ? 'Earnings' : ev.league, foot = [], body;
+  // One game per line, scoreboard style: status | away  score  home | network. No boxes, just hairlines.
+  function mqSchedBar(t){ return '<i class="gm-bar" style="background:' + mqTeamColor(t) + '"></i>'; }
+  function mqSchedRowHtml(ev, x){
+    var g = x.g, st = x.st, status, mid, tail = '';
     if(g){
-      var hs = parseInt(g.home.score, 10), as = parseInt(g.away.score, 10);
-      var row = function(t, win){
-        return '<div class="tl-t' + (done && win === false ? ' lost' : '') + '">' + mqSchedDot(t) + '<b>' + escapeHtml(done || x.st === 'in' ? t.abbr : t.name) + '</b>' +
-          (done ? '<span>' + escapeHtml(t.score == null ? '' : t.score) + '</span>' : (t.record ? '<small>' + escapeHtml(t.record) + '</small>' : '')) + '</div>';
-      };
-      body = row(g.away, as > hs) + row(g.home, hs > as);
-      if(done) foot.push(/^f/i.test(g.detail || '') ? g.detail : 'Final');
-      if(g.network) foot.push(g.network);
+      var started = st !== 'pre', hs = parseInt(g.home.score, 10), as = parseInt(g.away.score, 10), done = st === 'post';
+      status = st === 'in' ? (g.detail || 'Live') : done ? (/^f/i.test(g.detail || '') ? g.detail : 'Final') : mqSchedTime(ev);
+      mid = '<span class="gm-a' + (done && as < hs ? ' lost' : '') + '"><b>' + escapeHtml(g.away.name) + '</b>' + mqSchedBar(g.away) + '</span>' +
+        '<span class="gm-s">' + (started ? '<em class="' + (done && as < hs ? 'lost' : '') + '">' + escapeHtml(g.away.score == null ? '0' : g.away.score) + '</em><u>–</u><em class="' + (done && hs < as ? 'lost' : '') + '">' + escapeHtml(g.home.score == null ? '0' : g.home.score) + '</em>' : '<u>at</u>') + '</span>' +
+        '<span class="gm-h' + (done && hs < as ? ' lost' : '') + '">' + mqSchedBar(g.home) + '<b>' + escapeHtml(g.home.name) + '</b></span>';
+      tail = g.network || '';
     } else if(ev.category === 'finance' && ev.league){
-      body = '<div class="tl-t"><b>' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</b></div><div class="tl-t"><small>Earnings report</small></div>';
-      foot.push(/before/i.test(ev.subtitle || '') ? 'Before the open' : /after/i.test(ev.subtitle || '') ? 'After the close' : (ev.subtitle || ''));
+      status = 'All day';
+      mid = '<span class="gm-one"><b>' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</b> <small>earnings · ' + escapeHtml(/before/i.test(ev.subtitle || '') ? 'before the open' : /after/i.test(ev.subtitle || '') ? 'after the close' : (ev.subtitle || 'report')) + '</small></span>';
     } else {
       var teams = mqSchedTeams(ev);
-      body = teams ? '<div class="tl-t"><b>' + escapeHtml(teams[0]) + '</b></div><div class="tl-t"><b>' + escapeHtml(teams[1]) + '</b></div>' : '<div class="tl-t"><b>' + escapeHtml(ev.title) + '</b></div>';
-      if(ev.subtitle) foot.push(ev.subtitle);
+      status = mqSchedTime(ev);
+      mid = teams
+        ? '<span class="gm-a"><b>' + escapeHtml(teams[0]) + '</b></span><span class="gm-s"><u>at</u></span><span class="gm-h"><b>' + escapeHtml(teams[1]) + '</b></span>'
+        : '<span class="gm-one"><b>' + escapeHtml(ev.title) + '</b></span>';
+      tail = ev.subtitle || '';
     }
-    if(lg) foot.unshift(lg);
-    return '<div class="tl' + (done ? ' is-done' : '') + (x.open ? ' is-click' : '') + '"' + mqSchedClickAttrs(ev, x.open) + '>' + body +
-      '<div class="tl-f"><span>' + escapeHtml(foot.filter(Boolean).join(' · ')) + '</span>' + (ev.question_id ? '<button type="button" class="sched-pick">Play ›</button>' : '') + '</div></div>';
+    return '<div class="gm ' + (st === 'in' ? 'is-live' : st === 'post' ? 'is-done' : '') + (x.open ? ' is-click' : '') + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
+      '<span class="gm-t">' + escapeHtml(status) + '</span><span class="gm-m">' + mid + '</span>' +
+      '<span class="gm-n">' + (ev.question_id ? '<button type="button" class="sched-pick">Play ›</button>' : escapeHtml(tail)) + '</span></div>';
   }
   function mqSchedAgendaHtml(list){
-    var live = [], later = [], done = [];
+    var live = [], groups = [], byKey = {};
     mqSchedSort(list).forEach(function(ev){
-      var x = mqSchedState(ev);
-      (x.st === 'in' ? live : x.st === 'post' ? done : later).push([ev, x]);
+      var x = mqSchedState(ev), item = [ev, x];
+      if(x.st === 'in') live.push(item);
+      var k = mqSchedKey(ev);
+      if(!byKey[k]){ byKey[k] = []; groups.push(k); }
+      byKey[k].push(item);
     });
+    var rows = function(l){ return l.map(function(p){ return mqSchedRowHtml(p[0], p[1]); }).join(''); };
     var out = '';
-    if(live.length) out += '<section class="ag-live"><h5 class="ag-h"><span><i class="ag-pulse"></i>Live now</span><em>' + live.length + '</em></h5><div class="lv-row">' +
-      live.map(function(p){ return mqLiveCardHtml(p[0], p[1]); }).join('') + '</div></section>';
-    // Group what's left by start time.
-    var slots = [], byS = {};
-    later.forEach(function(p){
-      var k = p[0].all_day ? 'All day' : mqSchedTime(p[0]);
-      if(!byS[k]){ byS[k] = []; slots.push(k); }
-      byS[k].push(p);
+    if(live.length) out += '<section class="ag-sec ag-live"><h5 class="ag-h"><span class="live"><i class="ag-pulse"></i>Live</span></h5>' + rows(live) + '</section>';
+    groups.forEach(function(k){
+      var l = byKey[k].filter(function(p){ return p[1].st !== 'in'; });
+      if(l.length) out += '<section class="ag-sec"><h5 class="ag-h"><span>' + escapeHtml(k) + '</span></h5>' + rows(l) + '</section>';
     });
-    slots.forEach(function(k){
-      out += '<section class="ag-sec"><h5 class="ag-slot">' + escapeHtml(k) + '</h5><div class="tl-grid">' + byS[k].map(function(p){ return mqSchedTileHtml(p[0], p[1]); }).join('') + '</div></section>';
-    });
-    if(done.length) out += '<details class="ag-sec ag-done"' + (!live.length && !later.length ? ' open' : '') + '><summary class="ag-h"><span>Final</span><em>' + done.length + '</em></summary><div class="tl-grid">' +
-      done.map(function(p){ return mqSchedTileHtml(p[0], p[1]); }).join('') + '</div></details>';
     return '<div class="agenda">' + out + '</div>';
   }
 
@@ -9038,12 +9026,11 @@
     daysEl.innerHTML = days.map(function(d){
       var dt = new Date(Date.parse(d + 'T12:00:00Z')), n = dayLists[d].length;
       return '<button type="button" class="sched-day' + (n ? ' has' : '') + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (d === sel ? ' sel' : '') + '" data-day="' + d + '" aria-pressed="' + (d === sel) + '">' +
-        '<b>' + dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }) + '</b><span>' + dt.getUTCDate() + '</span><em>' + (n ? n + (n === 1 ? ' event' : ' events') : '&nbsp;') + '</em></button>';
+        '<b>' + dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }) + '</b><span>' + dt.getUTCDate() + '</span></button>';
     }).join('');
     var selLabel = new Date(Date.parse(sel + 'T12:00:00Z')).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
     var scroll = listEl.querySelector('.lv-row'), keep = scroll ? scroll.scrollLeft : 0;
     listEl.innerHTML =
-      '<h4 class="sched-sec-title sched-sel-title">' + selLabel + (sel === today ? '<em>Today</em>' : '') + '</h4>' +
       (byDay[sel].length ? mqSchedAgendaHtml(byDay[sel]) : '<p class="sched-none">Nothing scheduled</p>');
     var ns = listEl.querySelector('.lv-row'); if(ns && keep) ns.scrollLeft = keep;
   }
