@@ -1227,7 +1227,7 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 #page-schedule .hero-lite{padding-top:20px}
 
 /* Ring percentages: larger */
-.rec-ring text{font-size:20px !important}
+.rec-ring text{font-size:17px !important}
 
 /* Schedule league tabs: plain text with counts and a colored underline */
 #page-schedule #sched-chips,#sched-chips.scope-tab-row{display:flex !important;gap:26px;padding:0;margin:0 0 4px;border:0;border-bottom:1px solid #2A2E36;border-radius:0;background:none;overflow-x:auto;max-width:none}
