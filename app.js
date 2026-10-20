@@ -8567,6 +8567,67 @@
     });
     return rows.length ? '<div class="kp-head">Team leaders</div><div class="kp-list">' + rows.slice(0, 3).join('') + '</div>' : '';
   }
+  // ===== Live game detail: line score, team stats, player stats, recent plays. Refreshes while the panel is open. =====
+  var MQ_COLS = { forwards: ['G', 'A', 'S', '+/-', 'TOI'], defenses: ['G', 'A', 'S', '+/-', 'TOI'], goalies: ['SA', 'SV', 'SV%'],
+    passing: ['C/ATT', 'YDS', 'TD', 'INT'], rushing: ['CAR', 'YDS', 'AVG', 'TD'], receiving: ['REC', 'YDS', 'TD'], batting: ['AB', 'R', 'H', 'RBI'], pitching: ['IP', 'H', 'ER', 'K'] };
+  var MQ_CAT = { defenses: 'Defense', goalies: 'Goalies', forwards: 'Forwards' };
+  function mqLiveTable(grp){
+    var pref = MQ_COLS[String(grp.cat).toLowerCase()] || ['MIN', 'PTS', 'REB', 'AST', 'FG'];
+    var idx = pref.map(function(l){ return grp.labels.indexOf(l); }).filter(function(i){ return i >= 0; });
+    if(idx.length < 3) idx = grp.labels.slice(0, 5).map(function(_, i){ return i; });
+    var name = MQ_CAT[String(grp.cat).toLowerCase()] || (grp.cat ? grp.cat.charAt(0).toUpperCase() + grp.cat.slice(1) : 'Players');
+    return '<table class="lv-tbl"><thead><tr><th>' + escapeHtml(name) + '</th>' + idx.map(function(i){ return '<th>' + escapeHtml(grp.labels[i]) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      grp.rows.map(function(r){
+        return '<tr><td>' + escapeHtml(r.name) + (r.pos ? ' <small>' + escapeHtml(r.pos) + '</small>' : '') + '</td>' + idx.map(function(i){ return '<td>' + escapeHtml(r.stats[i] == null ? '' : r.stats[i]) + '</td>'; }).join('') + '</tr>';
+      }).join('') + '</tbody></table>';
+  }
+  function mqLiveHtml(d, pick){
+    var out = '', a = d.away, h = d.home;
+    if(a && h && ((a.lines || []).length || (h.lines || []).length)){
+      var n = Math.max((a.lines || []).length, (h.lines || []).length), hdr = '';
+      for(var i = 0; i < n; i++) hdr += '<th>' + (i + 1) + '</th>';
+      var row = function(t){ var c = ''; for(var i = 0; i < n; i++) c += '<td>' + escapeHtml((t.lines || [])[i] == null ? '' : t.lines[i]) + '</td>'; return '<tr><td>' + escapeHtml(t.abbr) + '</td>' + c + '<td class="t">' + escapeHtml(t.score == null ? '' : t.score) + '</td></tr>'; };
+      out += '<table class="lv-line"><thead><tr><th></th>' + hdr + '<th class="t">T</th></tr></thead><tbody>' + row(a) + row(h) + '</tbody></table>';
+    }
+    if(d.teamStats && d.teamStats.length){
+      out += '<div class="kp-head">Team stats</div><div class="cmp">' + d.teamStats.map(function(s){ return mqCmpRow(s.label, s.away, s.home, { bar: /^[\d.]+%?$/.test(s.away) && /^[\d.]+%?$/.test(s.home) }); }).join('') + '</div>';
+    }
+    var pl = d.players || {}, side = pick === 'home' ? 'home' : 'away', groups = pl[side] || [];
+    if((pl.away || []).length || (pl.home || []).length){
+      out += '<div class="kp-head">Players</div><div class="lv-tabs"><button type="button" data-side="away" class="' + (side === 'away' ? 'on' : '') + '">' + escapeHtml(a ? a.name : 'Away') + '</button><button type="button" data-side="home" class="' + (side === 'home' ? 'on' : '') + '">' + escapeHtml(h ? h.name : 'Home') + '</button></div>' +
+        (groups.length ? groups.map(mqLiveTable).join('') : '<p class="evp-muted">No player stats yet.</p>');
+    }
+    if(d.plays && d.plays.length){
+      out += '<div class="kp-head">Latest plays</div><ul class="lv-plays">' + d.plays.map(function(p){
+        return '<li class="' + (p.score ? 'score' : '') + '"><b>' + escapeHtml(p.t) + '</b><span>' + escapeHtml(p.text) + '</span></li>';
+      }).join('') + '</ul>';
+    }
+    return out || '<p class="evp-muted">Live stats will show up here once the game gets going.</p>';
+  }
+  function mqLiveStart(el, g){
+    var box = el.querySelector('#lvp'), pick = 'away', last = null;
+    if(!box) return;
+    function paint(){ if(last) box.innerHTML = mqLiveHtml(last, pick); }
+    box.addEventListener('click', function(e){
+      var b = e.target.closest('.lv-tabs button'); if(!b) return;
+      pick = b.getAttribute('data-side'); paint();
+    });
+    function tick(){
+      if(!el.isConnected) return;
+      fetch(SUPABASE_URL + '/functions/v1/scoreboard?game=' + encodeURIComponent(g.league + ':' + g.id)).then(function(r){ return r.json(); }).catch(function(){ return null; }).then(function(d){
+        if(!el.isConnected) return;
+        if(!d || d.error){ if(!last) box.innerHTML = '<p class="evp-muted">Live stats aren’t available right now.</p>'; }
+        else {
+          last = d; paint();
+          var sc = el.querySelectorAll('.gh-sc'); if(sc.length > 1 && d.away && d.home){ sc[0].textContent = d.away.score; sc[1].textContent = d.home.score; }
+          var stt = el.querySelector('.gh-status'); if(stt) stt.textContent = d.detail || stt.textContent;
+        }
+        if(d && d.state === 'in') setTimeout(tick, 15000);
+      });
+    }
+    tick();
+  }
+
   function mqOpenGamePanel(ev){
     var teams = mqSchedTeams(ev), g = mqGameFor(ev, teams);
     var status = g ? (g.state === 'pre' ? mqSchedTime(ev) : (g.detail || '')) : mqSchedTime(ev);
@@ -8584,8 +8645,10 @@
     var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + escapeHtml(ev.league) + (net ? ' · ' + escapeHtml(net) : '') + '</div>' +
       '<div class="gh">' + side(away, 'a') + mid + side(home, 'h') + '</div>' +
       '<div class="gh-status' + (g && g.state === 'in' ? ' live' : '') + '">' + escapeHtml(status) + '</div>' +
+      (g && g.state !== 'pre' && g.id ? '<div class="lvp" id="lvp"><p class="evp-muted">Loading live stats…</p></div>' : '') +
       '<div class="evp-body">' + (g ? '<p class="evp-muted">Loading season numbers…</p>' : '<p class="evp-muted">Season numbers show up once the game is on today’s scoreboard.</p>') + '</div>');
     if(!g) return;
+    if(g.state !== 'pre' && g.id) mqLiveStart(el, g);
     var get = function(t){
       return fetch(SUPABASE_URL + '/functions/v1/scoreboard?team=' + encodeURIComponent(ev.league + ':' + t.id))
         .then(function(r){ return r.json(); }).catch(function(){ return null; });
@@ -8930,7 +8993,7 @@
   }
   function mqSchedDot(t){ return '<i class="sr-dot" style="background:' + mqTeamColor(t) + '"></i>'; }
   // Classic scoreboard rows: status on the left, the two teams stacked with their scores, network on the right.
-  var MQ_LG_NAMES = { EPL: 'Premier League', UCL: 'Champions League', MLS: 'MLS', NCAAF: 'College football', NFL: 'NFL', NBA: 'NBA', WNBA: 'WNBA', NHL: 'NHL', MLB: 'MLB' };
+  var MQ_LG_NAMES = { EPL: 'Premier League', UCL: 'UEFA Champions League', MLS: 'MLS', NCAAF: 'College football', NFL: 'NFL', NBA: 'NBA', WNBA: 'WNBA', NHL: 'NHL', MLB: 'MLB' };
   function mqLgName(k){ return MQ_LG_NAMES[k] || k; }
   var MQ_ICO = {
     basketball: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M5.6 5.6c3 3 3 9.8 0 12.8M18.4 5.6c-3 3-3 9.8 0 12.8"/>',
@@ -8941,7 +9004,10 @@
     finance: '<path d="M3 17l6-6 4 4 7-8M15 7h5v5"/>',
     other: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'
   };
-  var MQ_LG_ICON = { NFL: 'football', NCAAF: 'football', NBA: 'basketball', WNBA: 'basketball', NHL: 'hockey', MLB: 'baseball', EPL: 'soccer', UCL: 'soccer', MLS: 'soccer', Earnings: 'finance' };
+  var MQ_LG_COLOR = { NFL: '#43A863', NBA: '#F28A33', WNBA: '#E5509A', NHL: '#55B8EA', MLB: '#CC6A4C', EPL: '#8B6CF0', UCL: '#3F6FE0', MLS: '#2FB5A5', NCAAF: '#B98A3E', Earnings: '#A3B1C6' };
+  function mqLgColor(k){ return MQ_LG_COLOR[k] || '#9AA0AB'; }
+  MQ_ICO.star = '<path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6L12 16.7 6.7 19.6l1.1-6L3.4 9.4l6-.8z"/>';
+  var MQ_LG_ICON = { NFL: 'football', NCAAF: 'football', NBA: 'basketball', WNBA: 'basketball', NHL: 'hockey', MLB: 'baseball', EPL: 'soccer', UCL: 'star', MLS: 'soccer', Earnings: 'finance' };
   function mqLgIcon(k){
     return '<i class="ag-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (MQ_ICO[MQ_LG_ICON[k] || 'other']) + '</svg></i>';
   }
@@ -8977,7 +9043,7 @@
       body = teams ? '<div class="gm-tm"><i class="gm-bd">' + escapeHtml(String(teams[0]).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) + '</i><b>' + escapeHtml(teams[0]) + '</b></div><div class="gm-tm"><i class="gm-bd">' + escapeHtml(String(teams[1]).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) + '</i><b>' + escapeHtml(teams[1]) + '</b></div>' : '<div class="gm-tm"><b>' + escapeHtml(ev.title) + '</b></div>';
       tail = ev.subtitle || '';
     }
-    var lg = showLg ? '<small class="gm-lg">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</small>' : '';
+    var lg = showLg ? '<small class="gm-lg" style="color:' + mqLgColor(mqSchedKey(ev)) + '">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</small>' : '';
     return '<div class="gm ' + (st === 'in' ? 'is-live' : st === 'post' ? 'is-done' : '') + (x.open ? ' is-click' : '') + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
       '<span class="gm-t">' + lg + '<span>' + (st === 'in' ? '<i class="ag-pulse"></i>' : '') + escapeHtml(status) + '</span>' + (st === 'pre' && mqUntil(ev) ? '<em class="gm-in">' + mqUntil(ev) + '</em>' : '') + '</span><span class="gm-m">' + body + '</span>' +
       '<span class="gm-n">' + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + (tail ? (/^</.test(tail) ? tail : '<small>' + escapeHtml(tail) + '</small>') : '') + '</span></div>';
@@ -8996,7 +9062,7 @@
     if(live.length) out += '<section class="ag-sec ag-live"><h5 class="ag-h"><span class="live"><i class="ag-pulse"></i>Live now</span><em>' + live.length + (live.length === 1 ? ' game' : ' games') + '</em></h5>' + rows(live, true) + '</section>';
     groups.forEach(function(k){
       var l = byKey[k].filter(function(p){ return p[1].st !== 'in'; });
-      if(l.length) out += '<section class="ag-sec"><h5 class="ag-h"><span>' + mqLgIcon(k) + escapeHtml(mqLgName(k)) + '</span><em>' + l.length + (l.length === 1 ? ' game' : ' games') + '</em></h5>' + rows(l, false) + '</section>';
+      if(l.length) out += '<section class="ag-sec" style="--lg:' + mqLgColor(k) + '"><h5 class="ag-h"><span>' + mqLgIcon(k) + escapeHtml(mqLgName(k)) + '</span><em>' + l.length + (l.length === 1 ? ' game' : ' games') + '</em></h5>' + rows(l, false) + '</section>';
     });
     return '<div class="agenda">' + out + '</div>';
   }
@@ -9045,7 +9111,7 @@
     var filter = mqSched.cat && counts[mqSched.cat] ? mqSched.cat : 'all';
     chips.style.display = order.length > 1 ? '' : 'none';
     chips.innerHTML = [['all', 'All']].concat(order.map(function(k){ return [k, k]; })).map(function(c){
-      return '<button type="button" class="scope-tab' + (filter === c[0] ? ' active' : '') + '" data-cat="' + escapeHtml(c[0]) + '">' + escapeHtml(c[0] === 'all' ? 'All' : mqLgName(c[1])) + '</button>';
+      return '<button type="button" class="scope-tab' + (filter === c[0] ? ' active' : '') + '" style="--lg:' + (c[0] === 'all' ? '#EEF0F4' : mqLgColor(c[0])) + '" data-cat="' + escapeHtml(c[0]) + '">' + escapeHtml(c[0] === 'all' ? 'All' : mqLgName(c[1])) + '</button>';
     }).join('');
     var byDay = {};
     days.forEach(function(d){

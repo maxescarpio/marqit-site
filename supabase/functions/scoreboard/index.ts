@@ -106,7 +106,7 @@ async function load(date: string | null) {
         const t = e?.status?.type || {};
         const net = (comp?.broadcasts || []).flatMap((b: any) => b?.names || [])[0] || (comp?.geoBroadcasts || [])[0]?.media?.shortName || null;
         games.push({
-          league, start: e.date, state: String(t.state || 'pre'), detail: String(t.shortDetail || t.detail || ''),
+          league, id: String(e.id || ''), start: e.date, state: String(t.state || 'pre'), detail: String(t.shortDetail || t.detail || ''),
           network: net, home: side(home), away: side(away),
         });
       }
@@ -115,8 +115,69 @@ async function load(date: string | null) {
   return JSON.stringify({ games, errors, at: new Date().toISOString() });
 }
 
+// ?game=NHL:401892535 -> live detail: line score, team stats, player stats, recent plays (ESPN summary feed)
+const gameCache = new Map<string, { at: number; body: string }>();
+const num = (v: any) => (v == null ? '' : String(v));
+async function game(key: string) {
+  const [league, id] = key.split(':');
+  if (!PATHS[league] || !/^\d{5,12}$/.test(id || '')) return JSON.stringify({ error: 'bad game' });
+  const hit = gameCache.get(key);
+  if (hit && Date.now() - hit.at < 10000) return hit.body;
+  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${PATHS[league]}/summary?event=${id}`, { headers: UA, signal: AbortSignal.timeout(8000) });
+  if (!res.ok) return JSON.stringify({ error: 'unavailable' });
+  const d = await res.json();
+  const comp = d?.header?.competitions?.[0] || {};
+  const st = comp?.status?.type || {};
+  const sides: any = {};
+  for (const c of comp.competitors || []) {
+    sides[c.homeAway] = {
+      id: String(c.team?.id || ''), abbr: String(c.team?.abbreviation || ''), name: String(c.team?.displayName || ''),
+      color: hex(c.team?.color), score: c.score != null ? String(c.score) : null, record: (c.record || []).find((r: any) => r.type === 'total')?.displayValue || null,
+      lines: (c.linescores || []).map((l: any) => num(l.displayValue ?? l.value)),
+    };
+  }
+  const idOf = (x: any) => String(x?.team?.id || '');
+  const stats = (tid: string) => (d?.boxscore?.teams || []).find((t: any) => idOf(t) === tid)?.statistics || [];
+  const a = stats(sides.away?.id), h = stats(sides.home?.id);
+  const teamStats = a.map((s: any) => {
+    const o = h.find((x: any) => (x.name || x.label) === (s.name || s.label));
+    return o && s.displayValue != null ? { label: String(s.label || s.name), away: num(s.displayValue), home: num(o.displayValue) } : null;
+  }).filter(Boolean).slice(0, 10);
+  const players = (tid: string) => {
+    const t = (d?.boxscore?.players || []).find((p: any) => idOf(p) === tid);
+    return (t?.statistics || []).slice(0, 4).map((g: any) => {
+      const labels: string[] = g.labels || [];
+      let rows = (g.athletes || []).filter((x: any) => x?.athlete?.displayName && (x.stats || []).length).map((x: any) => ({
+        name: String(x.athlete.shortName || x.athlete.displayName), pos: x.athlete.position?.abbreviation || null, num: x.athlete.jersey || null, stats: (x.stats || []).map(num),
+      }));
+      const pi = labels.indexOf('PTS');
+      if (pi >= 0) rows = rows.sort((p: any, q: any) => (parseFloat(q.stats[pi]) || 0) - (parseFloat(p.stats[pi]) || 0));
+      return { cat: String(g.text || g.name || ''), labels, rows: rows.slice(0, pi >= 0 ? 6 : 4) };
+    }).filter((g: any) => g.rows.length);
+  };
+  let plays: any[] = Array.isArray(d?.plays) ? d.plays : [];
+  if (!plays.length && d?.drives?.current?.plays) plays = d.drives.current.plays;
+  const recent = plays.slice(-8).reverse().map((p: any) => ({
+    t: String([p.period?.displayValue || (p.period?.number ? 'P' + p.period.number : ''), p.clock?.displayValue].filter(Boolean).join(' ')),
+    text: String(p.text || p.shortText || '').slice(0, 160), score: !!p.scoringPlay,
+  })).filter((p: any) => p.text);
+  const body = JSON.stringify({
+    state: String(st.state || 'pre'), detail: String(st.shortDetail || st.detail || ''), away: sides.away || null, home: sides.home || null,
+    teamStats, players: { away: players(sides.away?.id), home: players(sides.home?.id) }, plays: recent, at: new Date().toISOString(),
+  });
+  gameCache.set(key, { at: Date.now(), body });
+  if (gameCache.size > 60) gameCache.delete(gameCache.keys().next().value as string);
+  return body;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
+  const gk = new URL(req.url).searchParams.get('game');
+  if (gk) {
+    let body = JSON.stringify({ error: 'unavailable' });
+    try { body = await game(gk); } catch (_) { /* keep the error body */ }
+    return new Response(body, { headers: { ...CORS, 'cache-control': 'public, max-age=8' } });
+  }
   const tk = new URL(req.url).searchParams.get('team');
   if (tk) {
     let body = JSON.stringify({ error: 'unavailable' });
