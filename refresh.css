@@ -1281,7 +1281,7 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .rec-legend{margin-top:12px}
 
 /* Challenge banner: equal space above and below */
-.challenge-banner{margin-top:16px !important;margin-bottom:16px !important}
+.challenge-banner{margin-top:16px !important;margin-bottom:0 !important}
 section:has(> .wrap > .challenge-banner){padding-bottom:16px !important}
 
 /* Standings: win-% bars, streak chips, leader tint */
