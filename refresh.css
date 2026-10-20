@@ -1410,6 +1410,20 @@ button[style*="text-align:left"]:not(.hw-step):not(.sf-links button){text-align:
   #news-grid .news-top3:not(.chart) .tr-n{order:-1;font-size:18px;line-height:1;width:auto;text-align:left;color:#F6C430}
   #news-grid .news-top3:not(.chart) .news-h{font-size:14px;line-height:1.3;margin-top:4px;white-space:normal;overflow:visible;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 }
+/* News: trending strip, tidied. The number stands alone on top, then one clean source line (no wrapping),
+   the headline, and the category tag pinned to the bottom so every box lines up. */
+.top-row .tr-tag{display:none}
+@media (min-width:900px){
+  #news-grid .news-top3:not(.chart) .top-row{gap:10px;padding:16px 20px 16px;align-items:stretch}
+  #news-grid .news-top3:not(.chart) .tr-n{font-family:'Big Shoulders Display',sans-serif;font-size:30px;font-weight:700;line-height:1;color:#F6C430;width:auto;text-align:left;margin:0}
+  #news-grid .news-top3:not(.chart) .tr-main{display:flex;flex-direction:column;gap:8px;flex:1;width:100%;min-width:0}
+  #news-grid .news-top3:not(.chart) .news-meta{flex-wrap:nowrap;gap:6px;min-width:0;overflow:hidden;white-space:nowrap;font-size:12px}
+  #news-grid .news-top3:not(.chart) .news-meta>span:not(.lane-tag){min-width:0;overflow:hidden;text-overflow:ellipsis}
+  #news-grid .news-top3:not(.chart) .news-meta>span:nth-last-child(2){flex:none}
+  #news-grid .news-top3:not(.chart) .news-meta .lane-tag{display:none}
+  #news-grid .news-top3:not(.chart) .news-h{margin-top:0;font-size:15px;line-height:1.3}
+  #news-grid .news-top3:not(.chart) .tr-tag{display:block;margin-top:auto;padding-top:6px;font-size:11px;letter-spacing:.1em;margin-left:0}
+}
 #news-grid .news-sec{display:none}
 
 /* Your record: rings centered in the card, a bit larger */

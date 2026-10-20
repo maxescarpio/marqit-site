@@ -8299,7 +8299,8 @@
   // ---- Live scores / records / TV network (Supabase function "scoreboard", ESPN public feed).
   // Optional: if it fails, cells just keep showing time + teams. No logos: a plain round badge instead.
   var mqScore = { games: [], at: 0, busy: false, byDay: {} };
-  function mqNormTeam(n){ return String(n || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim(); }
+  // Accents are stripped first, so "Fenerbahçe" and ESPN's "Fenerbahce" count as the same team.
+  function mqNormTeam(n){ return String(n || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/[^a-z0-9 ]/g, '').trim(); }
   function mqSameTeam(a, b){
     a = mqNormTeam(a); b = mqNormTeam(b);
     if(!a || !b) return false;
@@ -8321,7 +8322,8 @@
       var g = all[i];
       if(g.league !== mqLeagueKey(ev.league)) continue;
       if(Math.abs(new Date(g.start).getTime() - t0) > 6 * 3600000) continue;
-      if(mqSameTeam(g.away.name, teams[0]) && mqSameTeam(g.home.name, teams[1])) return g;
+      // Either order: "A vs B" lists the home team first, "A at B" lists the away team first.
+      if((mqSameTeam(g.away.name, teams[0]) && mqSameTeam(g.home.name, teams[1])) || (mqSameTeam(g.away.name, teams[1]) && mqSameTeam(g.home.name, teams[0]))) return g;
     }
     return null;
   }
@@ -10086,7 +10088,8 @@
       var img = (r.image_url && /^https:\/\//i.test(r.image_url)) ? '<img class="tr-img" src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">' : '';
       return '<article class="news-card top-row" data-lane="' + laneOf(r) + '" tabindex="0" role="link" aria-label="Open discussion: ' + escapeHtml(mqDecodeEntities(r.headline)) + '" data-news-id="' + escapeHtml(r.id) + '">' +
         '<span class="tr-n">' + n + '</span>' + img +
-        '<div class="tr-main">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</div></div>' +
+        '<div class="tr-main">' + metaHtml(r) + '<div class="news-h">' + escapeHtml(mqDecodeEntities(r.headline)) + '</div>' +
+        '<span class="lane-tag tr-tag">' + escapeHtml(LANE_NAME[laneOf(r)] || '') + '</span></div>' +
         (c ? '<span class="tr-c">' + plural(c, 'comment') + '</span>' : '') + '</article>';
     }
     var SRC_CHIPS = [ ['Google Trends', 'Google'], ['YouTube', 'YouTube'], ['Apple Music', 'Music'], ['Wikipedia', 'Wikipedia'], ['Bluesky', 'Bluesky'] ];
