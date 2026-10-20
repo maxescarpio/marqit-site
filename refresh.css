@@ -792,7 +792,7 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .feed-chip:focus-visible{outline:1px solid #6E737D;outline-offset:2px}
 .topic-chips{margin-top:10px}
 .topic-chips .feed-chip{font-size:12.5px;padding:6px 12px;opacity:.95}
-.topic-chips .feed-chip:not(.on){border-style:dashed}
+.topic-chips .feed-chip:not(.on){border-style:solid}
 .buddy-wrap{display:flex;flex-direction:column}
 .buddy-more summary{list-style:none;cursor:pointer;font-size:13px;color:#A8ADB6;padding:6px 0 2px;display:inline-flex;gap:6px;align-items:center}
 .buddy-more summary::-webkit-details-marker{display:none}
@@ -1264,3 +1264,47 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 /* Leave group: quiet grey button, turns red on hover */
 .gp-side #leave-group-btn{background:rgba(255,255,255,.07) !important;color:#B4B9C2 !important;border:0 !important;font-weight:600}
 .gp-side #leave-group-btn:hover{background:rgba(224,112,95,.16) !important;color:#F08A78 !important}
+
+/* Leave group: same shape and size as Copy */
+.gp-side button:not(.lb-share-btn),.gp-side .lb-share-btn,.gp-side > div[style*="max-width:420px"] input{border-radius:8px !important}
+.gp-side #leave-group-btn{background:#262A32 !important;color:#E8EAEE !important;border:1px solid #3A3F49 !important}
+.gp-side #leave-group-btn:hover{background:rgba(224,112,95,.16) !important;color:#F08A78 !important;border-color:#8A4A41 !important}
+.gp-side #copy-invite-btn{margin-left:auto !important}
+.gp-side > p:first-child{gap:8px !important}
+
+/* No Greek-life / chapter features */
+#greek-section,#greek-opt-in-btn,#greek-create-fields{display:none !important}
+
+/* Calendar: more room before the legend */
+#record-card .rec-cal{margin-bottom:0}
+#record-card .rec-legend{margin-top:14px !important;gap:6px 12px !important}
+.rec-legend{margin-top:12px}
+
+/* Challenge banner: equal space above and below */
+.challenge-banner{margin-top:16px !important;margin-bottom:16px !important}
+section:has(> .wrap > .challenge-banner){padding-bottom:16px !important}
+
+/* Standings: win-% bars, streak chips, leader tint */
+.rk-t th.wp,.rk-t td.wp{text-align:left;width:120px;padding-left:14px}
+.wpb{display:block;height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+.wpb i{display:block;height:100%;border-radius:3px;background:var(--tc);filter:saturate(1.1)}
+.rk-s{display:inline-block;min-width:36px;text-align:center;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(255,255,255,.06);color:#9AA0AB;line-height:1.2}
+.rk-s.w{background:rgba(51,209,139,.14);color:#4FD69A}
+.rk-s.l{background:rgba(224,112,95,.14);color:#E58474}
+.rk-t tr.lead{background:linear-gradient(90deg,color-mix(in srgb,var(--tc) 16%,transparent),transparent 65%)}
+.rk-t tr.lead td.n{color:#F2C14E;font-weight:700}
+.rk-t tbody tr.rk-go:hover{background:rgba(255,255,255,.04)}
+.rk-conf{display:flex;align-items:center;gap:10px}
+.rk-conf::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,#2A2E36,transparent)}
+
+/* Schedule day strip: game counts, filled selected day */
+.sched-day{border-radius:10px 10px 0 0;transition:background .15s}
+.sched-day em{display:block !important;font-style:normal;font-size:10.5px;letter-spacing:.04em;color:#5C616B;margin-top:2px;font-weight:600}
+.sched-day.has em{color:#8B909A}
+.sched-day:hover{background:rgba(255,255,255,.04) !important}
+.sched-day.sel{background:linear-gradient(180deg,rgba(246,196,48,.14),rgba(246,196,48,0) 85%) !important}
+.sched-day.sel em{color:#F6C430}
+.sched-day.sel span{font-size:23px}
+.sched-day.today:not(.sel) b{color:#F6C430 !important}
+.wpb i{background:color-mix(in srgb,var(--tc,#8B909A) 60%,#fff)}
+.rk-t tr.lead{background:linear-gradient(90deg,color-mix(in srgb,var(--tc,#8B909A) 22%,transparent),transparent 65%)}

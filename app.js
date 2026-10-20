@@ -8768,6 +8768,14 @@
     return '<span data-fb="' + escapeHtml(dot) + '" class="rk-tl' + (big ? ' big' : '') + '"><img src="' + escapeHtml(r.logo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.outerHTML=this.parentNode.getAttribute(\'data-fb\')"></span>';
   }
   function mqRkNum(v){ var n = parseFloat(String(v == null ? '' : v).replace(/[$,%\s+]/g, '')); return isNaN(n) ? null : n; }
+  function mqRkWinPct(r, otl){
+    var w = Number(r.w), l = Number(r.l), t = Number(r.t) || 0, o = Number(r.otl) || 0;
+    if(isNaN(w) || isNaN(l)) return { v: null, txt: '' };
+    var gp = w + l + t + o, v = null;
+    if(!gp) return { v: null, txt: '' };
+    v = otl && r.pts != null && !isNaN(Number(r.pts)) ? Number(r.pts) / (2 * gp) : (w + t / 2) / gp;
+    return { v: Math.max(0, Math.min(1, v)), txt: v >= 1 ? '1.000' : v.toFixed(3).replace(/^0/, '') };
+  }
   function mqRkStandings(kind, d){
     if(!d || !d.groups || !d.groups.length) return '<p class="evp-muted">Standings aren’t available right now.</p>';
     var hasT = kind === 'nfl', hasOtl = kind === 'nhl', last = '', out = '';
@@ -8776,12 +8784,14 @@
       var conf = mqRkConf(kind, g);
       if(conf && conf !== last){ out += '<div class="rk-conf">' + escapeHtml(conf) + '</div>'; last = conf; }
       var title = g.name && g.name !== conf && !/^(East|West)$/i.test(g.name) ? g.name : '';
-      out += (title ? '<div class="rk-div">' + escapeHtml(title) + '</div>' : '') + '<table class="rk-t"><thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th>' + (hasOtl ? '<th>OTL</th><th>PTS</th>' : hasT ? '<th>T</th>' : '') + '<th>' + (kind === 'nfl' || hasOtl ? 'PCT' : 'GB') + '</th><th>Strk</th></tr></thead><tbody>' +
+      out += (title ? '<div class="rk-div">' + escapeHtml(title) + '</div>' : '') + '<table class="rk-t"><thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th>' + (hasOtl ? '<th>OTL</th><th>PTS</th>' : hasT ? '<th>T</th>' : '') + '<th>' + (kind === 'nfl' || hasOtl ? 'PCT' : 'GB') + '</th><th class="wp">Win %</th><th>Strk</th></tr></thead><tbody>' +
         g.rows.map(function(r, i){
-          var tc = mqTeamColor(r);
-          return '<tr class="rk-go" data-act="team" data-g="' + gi + '" data-r="' + i + '" tabindex="0" style="--tc:' + tc + '"><td class="n">' + (r.seed || i + 1) + '</td><td class="t">' + mqRkTeamMark(r) + escapeHtml(r.name || r.abbr) + '</td><td>' + (r.w == null ? '' : r.w) + '</td><td>' + (r.l == null ? '' : r.l) + '</td>' +
+          var tc = mqTeamColor(r), wp = mqRkWinPct(r, hasOtl);
+          return '<tr class="rk-go' + (i === 0 ? ' lead' : '') + '" data-act="team" data-g="' + gi + '" data-r="' + i + '" tabindex="0" style="--tc:' + tc + '"><td class="n">' + (r.seed || i + 1) + '</td><td class="t">' + mqRkTeamMark(r) + escapeHtml(r.name || r.abbr) + '</td><td>' + (r.w == null ? '' : r.w) + '</td><td>' + (r.l == null ? '' : r.l) + '</td>' +
             (hasOtl ? '<td>' + (r.otl == null ? '' : r.otl) + '</td><td>' + (r.pts == null ? '' : r.pts) + '</td>' : hasT ? '<td>' + (r.t == null ? '' : r.t) + '</td>' : '') +
-            '<td>' + escapeHtml(String(kind === 'nfl' || hasOtl ? (r.pct == null ? '' : r.pct) : (r.gb == null ? '' : r.gb))) + '</td><td>' + escapeHtml(String(r.strk || '')) + '</td></tr>';
+            '<td>' + escapeHtml(String(kind === 'nfl' || hasOtl ? (r.pct == null ? wp.txt : r.pct) : (r.gb == null ? '' : r.gb))) + '</td>' +
+            '<td class="wp">' + (wp.v == null ? '' : '<span class="wpb"><i style="width:' + Math.round(wp.v * 100) + '%"></i></span>') + '</td>' +
+            '<td>' + (r.strk ? '<span class="rk-s ' + (/^W/i.test(r.strk) ? 'w' : /^L/i.test(r.strk) ? 'l' : '') + '">' + escapeHtml(String(r.strk)) + '</span>' : '') + '</td></tr>';
         }).join('') + '</tbody></table>';
     });
     return out;
@@ -9135,7 +9145,7 @@
     daysEl.innerHTML = days.map(function(d){
       var dt = new Date(Date.parse(d + 'T12:00:00Z')), n = dayLists[d].length;
       return '<button type="button" class="sched-day' + (n ? ' has' : '') + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (d === sel ? ' sel' : '') + '" data-day="' + d + '" aria-pressed="' + (d === sel) + '">' +
-        '<b>' + dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }) + '</b><span>' + dt.getUTCDate() + '</span></button>';
+        '<b>' + (d === today ? 'Today' : dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })) + '</b><span>' + dt.getUTCDate() + '</span><em>' + (n ? n + (n === 1 ? ' game' : ' games') : 'Off') + '</em></button>';
     }).join('');
     var selLabel = new Date(Date.parse(sel + 'T12:00:00Z')).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
     var scroll = listEl.querySelector('.lv-row'), keep = scroll ? scroll.scrollLeft : 0;
