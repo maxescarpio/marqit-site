@@ -24,6 +24,33 @@ const WANT = ['avgPointsFor', 'avgPointsAgainst', 'differential', 'winPercent', 
 // ?team=NFL:28  -> record, standing and season numbers for one team
 const hex = (v: any) => (/^[0-9a-fA-F]{6}$/.test(String(v || '')) ? '#' + String(v).toLowerCase() : null);
 
+// Memory of each team's last known season leaders (table public.team_leaders, key like 'NFL:17').
+// ESPN only lists leaders on a game that has not started yet, so some teams have none on a given day.
+const SB_URL = Deno.env.get('SUPABASE_URL') || '', SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const MEM_MAX_AGE = 45 * 86400000;
+let lastMemSave = 0;
+async function saveLeaders(rows: { key: string; leaders: any[] }[]) {
+  if (!SB_URL || !SB_KEY || !rows.length) return;
+  try {
+    await fetch(`${SB_URL}/rest/v1/team_leaders`, {
+      method: 'POST', signal: AbortSignal.timeout(5000),
+      headers: { apikey: SB_KEY, authorization: 'Bearer ' + SB_KEY, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify(rows.map((r) => ({ key: r.key, leaders: r.leaders, updated_at: new Date().toISOString() }))),
+    });
+  } catch (_) { /* the memory is optional */ }
+}
+async function loadLeaders(key: string): Promise<any[] | null> {
+  if (!SB_URL || !SB_KEY) return null;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/team_leaders?key=eq.${encodeURIComponent(key)}&select=leaders,updated_at`, {
+      headers: { apikey: SB_KEY, authorization: 'Bearer ' + SB_KEY }, signal: AbortSignal.timeout(5000),
+    });
+    const row = r.ok ? (await r.json())[0] : null;
+    if (!row || !Array.isArray(row.leaders) || !row.leaders.length) return null;
+    return Date.now() - new Date(row.updated_at).getTime() < MEM_MAX_AGE ? row.leaders : null;
+  } catch (_) { return null; }
+}
+
 async function team(key: string) {
   const [league, id] = key.split(':');
   if (!PATHS[league] || !/^\d{1,6}$/.test(id || '')) return JSON.stringify({ error: 'bad team' });
@@ -59,6 +86,9 @@ async function team(key: string) {
       }
     }
   } catch (_) { /* leaders are optional */ }
+  // Remember leaders whenever ESPN gives them; when it has none, show the last ones we saw for this team.
+  if (lead.length) await saveLeaders([{ key, leaders: lead }]);
+  else { const old = await loadLeaders(key); if (old) lead = old; }
   const body = JSON.stringify({
     color: hex(t.color), alt: hex(t.alternateColor), leaders: lead,
     name: String(t.displayName || ''), record: total.summary || null, standing: t.standingSummary || null,
@@ -124,6 +154,14 @@ async function load(date: string | null) {
       }
     } catch (e) { errors.push(league + ' ' + String(e).slice(0, 60)); }
   }));
+  if (Date.now() - lastMemSave > 600000) {
+    const mem = new Map<string, any[]>();
+    for (const g of games) {
+      if (g.state !== 'pre' || !['NFL', 'NBA', 'WNBA', 'NHL', 'MLB'].includes(g.league)) continue;
+      for (const sd of [g.home, g.away]) if (sd?.id && sd.leaders?.length) mem.set(g.league + ':' + sd.id, sd.leaders);
+    }
+    if (mem.size) { lastMemSave = Date.now(); await saveLeaders([...mem].map(([key, leaders]) => ({ key, leaders }))); }
+  }
   return JSON.stringify({ games, errors, at: new Date().toISOString() });
 }
 
