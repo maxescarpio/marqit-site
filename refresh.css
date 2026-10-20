@@ -1331,3 +1331,35 @@ button[style*="text-align:left"]:not(.hw-step):not(.sf-links button){text-align:
 .co-chg{display:inline-block;min-width:68px;text-align:center;padding:4px 10px;border-radius:6px;font-size:13px;font-weight:700}
 .co-chg.up{background:rgba(51,209,139,.14);color:#4FD69A}
 .co-chg.dn{background:rgba(224,112,95,.14);color:#E58474}
+
+/* Biggest companies: quieter color, period switch, leaders' faces */
+.co-tile{background:color-mix(in srgb,var(--bc,#6b7280) 20%,#171a20);color:#F2F3F5;text-shadow:none;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bc,#6b7280) 38%,transparent)}
+.co-bar i{background:rgba(255,255,255,.34) !important;opacity:1}
+.co-t tbody tr.rk-go:hover{background:rgba(255,255,255,.035)}
+.co-per{display:flex;gap:4px;margin:0 0 12px;padding:3px;border:1px solid #2a2e36;border-radius:999px;width:max-content;max-width:100%}
+.co-per button{flex:none;min-width:58px;padding:7px 14px;border:0;border-radius:999px;background:transparent;color:#9aa2b1;font:600 13px 'Barlow',sans-serif;text-align:center;cursor:pointer}
+.co-per button.on{background:#262a32;color:#F2F3F5}
+.co-chg.wait{background:rgba(255,255,255,.06);color:#8a93a3}
+.co-na{color:#6b7280}
+.co-t td.ceo{white-space:nowrap}
+.ceo-ph,.ceo-line .ceo-ph{flex:none;width:34px;height:34px;border-radius:50%;overflow:hidden;background:#232730;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+.ceo-ph i{font:700 12px 'Barlow',sans-serif;font-style:normal;color:#9aa2b1}
+.ceo-ph img{width:100%;height:100%;object-fit:cover;object-position:center 20%;display:block}
+.co-t td.ceo{display:table-cell}
+.co-t td.ceo .ceo-t{display:inline-block;vertical-align:middle;margin-left:10px;font-size:13px;color:#C9CED8}
+.co-t td.ceo .ceo-t b{font-weight:500}
+.ceo-line{display:flex;align-items:center;gap:10px;margin:2px 0 10px}
+.ceo-line .ceo-ph{width:44px;height:44px}
+.ceo-line .ceo-t{display:flex;flex-direction:column;gap:1px}
+.ceo-line .ceo-t b{font-weight:600;font-size:14px;color:#E4E6EA}
+.ceo-line .ceo-t em{font-style:normal;font-size:12px;color:#8a93a3}
+.co-cr{margin:12px 0 0;font-size:10.5px;line-height:1.5;color:#7d8696}
+.co-cr a{color:#8a93a3;text-decoration:none;margin-right:10px}
+.co-cr a:hover{text-decoration:underline}
+@media (max-width:640px){.co-t th.ceo-h{font-size:0;padding-left:0}.co-t td.ceo{padding-left:0;padding-right:0}.co-t td.ceo .ceo-t{display:none}.co-per button{min-width:0;padding:7px 11px}}
+/* panel: analyst section placeholder while it loads */
+.fd-sk{display:grid;gap:10px;margin-top:14px}
+.fd-sk i{display:block;height:64px;border-radius:10px;background:linear-gradient(90deg,#1b1e24,#23262d,#1b1e24);background-size:200% 100%;animation:fdsk 1.2s linear infinite}
+@keyframes fdsk{to{background-position:-200% 0}}
+.co-t th.ceo-h,.co-t td.ceo{text-align:left !important;padding-left:18px}
+@media (max-width:640px){.co-t th:nth-child(5),.co-t td:nth-child(5){display:none}.co-t td.t{gap:10px}.co-tile{width:40px;height:40px}.co-bar{max-width:90px}.co-t td.ceo{padding-left:6px !important}.co-ceo .ceo-ph{width:30px;height:30px}}

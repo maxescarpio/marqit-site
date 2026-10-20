@@ -95,6 +95,56 @@ async function lookup(name: string, team: string, sport: string, trace: string[]
   return null;
 }
 
+
+// A recent, openly licensed portrait of a business leader (CEO, founder). The Wikipedia article must name the company.
+async function person(name: string, company: string, trace: string[]) {
+  const want = norm(name), toks = want.split(' ').filter((t) => t.length > 1), last = toks[toks.length - 1] || want, co = norm(company).split(' ')[0];
+  const ok = (p: any) => p && norm(String(p.extract || '')).includes(co) && /chief executive|ceo|founder|chairman|businessman|entrepreneur|executive/i.test(String(p.extract || ''));
+  // The article under the person's own name first, then a search as a fallback.
+  const d = await wiki('en.wikipedia.org', { action: 'query', titles: name, redirects: '1', prop: 'extracts', exintro: '1', explaintext: '1', exchars: '1500' });
+  let page: any = (Object.values(d?.query?.pages || {}) as any[]).find(ok);
+  if (!page) {
+    const q = await wiki('en.wikipedia.org', { action: 'query', generator: 'search', gsrsearch: `${name} ${company}`, gsrlimit: '6', prop: 'extracts', exintro: '1', explaintext: '1', exchars: '1500', exlimit: '6' });
+    const pages: any[] = (Object.values(q?.query?.pages || {}) as any[]).sort((x: any, y: any) => (x.index || 0) - (y.index || 0));
+    page = pages.find((p: any) => norm(String(p.title || '').replace(/\s*\(.*\)$/, '')) === want && ok(p));
+  }
+  trace.push('page:' + (page?.title || 'none'));
+  if (!page) return null;
+  const pageTitle = norm(String(page.title || ''));
+  const seen = new Set<string>(), cands: any[] = [];
+  for (const term of [name, `${name} ${company}`]) {
+    const c = await wiki('commons.wikimedia.org', {
+      action: 'query', generator: 'search', gsrnamespace: '6', gsrsearch: term, gsrlimit: '40',
+      prop: 'imageinfo', iiprop: 'url|extmetadata|size|timestamp', iiurlwidth: '320',
+      iiextmetadatafilter: 'DateTimeOriginal|DateTime|LicenseShortName|LicenseUrl|Artist',
+    });
+    for (const p of Object.values(c?.query?.pages || {}) as any[]) {
+      if (seen.has(p.title)) continue; seen.add(p.title);
+      const ii = p.imageinfo?.[0]; if (!ii) continue;
+      const title = String(p.title).replace(/^File:/, '');
+      const nt = norm(title), pt = pageTitle.split(' ').filter((t) => t.length > 1);
+      if (!/\.(jpe?g|png)$/i.test(title) || !(toks.length > 1 ? toks.filter((t) => nt.includes(t)).length >= 2 : nt.includes(last)) && !(pt.length > 1 && pt.filter((t) => nt.includes(t)).length >= 2)) continue;
+      const m = ii.extmetadata || {}, lic = KNOWN(m, 'LicenseShortName');
+      if (!OPEN_LICENSE.test(lic)) continue;
+      const ratio = Number(ii.width) / Number(ii.height);
+      if (!(ratio >= 0.6 && ratio <= 1.5)) continue;
+      const yr = parseInt((KNOWN(m, 'DateTimeOriginal') || KNOWN(m, 'DateTime') || ii.timestamp || '').match(/(19|20)\d\d/)?.[0] || '0', 10);
+      const pen = /[&,]| and | with |panel|conference|summit|meeting|signing|ceremony|dinner|stage|crowd|trump|biden|obama|putin|modi|macron|xi |sunak|starmer/i.test(title) ? 1 : 0;
+      cands.push({ title, yr, ratio, lic, m, ii, pen });
+    }
+    if (cands.length >= 6) break;
+  }
+  const score = (x: any) => x.yr * 10 - x.pen * 80 + (/portrait|headshot|cropped|official|\d{4}[-_ ]\d{2}/i.test(x.title) ? 8 : 0) + (x.ratio >= 0.7 && x.ratio <= 1.1 ? 8 : 0);
+  cands.sort((a, b) => score(b) - score(a));
+  trace.push('top:' + cands.slice(0, 5).map((x) => x.title + '=' + score(x)).join(' ; '));
+  const w = cands[0];
+  if (!w || w.yr < 2015) return null;
+  return {
+    found: true, photo: 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(w.title) + '?width=320',
+    author: KNOWN(w.m, 'Artist') || 'Wikimedia Commons contributor', license: w.lic, licenseUrl: KNOWN(w.m, 'LicenseUrl'), pageUrl: String(w.ii.descriptionurl || ''),
+  };
+}
+
 async function dbGet(key: string) {
   const r = await fetch(`${SB}/rest/v1/player_photos?key=eq.${encodeURIComponent(key)}&select=*`, { headers: { apikey: KEY, authorization: 'Bearer ' + KEY } });
   const rows = r.ok ? await r.json() : [];
@@ -108,8 +158,9 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
   const u = new URL(req.url);
   const name = (u.searchParams.get('name') || '').trim(), team = (u.searchParams.get('team') || '').trim().slice(0, 60), sport = (u.searchParams.get('sport') || '').toLowerCase();
-  if (!/^[\p{L}][\p{L} .'\-]{2,59}$/u.test(name) || !SPORT_WORDS[sport]) return new Response(JSON.stringify({ found: false, error: 'bad request' }), { status: 400, headers: CORS });
-  const key = 'v3|' + norm(name) + '|' + norm(team) + '|' + sport;
+  const isPerson = u.searchParams.get('kind') === 'person';
+  if (!/^[\p{L}][\p{L} .'\-]{2,59}$/u.test(name) || (!isPerson && !SPORT_WORDS[sport])) return new Response(JSON.stringify({ found: false, error: 'bad request' }), { status: 400, headers: CORS });
+  const key = isPerson ? 'person|' + norm(name) + '|' + norm(team) : 'v3|' + norm(name) + '|' + norm(team) + '|' + sport;
   const send = (o: any) => new Response(JSON.stringify(o), { headers: { ...CORS, 'cache-control': 'public, max-age=86400' } });
   try {
     const hit = u.searchParams.get('debug') ? null : await dbGet(key);
@@ -119,7 +170,7 @@ Deno.serve(async (req: Request) => {
       if (!hit.found && age < 14 * 86400000) return send({ found: false });
     }
     const trace: string[] = [];
-    const res = await lookup(name, team, sport, trace);
+    const res = isPerson ? await person(name, team, trace) : await lookup(name, team, sport, trace);
     if (u.searchParams.get('debug')) return new Response(JSON.stringify({ res, trace }), { headers: CORS });
     await dbSet(res
       ? { key, found: true, photo: res.photo, author: res.author, license: res.license, license_url: res.licenseUrl, page_url: res.pageUrl, checked_at: new Date().toISOString() }

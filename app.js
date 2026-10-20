@@ -8665,20 +8665,72 @@
     });
   }
 
+  // Analyst and valuation numbers are fetched ahead of time (the table does it for every row), so the panel opens already filled in.
+  var MQ_FUND = {};
+  function mqFundGet(sym){
+    sym = String(sym).toUpperCase();
+    if(MQ_FUND[sym] && Date.now() - MQ_FUND[sym].at < 600000) return MQ_FUND[sym].p;
+    var p = fetch(SUPABASE_URL + '/functions/v1/stock-details?symbol=' + encodeURIComponent(sym))
+      .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      .then(function(d){ if(!d || d.error){ delete MQ_FUND[sym]; return null; } return d; });
+    MQ_FUND[sym] = { at: Date.now(), p: p };
+    return p;
+  }
+  // Company leaders. Names are checked against Wikipedia, and a face only shows when an openly licensed recent photo exists.
+  var MQ_CEO = { NVDA:['Jensen Huang','NVIDIA'], AAPL:['John Ternus','Apple'], GOOGL:['Sundar Pichai','Alphabet'], GOOG:['Sundar Pichai','Alphabet'], MSFT:['Satya Nadella','Microsoft'], AMZN:['Andy Jassy','Amazon'], META:['Mark Zuckerberg','Meta'], TSLA:['Elon Musk','Tesla'], SPCX:['Elon Musk','SpaceX'], AVGO:['Hock Tan','Broadcom'], TSM:['C. C. Wei','TSMC'] };
+  var MQ_CEO_PH = {};
+  function mqCeoPhoto(sym){
+    var c = MQ_CEO[sym]; if(!c) return Promise.resolve(null);
+    return MQ_CEO_PH[sym] = MQ_CEO_PH[sym] || fetch(SUPABASE_URL + '/functions/v1/player-photo?kind=person&name=' + encodeURIComponent(c[0]) + '&team=' + encodeURIComponent(c[1]))
+      .then(function(r){ return r.json(); }).catch(function(){ return null; })
+      .then(function(d){ return d && d.found && /^https:\/\/commons\.wikimedia\.org\//.test(d.photo || '') ? d : null; });
+  }
+  function mqCeoLine(sym){
+    var c = MQ_CEO[sym]; if(!c) return '';
+    return '<div class="ceo-line co-ceo" data-sym="' + sym + '"><span class="ceo-ph"><i>' + escapeHtml(mqInitials({ name: c[0] })) + '</i></span><span class="ceo-t"><b>' + escapeHtml(c[0]) + '</b><em>CEO</em></span></div>';
+  }
+  function mqCeoFaces(root){
+    [].forEach.call(root.querySelectorAll('.co-ceo[data-sym]'), function(row){
+      var sym = row.getAttribute('data-sym');
+      mqCeoPhoto(sym).then(function(d){
+        var ph = row.querySelector('.ceo-ph'); if(!d || !ph || !row.isConnected || ph.querySelector('img')) return;
+        var img = new Image();
+        img.onload = function(){
+          if(!row.isConnected || ph.querySelector('img')) return;
+          img.alt = ''; img.referrerPolicy = 'no-referrer'; ph.innerHTML = ''; ph.appendChild(img);
+          var box = document.getElementById('co-cr');
+          if(box && !row.classList.contains('ceo-line') && !box.querySelector('[data-s="' + sym + '"]')){
+            var a = document.createElement('a'); a.setAttribute('data-s', sym); a.target = '_blank'; a.rel = 'noopener noreferrer';
+            a.href = /^https:\/\/commons\.wikimedia\.org\//.test(d.pageUrl || '') ? d.pageUrl : 'https://commons.wikimedia.org';
+            a.textContent = MQ_CEO[sym][0] + ': ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || '');
+            if(!box.firstChild) box.appendChild(document.createTextNode('Photos from Wikimedia Commons. '));
+            box.appendChild(a);
+          }
+          if(row.classList.contains('ceo-line') && !row.querySelector('.kp-cr')){
+            var cr = document.createElement('a'); cr.className = 'kp-cr'; cr.target = '_blank'; cr.rel = 'noopener noreferrer';
+            cr.href = /^https:\/\/commons\.wikimedia\.org\//.test(d.pageUrl || '') ? d.pageUrl : 'https://commons.wikimedia.org';
+            cr.textContent = 'Photo: ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || '');
+            row.querySelector('.ceo-t').appendChild(cr);
+          }
+        };
+        img.src = d.photo;
+      });
+    });
+  }
   var MQ_RANGES = [['1d', '1D'], ['3m', '3M'], ['6m', '6M'], ['ytd', 'YTD']];
   function mqOpenStockPanel(ev){
     var sym = String(ev.league).toUpperCase();
     var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + escapeHtml(sym) + ' · ' + escapeHtml(ev.subtitle || 'Earnings') + '</div>' +
       '<h3 class="evp-title">' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</h3>' +
+      mqCeoLine(sym) +
       '<div class="evp-price"><b id="evp-px">…</b><span id="evp-chg"></span></div>' +
       '<div class="evp-chart" id="evp-chart"><p class="evp-muted">Loading chart…</p></div>' +
       '<div class="evp-ranges">' + MQ_RANGES.map(function(r, i){ return '<button type="button" data-r="' + r[0] + '"' + (i === 0 ? ' class="on"' : '') + '>' + r[1] + '</button>'; }).join('') + '</div>' +
-      '<div id="evp-fund"></div>' +
+      '<div id="evp-fund"><div class="fd-sk"><i></i><i></i><i></i></div></div>' +
       '<p class="evp-foot">Prices from Yahoo Finance, about 15 minutes delayed. Analyst and valuation figures from Nasdaq. Not investment advice.</p>');
     var seq = 0;
-    fetch(SUPABASE_URL + '/functions/v1/stock-details?symbol=' + encodeURIComponent(sym))
-      .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
-      .then(function(d){ var box = el.querySelector('#evp-fund'); if(box && box.isConnected && d && !d.error) box.innerHTML = mqFundHtml(d); });
+    mqCeoFaces(el);
+    mqFundGet(sym).then(function(d){ var box = el.querySelector('#evp-fund'); if(!box || !box.isConnected) return; if(d) box.innerHTML = mqFundHtml(d); else box.innerHTML = ''; });
     function load(range){
       var my = ++seq, box = el.querySelector('#evp-chart');
       box.innerHTML = '<p class="evp-muted">Loading chart…</p>';
@@ -8813,15 +8865,34 @@
     var h = 0; for(var i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) % 360;
     return 'hsl(' + h + ',48%,46%)';
   }
+  var MQ_PERIODS = [['d', 'Today'], ['m3', '3M'], ['m6', '6M'], ['ytd', 'YTD'], ['y1', '1Y']];
+  function mqRkPerfLoad(d){
+    if(MQ_RK.perf) return Promise.resolve(MQ_RK.perf);
+    var syms = d.companies.slice(0, 15).map(function(c){ return c.symbol; }).join(',');
+    return fetch(SUPABASE_URL + '/functions/v1/stock-perf?symbols=' + encodeURIComponent(syms)).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      .then(function(p){ if(p && !p.error) MQ_RK.perf = p; return MQ_RK.perf || null; });
+  }
   function mqRkMarkets(d){
     if(!d || !d.companies || !d.companies.length) return '<p class="evp-muted">Market data isn’t available right now.</p>';
+    var per = MQ_RK.per || 'd', perf = MQ_RK.perf || {};
     var max = Math.max.apply(null, d.companies.map(function(c){ return Number(c.cap) || 0; })) || 1;
-    return '<table class="rk-t co-t"><thead><tr><th>#</th><th>Company</th><th>Value</th><th>Price</th><th>Today</th></tr></thead><tbody>' + d.companies.map(function(c, i){
-      var pc = mqRkNum(c.pct), px = mqRkNum(c.price), up = (pc || 0) >= 0, col = mqCoColor(c.symbol), sym = String(c.symbol || '');
-      var tile = '<span class="co-tile' + (sym.length > 3 ? ' sm' : '') + '" style="background:' + col + '">' + escapeHtml(sym.slice(0, 4)) + '</span>';
-      var bar = '<span class="co-bar"><i style="width:' + Math.max(3, Math.round((Number(c.cap) || 0) / max * 100)) + '%;background:' + col + '"></i></span>';
-      return '<tr class="rk-go" data-act="co" data-i="' + i + '" tabindex="0" style="--tc:' + col + '"><td class="n">' + c.rank + '</td><td class="t">' + tile + '<span class="co-m"><b>' + escapeHtml(c.name) + '</b>' + bar + '</span></td><td class="cap">' + escapeHtml(mqMoney(Number(c.cap))) + '</td><td>' + (px != null ? '$' + px.toFixed(2) : '') + '</td><td class="' + (up ? 'up' : 'dn') + '">' + (pc == null ? '' : '<span class="co-chg ' + (up ? 'up' : 'dn') + '">' + (up ? '+' : '') + pc.toFixed(2) + '%</span>') + '</td></tr>';
-    }).join('') + '</tbody></table>';
+    var sw = '<div class="co-per" role="tablist">' + MQ_PERIODS.map(function(p){ return '<button type="button" data-per="' + p[0] + '"' + (p[0] === per ? ' class="on"' : '') + '>' + p[1] + '</button>'; }).join('') + '</div>';
+    var head = per === 'd' ? 'Today' : (MQ_PERIODS.filter(function(p){ return p[0] === per; })[0] || [0, ''])[1];
+    return sw + '<table class="rk-t co-t"><thead><tr><th>#</th><th>Company</th><th class="ceo-h">CEO</th><th>Value</th><th>Price</th><th>' + head + '</th></tr></thead><tbody>' + d.companies.map(function(c, i){
+      var sym = String(c.symbol || ''), px = mqRkNum(c.price), col = mqCoColor(sym), pc, wait = false;
+      if(per === 'd') pc = mqRkNum(c.pct);
+      else { var pp = perf[sym]; if(pp && pp[per] != null) pc = Number(pp[per]); else { pc = null; wait = !MQ_RK.perf; } }
+      var up = (pc || 0) >= 0;
+      var tile = '<span class="co-tile' + (sym.length > 3 ? ' sm' : '') + '" style="--bc:' + col + '">' + escapeHtml(sym.slice(0, 4)) + '</span>';
+      var bar = '<span class="co-bar"><i style="width:' + Math.max(3, Math.round((Number(c.cap) || 0) / max * 100)) + '%"></i></span>';
+      var ceo = MQ_CEO[sym] ? '<td class="ceo co-ceo" data-sym="' + sym + '"><span class="ceo-ph"><i>' + escapeHtml(mqInitials({ name: MQ_CEO[sym][0] })) + '</i></span><span class="ceo-t"><b>' + escapeHtml(MQ_CEO[sym][0]) + '</b></span></td>' : '<td class="ceo"></td>';
+      return '<tr class="rk-go" data-act="co" data-i="' + i + '" tabindex="0"><td class="n">' + c.rank + '</td><td class="t">' + tile + '<span class="co-m"><b>' + escapeHtml(c.name) + '</b>' + bar + '</span></td>' + ceo + '<td class="cap">' + escapeHtml(mqMoney(Number(c.cap))) + '</td><td>' + (px != null ? '$' + px.toFixed(2) : '') + '</td><td class="' + (up ? 'up' : 'dn') + '">' + (wait ? '<span class="co-chg wait">…</span>' : pc == null ? '<span class="co-na">–</span>' : '<span class="co-chg ' + (up ? 'up' : 'dn') + '">' + (up ? '+' : '') + pc.toFixed(2) + '%</span>') + '</td></tr>';
+    }).join('') + '</tbody></table><p class="co-cr" id="co-cr"></p>';
+  }
+  // After the company table is drawn: load leaders' faces, and quietly fetch each stock's analyst numbers so opening one is instant.
+  function mqRkMarketsAfter(root, d){
+    mqCeoFaces(root);
+    (d.companies || []).slice(0, 12).forEach(function(c){ mqFundGet(c.symbol); });
   }
   var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', country: 'Apple iTunes charts, album art © its owners', songs: 'Apple iTunes charts, album art © its owners', artists: 'Deezer, photos © their owners', markets: 'Nasdaq' };
   function mqRkBack(el){
@@ -8885,8 +8956,16 @@
       if(MQ_RK.kind !== k || !body.isConnected) return;
       if(!d){ body.innerHTML = '<p class="evp-muted">Couldn’t load this right now. Try again in a minute.</p>'; return; }
       mqRkCur = d;
+      if(k === 'markets') MQ_RK.per = MQ_RK.per || 'd';
       body.innerHTML = k === 'markets' ? mqRkMarkets(d) : k === 'country' ? mqRkList(d.countrySongs) : k === 'songs' ? mqRkList(d.songs) : k === 'artists' ? mqRkList(d.artists, true) : mqRkStandings(k, d);
+      if(k === 'markets'){ mqRkMarketsAfter(body, d); if(MQ_RK.per !== 'd') mqRkSetPer(MQ_RK.per); }
     });
+  }
+  function mqRkSetPer(p){
+    var body = document.querySelector('#rk-body'), d = mqRkCur;
+    if(!body || !d || MQ_RK.kind !== 'markets') return;
+    MQ_RK.per = p; body.innerHTML = mqRkMarkets(d); mqRkMarketsAfter(body, d);
+    if(p !== 'd' && !MQ_RK.perf) mqRkPerfLoad(d).then(function(){ if(MQ_RK.per === p && MQ_RK.kind === 'markets' && body.isConnected){ body.innerHTML = mqRkMarkets(d); mqRkMarketsAfter(body, d); } });
   }
   function mqRkAct(row){
     var cur = mqRkCur;
@@ -8903,7 +8982,7 @@
       mqRkReady = true;
       root.querySelector('.rk-tabs').innerHTML = MQ_RK_TABS.map(function(t){ return '<button type="button" role="tab" data-k="' + t[0] + '">' + t[1] + '</button>'; }).join('');
       root.querySelector('.rk-tabs').addEventListener('click', function(e){ var b = e.target.closest('button[data-k]'); if(b) mqRkShow(b.getAttribute('data-k')); });
-      root.querySelector('#rk-body').addEventListener('click', function(e){ mqRkAct(e.target.closest('.rk-go')); });
+      root.querySelector('#rk-body').addEventListener('click', function(e){ var pb = e.target.closest('button[data-per]'); if(pb){ mqRkSetPer(pb.getAttribute('data-per')); return; } mqRkAct(e.target.closest('.rk-go')); });
       root.querySelector('#rk-body').addEventListener('keydown', function(e){ if(e.key === 'Enter') mqRkAct(e.target.closest('.rk-go')); });
     }
     if(kind) MQ_RK.kind = kind;
