@@ -1682,3 +1682,211 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 .gx-tile .sstrip-quote.up span{color:#4CD39B}
 .gx-tile .sstrip-quote.down span{color:#F5644F}
 @media(max-width:620px){.gc-grid,.gx-cols{grid-template-columns:1fr}}
+
+/* =====================================================================
+   Mobile polish (Oct 22)
+   ===================================================================== */
+
+/* 1. Horizontal rows (date strip, tab rows, chip rows) scroll left/right only.
+   With overflow-x:auto and the y-axis left visible, browsers treat the y-axis
+   as auto too, so a finger could drag these rows up and down inside their own
+   box. Locking y to hidden keeps vertical swipes going to the page, and
+   contain stops a sideways swipe from chaining into the page behind. */
+.sched-days,#sched-chips,.scope-tab-row,#lb-scope-tabs,.pagenav-row,.rk-tabs,
+.news-ticker,.tier-chip-row,.snap-row,.sched-cards,.lv-row,.sstrip-track{
+  overflow-y:hidden;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* 2. Tappable things signal it with shape, not underlines.
+   "N voted": no underline; a small chevron after the count, rotating when open. */
+.foot-left .foot-count,
+.foot-left:hover .foot-count,
+.foot-left.open .foot-count{text-decoration:none}
+.foot-left{display:inline-flex;align-items:center;gap:8px;padding:5px 10px 5px 4px;margin:-5px 0 -5px -4px;transition:background .15s}
+.foot-left:hover,.foot-left.open{background:rgba(255,255,255,.05)}
+.foot-left .foot-count::after{
+  content:"";display:inline-block;width:5px;height:5px;margin:0 0 2px 8px;
+  border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;
+  transform:rotate(45deg);opacity:.55;transition:transform .18s ease,opacity .18s ease;
+}
+.foot-left.open .foot-count::after{transform:rotate(-135deg);margin-bottom:-1px;opacity:.9}
+
+/* Buddy Bonus: a clean tappable row with a chevron, opens the buddy sheet. */
+.slate-buddy-btn{
+  width:100%;margin-top:10px;padding:10px 12px;text-align:left;font-family:inherit;line-height:1.3;
+  background:rgba(76,211,155,.07);border:1px solid rgba(76,211,155,.22);border-radius:10px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s,border-color .15s;
+}
+.slate-buddy-btn span{flex:1;min-width:0;text-align:left}
+.slate-buddy-btn svg:last-child{opacity:.7;transition:transform .15s}
+.slate-buddy-btn:hover{background:rgba(76,211,155,.11);border-color:rgba(76,211,155,.34)}
+.slate-buddy-btn:active svg:last-child{transform:translateX(2px)}
+
+/* Buddy sheet */
+.buddy-sheet{max-width:400px;padding:26px 22px 22px}
+.bs-eyebrow{font:700 11px 'Barlow',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#4CD39B}
+.bs-title{margin:6px 0 0;font:800 30px/1 'Big Shoulders Display',sans-serif;color:#F2F3F5}
+.bs-sub{margin:10px 0 16px;font:500 13.5px/1.45 'Barlow',sans-serif;color:#8B909A}
+.bs-list{max-height:min(46vh,340px);overflow-y:auto;overscroll-behavior:contain;border-top:1px solid #23262C}
+.bs-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #23262C}
+.bs-av{width:36px;height:36px;font-size:15px;font-weight:700}
+.bs-av .av-photo{width:100%;height:100%;object-fit:cover}
+.bs-name{flex:1;min-width:0;font:600 15.5px 'Barlow',sans-serif;color:#E4E6EA;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.buddy-sheet-done{
+  display:block;width:100%;margin-top:18px;padding:14px;border:0;border-radius:12px;
+  background:#EEF0F4;color:#111;font:700 15px 'Barlow',sans-serif;cursor:pointer;
+}
+.buddy-sheet-done:active{background:#DCDFE5}
+
+/* 3. Yesterday's results: same layout, no colored dots. Category and result sit
+   on one quiet line, the question reads as the headline, the pick sits underneath. */
+#results-sheet .welcome-kicker{font:700 11px 'Barlow',sans-serif;letter-spacing:.16em;color:#F6C430}
+#results-sheet .welcome-panel h2{font:800 42px/1 'Big Shoulders Display',sans-serif;margin:8px 0 18px;color:#F2F3F5}
+#results-sheet .rs-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 6px}
+#results-sheet .rs-tile{padding:14px 16px 13px;border:1px solid #2A2E36;border-radius:14px;background:linear-gradient(180deg,#1F2229,#191C21)}
+#results-sheet .rs-tile b{font:800 38px/1 'Big Shoulders Display',sans-serif;color:#F2F3F5;letter-spacing:.01em}
+#results-sheet .rs-tile:nth-child(2) b{color:#F6C430}
+#results-sheet .rs-tile span{display:block;margin-top:6px;font:600 11px 'Barlow',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8B909A}
+.rs-list{margin-top:6px}
+#results-sheet .rs-row{gap:0;padding:16px 0 15px;border-top:1px solid #23262C}
+.rs-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#results-sheet .rs-cat{display:block;font:700 10.5px 'Barlow',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7E838D}
+.rs-st{display:inline-flex;align-items:center;gap:5px;font:600 12.5px 'Barlow',sans-serif;color:#8B909A;white-space:nowrap}
+.rs-st svg{width:13px;height:13px;stroke-width:2.2}
+.rs-st.win{color:#4CD39B}
+.rs-st.loss{color:#F5644F}
+#results-sheet .rs-q{margin:9px 0 11px;font:600 16px/1.35 'Barlow',sans-serif;color:#F2F3F5}
+.rs-pickline{display:flex;align-items:center;gap:16px;font:500 13px 'Barlow',sans-serif;color:#8B909A}
+.rs-pickline b{font-weight:700;color:#E4E6EA}
+.rs-pickline b.yes{color:#4CD39B}
+.rs-pickline b.no{color:#F5644F}
+.rs-ans b{color:#E4E6EA}
+.rs-void{margin-top:8px;font:500 12.5px/1.4 'Barlow',sans-serif;color:#8B909A}
+#results-sheet .welcome-go{background:#EEF0F4;color:#111;border-radius:14px;margin-top:10px}
+#results-sheet .welcome-go:active{background:#DCDFE5}
+
+/* 4a. Schedule league tabs: pills with a league icon, the league's own accent when selected,
+   and a pulsing red "N live" in place of the count when a game is on. */
+#page-schedule #sched-chips.scope-tab-row,#page-schedule #sched-chips{
+  display:flex !important;gap:8px;padding:2px 24px 12px 2px;margin:0 0 4px;
+  border:0;border-radius:0;background:none;scroll-snap-type:x proximity;
+}
+#page-schedule #sched-chips .scope-tab{
+  flex:none;display:inline-flex !important;align-items:center;gap:8px;height:42px;padding:0 12px 0 13px;margin:0;
+  border:1px solid #2A2E36;border-radius:999px;background:linear-gradient(180deg,#23272E,#1A1D22) !important;box-shadow:none;
+  color:#B4B9C3;font:700 12.5px 'Barlow',sans-serif;letter-spacing:.09em;text-transform:uppercase;white-space:nowrap;
+  scroll-snap-align:start;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:transform .15s,border-color .15s,box-shadow .2s,color .15s;
+}
+#page-schedule #sched-chips .scope-tab::before{display:none !important}
+#page-schedule #sched-chips .scope-tab:hover{color:#fff;transform:translateY(-1px);border-color:color-mix(in srgb,var(--lg) 55%,#2A2E36)}
+#page-schedule #sched-chips .scope-tab:active{transform:scale(.97)}
+#page-schedule #sched-chips .scope-tab .ag-ico{display:inline-flex;margin:0;color:var(--lg)}
+#page-schedule #sched-chips .scope-tab .ag-ico svg{width:17px;height:17px}
+#page-schedule #sched-chips .scope-tab .sc-ct{
+  display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;
+  background:rgba(255,255,255,.07);color:#8B909A;font:700 11px 'Barlow',sans-serif;letter-spacing:0;
+}
+#page-schedule #sched-chips .scope-tab .sc-live{
+  display:inline-flex;align-items:center;height:22px;padding:0 9px 0 8px;border-radius:11px;
+  background:rgba(255,91,77,.16);color:#FF7B6D;font:700 10.5px 'Barlow',sans-serif;letter-spacing:.08em;
+}
+#page-schedule #sched-chips .scope-tab .sc-live .ag-pulse{width:7px;height:7px;margin-right:6px}
+#page-schedule #sched-chips .scope-tab.active,
+#page-schedule #sched-chips .scope-tab.active[style*="--lg"]:not([data-cat="all"]){
+  background:linear-gradient(135deg,color-mix(in srgb,var(--lg) 94%,#fff),color-mix(in srgb,var(--lg) 62%,#000)) !important;
+  border-color:transparent;color:#fff;
+  box-shadow:0 8px 22px -8px var(--lg),inset 0 1px 0 rgba(255,255,255,.28);
+}
+#page-schedule #sched-chips .scope-tab.active .ag-ico{color:#fff !important}
+#page-schedule #sched-chips .scope-tab.active .sc-ct{background:rgba(0,0,0,.26);color:#fff}
+#page-schedule #sched-chips .scope-tab.active .sc-live{background:rgba(0,0,0,.3);color:#fff}
+#page-schedule #sched-chips .scope-tab[data-cat="all"].active{
+  background:#EEF0F4 !important;color:#111;box-shadow:0 8px 22px -10px rgba(238,240,244,.55);
+}
+#page-schedule #sched-chips .scope-tab[data-cat="all"].active .sc-ct{background:rgba(0,0,0,.12);color:#333}
+#page-schedule #sched-chips .scope-tab[data-cat="all"].active .sc-live{background:rgba(255,91,77,.16);color:#D93A2B}
+@media(prefers-reduced-motion:reduce){#page-schedule #sched-chips .scope-tab{transition:none}}
+
+/* 4b. Game cards: one neutral badge style instead of every team's own color. Each card carries
+   its league's single accent; live cards glow in it, and whoever is trailing is dimmed. */
+.gc{background:linear-gradient(180deg,#1E2126,#1A1D22)}
+.gc .gm-bd{background:#262A32 !important;color:#D7DAE0 !important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.gc.is-live{
+  border-color:color-mix(in srgb,var(--lg,#FF5B4D) 42%,#262A31);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--lg,#FF5B4D) 10%,#1A1D22),#1A1D22 62%);
+  box-shadow:0 14px 30px -20px var(--lg,#FF5B4D);
+}
+.gc.is-live .gm-bd{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--lg,#FF5B4D) 55%,transparent)}
+.gc-tm span{font:800 24px/1 'Big Shoulders Display','Barlow',sans-serif;letter-spacing:.02em}
+.gc-tm.lost span{color:#6E737D}
+.gc.is-click:hover{border-color:color-mix(in srgb,var(--lg,#3A3F48) 45%,#3A3F48)}
+
+/* 4c. Standings: neutral badges and one gold accent for the leader, instead of every team's color. */
+.rk-t .rk-dot,.rk-confs .rk-t td.tm .rk-dot{background:#262A32 !important;color:#D7DAE0 !important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.rk-t tr.rk-go td.n{box-shadow:none !important;padding-left:6px}
+.rk-t tr.lead,.rk-t tr.lead:hover{background:linear-gradient(90deg,rgba(246,196,48,.14),transparent 72%)}
+.rk-t tr.lead td.n{color:#F6C430}
+.rk-t tbody tr:nth-child(2) td.n,.rk-t tbody tr:nth-child(3) td.n{color:#C9CDD4;font-weight:700}
+.rk-confcol .rk-conf{display:flex;align-items:center;gap:10px;border-bottom:0;padding-bottom:6px}
+.rk-confcol .rk-conf::before{content:"";width:4px;height:15px;border-radius:2px;background:#F6C430}
+
+/* 4d. Earnings: each company's own hue on its tile, an icon per time slot. */
+.gx-tile{margin:0 -8px;padding:10px 8px;border-radius:10px;transition:background .15s}
+.gx-tile:hover{background:rgba(255,255,255,.04)}
+.gx-tile .gm-bd.tick{
+  width:44px;height:34px;border-radius:10px;font-size:10.5px;letter-spacing:.04em;
+  background:color-mix(in srgb,var(--bc,#8B93A3) 18%,#1B1E24) !important;
+  color:color-mix(in srgb,var(--bc,#8B93A3) 62%,#fff) !important;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bc,#8B93A3) 42%,transparent);
+}
+.gx-col{position:relative;overflow:hidden}
+.gx-col::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:#3A3F4A}
+.gx-col.gx-sun::before{background:linear-gradient(90deg,#F6C430,rgba(246,196,48,0))}
+.gx-col.gx-moon::before{background:linear-gradient(90deg,#8FA8FF,rgba(143,168,255,0))}
+.gx-chl{display:inline-flex;align-items:center;gap:8px}
+.gx-chl svg{width:16px;height:16px}
+.gx-sun .gx-chl{color:#F6C430}
+.gx-moon .gx-chl{color:#9DB4FF}
+.gx-hourglass .gx-chl{color:#9AA0AB}
+.gx-ch em{min-width:22px;height:22px;padding:0 7px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);color:#9AA0AB}
+
+/* 5a. Leaders: the Top 10 toggle stays put when open and flips to "Show less", so it can be closed again. */
+.rk-more summary,.rk-more[open] summary{
+  display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;list-style:none;
+  padding:10px 0;font:600 12.5px 'Barlow',sans-serif;color:#A8ADB6;-webkit-tap-highlight-color:transparent;
+}
+.rk-more summary:hover{color:#F2F3F5}
+.rk-more summary svg{width:14px;height:14px;transition:transform .2s ease}
+.rk-more[open] summary svg{transform:rotate(180deg)}
+.rk-more .rk-more-close{display:none}
+.rk-more[open] .rk-more-close{display:inline}
+.rk-more[open] .rk-more-open{display:none}
+.rk-more[open] summary{border-bottom:1px solid #23262C;margin-bottom:2px}
+
+/* 5b. Buddy / rival request confirmation sits right under the username box. */
+#buddy-msg,#rival-msg{
+  display:flex;align-items:center;gap:8px;margin:10px 0 0;padding:9px 12px;border-radius:10px;
+  font:600 13px/1.35 'Barlow',sans-serif;
+}
+#buddy-msg:empty,#rival-msg:empty{display:none}
+#buddy-msg.ok,#rival-msg.ok{background:rgba(76,211,155,.1);color:#4CD39B;box-shadow:inset 0 0 0 1px rgba(76,211,155,.25)}
+#buddy-msg.err,#rival-msg.err{background:rgba(245,100,79,.1);color:#F5644F;box-shadow:inset 0 0 0 1px rgba(245,100,79,.25)}
+
+/* 6. Biggest companies: sector tabs above the Today / 3M / 6M switch. */
+.co-sec{display:flex;gap:8px;margin:2px 0 12px;padding:2px 24px 4px 2px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;scroll-snap-type:x proximity;overscroll-behavior-x:contain}
+.co-sec::-webkit-scrollbar{display:none}
+.co-sec button{
+  flex:none;height:38px;padding:0 16px;border-radius:999px;border:1px solid #2A2E36;
+  background:linear-gradient(180deg,#23272E,#1A1D22);color:#B4B9C3;
+  font:700 12px 'Barlow',sans-serif;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
+  cursor:pointer;scroll-snap-align:start;-webkit-tap-highlight-color:transparent;
+  transition:transform .15s,border-color .15s,color .15s,background .15s;
+}
+.co-sec button:hover{color:#fff;border-color:#454A55}
+.co-sec button:active{transform:scale(.97)}
+.co-sec button.on{background:#EEF0F4;border-color:transparent;color:#111}
+.co-sec-cap{margin:0 0 10px;font:600 11px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7E838D}
+.co-sec + .co-per,.co-sec-cap + .co-per{margin-top:0}

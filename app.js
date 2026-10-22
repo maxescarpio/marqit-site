@@ -3769,7 +3769,9 @@
     crown: '<path d="M3.5 8l4.3 4L12 5.5 16.2 12l4.3-4-1.8 11H5.3z"/>',
     calendar: '<rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16"/>',
     crosshair: '<circle cx="12" cy="12" r="7.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/>',
-    stack: '<path d="M12 4l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4M4 16l8 4 8-4"/>'
+    stack: '<path d="M12 4l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4M4 16l8 4 8-4"/>',
+    chevronRight: '<path d="M9 6l6 6-6 6"/>',
+    chevronDown: '<path d="M6 9l6 6 6-6"/>'
   };
   // Filled gold star for golden-star counts (drawn, not an emoji).
   function mqStarGold(px){
@@ -4048,7 +4050,7 @@
   // "Today's slate" strip: what's on offer today, plus the player's streak.
   // buddyNames: array of buddy usernames (may be empty) -- you can have any
   // number of buddies, and the Buddy Bonus stacks +25 per matching buddy.
-  function mqSlateEl(count, buddyNames, boostedCount){
+  function mqSlateEl(count, buddyNames, boostedCount, buddyObjs){
     var names = buddyNames || [];
     // 100 per call (200 for a boosted one), +100 for a perfect day, and +25 per call per Buddy.
     var total = count * 100 + (count === 3 ? 100 : 0) + (count * 25 * names.length) + (boostedCount || 0) * 100;
@@ -4060,9 +4062,45 @@
       '<div class="slate-meta"><span>' + count + (count === 1 ? ' call' : ' calls') + '</span>' + (count === 3 ? '<span>3 for 3 adds +100</span>' : '') + '</div></div>' +
       '<div class="slate-mid"><div class="slate-streak"></div><div class="slate-tier"></div></div>' +
       (boostedCount ? '<div class="slate-buddy boost"><b class="boost-2x">2X</b><span>One call today is worth double</span></div>' : '') +
-      (names.length ? '<div class="slate-buddy">' + mqIcon('link') + '<span>Buddy Bonus: +25 on any call where you match ' + buddyLabel + '</span></div>' : '');
+      (names.length ? '<button type="button" class="slate-buddy slate-buddy-btn" aria-haspopup="dialog">' + mqIcon('link') + '<span>Buddy Bonus: +25 on any call where you match ' + buddyLabel + '</span>' + mqIcon('chevronRight') + '</button>' : '');
+    el._buddies = buddyObjs || [];
     return el;
   }
+
+  // Tap the Buddy Bonus line on the slate to see who your buddies are.
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    var open = document.getElementById('buddy-sheet');
+    if(open && (t === open || t.closest('.buddy-sheet-x') || t.closest('.buddy-sheet-done'))){ open.remove(); return; }
+    var btn = t.closest && t.closest('.slate-buddy-btn'); if(!btn) return;
+    var slate = btn.closest('.mq-slate'); if(!slate) return;
+    var buddies = slate._buddies || [];
+    if(open) open.remove();
+    var bg = document.createElement('div');
+    bg.id = 'buddy-sheet'; bg.className = 'mq-sheet-bg';
+    bg.innerHTML = '<div class="mq-sheet buddy-sheet" role="dialog" aria-label="Your buddies">' +
+      '<button type="button" class="mq-sheet-x buddy-sheet-x" aria-label="Close">&times;</button>' +
+      '<div class="bs-eyebrow">Buddy Bonus</div>' +
+      '<h3 class="bs-title">Your buddies</h3>' +
+      '<p class="bs-sub">Pick the same side as a buddy on any call and you each earn +25.</p>' +
+      '<div class="bs-list">' + buddies.map(function(b){
+        return '<div class="bs-row" data-uid="' + escapeHtml(String(b.id)) + '"><i class="bs-av vtr-av">' + escapeHtml((b.username || '?').charAt(0).toUpperCase()) + '</i><span class="bs-name">' + escapeHtml(b.username || 'your buddy') + '</span></div>';
+      }).join('') + '</div>' +
+      '<button type="button" class="buddy-sheet-done">Done</button></div>';
+    document.body.appendChild(bg);
+    // Fill in each buddy's avatar once their profiles load; the initials above stand in until then.
+    var ids = buddies.map(function(b){ return b.id; }).filter(Boolean);
+    if(ids.length){
+      sb.from('profiles').select('id, username, avatar_emoji, avatar_color').in('id', ids).then(function(res){
+        (res && res.data || []).forEach(function(u){
+          var row = bg.querySelector('.bs-row[data-uid="' + u.id + '"]'); if(!row) return;
+          var av = row.querySelector('.bs-av'); if(!av) return;
+          av.style.background = /^#[0-9A-Fa-f]{6}$/.test(u.avatar_color || '') ? u.avatar_color : '#2B2E34';
+          av.innerHTML = mqAvatarInner(u.avatar_emoji, u.username);
+        });
+      }, function(){ /* initials stay */ });
+    }
+  });
   function mqFillSlate(slate, session, answeredAll){
     var el = slate.querySelector('.slate-streak');
     if(!el) return;
@@ -4768,25 +4806,31 @@
         var html = '<div class="rs-tiles"><div class="rs-tile"><b>' + right + ' of ' + scored.length + '</b><span>right' + (partial ? ' so far' : '') + '</span></div>';
         if(session) html += '<div class="rs-tile"><b data-tick="' + streak + '" data-from="' + Math.max(0, streak - 1) + '">' + streak + '</b><span>day streak</span></div>';
         html += '</div>';
+        html += '<div class="rs-list">';
         mine.forEach(function(q){
           var pick = String(picks[q.id]).toLowerCase();
-          var pill = '<span class="rs-pill">Pending</span>';
+          var status = '<span class="rs-st">' + mqIcon('clock') + 'Pending</span>';
+          var answerNote = '';
           var voidNote = '';
           if(q.voided){
-            pill = '<span class="rs-pill">Void</span>';
-            voidNote = '<div style="font-size:12px; color:var(--ink-soft); margin-top:6px;">' + escapeHtml(q.void_reason || 'This question was voided.') + ' No points either way.</div>';
+            status = '<span class="rs-st">Void</span>';
+            voidNote = '<div class="rs-void">' + escapeHtml(q.void_reason || 'This question was voided.') + ' No points either way.</div>';
           }else if(q.resolved && q.correct_answer){
-            pill = pick === q.correct_answer
-              ? '<span class="rs-pill win">Correct</span>'
-              : '<span class="rs-pill loss">Missed · answer: ' + (q.correct_answer === 'yes' ? 'Yes' : 'No') + '</span>';
+            if(pick === q.correct_answer){
+              status = '<span class="rs-st win">' + mqIcon('check') + 'Correct</span>';
+            }else{
+              status = '<span class="rs-st loss">' + mqIcon('xmark') + 'Missed</span>';
+              answerNote = '<span class="rs-ans">Answer <b>' + (q.correct_answer === 'yes' ? 'Yes' : 'No') + '</b></span>';
+            }
           }
           html += '<div class="rs-row">' +
-            '<div class="rs-cat"><span class="rs-dot" style="background:' + (DOT[q.category] || '#A8ABB3') + ';"></span>' + escapeHtml(CATEGORY_LABELS[q.category] || q.category || '') + '</div>' +
+            '<div class="rs-top"><span class="rs-cat">' + escapeHtml(CATEGORY_LABELS[q.category] || q.category || '') + '</span>' + status + '</div>' +
             '<div class="rs-q">' + escapeHtml(q.question_text || '') + '</div>' +
-            '<div class="rs-meta"><span>Your pick: <b style="color:' + (pick === 'yes' ? 'var(--yes)' : 'var(--no)') + ';">' + (pick === 'yes' ? 'Yes' : 'No') + '</b></span>' + pill + '</div>' +
+            '<div class="rs-pickline"><span>Your pick <b class="' + (pick === 'yes' ? 'yes' : 'no') + '">' + (pick === 'yes' ? 'Yes' : 'No') + '</b></span>' + answerNote + '</div>' +
             voidNote +
           '</div>';
         });
+        html += '</div>';
         if(partial) html += '<p class="rs-note">Pending calls get scored once they settle.</p>';
         if(!session) html += '<div class="rs-signup"><b>Sign up free to keep your points and build a streak.</b><button type="button" id="results-signup">Sign up free</button></div>';
 
@@ -5985,7 +6029,7 @@
 
     var slateEl = null;
     if(!allLockedNow && lockTime){
-      slateEl = mqSlateEl(prepared.length, buddyList.map(function(b){ return b.username; }), prepared.filter(function(p){ return p.q.is_boosted; }).length);
+      slateEl = mqSlateEl(prepared.length, buddyList.map(function(b){ return b.username; }), prepared.filter(function(p){ return p.q.is_boosted; }).length, buddyList);
       container.appendChild(slateEl);
       // One status box: the lock timer moves into the points slate so the
       // countdown and "Earn up to" sit side by side instead of in two boxes.
@@ -8967,22 +9011,49 @@
     return 'hsl(' + h + ',48%,46%)';
   }
   var MQ_PERIODS = [['d', 'Today'], ['m3', '3M'], ['m6', '6M'], ['ytd', 'YTD'], ['y1', '1Y']];
-  function mqRkPerfLoad(d){
-    if(MQ_RK.perf) return Promise.resolve(MQ_RK.perf);
-    var syms = d.companies.slice(0, 15).map(function(c){ return c.symbol; }).join(',');
-    return fetch(SUPABASE_URL + '/functions/v1/stock-perf?symbols=' + encodeURIComponent(syms)).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
-      .then(function(p){ if(p && !p.error) MQ_RK.perf = p; return MQ_RK.perf || null; });
+  // Sector tabs for Biggest companies. The sectors themselves come from the rankings function (d.sectors);
+  // if it doesn't send any, the tabs stay hidden and the page shows the overall top ten as before.
+  var MQ_SECTOR_TABS = [['all', 'All'], ['tech', 'Technology'], ['aiinfra', 'AI infrastructure'], ['aisoft', 'AI software'], ['fin', 'Financials'], ['health', 'Healthcare'], ['disc', 'Consumer discretionary'], ['stap', 'Consumer staples'], ['energy', 'Energy'], ['comm', 'Communication'], ['ind', 'Industrials']];
+  function mqRkSec(d){
+    var s = MQ_RK.sec || 'all';
+    return s !== 'all' && d && d.sectors && d.sectors[s] && d.sectors[s].companies && d.sectors[s].companies.length ? s : 'all';
+  }
+  // The companies on screen: the overall top ten, or the picked sector's top ten.
+  function mqRkCoList(d){
+    var s = mqRkSec(d);
+    return s === 'all' ? ((d && d.companies) || []) : d.sectors[s].companies;
+  }
+  function mqRkPerfMissing(list){
+    var have = MQ_RK.perf || {};
+    return list.map(function(c){ return c.symbol; }).filter(function(s){ return !(s in have); });
+  }
+  function mqRkPerfLoad(list){
+    var need = mqRkPerfMissing(list).slice(0, 15);
+    if(!need.length) return Promise.resolve(MQ_RK.perf || null);
+    return fetch(SUPABASE_URL + '/functions/v1/stock-perf?symbols=' + encodeURIComponent(need.join(','))).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      .then(function(p){
+        if(p && !p.error){
+          MQ_RK.perf = MQ_RK.perf || {};
+          need.forEach(function(s){ MQ_RK.perf[s] = p[s] || null; }); // a symbol the function can't price shows a dash, not a spinner
+        }
+        return MQ_RK.perf || null;
+      });
   }
   function mqRkMarkets(d){
     if(!d || !d.companies || !d.companies.length) return '<p class="evp-muted">Market data isn’t available right now.</p>';
     var per = MQ_RK.per || 'd', perf = MQ_RK.perf || {};
-    var max = Math.max.apply(null, d.companies.map(function(c){ return Number(c.cap) || 0; })) || 1;
+    var list = mqRkCoList(d), cs = mqRkSec(d);
+    var max = Math.max.apply(null, list.map(function(c){ return Number(c.cap) || 0; })) || 1;
+    var secBar = d.sectors ? '<div class="co-sec" role="tablist" aria-label="Sector">' + MQ_SECTOR_TABS.filter(function(t){ return t[0] === 'all' || d.sectors[t[0]]; }).map(function(t){
+      return '<button type="button" role="tab" data-sec="' + t[0] + '"' + (t[0] === cs ? ' class="on" aria-selected="true"' : ' aria-selected="false"') + '>' + t[1] + '</button>';
+    }).join('') + '</div>' : '';
+    var secCap = cs !== 'all' ? '<p class="co-sec-cap">Ten largest · ' + escapeHtml(d.sectors[cs].label || '') + '</p>' : '';
     var sw = '<div class="co-per" role="tablist">' + MQ_PERIODS.map(function(p){ return '<button type="button" data-per="' + p[0] + '"' + (p[0] === per ? ' class="on"' : '') + '>' + p[1] + '</button>'; }).join('') + '</div>';
     var head = per === 'd' ? 'Today' : (MQ_PERIODS.filter(function(p){ return p[0] === per; })[0] || [0, ''])[1];
-    return sw + '<table class="rk-t co-t"><thead><tr><th>#</th><th>Company</th><th class="ceo-h">CEO</th><th>Value</th><th>Price</th><th>' + head + '</th></tr></thead><tbody>' + d.companies.map(function(c, i){
+    return secBar + secCap + sw + '<table class="rk-t co-t"><thead><tr><th>#</th><th>Company</th><th class="ceo-h">CEO</th><th>Value</th><th>Price</th><th>' + head + '</th></tr></thead><tbody>' + list.map(function(c, i){
       var sym = String(c.symbol || ''), px = mqRkNum(c.price), col = mqCoColor(sym), pc, wait = false;
       if(per === 'd') pc = mqRkNum(c.pct);
-      else { var pp = perf[sym]; if(pp && pp[per] != null) pc = Number(pp[per]); else { pc = null; wait = !MQ_RK.perf; } }
+      else { var pp = perf[sym]; if(pp && pp[per] != null) pc = Number(pp[per]); else { pc = null; wait = !(sym in perf); } }
       var up = (pc || 0) >= 0;
       var tile = '<span class="co-tile' + (sym.length > 3 ? ' sm' : '') + '" style="--bc:' + col + '">' + escapeHtml(sym.slice(0, 4)) + '</span>';
       var bar = '<span class="co-bar"><i style="width:' + Math.max(3, Math.round((Number(c.cap) || 0) / max * 100)) + '%"></i></span>';
@@ -8993,7 +9064,7 @@
   // After the company table is drawn: load leaders' faces, and quietly fetch each stock's analyst numbers so opening one is instant.
   function mqRkMarketsAfter(root, d){
     mqCeoFaces(root);
-    (d.companies || []).slice(0, 12).forEach(function(c){ mqFundGet(c.symbol); });
+    mqRkCoList(d).slice(0, 12).forEach(function(c){ mqFundGet(c.symbol); });
   }
   var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', country: 'Apple iTunes charts, album art © its owners', songs: 'Apple iTunes charts, album art © its owners', artists: 'Deezer, photos © their owners', markets: 'Nasdaq' };
   function mqRkBack(el){
@@ -9077,7 +9148,7 @@
   function mqLeadCard(c){
     var rows = c.leaders.map(function(l, i){ return mqLeadRow(l, i === 0); });
     return '<div class="rk-card"><div class="rk-card-h">' + escapeHtml(c.label) + '</div><ol class="rk-mini">' + rows.slice(0, 5).join('') + '</ol>' +
-      (rows.length > 5 ? '<details class="rk-more"><summary>Top 10</summary><ol class="rk-mini">' + rows.slice(5).join('') + '</ol></details>' : '') + '</div>';
+      (rows.length > 5 ? '<details class="rk-more"><summary><span class="rk-more-open">Show top 10</span><span class="rk-more-close">Show less</span>' + mqIcon('chevronDown') + '</summary><ol class="rk-mini">' + rows.slice(5).join('') + '</ol></details>' : '') + '</div>';
   }
   // Click any leader: season stats plus status and injury report.
   function mqOpenPlayerPanel(row){
@@ -9139,8 +9210,21 @@
   function mqRkSetPer(p){
     var body = document.querySelector('#rk-body'), d = mqRkCur;
     if(!body || !d || MQ_RK.kind !== 'markets') return;
+    var oldBar = body.querySelector('.co-sec'), barX = oldBar ? oldBar.scrollLeft : 0;
     MQ_RK.per = p; body.innerHTML = mqRkMarkets(d); mqRkMarketsAfter(body, d);
-    if(p !== 'd' && !MQ_RK.perf) mqRkPerfLoad(d).then(function(){ if(MQ_RK.per === p && MQ_RK.kind === 'markets' && body.isConnected){ body.innerHTML = mqRkMarkets(d); mqRkMarketsAfter(body, d); } });
+    var newBar = body.querySelector('.co-sec'); if(newBar && barX) newBar.scrollLeft = barX;
+    var list = mqRkCoList(d);
+    if(p !== 'd' && mqRkPerfMissing(list).length) mqRkPerfLoad(list).then(function(){
+      if(MQ_RK.per === p && MQ_RK.kind === 'markets' && body.isConnected && mqRkCoList(d) === list){
+        var bar = body.querySelector('.co-sec'), x = bar ? bar.scrollLeft : 0;
+        body.innerHTML = mqRkMarkets(d); mqRkMarketsAfter(body, d);
+        var nb = body.querySelector('.co-sec'); if(nb && x) nb.scrollLeft = x;
+      }
+    });
+  }
+  function mqRkSetSec(s){
+    MQ_RK.sec = s;
+    mqRkSetPer(MQ_RK.per || 'd');
   }
   function mqRkAct(row){
     var cur = mqRkCur;
@@ -9148,7 +9232,7 @@
     if(!row || !cur) return;
     var a = row.getAttribute('data-act'), k = MQ_RK.kind, i = Number(row.getAttribute('data-i'));
     if(a === 'team') mqOpenTeamPanel(k, cur.groups[Number(row.getAttribute('data-g'))].rows[Number(row.getAttribute('data-r'))]);
-    else if(a === 'co'){ var c = cur.companies[i]; mqOpenStockPanel({ league: c.symbol, title: c.name + ' earnings', subtitle: 'Largest companies' }); var p = document.querySelector('#mq-evpanel .evp'); if(p) mqRkBack(p); }
+    else if(a === 'co'){ var c = mqRkCoList(cur)[i]; mqOpenStockPanel({ league: c.symbol, title: c.name + ' earnings', subtitle: 'Largest companies' }); var p = document.querySelector('#mq-evpanel .evp'); if(p) mqRkBack(p); }
     else if(a === 'song') mqOpenSongPanel((k === 'country' ? cur.countrySongs : cur.songs)[i], k === 'country' ? 'Country songs' : 'Top songs');
     else if(a === 'artist') mqOpenArtistPanel(cur.artists[i]);
   }
@@ -9163,6 +9247,7 @@
         if(sb){ MQ_RK.sub = sb.getAttribute('data-sub'); MQ_RK.lcat = 0; mqRkShow(MQ_RK.kind); return; }
         var lb = e.target.closest('button[data-lcat]');
         if(lb){ MQ_RK.lcat = Number(lb.getAttribute('data-lcat')) || 0; var ld = (MQ_RK.lead || {})[MQ_RK.kind]; if(ld){ var bd = root.querySelector('#rk-body'); bd.innerHTML = mqRkSubBar(MQ_RK.kind) + mqRkLeadersHtml(MQ_RK.kind, ld.d); } return; }
+        var sc = e.target.closest('button[data-sec]'); if(sc){ mqRkSetSec(sc.getAttribute('data-sec')); return; }
         var pb = e.target.closest('button[data-per]'); if(pb){ mqRkSetPer(pb.getAttribute('data-per')); return; } mqRkAct(e.target.closest('.rk-go')); });
       root.querySelector('#rk-body').addEventListener('keydown', function(e){ if(e.key === 'Enter') mqRkAct(e.target.closest('.rk-go')); });
     }
@@ -9303,6 +9388,9 @@
   var MQ_LG_COLOR = { NFL: '#43A863', NBA: '#F28A33', WNBA: '#E5509A', NHL: '#55B8EA', MLB: '#CC6A4C', EPL: '#8B6CF0', UCL: '#3F6FE0', MLS: '#2FB5A5', NCAAF: '#B98A3E', Earnings: '#A3B1C6' };
   function mqLgColor(k){ return MQ_LG_COLOR[k] || '#9AA0AB'; }
   MQ_ICO.star = '<path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6L12 16.7 6.7 19.6l1.1-6L3.4 9.4l6-.8z"/>';
+  MQ_ICO.sun = '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>';
+  MQ_ICO.moon = '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>';
+  MQ_ICO.hourglass = '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>';
   var MQ_LG_ICON = { NFL: 'football', NCAAF: 'football', NBA: 'basketball', WNBA: 'basketball', NHL: 'hockey', MLB: 'baseball', EPL: 'soccer', UCL: 'star', MLS: 'soccer', Earnings: 'finance' };
   function mqLgIcon(k){
     return '<i class="ag-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (MQ_ICO[MQ_LG_ICON[k] || 'other']) + '</svg></i>';
@@ -9354,7 +9442,8 @@
         return '<div class="gc-tm' + (lost ? ' lost' : '') + '">' + mqBadge(t) + '<b>' + escapeHtml(t.name) + '</b><span>' +
           (started ? escapeHtml(t.score == null ? '0' : t.score) : (t.record ? '<small>' + escapeHtml(t.record) + '</small>' : '')) + '</span></div>';
       };
-      body = line(g.away, done && as < hs) + line(g.home, done && hs < as);
+      // Whoever is trailing is dimmed, live or final, so the leader reads at a glance.
+      body = line(g.away, started && as < hs) + line(g.home, started && hs < as);
       net = g.network || '';
     } else {
       var teams = mqSchedTeams(ev);
@@ -9365,24 +9454,34 @@
       net = ev.subtitle || '';
     }
     var lgTag = showLg ? '<span class="gc-lg" style="color:' + mqLgColor(mqSchedKey(ev)) + '">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</span>' : '';
-    return '<div class="gc ' + (st === 'in' ? 'is-live ' : st === 'post' ? 'is-done ' : '') + (x.open ? 'is-click' : '') + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
+    return '<div class="gc ' + (st === 'in' ? 'is-live ' : st === 'post' ? 'is-done ' : '') + (x.open ? 'is-click' : '') + '" style="--lg:' + mqLgColor(mqSchedKey(ev)) + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
       '<div class="gc-top"><span class="gc-st">' + (st === 'in' ? '<i class="ag-pulse"></i>' : '') + escapeHtml(status) + (st === 'pre' && mqUntil(ev) ? '<em>' + mqUntil(ev) + '</em>' : '') + '</span>' + lgTag + '</div>' +
       '<div class="gc-body">' + body + '</div>' +
       ((net && !/^</.test(net)) || ev.question_id ? '<div class="gc-foot">' + (net ? '<small>' + escapeHtml(net) + '</small>' : '<small></small>') + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + '</div>' : '') + '</div>';
   }
+  // Earnings tiles pick up each company's brand hue. Tickers we don't have a hue for get a steady one
+  // derived from the ticker, so the same company always looks the same.
+  var MQ_EARN_EXTRA = { CMCSA:'#7B5BD6', CMCS:'#7B5BD6', LMT:'#3B7BD4', SPOT:'#1ED760', BA:'#1D5FBF', GE:'#3B9BD8', AXP:'#2E77BC', GS:'#6A9BD1', MS:'#2F7BC9', C:'#2E6FD0', WFC:'#E0483E', SBUX:'#1E9E6A', MCD:'#FFC72C', LUV:'#304CB2', DAL:'#E01933', UPS:'#B98A3E', FDX:'#7D4CC8' };
+  function mqEarnColor(sym){
+    var s = String(sym || '').toUpperCase();
+    if(MQ_CO_COLOR[s]) return MQ_CO_COLOR[s];
+    if(MQ_EARN_EXTRA[s]) return MQ_EARN_EXTRA[s];
+    var h = 0; for(var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+    return 'hsl(' + h + ',58%,62%)';
+  }
   function mqSchedEarnHtml(items){
-    var cols = [['Before the open', []], ['After the close', []], ['Time to be announced', []]];
+    var cols = [['Before the open', [], 'sun'], ['After the close', [], 'moon'], ['Time to be announced', [], 'hourglass']];
     items.forEach(function(p){
       var ev = p[0], sub = ev.subtitle || '';
       cols[/before/i.test(sub) ? 0 : /after/i.test(sub) ? 1 : 2][1].push(ev);
     });
     var tile = function(ev){
-      return '<div class="gx-tile is-click" data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"><i class="gm-bd tick">' + escapeHtml(String(ev.league || '').slice(0, 4)) + '</i>' +
+      return '<div class="gx-tile is-click" style="--bc:' + mqEarnColor(ev.league) + '" data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"><i class="gm-bd tick">' + escapeHtml(String(ev.league || '').slice(0, 4)) + '</i>' +
         '<span class="gx-n">' + escapeHtml(String(ev.title || '').replace(/ earnings$/i, '')) + '</span>' + mqQuoteHtml(ev.league) + '</div>';
     };
     return '<section class="gx"><h5 class="gx-h"><span>' + mqLgIcon('Earnings') + 'Earnings</span><em>' + items.length + (items.length === 1 ? ' report' : ' reports') + '</em></h5><div class="gx-cols">' +
       cols.filter(function(c){ return c[1].length; }).map(function(c){
-        return '<div class="gx-col"><div class="gx-ch">' + c[0] + '<em>' + c[1].length + '</em></div><div class="gx-tiles">' + c[1].map(tile).join('') + '</div></div>';
+        return '<div class="gx-col gx-' + c[2] + '"><div class="gx-ch"><span class="gx-chl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + MQ_ICO[c[2]] + '</svg>' + c[0] + '</span><em>' + c[1].length + '</em></div><div class="gx-tiles">' + c[1].map(tile).join('') + '</div></div>';
       }).join('') + '</div></section>';
   }
   function mqSchedAgendaHtml(list){
@@ -9444,12 +9543,24 @@
     if(!mqSched.day || days.indexOf(mqSched.day) < 0) mqSched.day = days.indexOf(today) >= 0 ? today : days[0];
     var sel = mqSched.day;
     // League filters for the picked day (ESPN-style): All, then each league that has a game that day.
-    var counts = {}, order = [];
-    dayLists[sel].forEach(function(ev){ var k = mqSchedKey(ev); if(!counts[k]){ counts[k] = 0; order.push(k); } counts[k]++; });
+    var counts = {}, liveN = {}, order = [];
+    dayLists[sel].forEach(function(ev){
+      var k = mqSchedKey(ev);
+      if(!counts[k]){ counts[k] = 0; liveN[k] = 0; order.push(k); }
+      counts[k]++;
+      if(mqSchedState(ev).st === 'in') liveN[k]++;
+    });
+    var liveAll = order.reduce(function(a, k){ return a + liveN[k]; }, 0);
     var filter = mqSched.cat && counts[mqSched.cat] ? mqSched.cat : 'all';
     chips.style.display = order.length > 1 ? '' : 'none';
     chips.innerHTML = [['all', 'All']].concat(order.map(function(k){ return [k, k]; })).map(function(c){
-      return '<button type="button" class="scope-tab' + (filter === c[0] ? ' active' : '') + '" style="--lg:' + (c[0] === 'all' ? '#EEF0F4' : mqLgColor(c[0])) + '" data-cat="' + escapeHtml(c[0]) + '">' + escapeHtml(c[0] === 'all' ? 'All' : mqLgName(c[1])) + '<i>' + (c[0] === 'all' ? dayLists[sel].length : counts[c[0]]) + '</i></button>';
+      var isAll = c[0] === 'all', n = isAll ? dayLists[sel].length : counts[c[0]], live = isAll ? liveAll : liveN[c[0]];
+      // Live games get a pulsing red count so the league with action in it stands out; otherwise a quiet count.
+      return '<button type="button" class="scope-tab' + (filter === c[0] ? ' active' : '') + (live ? ' has-live' : '') + '" style="--lg:' + (isAll ? '#EEF0F4' : mqLgColor(c[0])) + '" data-cat="' + escapeHtml(c[0]) + '">' +
+        (isAll ? '' : mqLgIcon(c[0])) +
+        '<span class="sc-name">' + escapeHtml(isAll ? 'All' : mqLgName(c[1])) + '</span>' +
+        (live ? '<span class="sc-live"><span class="ag-pulse"></span>' + live + ' live</span>' : '<span class="sc-ct">' + n + '</span>') +
+      '</button>';
     }).join('');
     var byDay = {};
     days.forEach(function(d){

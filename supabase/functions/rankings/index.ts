@@ -125,22 +125,66 @@ async function artist(id: string) {
 
 // ---- markets ----
 const NQ = { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', origin: 'https://www.nasdaq.com', referer: 'https://www.nasdaq.com/' };
-async function markets() {
-  const d = await getJson('https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=40&offset=0&sortcolumn=marketcap&sortorder=desc', NQ);
-  const rows: any[] = d?.data?.table?.rows || d?.data?.rows || [];
+// Sector tabs. Each list is a pool of well-known candidates (a few more than ten, so the top ten by market
+// cap stays right as rankings move). "AI software" and "AI infrastructure" are themes rather than official
+// sectors, so they are curated here. Edit the pools to change what a tab can show.
+const SECTORS: Record<string, { label: string; syms: string[] }> = {
+  tech: { label: 'Technology', syms: ['AAPL', 'MSFT', 'NVDA', 'AVGO', 'ORCL', 'CRM', 'ADBE', 'AMD', 'CSCO', 'IBM', 'INTU', 'QCOM', 'TXN', 'NOW', 'AMAT', 'MU', 'LRCX', 'PANW', 'ANET', 'KLAC', 'INTC', 'ACN'] },
+  aiinfra: { label: 'AI infrastructure', syms: ['NVDA', 'TSM', 'AVGO', 'ASML', 'AMD', 'MU', 'AMAT', 'LRCX', 'KLAC', 'ARM', 'ANET', 'MRVL', 'DELL', 'SMCI', 'VRT', 'CRWV', 'CEG', 'VST'] },
+  aisoft: { label: 'AI software', syms: ['MSFT', 'ORCL', 'PLTR', 'CRM', 'NOW', 'ADBE', 'INTU', 'PANW', 'APP', 'CRWD', 'SNOW', 'DDOG', 'WDAY', 'ADSK', 'TEAM'] },
+  fin: { label: 'Financials', syms: ['BRK/B', 'BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'GS', 'MS', 'AXP', 'C', 'BLK', 'SCHW', 'SPGI', 'PGR', 'BX'] },
+  health: { label: 'Healthcare', syms: ['LLY', 'UNH', 'JNJ', 'ABBV', 'MRK', 'TMO', 'ABT', 'ISRG', 'AMGN', 'PFE', 'DHR', 'BSX', 'GILD', 'VRTX'] },
+  disc: { label: 'Consumer discretionary', syms: ['AMZN', 'TSLA', 'HD', 'MCD', 'BKNG', 'LOW', 'TJX', 'NKE', 'SBUX', 'MELI', 'ABNB', 'CMG', 'ORLY', 'GM', 'F', 'MAR'] },
+  stap: { label: 'Consumer staples', syms: ['WMT', 'COST', 'PG', 'KO', 'PEP', 'PM', 'MDLZ', 'MO', 'CL', 'TGT', 'KMB', 'KDP', 'GIS', 'STZ', 'MNST', 'KR', 'HSY'] },
+  energy: { label: 'Energy', syms: ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'WMB', 'PSX', 'MPC', 'OXY', 'KMI', 'VLO', 'EPD'] },
+  comm: { label: 'Communication', syms: ['GOOGL', 'GOOG', 'META', 'NFLX', 'DIS', 'TMUS', 'T', 'VZ', 'CMCSA', 'SPOT', 'EA', 'TTWO'] },
+  ind: { label: 'Industrials', syms: ['GE', 'CAT', 'RTX', 'UNP', 'BA', 'HON', 'DE', 'LMT', 'UPS', 'ETN', 'GEV', 'ADP', 'WM', 'NOC'] },
+};
+function cleanName(n: unknown): string {
+  return String(n || '').replace(/\s+(Class [A-Z]\b.*|Common Stock.*|Capital Stock.*|Ordinary Shares.*|American Depositary.*|Common Shares.*)$/i, '').trim();
+}
+// The ten biggest by market cap, one row per company (GOOG and GOOGL count once). `only` limits it to a pool of symbols.
+function topCompanies(rows: any[], n: number, only?: Set<string>) {
   const seen = new Set<string>();
-  const list: any[] = [];
+  const out: any[] = [];
   for (const r of rows) {
-    const base = String(r.name || '').replace(/\s+(Class [A-Z]\b.*|Common Stock.*|Capital Stock.*|Ordinary Shares.*|American Depositary.*|Common Shares.*)$/i, '').trim();
+    if (only && !only.has(String(r.symbol || '').toUpperCase())) continue;
+    const base = cleanName(r.name);
     const key = base.toLowerCase();
     if (!base || seen.has(key)) continue;
-    seen.add(key);
     const cap = Number(String(r.marketCap || '').replace(/[$,]/g, ''));
     if (!isFinite(cap) || cap <= 0) continue;
-    list.push({ rank: list.length + 1, symbol: String(r.symbol || ''), name: base, price: String(r.lastsale || ''), pct: String(r.pctchange || ''), cap });
-    if (list.length >= 10) break;
+    seen.add(key);
+    out.push({ symbol: String(r.symbol || ''), name: base, price: String(r.lastsale || ''), pct: String(r.pctchange || ''), cap });
   }
-  return { kind: 'markets', companies: list };
+  out.sort((a, b) => b.cap - a.cap);
+  return out.slice(0, n).map((x, i) => ({ rank: i + 1, ...x }));
+}
+async function markets() {
+  const url = 'https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&sortcolumn=marketcap&sortorder=desc&limit=';
+  let rows: any[] = [];
+  let wide = false;
+  // One wide pull covers every sector pool. If Nasdaq won't give that many rows, fall back to the original
+  // 40-row pull: the overall list still works and the sector tabs just don't appear.
+  try {
+    const d = await getJson(url + '300', NQ);
+    rows = d?.data?.table?.rows || d?.data?.rows || [];
+    wide = rows.length >= 100;
+  } catch (_) { /* fall back below */ }
+  if (!wide) {
+    const d = await getJson(url + '40', NQ);
+    rows = d?.data?.table?.rows || d?.data?.rows || [];
+  }
+  const out: Record<string, unknown> = { kind: 'markets', companies: topCompanies(rows.slice(0, 40), 10) };
+  if (wide) {
+    const sectors: Record<string, { label: string; companies: any[] }> = {};
+    for (const [key, s] of Object.entries(SECTORS)) {
+      const companies = topCompanies(rows, 10, new Set(s.syms));
+      if (companies.length >= 3) sectors[key] = { label: s.label, companies };
+    }
+    if (Object.keys(sectors).length) out.sectors = sectors;
+  }
+  return out;
 }
 
 Deno.serve(async (req: Request) => {

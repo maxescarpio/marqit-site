@@ -47,7 +47,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261020l">
-<link rel="stylesheet" href="refresh.css?v=20261020zo">
+<link rel="stylesheet" href="refresh.css?v=20261022a">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -355,13 +355,13 @@
           <input type="text" id="buddy-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
           <button id="set-buddy-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Send request</button>
         </div>
+        <p class="form-msg" id="buddy-msg" role="status" aria-live="polite"></p>
         <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">They have to accept first.</p>
       </div>
       <!-- One row per pending outgoing request (you can have several out at once). -->
       <div id="buddy-pending-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
       <!-- One row per accepted buddy. -->
       <div id="buddy-active-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
-      <p class="form-msg" id="buddy-msg" style="font-size:13px; margin-top:8px;"></p>
     </div>
       </div>
       </details>
@@ -379,6 +379,7 @@
           <input type="text" id="rival-username-input" placeholder="their username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
           <button id="set-rival-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Send request</button>
         </div>
+        <p class="form-msg" id="rival-msg" role="status" aria-live="polite"></p>
         <p style="font-size:12px; color:var(--ink-soft); margin-top:6px;">They have to accept first.</p>
       </div>
       <!-- One row per pending outgoing request. -->
@@ -386,7 +387,6 @@
       <!-- One full Showdown card per accepted rival -- each tracks its own
            activation/star state independently via rival-duel-card-template. -->
       <div id="rival-active-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
-      <p class="form-msg" id="rival-msg" style="font-size:13px; margin-top:8px;"></p>
     </div>
       </div>
       </details>
@@ -988,7 +988,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261021c" defer></script>
+<script src="app.js?v=20261022a" defer></script>
 
 
 
