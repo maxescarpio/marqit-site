@@ -132,7 +132,7 @@ const SECTORS: Record<string, { label: string; syms: string[] }> = {
   tech: { label: 'Technology', syms: ['AAPL', 'MSFT', 'NVDA', 'AVGO', 'ORCL', 'CRM', 'ADBE', 'AMD', 'CSCO', 'IBM', 'INTU', 'QCOM', 'TXN', 'NOW', 'AMAT', 'MU', 'LRCX', 'PANW', 'ANET', 'KLAC', 'INTC', 'ACN'] },
   aiinfra: { label: 'AI infrastructure', syms: ['NVDA', 'TSM', 'AVGO', 'ASML', 'AMD', 'MU', 'AMAT', 'LRCX', 'KLAC', 'ARM', 'ANET', 'MRVL', 'DELL', 'SMCI', 'VRT', 'CRWV', 'CEG', 'VST'] },
   aisoft: { label: 'AI software', syms: ['MSFT', 'ORCL', 'PLTR', 'CRM', 'NOW', 'ADBE', 'INTU', 'PANW', 'APP', 'CRWD', 'SNOW', 'DDOG', 'WDAY', 'ADSK', 'TEAM'] },
-  fin: { label: 'Financials', syms: ['BRK/B', 'BRK.B', 'JPM', 'V', 'MA', 'BAC', 'WFC', 'GS', 'MS', 'AXP', 'C', 'BLK', 'SCHW', 'SPGI', 'PGR', 'BX'] },
+  fin: { label: 'Financials', syms: ['JPM', 'V', 'MA', 'BAC', 'WFC', 'GS', 'MS', 'AXP', 'C', 'BLK', 'SCHW', 'SPGI', 'PGR', 'BX'] },
   health: { label: 'Healthcare', syms: ['LLY', 'UNH', 'JNJ', 'ABBV', 'MRK', 'TMO', 'ABT', 'ISRG', 'AMGN', 'PFE', 'DHR', 'BSX', 'GILD', 'VRTX'] },
   disc: { label: 'Consumer discretionary', syms: ['AMZN', 'TSLA', 'HD', 'MCD', 'BKNG', 'LOW', 'TJX', 'NKE', 'SBUX', 'MELI', 'ABNB', 'CMG', 'ORLY', 'GM', 'F', 'MAR'] },
   stap: { label: 'Consumer staples', syms: ['WMT', 'COST', 'PG', 'KO', 'PEP', 'PM', 'MDLZ', 'MO', 'CL', 'TGT', 'KMB', 'KDP', 'GIS', 'STZ', 'MNST', 'KR', 'HSY'] },
