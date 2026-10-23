@@ -8578,8 +8578,10 @@
     }
     var canOpen = (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && teams) || mqIsMedia(ev);
     var bandStyle = g ? ' style="--ca:' + mqTeamColor(g.away) + ';--cb:' + mqTeamColor(g.home) + '"' : '';
-    return '<div data-cat="' + escapeHtml(ev.category || '') + '" class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + '"' +
+    var isArt = mqIsMedia(ev), isAlbum = isArt && /^album$/i.test(ev.league || '');
+    return '<div data-cat="' + escapeHtml(ev.category || '') + '" class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + (isArt ? ' has-art' : '') + '"' +
       (canOpen ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '') + '>' +
+      (isArt ? '<span class="sstrip-art' + (isAlbum ? ' sq' : '') + '" data-art="' + escapeHtml(String(ev.id)) + '"></span>' : '') +
       '<div class="sstrip-time"><span>' + escapeHtml(status) + '</span>' +
         (side ? '<span class="sstrip-sub">' + escapeHtml(side) + '</span>' : '') + '</div>' +
       body +
@@ -9634,7 +9636,38 @@
       : '<p class="sched-empty">Nothing big today. Check the rest of the week.</p>';
     var newTrack = cards.querySelector('.sstrip-track');
     if(newTrack && keep) newTrack.scrollLeft = keep;
+    mqArtFill(cards);
     if(!fromQuote){ mqLoadScores(); mqLoadQuotes(list); }
+  }
+
+  // Poster / album cover thumbnails on the movie, show and album cells of the top strip. The small image URL
+  // comes from the media-details function (the same one the click panel uses) and is remembered in this
+  // browser for a day, so the strip's 5-minute refresh and repeat visits make no extra requests. No picture
+  // found: the thumbnail slot disappears and the cell looks like it did before.
+  var MQ_ART_KEY = 'mq_art_v1';
+  function mqArtLoad(){ try{ return JSON.parse(localStorage.getItem(MQ_ART_KEY) || '{}') || {}; }catch(e){ return {}; } }
+  function mqArtSave(o){ try{ localStorage.setItem(MQ_ART_KEY, JSON.stringify(o)); }catch(e){} }
+  function mqArtFill(root){
+    var cache = mqArtLoad();
+    [].forEach.call(root.querySelectorAll('.sstrip-art[data-art]'), function(span){
+      var cell = span.parentNode, id = span.getAttribute('data-art');
+      var ev = mqSched.events.filter(function(x){ return String(x.id) === id; })[0];
+      function drop(){ if(span.parentNode){ cell.classList.remove('has-art'); span.remove(); } }
+      function show(u){
+        var im = new Image();
+        im.onload = function(){ if(span.isConnected){ span.appendChild(im); span.classList.add('on'); } };
+        im.onerror = drop;
+        im.alt = ''; im.referrerPolicy = 'no-referrer'; im.decoding = 'async'; im.src = u;
+      }
+      if(!ev){ drop(); return; }
+      var key = ev.external_id || ev.title, c = cache[key];
+      if(c && Date.now() < c.exp){ c.u ? show(c.u) : drop(); return; }
+      mqMediaGet(ev).then(function(d){
+        var u = d ? mqSafeImg(d.thumb || d.cover || d.poster) : '';
+        if(d){ cache = mqArtLoad(); cache[key] = { u: u, exp: Date.now() + (u ? 86400000 : 3600000) }; mqArtSave(cache); }
+        u ? show(u) : drop();
+      });
+    });
   }
 
   function mqSchedKey(ev){

@@ -5,9 +5,9 @@
 // GET .../functions/v1/media-details?kind=tv&id=12345
 // GET .../functions/v1/media-details?kind=album&title=Artist: Album name   (the key_events title)
 //  -> movie/tv: { kind, title, tagline, overview, releaseDate, runtime, seasons, episodes, rating, genres[],
-//                 network, status, poster, backdrop, trailer, cast: [{ name, character, photo }],
+//                 network, status, poster, thumb (small, for the strip), backdrop, trailer, cast: [{ name, character, photo }],
 //                 scores: { rt, metacritic, imdb, tmdb: { avg, votes } }, money: { domesticTotal, worldwideTotal, budget } }
-//     album:    { kind, title, artist, artistPhoto, cover, releaseDate, label, tracks, genres[], link }
+//     album:    { kind, title, artist, artistPhoto, cover, thumb (small, for the strip), releaseDate, label, tracks, genres[], link }
 // Every block can be null when the source has nothing yet (a movie that opens today has no gross,
 // an album that is not out yet is not on Deezer). Nothing here is invented.
 //
@@ -99,6 +99,7 @@ async function screen(kind: 'movie' | 'tv', id: string) {
     network: kind === 'tv' ? ((d.networks || [])[0]?.name || null) : ((d.production_companies || [])[0]?.name || null),
     status: d.status || null,
     poster: img('w342', d.poster_path),
+    thumb: img('w154', d.poster_path),
     backdrop: img('w780', d.backdrop_path),
     trailer: trailer ? 'https://www.youtube.com/watch?v=' + trailer.key : null,
     cast,
@@ -135,6 +136,7 @@ async function album(title: string) {
     artist: a.artist?.name || artist || null,
     artistPhoto: a.artist?.picture_xl || a.artist?.picture_big || null,
     cover: a.cover_xl || a.cover_big || null,
+    thumb: a.cover_medium || a.cover_big || null,
     releaseDate: a.release_date || null,
     label: a.label || null,
     tracks: a.nb_tracks || null,
