@@ -67,9 +67,12 @@ async function screen(kind: 'movie' | 'tv', id: string) {
   if (!d || d.success === false || !d.id) return null;
 
   let rating: string | null = null;
+  let usDate: string | null = null; // US theatrical date, so it matches the strip (TMDB's default date is the earliest anywhere)
   if (kind === 'movie') {
     const us = (d.release_dates?.results || []).find((x: any) => x.iso_3166_1 === 'US');
     rating = (us?.release_dates || []).map((x: any) => x.certification).find((c: string) => c) || null;
+    usDate = (us?.release_dates || []).filter((x: any) => x.type === 2 || x.type === 3)
+      .map((x: any) => String(x.release_date || '').slice(0, 10)).filter(Boolean).sort()[0] || null;
   } else {
     rating = (d.content_ratings?.results || []).find((x: any) => x.iso_3166_1 === 'US')?.rating || null;
   }
@@ -87,7 +90,7 @@ async function screen(kind: 'movie' | 'tv', id: string) {
     title: kind === 'movie' ? d.title : d.name,
     tagline: d.tagline || null,
     overview: d.overview || null,
-    releaseDate: (kind === 'movie' ? d.release_date : d.first_air_date) || null,
+    releaseDate: (kind === 'movie' ? (usDate || d.release_date) : d.first_air_date) || null,
     runtime: kind === 'movie' ? (d.runtime || null) : ((d.episode_run_time || [])[0] || null),
     seasons: kind === 'tv' ? (d.number_of_seasons || null) : null,
     episodes: kind === 'tv' ? (d.number_of_episodes || null) : null,
