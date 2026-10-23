@@ -8347,7 +8347,7 @@
     mqSched.loading = (async function(){
       try{
         var res = await sb.from('key_events')
-          .select('id, category, title, subtitle, league, starts_at, all_day, importance, status, url, question_id')
+          .select('id, category, title, subtitle, league, starts_at, all_day, importance, status, url, question_id, external_id')
           .gte('starts_at', mqSchedAddDays(days[0], -1) + 'T00:00:00Z')
           .lte('starts_at', mqSchedAddDays(days[6], 2) + 'T00:00:00Z')
           .order('starts_at', { ascending: true })
@@ -8576,7 +8576,7 @@
       side = /before/i.test(ev.subtitle || '') ? 'Before open' : /after/i.test(ev.subtitle || '') ? 'After close' : (ev.subtitle || '');
       body = '<div class="sstrip-title one">' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</div>' + mqQuoteHtml(ev.league);
     }
-    var canOpen = (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && teams);
+    var canOpen = (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && teams) || mqIsMedia(ev);
     var bandStyle = g ? ' style="--ca:' + mqTeamColor(g.away) + ';--cb:' + mqTeamColor(g.home) + '"' : '';
     return '<div data-cat="' + escapeHtml(ev.category || '') + '" class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + '"' +
       (canOpen ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '') + '>' +
@@ -8803,6 +8803,120 @@
       kg = Object.assign({}, kg, { away: kgAway, home: kgHome });
       body.innerHTML = blurb() + mqKeyPlayersHtml(kg) + (okA && okB ? mqCompareHtml(r[0], r[1]) : '');
       mqPlayerPhotos(body);
+    });
+  }
+
+  // ---- Click a movie, TV or album cell: release info, cast with photos, scores, box office (media-details function).
+  function mqIsMedia(ev){
+    return ev && ev.category === 'pop_culture' && /^(movie|tv|album)$/i.test(String(ev.league || ''));
+  }
+  var MQ_MEDIA = {};
+  function mqMediaUrl(ev){
+    var kind = String(ev.league).toLowerCase();
+    if(kind === 'album') return SUPABASE_URL + '/functions/v1/media-details?kind=album&title=' + encodeURIComponent(ev.title || '');
+    var m = /^(movie|tv):(\d+)$/.exec(String(ev.external_id || '')) || /themoviedb\.org\/(movie|tv)\/(\d+)/.exec(String(ev.url || ''));
+    return m ? SUPABASE_URL + '/functions/v1/media-details?kind=' + m[1] + '&id=' + m[2] : null;
+  }
+  function mqMediaGet(ev){
+    var url = mqMediaUrl(ev);
+    if(!url) return Promise.resolve(null);
+    if(MQ_MEDIA[url] && Date.now() - MQ_MEDIA[url].at < 600000) return MQ_MEDIA[url].p;
+    var p = fetch(url).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      .then(function(d){ if(!d || d.error){ delete MQ_MEDIA[url]; return null; } return d; });
+    MQ_MEDIA[url] = { at: Date.now(), p: p };
+    return p;
+  }
+  function mqSafeImg(u){ return /^https:\/\/([a-z0-9-]+\.)*(tmdb\.org|dzcdn\.net)\//i.test(u || '') ? u : ''; }
+  function mqSafeLink(u){ return /^https:\/\/(www\.)?(themoviedb\.org|youtube\.com|deezer\.com)\//i.test(u || '') ? u : ''; }
+  function mqMediaDate(s){
+    if(!s) return '';
+    var d = new Date(String(s).slice(0, 10) + 'T12:00:00Z');
+    return isNaN(d) ? '' : d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  }
+  function mqRunTime(min){
+    if(!min) return '';
+    return min >= 60 ? Math.floor(min / 60) + 'h' + (min % 60 ? ' ' + (min % 60) + 'm' : '') : min + 'm';
+  }
+  function mqMediaHtml(d){
+    var out = '', link = mqSafeLink(d.link), poster = mqSafeImg(d.cover || d.poster);
+    var facts = [];
+    if(d.kind === 'album'){
+      if(d.found === false) return '<p class="evp-muted">This album isn’t listed with our music source yet. Check back on release day.</p>';
+      if(d.releaseDate) facts.push(mqMediaDate(d.releaseDate));
+      if(d.label) facts.push(d.label);
+      if(d.tracks) facts.push(d.tracks + ' tracks');
+      if(d.durationSec) facts.push(mqRunTime(Math.round(d.durationSec / 60)));
+      out += '<div class="mdp-head">' + (poster ? '<img class="mdp-cover sq" src="' + escapeHtml(poster) + '" alt="" referrerpolicy="no-referrer">' : '') +
+        '<div class="mdp-meta">' +
+          (d.artist ? '<div class="mdp-artist">' + (mqSafeImg(d.artistPhoto) ? '<img src="' + escapeHtml(mqSafeImg(d.artistPhoto)) + '" alt="" referrerpolicy="no-referrer">' : '') + '<b>' + escapeHtml(d.artist) + '</b></div>' : '') +
+          (facts.length ? '<div class="mdp-facts">' + facts.map(function(f){ return '<span>' + escapeHtml(f) + '</span>'; }).join('') + '</div>' : '') +
+          ((d.genres || []).length ? '<div class="mdp-genres">' + d.genres.map(escapeHtml).join(' · ') + '</div>' : '') +
+        '</div></div>';
+      if(link) out += '<a class="mdp-link" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">Listen on Deezer ›</a>';
+      return out;
+    }
+    if(d.releaseDate) facts.push(mqMediaDate(d.releaseDate));
+    if(d.rating) facts.push(d.rating);
+    if(d.kind === 'movie' && d.runtime) facts.push(mqRunTime(d.runtime));
+    if(d.kind === 'tv'){
+      if(d.seasons) facts.push(d.seasons + (d.seasons === 1 ? ' season' : ' seasons'));
+      if(d.episodes) facts.push(d.episodes + ' episodes');
+    }
+    if(d.network) facts.push(d.network);
+    out += '<div class="mdp-head">' + (poster ? '<img class="mdp-cover" src="' + escapeHtml(poster) + '" alt="" referrerpolicy="no-referrer">' : '') +
+      '<div class="mdp-meta">' +
+        (facts.length ? '<div class="mdp-facts">' + facts.map(function(f){ return '<span>' + escapeHtml(f) + '</span>'; }).join('') + '</div>' : '') +
+        ((d.genres || []).length ? '<div class="mdp-genres">' + d.genres.map(escapeHtml).join(' · ') + '</div>' : '') +
+        (d.tagline ? '<div class="mdp-tag">' + escapeHtml(d.tagline) + '</div>' : '') +
+      '</div></div>';
+    if(d.overview) out += '<p class="evp-desc">' + escapeHtml(d.overview) + '</p>';
+
+    var s = d.scores || {}, tiles = [];
+    if(s.rt != null) tiles.push(['Rotten Tomatoes', s.rt + '%', s.rt >= 60 ? 'good' : 'bad']);
+    if(s.metacritic != null) tiles.push(['Metacritic', String(s.metacritic), s.metacritic >= 61 ? 'good' : s.metacritic >= 40 ? 'mid' : 'bad']);
+    if(s.imdb != null) tiles.push(['IMDb', s.imdb.toFixed(1), '']);
+    if(s.tmdb) tiles.push(['Viewer score', s.tmdb.avg.toFixed(1), '']);
+    if(tiles.length) out += '<div class="mdp-sec"><div class="fd-h">Scores</div><div class="mdp-scores">' +
+      tiles.map(function(t){ return '<div class="mdp-sc ' + t[2] + '"><b>' + escapeHtml(t[1]) + '</b><span>' + escapeHtml(t[0]) + '</span></div>'; }).join('') + '</div></div>';
+    else if(d.kind === 'movie' || d.kind === 'tv') out += '<p class="evp-muted">Review scores show up here once critics weigh in.</p>';
+
+    var m = d.money;
+    if(m){
+      var rows = [['Domestic total', m.domesticTotal], ['Worldwide total', m.worldwideTotal], ['Budget', m.budget]].filter(function(r){ return r[1]; });
+      if(rows.length) out += '<div class="mdp-sec"><div class="fd-h">Box office</div><dl class="mdp-dl">' +
+        rows.map(function(r){ return '<div><dt>' + r[0] + '</dt><dd>' + mqMoney(r[1]) + '</dd></div>'; }).join('') + '</dl></div>';
+    } else if(d.kind === 'movie'){
+      out += '<p class="evp-muted">No box office reported yet. Opening-weekend numbers usually come in on Monday.</p>';
+    }
+
+    if((d.cast || []).length) out += '<div class="mdp-sec"><div class="fd-h">Top cast</div><div class="mdp-cast">' +
+      d.cast.map(function(c){
+        var ph = mqSafeImg(c.photo);
+        return '<div class="mdp-c"><span class="mdp-ph">' + (ph ? '<img src="' + escapeHtml(ph) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<i>' + escapeHtml(mqInitials({ name: c.name })) + '</i>') + '</span>' +
+          '<b>' + escapeHtml(c.name) + '</b>' + (c.character ? '<em>' + escapeHtml(c.character) + '</em>' : '') + '</div>';
+      }).join('') + '</div></div>';
+
+    var trailer = mqSafeLink(d.trailer);
+    if(trailer || link) out += '<div class="mdp-links">' + (trailer ? '<a href="' + escapeHtml(trailer) + '" target="_blank" rel="noopener noreferrer">Watch trailer ›</a>' : '') +
+      (link ? '<a href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">More details ›</a>' : '') + '</div>';
+    return out;
+  }
+  function mqOpenMediaPanel(ev){
+    var kind = String(ev.league).toLowerCase();
+    var kicker = (kind === 'tv' ? 'TV series' : kind === 'album' ? 'Album' : 'Movie') + ' · ' + escapeHtml(mqSchedTime(ev) === 'All day' ? (ev.subtitle || 'Out today') : mqSchedTime(ev));
+    var foot = kind === 'album'
+      ? 'Album details from Deezer.'
+      : 'Film and TV details from TMDB, review scores and box office from OMDb. This product uses the TMDB API but is not endorsed or certified by TMDB.';
+    var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + kicker + '</div>' +
+      '<h3 class="evp-title">' + escapeHtml(kind === 'album' ? String(ev.title).replace(/^.*?:\s+/, '') : ev.title) + '</h3>' +
+      '<div class="evp-body mdp" id="mdp"><div class="fd-sk"><i></i><i></i><i></i></div></div>' +
+      '<p class="evp-foot">' + foot + '</p>');
+    mqMediaGet(ev).then(function(d){
+      var box = el.querySelector('#mdp'); if(!box || !box.isConnected) return;
+      if(d){ box.innerHTML = mqMediaHtml(d); return; }
+      var u = mqSafeLink(ev.url);
+      box.innerHTML = '<p class="evp-muted">Couldn’t load the details right now. Try again in a minute.</p>' +
+        (u ? '<a class="mdp-link" href="' + escapeHtml(u) + '" target="_blank" rel="noopener noreferrer">More details ›</a>' : '');
     });
   }
 
@@ -9330,7 +9444,7 @@
     var id = cell.getAttribute('data-ev');
     var ev = mqSched.events.filter(function(x){ return String(x.id) === id; })[0] || mqSynth[id];
     if(!ev) return;
-    if(ev.category === 'finance') mqOpenStockPanel(ev); else mqOpenGamePanel(ev);
+    if(ev.category === 'finance') mqOpenStockPanel(ev); else if(mqIsMedia(ev)) mqOpenMediaPanel(ev); else mqOpenGamePanel(ev);
   }
   document.addEventListener('click', function(e){
     var c = e.target.closest('.sstrip-cell.is-click, .gm.is-click, .gc.is-click, .gx-tile.is-click');
@@ -9367,7 +9481,7 @@
   // Schedule page, one day (ESPN-style): live games as score cards on top, then the rest in time slots.
   function mqSchedState(ev){
     var g = mqGameFor(ev, mqSchedTeams(ev));
-    return { g: g, st: g ? g.state : 'pre', open: (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && mqSchedTeams(ev)) };
+    return { g: g, st: g ? g.state : 'pre', open: (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && mqSchedTeams(ev)) || mqIsMedia(ev) };
   }
   function mqSchedClickAttrs(ev, open){
     return open ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '';
