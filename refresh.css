@@ -1929,9 +1929,9 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 
 /* Poster / album-cover thumbnail on movie, show and album cells of the top strip (filled by mqArtFill in app.js) */
 .sstrip-art{display:none}
-.sched-today .sstrip-cell.has-art{--aw:30px;position:relative;padding-left:calc(var(--aw) + 22px);flex-basis:184px}
-.sched-today .sstrip-cell.has-art:has(.sstrip-art.sq){--aw:44px}
-.sched-today .sstrip-art{display:block;position:absolute;left:10px;top:50%;transform:translateY(-50%);width:var(--aw);height:44px;border-radius:4px;overflow:hidden;background:linear-gradient(90deg,#1b1e24,#23262d,#1b1e24);background-size:200% 100%;animation:fdsk 1.2s linear infinite;box-shadow:0 0 0 1px rgba(255,255,255,.1)}
+.sched-today .sstrip-cell.has-art{--aw:27px;position:relative;padding-left:calc(var(--aw) + 20px);flex-basis:180px}
+.sched-today .sstrip-cell.has-art:has(.sstrip-art.sq){--aw:40px}
+.sched-today .sstrip-art{display:block;position:absolute;left:10px;top:50%;transform:translateY(-50%);width:var(--aw);height:40px;border-radius:4px;overflow:hidden;background:linear-gradient(90deg,#1b1e24,#23262d,#1b1e24);background-size:200% 100%;animation:fdsk 1.2s linear infinite;box-shadow:0 0 0 1px rgba(255,255,255,.1)}
 .sched-today .sstrip-art.on{animation:none;background:#232730}
 .sched-today .sstrip-art img{display:block;width:100%;height:100%;object-fit:cover}
-@media (max-width:520px){.sched-today .sstrip-cell.has-art{flex-basis:176px}}
+@media (max-width:520px){.sched-today .sstrip-cell.has-art{flex-basis:172px}}
