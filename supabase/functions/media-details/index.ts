@@ -47,12 +47,22 @@ function dollars(s: any): number | null {
   return isFinite(n) && n > 0 ? n : null;
 }
 
-async function omdb(imdbId: string | null): Promise<{ rt: number | null; metacritic: number | null; imdb: number | null; domestic: number | null } | null> {
+// status says why there are no scores: 'ok', 'no-key' (secret not set), 'no-imdb-id', 'http-401' (key rejected or not
+// activated yet), or OMDb's own message ('Incorrect IMDb ID.', 'Request limit reached!', ...). Shown in the JSON so a
+// missing score is easy to diagnose.
+async function omdb(imdbId: string | null): Promise<{ rt: number | null; metacritic: number | null; imdb: number | null; domestic: number | null; status: string }> {
+  const out = { rt: null as number | null, metacritic: null as number | null, imdb: null as number | null, domestic: null as number | null, status: 'ok' };
   const key = Deno.env.get('OMDB_API_KEY');
-  if (!key || !imdbId) return null;
-  const d = await getJson(`https://www.omdbapi.com/?i=${encodeURIComponent(imdbId)}&apikey=${encodeURIComponent(key)}`);
-  if (!d || d.Response === 'False') return null;
-  const out = { rt: null as number | null, metacritic: null as number | null, imdb: null as number | null, domestic: dollars(d.BoxOffice) };
+  if (!key) return { ...out, status: 'no-key' };
+  if (!imdbId) return { ...out, status: 'no-imdb-id' };
+  let d: any = null;
+  try {
+    const r = await fetch(`https://www.omdbapi.com/?i=${encodeURIComponent(imdbId)}&apikey=${encodeURIComponent(key)}`, { headers: { 'user-agent': UA, accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) { try { await r.body?.cancel(); } catch (_) { /* ignore */ } return { ...out, status: 'http-' + r.status }; }
+    d = await r.json();
+  } catch (_) { return { ...out, status: 'unreachable' }; }
+  if (!d || d.Response === 'False') return { ...out, status: String(d?.Error || 'no-data').slice(0, 80) };
+  out.domestic = dollars(d.BoxOffice);
   for (const r of (d.Ratings || [])) {
     const v = String(r.Value || '');
     if (r.Source === 'Rotten Tomatoes') { const n = parseInt(v, 10); out.rt = isFinite(n) ? n : null; }
@@ -112,6 +122,7 @@ async function screen(kind: 'movie' | 'tv', id: string) {
     money: kind === 'movie' && (domestic || worldwide || money(d.budget))
       ? { domesticTotal: domestic, worldwideTotal: worldwide, budget: money(d.budget) }
       : null,
+    omdb: o.status,
     link: 'https://www.themoviedb.org/' + kind + '/' + d.id,
   };
 }
