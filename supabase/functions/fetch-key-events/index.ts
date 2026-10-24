@@ -68,11 +68,11 @@ const TSDB_LEAGUES: [string, string, string][] = [
 ];
 
 // What counts as marquee. Edit here to show more or fewer games.
-//   Any postseason game. NFL: primetime kickoffs (7pm Eastern or later). College football: ranked vs ranked. Champions League: all.
+//   Any postseason game. NFL: primetime kickoffs (7pm Eastern or later). College football: ranked vs ranked, or any top-10 team. Champions League: all.
 //   A game a Marqit question is about is always shown (set by the caller).
-function sportsImportance(badge: string, start: Date, postseason: boolean, bothRanked = false): number {
+function sportsImportance(badge: string, start: Date, postseason: boolean, marquee = false): number {
   if (postseason) return 2;
-  if (badge === 'NCAAF') return bothRanked ? 2 : 1; // college football: ranked-vs-ranked only
+  if (badge === 'NCAAF') return marquee ? 2 : 1; // college football: ranked vs ranked, or a top-10 team
   if (badge === 'NFL') return etHour(start) >= 19 ? 2 : 1;
   if (badge === 'Champions League') return 2;
   return 1;
@@ -100,14 +100,14 @@ async function sportsRows(dates: string[], questions: any[], _deadline: number, 
   report.sports = rep;
 
   // One game from any feed. Returns true if kept.
-  function add(badge: string, key: string, home: string, away: string, startIso: string, venue: string | null, postseason: boolean, statusText: string, bothRanked = false): boolean {
+  function add(badge: string, key: string, home: string, away: string, startIso: string, venue: string | null, postseason: boolean, statusText: string, marquee = false): boolean {
     const t = Date.parse(startIso);
     if (!home || !away || isNaN(t)) return false;
     const startDate = new Date(t);
     const day = etDate(startDate);
     if (!inWindow.has(day)) return false;
     const q = findQuestion(questions, home, away, day);
-    const importance = q ? 3 : sportsImportance(badge, startDate, postseason, bothRanked);
+    const importance = q ? 3 : sportsImportance(badge, startDate, postseason, marquee);
     if (importance < 2) return false;
     rows.set(badge + ':' + key, {
       category: 'sports',
@@ -162,23 +162,31 @@ async function sportsRows(dates: string[], questions: any[], _deadline: number, 
     return n;
   });
 
-  // NFL and college football: ESPN's scoreboard (the same source the site's live scores use), the whole window in one call.
-  // Replaces TheSportsDB for the NFL, which missed Sunday games. NFL: primetime or playoff games; college football: only
-  // games between two ranked teams (top 25). Any game a Marqit question is about is always kept (add() sets importance 3).
-  for (const [badge, path, extra] of [['NFL', 'football/nfl', ''], ['NCAAF', 'football/college-football', '&groups=80']] as [string, string, string][]) {
+  // NFL and college football: ESPN's scoreboard (the same source the site's live scores use). ESPN answers a single date
+  // but rejects date ranges (HTTP 400), so this asks for one day at a time. Replaces TheSportsDB for the NFL, which missed
+  // Sunday games. NFL: primetime or playoff games. College football: ranked vs ranked, or any top-10 team. Any game a
+  // Marqit question is about is always kept (add() sets importance 3).
+  for (const [badge, path, extra] of [['NFL', 'football/nfl', ''], ['NCAAF', 'football/college-football', '&groups=80&limit=300']] as [string, string, string][]) {
     await league(badge, async () => {
-      const ymd = (x: string) => x.replace(/-/g, '');
-      const d = await fetchJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard?dates=${ymd(addDays(first, -1))}-${ymd(addDays(last, 1))}&limit=300${extra}`, { 'user-agent': 'curl/8.5.0' });
-      const ranked = (c: any) => { const r = Number(c?.curatedRank?.current); return r >= 1 && r <= 25; };
+      const rankOf = (c: any) => { const r = Number(c?.curatedRank?.current); return r >= 1 && r <= 25 ? r : 99; };
+      const seen = new Set<string>();
       let n = 0;
-      for (const e of (d?.events || [])) {
-        const c = e?.competitions?.[0];
-        const home = (c?.competitors || []).find((x: any) => x.homeAway === 'home');
-        const away = (c?.competitors || []).find((x: any) => x.homeAway === 'away');
-        if (!home || !away) continue;
-        const post = badge === 'NFL' && Number(e?.season?.type) === 3;
-        if (add(badge, String(e.id), String(home.team?.displayName || ''), String(away.team?.displayName || ''), String(e.date || ''), c?.venue?.fullName || null,
-          post, String(e?.status?.type?.description || e?.status?.type?.name || ''), ranked(home) && ranked(away))) n++;
+      for (const day of dates) {
+        const d = await fetchJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard?dates=${day.replace(/-/g, '')}${extra}`, { 'user-agent': 'curl/8.5.0' });
+        for (const e of (d?.events || [])) {
+          const id = String(e?.id || '');
+          if (!id || seen.has(id)) continue;
+          seen.add(id);
+          const c = e?.competitions?.[0];
+          const home = (c?.competitors || []).find((x: any) => x.homeAway === 'home');
+          const away = (c?.competitors || []).find((x: any) => x.homeAway === 'away');
+          if (!home || !away) continue;
+          const rh = rankOf(home), ra = rankOf(away);
+          const marquee = (rh < 99 && ra < 99) || rh <= 10 || ra <= 10;
+          const post = badge === 'NFL' && Number(e?.season?.type) === 3;
+          if (add(badge, id, String(home.team?.displayName || ''), String(away.team?.displayName || ''), String(e.date || ''), c?.venue?.fullName || null,
+            post, String(e?.status?.type?.description || e?.status?.type?.name || ''), marquee)) n++;
+        }
       }
       return n;
     });
