@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Fills public.key_events (the Schedule) for the rest of the current Monday-Sunday week, Eastern time.
-//   sports      -> free league feeds (MLB, NHL, NBA official; NFL/soccer via TheSportsDB), only marquee games (see sportsImportance) or games a Marqit question is about
+//   sports      -> free league feeds (MLB, NHL, NBA official; NFL and college football via ESPN; soccer/WNBA via TheSportsDB), only marquee games (see sportsImportance) or games a Marqit question is about
 //   finance     -> Finnhub earnings calendar, only the household-name companies in WATCH
 //   pop culture -> TMDB, the most popular movie releases and new TV series that week
 // Tech launches, awards shows and news events have no feed: add them by hand in the admin page.
@@ -63,15 +63,16 @@ async function fetchJson(url: string, headers: Record<string, string> = {}): Pro
 // Each league is fetched on its own and reports its own errors; one failing never stops the rest.
 const SOCCER = new Set(['Champions League', 'Premier League', 'MLS']);
 const TSDB_LEAGUES: [string, string, string][] = [
-  ['4391', 'NFL', 'NFL'], ['4328', 'Premier League', 'EPL'], ['4480', 'Champions League', 'UCL'],
+  ['4328', 'Premier League', 'EPL'], ['4480', 'Champions League', 'UCL'],
   ['4346', 'MLS', 'MLS'], ['4516', 'WNBA', 'WNBA'],
 ];
 
 // What counts as marquee. Edit here to show more or fewer games.
-//   Any postseason game. NFL: primetime kickoffs (7pm Eastern or later). Champions League: all.
+//   Any postseason game. NFL: primetime kickoffs (7pm Eastern or later). College football: ranked vs ranked. Champions League: all.
 //   A game a Marqit question is about is always shown (set by the caller).
-function sportsImportance(badge: string, start: Date, postseason: boolean): number {
+function sportsImportance(badge: string, start: Date, postseason: boolean, bothRanked = false): number {
   if (postseason) return 2;
+  if (badge === 'NCAAF') return bothRanked ? 2 : 1; // college football: ranked-vs-ranked only
   if (badge === 'NFL') return etHour(start) >= 19 ? 2 : 1;
   if (badge === 'Champions League') return 2;
   return 1;
@@ -99,14 +100,14 @@ async function sportsRows(dates: string[], questions: any[], _deadline: number, 
   report.sports = rep;
 
   // One game from any feed. Returns true if kept.
-  function add(badge: string, key: string, home: string, away: string, startIso: string, venue: string | null, postseason: boolean, statusText: string): boolean {
+  function add(badge: string, key: string, home: string, away: string, startIso: string, venue: string | null, postseason: boolean, statusText: string, bothRanked = false): boolean {
     const t = Date.parse(startIso);
     if (!home || !away || isNaN(t)) return false;
     const startDate = new Date(t);
     const day = etDate(startDate);
     if (!inWindow.has(day)) return false;
     const q = findQuestion(questions, home, away, day);
-    const importance = q ? 3 : sportsImportance(badge, startDate, postseason);
+    const importance = q ? 3 : sportsImportance(badge, startDate, postseason, bothRanked);
     if (importance < 2) return false;
     rows.set(badge + ':' + key, {
       category: 'sports',
@@ -161,7 +162,29 @@ async function sportsRows(dates: string[], questions: any[], _deadline: number, 
     return n;
   });
 
-  // NFL, soccer, WNBA: the free TheSportsDB feed lists the next games of one league per request.
+  // NFL and college football: ESPN's scoreboard (the same source the site's live scores use), the whole window in one call.
+  // Replaces TheSportsDB for the NFL, which missed Sunday games. NFL: primetime or playoff games; college football: only
+  // games between two ranked teams (top 25). Any game a Marqit question is about is always kept (add() sets importance 3).
+  for (const [badge, path, extra] of [['NFL', 'football/nfl', ''], ['NCAAF', 'football/college-football', '&groups=80']] as [string, string, string][]) {
+    await league(badge, async () => {
+      const ymd = (x: string) => x.replace(/-/g, '');
+      const d = await fetchJson(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard?dates=${ymd(addDays(first, -1))}-${ymd(addDays(last, 1))}&limit=300${extra}`, { 'user-agent': 'curl/8.5.0' });
+      const ranked = (c: any) => { const r = Number(c?.curatedRank?.current); return r >= 1 && r <= 25; };
+      let n = 0;
+      for (const e of (d?.events || [])) {
+        const c = e?.competitions?.[0];
+        const home = (c?.competitors || []).find((x: any) => x.homeAway === 'home');
+        const away = (c?.competitors || []).find((x: any) => x.homeAway === 'away');
+        if (!home || !away) continue;
+        const post = badge === 'NFL' && Number(e?.season?.type) === 3;
+        if (add(badge, String(e.id), String(home.team?.displayName || ''), String(away.team?.displayName || ''), String(e.date || ''), c?.venue?.fullName || null,
+          post, String(e?.status?.type?.description || e?.status?.type?.name || ''), ranked(home) && ranked(away))) n++;
+      }
+      return n;
+    });
+  }
+
+  // Soccer and WNBA: the free TheSportsDB feed lists the next games of one league per request.
   const tsdbKey = Deno.env.get('THESPORTSDB_API_KEY') || '123';
   for (const [id, badge] of TSDB_LEAGUES) {
     await league(badge, async () => {
