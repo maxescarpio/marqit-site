@@ -6,7 +6,8 @@
 // GET .../functions/v1/media-details?kind=album&title=Artist: Album name   (the key_events title)
 //  -> movie/tv: { kind, title, tagline, overview, releaseDate, runtime, seasons, episodes, rating, genres[],
 //                 network, status, poster, thumb (small, for the strip), backdrop, trailer, cast: [{ name, character, photo }],
-//                 scores: { rt, metacritic, imdb, tmdb: { avg, votes } }, money: { domesticTotal, worldwideTotal, budget } }
+//                 scores: { rt, metacritic, imdb, tmdb: { avg, votes } }, money: { domesticTotal, worldwideTotal, budget },
+//                 watch: { stream[], rent[], buy[], link } | null  (US, service names only; JustWatch data via TMDB) }
 //     album:    { kind, title, artist, artistPhoto, cover, thumb (small, for the strip), releaseDate, label, tracks, genres[], link }
 // Every block can be null when the source has nothing yet (a movie that opens today has no gross,
 // an album that is not out yet is not on Deezer). Nothing here is invented.
@@ -73,7 +74,7 @@ async function omdb(imdbId: string | null): Promise<{ rt: number | null; metacri
 }
 
 async function screen(kind: 'movie' | 'tv', id: string) {
-  const d = await tmdb(`${kind}/${id}`, 'append_to_response=credits,videos,external_ids,' + (kind === 'movie' ? 'release_dates' : 'content_ratings'));
+  const d = await tmdb(`${kind}/${id}`, 'append_to_response=credits,videos,external_ids,watch/providers,' + (kind === 'movie' ? 'release_dates' : 'content_ratings'));
   if (!d || d.success === false || !d.id) return null;
 
   let rating: string | null = null;
@@ -90,6 +91,13 @@ async function screen(kind: 'movie' | 'tv', id: string) {
   const trailer = (d.videos?.results || []).find((v: any) => v.site === 'YouTube' && v.type === 'Trailer' && v.official !== false)
     || (d.videos?.results || []).find((v: any) => v.site === 'YouTube' && v.type === 'Trailer');
   const cast = (d.credits?.cast || []).slice(0, 6).map((c: any) => ({ name: c.name, character: c.character || null, photo: img('w185', c.profile_path) }));
+
+  // Where to watch, US only. Service names only (the site keeps logos off). Data is JustWatch's, via TMDB.
+  const wp = d['watch/providers']?.results?.US || null;
+  const names = (a: any) => (Array.isArray(a) ? a : []).map((x: any) => String(x.provider_name || '')).filter(Boolean).slice(0, 6);
+  const watch = wp && (names(wp.flatrate).length || names(wp.rent).length || names(wp.buy).length)
+    ? { stream: names(wp.flatrate), rent: names(wp.rent), buy: names(wp.buy), link: typeof wp.link === 'string' && wp.link.startsWith('https://www.themoviedb.org/') ? wp.link : null }
+    : null;
 
   const o = await omdb(d.external_ids?.imdb_id || d.imdb_id || null);
   const worldwide = kind === 'movie' ? money(d.revenue) : null;
@@ -122,6 +130,7 @@ async function screen(kind: 'movie' | 'tv', id: string) {
     money: kind === 'movie' && (domestic || worldwide || money(d.budget))
       ? { domesticTotal: domestic, worldwideTotal: worldwide, budget: money(d.budget) }
       : null,
+    watch,
     omdb: o.status,
     link: 'https://www.themoviedb.org/' + kind + '/' + d.id,
   };

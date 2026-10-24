@@ -1935,3 +1935,12 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 .sched-today .sstrip-art.on{animation:none;background:#232730}
 .sched-today .sstrip-art img{display:block;width:100%;height:100%;object-fit:cover}
 @media (max-width:520px){.sched-today .sstrip-cell.has-art{flex-basis:172px}}
+
+/* Where to watch (movie / TV panel) */
+.mdp-wr{display:flex;gap:12px;align-items:baseline;margin-top:8px}
+.mdp-wr>span{flex:none;width:52px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.mdp-wr>div{display:flex;flex-wrap:wrap;gap:6px}
+.mdp-wr em{font-style:normal;font-size:12.5px;font-weight:600;color:var(--ink);background:#1E2127;border:1px solid #2A2D33;border-radius:999px;padding:4px 10px}
+.mdp-jw{margin:10px 0 0;font-size:11.5px;color:var(--ink-soft)}
+.mdp-jw a{color:var(--gold);text-decoration:none}
+.mdp-jw a:hover{text-decoration:underline}

@@ -8891,6 +8891,18 @@
       out += '<p class="evp-muted">No box office reported yet. Opening-weekend numbers usually come in on Monday.</p>';
     }
 
+    var w = d.watch;
+    if(w){
+      var wrow = function(label, arr){
+        return (arr || []).length ? '<div class="mdp-wr"><span>' + label + '</span><div>' + arr.map(function(n){ return '<em>' + escapeHtml(n) + '</em>'; }).join('') + '</div></div>' : '';
+      };
+      var wl = /^https:\/\/www\.themoviedb\.org\//.test(w.link || '') ? w.link : '';
+      out += '<div class="mdp-sec"><div class="fd-h">Where to watch</div>' + wrow('Stream', w.stream) + wrow('Rent', w.rent) + wrow('Buy', w.buy) +
+        '<p class="mdp-jw">Streaming data from JustWatch' + (wl ? ' · <a href="' + escapeHtml(wl) + '" target="_blank" rel="noopener noreferrer">See all options</a>' : '') + '</p></div>';
+    } else if(d.kind === 'movie' && d.status === 'Released'){
+      out += '<p class="evp-muted">No streaming or rental options listed yet.</p>';
+    }
+
     if((d.cast || []).length) out += '<div class="mdp-sec"><div class="fd-h">Top cast</div><div class="mdp-cast">' +
       d.cast.map(function(c){
         var ph = mqSafeImg(c.photo);
