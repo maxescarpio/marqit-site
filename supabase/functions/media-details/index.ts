@@ -153,10 +153,22 @@ async function album(title: string) {
   const artist = i > 0 ? title.slice(0, i).trim() : '';
   const name = i > 0 ? title.slice(i + 2).trim() : title.trim();
   if (!name) return null;
-  const q = (artist ? `artist:"${artist}" ` : '') + `album:"${name}"`;
-  const s = await getJson('https://api.deezer.com/search/album?limit=5&q=' + encodeURIComponent(q));
   const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  const hit = (s?.data || []).find((a: any) => norm(a.title) === norm(name)) || (s?.data || [])[0];
+  // "and" and "&" are the same word for matching; only words of 3+ letters count, so "and"/"the"/"of" never match on their own.
+  const words = (x: string) => new Set(norm(String(x).toLowerCase().replace(/&/g, ' and ')).split(' ').filter((w) => w.length > 2 && w !== 'and' && w !== 'the'));
+  const want = words(artist);
+  // Strict search first, then looser ones. A hit counts only if the album title matches exactly AND (no artist known, or the
+  // artist shares a word with ours). Never fall back to "the first result": that can show a different album.
+  const queries = [
+    ...(artist ? [`artist:"${artist}" album:"${name}"`, `${artist} ${name}`] : []),
+    `album:"${name}"`,
+  ];
+  let hit: any = null;
+  for (const q of queries) {
+    const s = await getJson('https://api.deezer.com/search/album?limit=10&q=' + encodeURIComponent(q));
+    hit = (s?.data || []).find((a: any) => norm(a.title) === norm(name) && (want.size === 0 || [...words(a.artist?.name || '')].some((w) => want.has(w)))) || null;
+    if (hit) break;
+  }
   if (!hit) return { kind: 'album', title: name, artist: artist || null, found: false };
   const a = await getJson('https://api.deezer.com/album/' + hit.id);
   if (!a || a.error) return { kind: 'album', title: name, artist: artist || null, found: false };
