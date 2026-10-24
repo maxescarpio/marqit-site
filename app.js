@@ -8854,6 +8854,13 @@
           (facts.length ? '<div class="mdp-facts">' + facts.map(function(f){ return '<span>' + escapeHtml(f) + '</span>'; }).join('') + '</div>' : '') +
           ((d.genres || []).length ? '<div class="mdp-genres">' + d.genres.map(escapeHtml).join(' · ') + '</div>' : '') +
         '</div></div>';
+      var astats = [];
+      if(d.chart && d.chart.position) astats.push(['Deezer top albums', '#' + d.chart.position, d.chart.position <= 10 ? 'good' : '']);
+      if(d.fans) astats.push(['Deezer fans', d.fans >= 1e6 ? (d.fans / 1e6).toFixed(1) + 'M' : d.fans >= 1e3 ? Math.round(d.fans / 1e3) + 'K' : String(d.fans), '']);
+      if(astats.length) out += '<div class="mdp-sec"><div class="fd-h">Performance</div><div class="mdp-scores">' +
+        astats.map(function(t){ return '<div class="mdp-sc ' + t[2] + '"><b>' + escapeHtml(t[1]) + '</b><span>' + escapeHtml(t[0]) + '</span></div>'; }).join('') + '</div>' +
+        '<p class="mdp-jw">Chart is Deezer’s worldwide top 100 albums today, not Billboard.</p></div>';
+      else if(d.chart && d.chart.position === null) out += '<p class="evp-muted">Not in Deezer’s worldwide top 100 albums yet.</p>';
       if(link) out += '<a class="mdp-link" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">Listen on Deezer ›</a>';
       return out;
     }
@@ -8919,7 +8926,7 @@
     var kind = String(ev.league).toLowerCase();
     var kicker = (kind === 'tv' ? 'TV series' : kind === 'album' ? 'Album' : 'Movie') + ' · ' + escapeHtml(mqSchedTime(ev) === 'All day' ? (ev.subtitle || 'Out today') : mqSchedTime(ev));
     var foot = kind === 'album'
-      ? 'Album details from Deezer.'
+      ? 'Album details and chart from Deezer.'
       : 'Film and TV details from TMDB, review scores and box office from OMDb. This product uses the TMDB API but is not endorsed or certified by TMDB.';
     var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + kicker + '</div>' +
       '<h3 class="evp-title">' + escapeHtml(kind === 'album' ? String(ev.title).replace(/^.*?:\s+/, '') : ev.title) + '</h3>' +

@@ -8,7 +8,8 @@
 //                 network, status, poster, thumb (small, for the strip), backdrop, trailer, cast: [{ name, character, photo }],
 //                 scores: { rt, metacritic, imdb, tmdb: { avg, votes } }, money: { domesticTotal, worldwideTotal, budget },
 //                 watch: { stream[], rent[], buy[], link } | null  (US, service names only; JustWatch data via TMDB) }
-//     album:    { kind, title, artist, artistPhoto, cover, thumb (small, for the strip), releaseDate, label, tracks, genres[], link }
+//     album:    { kind, title, artist, artistPhoto, cover, thumb (small, for the strip), releaseDate, label, tracks, genres[], link,
+//                 fans, chart: { position (1-100 or null = not in the top 100), of } | null  (Deezer worldwide top albums, only once released) }
 // Every block can be null when the source has nothing yet (a movie that opens today has no gross,
 // an album that is not out yet is not on Deezer). Nothing here is invented.
 //
@@ -136,6 +137,16 @@ async function screen(kind: 'movie' | 'tv', id: string) {
   };
 }
 
+// Deezer's worldwide top-albums chart (top 100), kept for an hour so busy days make one request, not one per click.
+let chart: { at: number; ids: string[] } | null = null;
+async function deezerChartIds(): Promise<string[]> {
+  if (chart && Date.now() - chart.at < 3600000) return chart.ids;
+  const c = await getJson('https://api.deezer.com/chart/0/albums?limit=100');
+  const ids = (c?.data || []).map((x: any) => String(x.id));
+  if (ids.length) chart = { at: Date.now(), ids };
+  return ids;
+}
+
 // Album titles are stored as "Artist: Album name". Artists with a colon in the name are rare; the first ": " wins.
 async function album(title: string) {
   const i = title.indexOf(': ');
@@ -149,6 +160,13 @@ async function album(title: string) {
   if (!hit) return { kind: 'album', title: name, artist: artist || null, found: false };
   const a = await getJson('https://api.deezer.com/album/' + hit.id);
   if (!a || a.error) return { kind: 'album', title: name, artist: artist || null, found: false };
+  // Chart position only for albums that are already out. position null = not in the top 100. If the chart could not be fetched, chart stays null (nothing is claimed).
+  const released = !!a.release_date && String(a.release_date) <= new Date().toISOString().slice(0, 10);
+  let chartInfo: { position: number | null; of: number } | null = null;
+  if (released) {
+    const ids = await deezerChartIds();
+    if (ids.length) { const at = ids.indexOf(String(hit.id)); chartInfo = { position: at >= 0 ? at + 1 : null, of: ids.length }; }
+  }
   return {
     kind: 'album',
     found: true,
@@ -161,6 +179,8 @@ async function album(title: string) {
     label: a.label || null,
     tracks: a.nb_tracks || null,
     durationSec: a.duration || null,
+    fans: Number(a.fans) > 0 ? Number(a.fans) : null,
+    chart: chartInfo,
     genres: (a.genres?.data || []).map((g: any) => g.name).slice(0, 3),
     link: a.link || null,
   };
