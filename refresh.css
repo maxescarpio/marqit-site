@@ -1950,3 +1950,6 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 .ceo-line .ceo-t b{font-weight:600;font-size:14px;color:#E4E6EA}
 .ceo-line .ceo-t em{font-style:normal;font-size:12px;color:#8a93a3}
 @media (max-width:640px){.co-t td.ceo{min-width:0}.co-t td.ceo .ceo-p+.ceo-p{display:none}.co-t td.ceo .ceo-p .ceo-ph{width:30px;height:30px}.co-t td.ceo .ceo-p:first-child .ceo-ph{width:30px;height:30px}}
+
+/* Movie posters in the round question photo: centre on the middle of the poster instead of the top edge */
+.mq-photo.is-poster .mq-photo-img img{object-position:center 42%}
