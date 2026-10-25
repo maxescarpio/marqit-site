@@ -8464,7 +8464,7 @@
   function mqLogoImg(side){
     var u = String((side && side.logo) || '');
     if(!/^https:\/\/a\.espncdn\.com\/i\/teamlogos\/[a-z0-9\/_\-.]+\.png$/i.test(u)) return '';
-    return '<img class="tl" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + escapeHtml(u) + '" onload="this.parentNode.classList.add(\'has-logo\')" onerror="this.remove()">';
+    return '<img class="mq-tlg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + escapeHtml(u) + '" onload="this.parentNode.classList.add(\'has-logo\')" onerror="this.remove()">';
   }
   function mqBadgeStyle(side){
     var c = mqTeamColor(side);
