@@ -8465,7 +8465,7 @@
     var u = String((side && side.logo) || '');
     if(!/^https:\/\/a\.espncdn\.com\/i\/teamlogos\/[a-z0-9\/_\-.]+\.png$/i.test(u)) return '';
     u = u.replace(/\/teamlogos\/([a-z0-9_\-]+)\/500\/(scoreboard\/)?/i, '/teamlogos/$1/500-dark/');
-    return '<img class="tl" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + escapeHtml(u) + '" onload="this.parentNode.classList.add(\'has-logo\')" onerror="var s=this.src;if(s.indexOf(\'500-dark\')>0){this.src=s.replace(\'500-dark\',\'500/scoreboard\')}else{this.remove()}">';
+    return '<img class="tl" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + escapeHtml(u) + '" onload="this.parentNode.classList.add(\'has-logo\')" onerror="this.remove()">';
   }
   function mqBadgeStyle(side){
     var c = mqTeamColor(side);

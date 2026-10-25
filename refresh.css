@@ -1972,3 +1972,6 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 .mq-lg-host.has-logo u{visibility:hidden}
 .gc .gm-bd img{inset:12%;width:76%;height:76%;object-fit:contain}
 .rk-dot.big img.tl{inset:10%;width:80%;height:80%}
+
+.sstrip-badge.mq-lg-host{width:20px;height:20px}
+.sstrip-badge.mq-lg-host img.tl{inset:8%;width:84%;height:84%}
