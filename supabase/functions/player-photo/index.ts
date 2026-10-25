@@ -110,13 +110,15 @@ async function lookup(name: string, team: string, sport: string, trace: string[]
 
 // A recent, openly licensed portrait of a business leader (CEO, founder). The Wikipedia article must name the company.
 async function person(name: string, company: string, trace: string[]) {
-  const want = norm(name), toks = want.split(' ').filter((t) => t.length > 1), last = toks[toks.length - 1] || want, co = norm(company).split(' ')[0];
-  const ok = (p: any) => p && norm(String(p.extract || '')).includes(co) && /chief executive|ceo|founder|chairman|businessman|entrepreneur|executive/i.test(String(p.extract || ''));
+  const want = norm(name), toks = want.split(' ').filter((t) => t.length > 1), last = toks[toks.length - 1] || want;
+  // Any real word of the company name counts ("Super Micro" -> super / micro), not just the first, and short forms like "TSMC" still work.
+  const coToks = norm(company).split(' ').filter((t) => t.length >= 2 && !/^(the|inc|corp|co|group|holdings|companies|company)$/.test(t));
+  const ok = (p: any) => { if (!p) return false; const ex = norm(String(p.extract || '')); return coToks.some((t) => ex.includes(t)) && /chief executive|ceo|founder|founded|co founder|chairman|businessman|businessperson|business magnate|entrepreneur|executive|billionaire|investor|banker|engineer|computer scientist|president|philanthropist|engineer/i.test(String(p.extract || '')); };
   // The article under the person's own name first, then a search as a fallback.
-  const d = await wiki('en.wikipedia.org', { action: 'query', titles: name, redirects: '1', prop: 'extracts', exintro: '1', explaintext: '1', exchars: '1500' });
+  const d = await wiki('en.wikipedia.org', { action: 'query', titles: name, redirects: '1', prop: 'extracts|pageimages', piprop: 'name', exintro: '1', explaintext: '1', exchars: '1500' });
   let page: any = (Object.values(d?.query?.pages || {}) as any[]).find(ok);
   if (!page) {
-    const q = await wiki('en.wikipedia.org', { action: 'query', generator: 'search', gsrsearch: `${name} ${company}`, gsrlimit: '6', prop: 'extracts', exintro: '1', explaintext: '1', exchars: '1500', exlimit: '6' });
+    const q = await wiki('en.wikipedia.org', { action: 'query', generator: 'search', gsrsearch: `${name} ${company}`, gsrlimit: '6', prop: 'extracts|pageimages', piprop: 'name', exintro: '1', explaintext: '1', exchars: '1500', exlimit: '6' });
     const pages: any[] = (Object.values(q?.query?.pages || {}) as any[]).sort((x: any, y: any) => (x.index || 0) - (y.index || 0));
     page = pages.find((p: any) => norm(String(p.title || '').replace(/\s*\(.*\)$/, '')) === want && ok(p));
   }
@@ -146,11 +148,27 @@ async function person(name: string, company: string, trace: string[]) {
     }
     if (cands.length >= 6) break;
   }
-  const score = (x: any) => x.yr * 10 - x.pen * 80 + (/portrait|headshot|cropped|official|\d{4}[-_ ]\d{2}/i.test(x.title) ? 8 : 0) + (x.ratio >= 0.7 && x.ratio <= 1.1 ? 8 : 0);
+  // The identity-checked article's own lead image: editors pick it as the best portrait of this exact person, so it is
+  // trusted even when the filename does not spell out the name, and it gets a bonus over search hits.
+  if (page.pageimage && !cands.some((x) => x.title === page.pageimage)) {
+    try {
+      const lt = 'File:' + String(page.pageimage).replace(/_/g, ' ');
+      const c = await wiki('commons.wikimedia.org', { action: 'query', titles: lt, prop: 'imageinfo', iiprop: 'url|extmetadata|size|timestamp', iiurlwidth: '320', iiextmetadatafilter: 'DateTimeOriginal|DateTime|LicenseShortName|LicenseUrl|Artist' });
+      for (const p of Object.values(c?.query?.pages || {}) as any[]) {
+        const ii = p.imageinfo?.[0]; if (!ii) continue;
+        const m = ii.extmetadata || {}, lic = KNOWN(m, 'LicenseShortName'), title = String(p.title).replace(/^File:/, '');
+        const ratio = Number(ii.width) / Number(ii.height);
+        if (!/\.(jpe?g|png)$/i.test(title) || !OPEN_LICENSE.test(lic) || !(ratio >= 0.5 && ratio <= 1.6)) continue;
+        const yr = parseInt((KNOWN(m, 'DateTimeOriginal') || KNOWN(m, 'DateTime') || ii.timestamp || '').match(/(19|20)\d\d/)?.[0] || '0', 10);
+        cands.push({ title, yr, ratio, lic, m, ii, pen: 0, lead: true });
+      }
+    } catch (_) { /* lead image is a bonus; search hits still stand */ }
+  }
+  const score = (x: any) => x.yr * 10 - x.pen * 80 + (x.lead ? 60 : 0) + (/portrait|headshot|cropped|official|\d{4}[-_ ]\d{2}/i.test(x.title) ? 8 : 0) + (x.ratio >= 0.7 && x.ratio <= 1.1 ? 8 : 0);
   cands.sort((a, b) => score(b) - score(a));
   trace.push('top:' + cands.slice(0, 5).map((x) => x.title + '=' + score(x)).join(' ; '));
   const w = cands[0];
-  if (!w || w.yr < 2015) return null;
+  if (!w) return null;
   return {
     found: true, photo: 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(w.title) + '?width=320',
     author: KNOWN(w.m, 'Artist') || 'Wikimedia Commons contributor', license: w.lic, licenseUrl: KNOWN(w.m, 'LicenseUrl'), pageUrl: String(w.ii.descriptionurl || ''),

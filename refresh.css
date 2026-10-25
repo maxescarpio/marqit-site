@@ -1767,47 +1767,35 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 #results-sheet .welcome-go{background:#EEF0F4;color:#111;border-radius:14px;margin-top:10px}
 #results-sheet .welcome-go:active{background:#DCDFE5}
 
-/* 4a. Schedule league tabs: pills with a league icon, the league's own accent when selected,
-   and a pulsing red "N live" in place of the count when a game is on. */
+/* 4a. Schedule league tabs: plain text tabs on a hairline. The selected league gets a white
+   underline; the count is quiet grey, and a small red dot marks a league with a game on. No icons,
+   no pills, no gradients. */
 #page-schedule #sched-chips.scope-tab-row,#page-schedule #sched-chips{
-  display:flex !important;gap:8px;padding:2px 24px 12px 2px;margin:0 0 4px;
-  border:0;border-radius:0;background:none;scroll-snap-type:x proximity;
+  display:flex !important;gap:28px;padding:0;margin:0 0 6px;border:0;border-bottom:1px solid #2A2E36;border-radius:0;
+  background:none;overflow-x:auto;max-width:none;scrollbar-width:none;
 }
+#page-schedule #sched-chips::-webkit-scrollbar{display:none}
 #page-schedule #sched-chips .scope-tab{
-  flex:none;display:inline-flex !important;align-items:center;gap:8px;height:42px;padding:0 12px 0 13px;margin:0;
-  border:1px solid #2A2E36;border-radius:999px;background:linear-gradient(180deg,#23272E,#1A1D22) !important;box-shadow:none;
-  color:#B4B9C3;font:700 12.5px 'Barlow',sans-serif;letter-spacing:.09em;text-transform:uppercase;white-space:nowrap;
-  scroll-snap-align:start;cursor:pointer;-webkit-tap-highlight-color:transparent;
-  transition:transform .15s,border-color .15s,box-shadow .2s,color .15s;
+  flex:none;display:inline-flex !important;align-items:baseline;gap:7px;height:auto;padding:11px 0 12px;margin:0 0 -1px;
+  border:0;border-bottom:2px solid transparent;border-radius:0;background:none !important;box-shadow:none;
+  color:#7E838D;font:600 13px 'Barlow',sans-serif;letter-spacing:.02em;text-transform:none;white-space:nowrap;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:color .15s,border-color .15s;
 }
 #page-schedule #sched-chips .scope-tab::before{display:none !important}
-#page-schedule #sched-chips .scope-tab:hover{color:#fff;transform:translateY(-1px);border-color:color-mix(in srgb,var(--lg) 55%,#2A2E36)}
-#page-schedule #sched-chips .scope-tab:active{transform:scale(.97)}
-#page-schedule #sched-chips .scope-tab .ag-ico{display:inline-flex;margin:0;color:var(--lg)}
-#page-schedule #sched-chips .scope-tab .ag-ico svg{width:17px;height:17px}
+#page-schedule #sched-chips .scope-tab:hover{color:#D5D8DE}
+#page-schedule #sched-chips .scope-tab .ag-ico{display:none}
 #page-schedule #sched-chips .scope-tab .sc-ct{
-  display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;
-  background:rgba(255,255,255,.07);color:#8B909A;font:700 11px 'Barlow',sans-serif;letter-spacing:0;
+  display:inline;min-width:0;height:auto;padding:0;border-radius:0;background:none;
+  color:#5C616B;font:500 12px 'Barlow',sans-serif;letter-spacing:0;font-variant-numeric:tabular-nums;
 }
-#page-schedule #sched-chips .scope-tab .sc-live{
-  display:inline-flex;align-items:center;height:22px;padding:0 9px 0 8px;border-radius:11px;
-  background:rgba(255,91,77,.16);color:#FF7B6D;font:700 10.5px 'Barlow',sans-serif;letter-spacing:.08em;
+#page-schedule #sched-chips .scope-tab.has-live .sc-ct::before{
+  content:"";display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:#FF5B4D;vertical-align:1px;
 }
-#page-schedule #sched-chips .scope-tab .sc-live .ag-pulse{width:7px;height:7px;margin-right:6px}
 #page-schedule #sched-chips .scope-tab.active,
 #page-schedule #sched-chips .scope-tab.active[style*="--lg"]:not([data-cat="all"]){
-  background:linear-gradient(135deg,color-mix(in srgb,var(--lg) 94%,#fff),color-mix(in srgb,var(--lg) 62%,#000)) !important;
-  border-color:transparent;color:#fff;
-  box-shadow:0 8px 22px -8px var(--lg),inset 0 1px 0 rgba(255,255,255,.28);
+  background:none !important;color:#fff;border-bottom-color:#fff;box-shadow:none;
 }
-#page-schedule #sched-chips .scope-tab.active .ag-ico{color:#fff !important}
-#page-schedule #sched-chips .scope-tab.active .sc-ct{background:rgba(0,0,0,.26);color:#fff}
-#page-schedule #sched-chips .scope-tab.active .sc-live{background:rgba(0,0,0,.3);color:#fff}
-#page-schedule #sched-chips .scope-tab[data-cat="all"].active{
-  background:#EEF0F4 !important;color:#111;box-shadow:0 8px 22px -10px rgba(238,240,244,.55);
-}
-#page-schedule #sched-chips .scope-tab[data-cat="all"].active .sc-ct{background:rgba(0,0,0,.12);color:#333}
-#page-schedule #sched-chips .scope-tab[data-cat="all"].active .sc-live{background:rgba(255,91,77,.16);color:#D93A2B}
+#page-schedule #sched-chips .scope-tab.active .sc-ct{color:#9AA0AB}
 @media(prefers-reduced-motion:reduce){#page-schedule #sched-chips .scope-tab{transition:none}}
 
 /* 4b. Game cards: one neutral badge style instead of every team's own color. Each card carries
@@ -1944,3 +1932,21 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 .mdp-jw{margin:10px 0 0;font-size:11.5px;color:var(--ink-soft)}
 .mdp-jw a{color:var(--gold);text-decoration:none}
 .mdp-jw a:hover{text-decoration:underline}
+
+/* Leadership: CEO plus founders, stacked */
+.ceo-p{display:flex;align-items:center;gap:10px}
+.co-t td.ceo{white-space:normal;min-width:190px}
+.co-t td.ceo .ceo-p+.ceo-p{margin-top:6px}
+.co-t td.ceo .ceo-p .ceo-ph{width:30px;height:30px}
+.co-t td.ceo .ceo-p:first-child .ceo-ph{width:36px;height:36px}
+.co-t td.ceo .ceo-t{display:flex;flex-direction:column;margin-left:0;gap:0;line-height:1.25}
+.co-t td.ceo .ceo-p:first-child .ceo-t b{color:#E4E6EA}
+.co-t td.ceo .ceo-p+.ceo-p .ceo-t b{font-size:12px;color:#9aa2b1}
+.co-t td.ceo .ceo-t em{font-style:normal;font-size:11px;color:#7d8696}
+.ceo-line{flex-direction:column;align-items:flex-start;gap:10px}
+.ceo-line .ceo-p+.ceo-p .ceo-ph{width:34px;height:34px}
+.ceo-line .ceo-p:first-child .ceo-ph{width:44px;height:44px}
+.ceo-line .ceo-t{display:flex;flex-direction:column;gap:1px}
+.ceo-line .ceo-t b{font-weight:600;font-size:14px;color:#E4E6EA}
+.ceo-line .ceo-t em{font-style:normal;font-size:12px;color:#8a93a3}
+@media (max-width:640px){.co-t td.ceo{min-width:0}.co-t td.ceo .ceo-p+.ceo-p{display:none}.co-t td.ceo .ceo-p .ceo-ph{width:30px;height:30px}.co-t td.ceo .ceo-p:first-child .ceo-ph{width:30px;height:30px}}

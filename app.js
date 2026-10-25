@@ -8510,11 +8510,15 @@
       var g = mqGameFor(ev, mqSchedTeams(ev));
       if(g) seen[g.league + ':' + g.away.id + '@' + g.home.id] = true;
     });
+    // Games for the day come from the per-day scoreboard cache and, for today, also from the
+    // ribbon's own scoreboard fetch, so the top strip never depends on the schedule page having loaded.
     var bd = mqScore.byDay[day.replace(/-/g, '')];
-    if(bd) bd.games.forEach(function(g){
+    var feed = (bd ? bd.games : []).concat(day === getETDateInfo().dateStr ? (mqScore.games || []) : []);
+    feed.forEach(function(g){
       if(mqSchedEtDay(new Date(g.start)) !== day) return;
       var key = g.league + ':' + g.away.id + '@' + g.home.id;
       if(seen[key]) return;
+      seen[key] = true;
       var id = 'g:' + key;
       mqSynth[id] = mqSynth[id] || { id: id, category: 'sports', title: g.away.name + ' at ' + g.home.name, subtitle: g.network || null,
         league: g.league, starts_at: g.start, all_day: false, importance: 1, status: 'scheduled', url: null, question_id: null, synth: true };
@@ -8952,40 +8956,60 @@
     MQ_FUND[sym] = { at: Date.now(), p: p };
     return p;
   }
-  // Company leaders. Names are checked against Wikipedia, and a face only shows when an openly licensed recent photo exists.
-  var MQ_CEO = { NVDA:['Jensen Huang','NVIDIA'], AAPL:['John Ternus','Apple'], GOOGL:['Sundar Pichai','Alphabet'], GOOG:['Sundar Pichai','Alphabet'], MSFT:['Satya Nadella','Microsoft'], AMZN:['Andy Jassy','Amazon'], META:['Mark Zuckerberg','Meta'], TSLA:['Elon Musk','Tesla'], SPCX:['Elon Musk','SpaceX'], AVGO:['Hock Tan','Broadcom'], TSM:['C. C. Wei','TSMC'] };
-  var MQ_CEO_PH = {};
-  function mqCeoPhoto(sym){
-    var c = MQ_CEO[sym]; if(!c) return Promise.resolve(null);
-    return MQ_CEO_PH[sym] = MQ_CEO_PH[sym] || fetch(SUPABASE_URL + '/functions/v1/player-photo?kind=person&name=' + encodeURIComponent(c[0]) + '&team=' + encodeURIComponent(c[1]))
+  // Company leaders: [Wikipedia company name, CEO, founders ('|' separated), optional CEO label]. A face only shows when an openly licensed photo of that exact person exists; otherwise initials.
+  var MQ_LEAD = {"AAPL":["Apple","John Ternus","Steve Jobs|Steve Wozniak"],"MSFT":["Microsoft","Satya Nadella","Bill Gates|Paul Allen"],"NVDA":["NVIDIA","Jensen Huang","Jensen Huang|Chris Malachowsky"],"AVGO":["Broadcom","Hock Tan","Henry Samueli"],"ORCL":["Oracle","Clay Magouyrk","Larry Ellison","Co-CEO"],"CRM":["Salesforce","Marc Benioff","Marc Benioff|Parker Harris"],"ADBE":["Adobe","Shantanu Narayen","John Warnock|Charles Geschke"],"AMD":["AMD","Lisa Su","Jerry Sanders"],"CSCO":["Cisco","Chuck Robbins","Sandy Lerner|Leonard Bosack"],"IBM":["IBM","Arvind Krishna",""],"INTU":["Intuit","Sasan Goodarzi","Scott Cook"],"QCOM":["Qualcomm","Cristiano Amon","Irwin Jacobs|Andrew Viterbi"],"TXN":["Texas Instruments","Haviv Ilan",""],"NOW":["ServiceNow","Bill McDermott","Fred Luddy"],"AMAT":["Applied Materials","Gary Dickerson",""],"MU":["Micron","Sanjay Mehrotra",""],"LRCX":["Lam Research","Tim Archer","David Lam"],"PANW":["Palo Alto Networks","Nikesh Arora","Nir Zuk"],"ANET":["Arista","Jayshree Ullal","Andy Bechtolsheim|David Cheriton"],"KLAC":["KLA","Rick Wallace",""],"INTC":["Intel","Lip-Bu Tan","Gordon Moore|Robert Noyce"],"ACN":["Accenture","Julie Sweet",""],"TSM":["TSMC","C. C. Wei","Morris Chang"],"ASML":["ASML","Christophe Fouquet",""],"ARM":["Arm","Rene Haas","Hermann Hauser"],"MRVL":["Marvell","Matt Murphy","Sehat Sutardja"],"DELL":["Dell","Michael Dell","Michael Dell"],"SMCI":["Super Micro","Charles Liang","Charles Liang"],"VRT":["Vertiv","Giordano Albertazzi",""],"CRWV":["CoreWeave","Michael Intrator","Michael Intrator|Brian Venturo"],"CEG":["Constellation Energy","Joe Dominguez",""],"VST":["Vistra","Jim Burke",""],"PLTR":["Palantir","Alex Karp","Peter Thiel|Alex Karp|Joe Lonsdale"],"APP":["AppLovin","Adam Foroughi","Adam Foroughi|John Krystynak"],"CRWD":["CrowdStrike","George Kurtz","George Kurtz|Dmitri Alperovitch"],"SNOW":["Snowflake","Sridhar Ramaswamy","Benoit Dageville"],"DDOG":["Datadog","Olivier Pomel","Olivier Pomel|Alexis Le-Quoc"],"WDAY":["Workday","Aneel Bhusri","Aneel Bhusri|Dave Duffield"],"ADSK":["Autodesk","Andrew Anagnost","John Walker"],"TEAM":["Atlassian","Mike Cannon-Brookes","Mike Cannon-Brookes|Scott Farquhar"],"JPM":["JPMorgan Chase","Jamie Dimon",""],"V":["Visa","Ryan McInerney","Dee Hock"],"MA":["Mastercard","Michael Miebach",""],"BAC":["Bank of America","Brian Moynihan","A. P. Giannini"],"WFC":["Wells Fargo","Charlie Scharf",""],"GS":["Goldman Sachs","David Solomon",""],"MS":["Morgan Stanley","Ted Pick",""],"AXP":["American Express","Stephen Squeri",""],"C":["Citigroup","Jane Fraser","Sandy Weill"],"BLK":["BlackRock","Larry Fink","Larry Fink"],"SCHW":["Charles Schwab","Rick Wurster","Charles R. Schwab"],"SPGI":["S&P Global","Martina Cheung",""],"PGR":["Progressive","Tricia Griffith","Peter Lewis"],"BX":["Blackstone","Stephen Schwarzman","Stephen Schwarzman|Peter G. Peterson"],"LLY":["Eli Lilly","Dave Ricks","Eli Lilly"],"UNH":["UnitedHealth","Stephen Hemsley","Richard Burke"],"JNJ":["Johnson & Johnson","Joaquin Duato",""],"ABBV":["AbbVie","Rob Michael",""],"MRK":["Merck","Rob Davis",""],"TMO":["Thermo Fisher","Marc Casper",""],"ABT":["Abbott","Robert Ford",""],"ISRG":["Intuitive Surgical","Dave Rosa","Fred Moll"],"AMGN":["Amgen","Bob Bradway",""],"PFE":["Pfizer","Albert Bourla",""],"DHR":["Danaher","Julie Sawyer Montgomery","Steven Rales|Mitchell Rales"],"BSX":["Boston Scientific","Mike Mahoney","John Abele|Pete Nicholas"],"GILD":["Gilead","Daniel O'Day","Michael Riordan"],"VRTX":["Vertex","Reshma Kewalramani","Joshua Boger"],"AMZN":["Amazon","Andy Jassy","Jeff Bezos"],"TSLA":["Tesla","Elon Musk","Martin Eberhard|Marc Tarpenning"],"HD":["Home Depot","Ted Decker","Bernie Marcus|Arthur Blank"],"MCD":["McDonald's","Chris Kempczinski","Ray Kroc"],"BKNG":["Booking Holdings","Glenn Fogel",""],"LOW":["Lowe's","Marvin Ellison",""],"TJX":["TJX","Ernie Herrman",""],"NKE":["Nike","Elliott Hill","Phil Knight|Bill Bowerman"],"SBUX":["Starbucks","Brian Niccol","Howard Schultz"],"MELI":["MercadoLibre","Marcos Galperin","Marcos Galperin"],"ABNB":["Airbnb","Brian Chesky","Brian Chesky|Joe Gebbia|Nathan Blecharczyk"],"CMG":["Chipotle","Scott Boatwright","Steve Ells"],"ORLY":["O'Reilly Automotive","Brad Beckham",""],"GM":["General Motors","Mary Barra","William C. Durant"],"F":["Ford","Jim Farley","Henry Ford"],"MAR":["Marriott","Anthony Capuano","J. Willard Marriott"],"WMT":["Walmart","John Furner","Sam Walton"],"COST":["Costco","Ron Vachris","Jim Sinegal|Jeffrey Brotman"],"PG":["Procter & Gamble","Shailesh Jejurikar",""],"KO":["Coca-Cola","Henrique Braun",""],"PEP":["PepsiCo","Ramon Laguarta",""],"PM":["Philip Morris","Jacek Olczak",""],"MDLZ":["Mondelez","Dirk Van de Put",""],"MO":["Altria","Billy Gifford",""],"CL":["Colgate-Palmolive","Noel Wallace",""],"TGT":["Target","Michael Fiddelke",""],"KMB":["Kimberly-Clark","Mike Hsu",""],"KDP":["Keurig Dr Pepper","Tim Cofer",""],"GIS":["General Mills","Jeff Harmening",""],"STZ":["Constellation Brands","Nicholas Fink",""],"MNST":["Monster Beverage","Hilton Schlosberg","Rodney Sacks|Hilton Schlosberg"],"KR":["Kroger","Greg Foran",""],"HSY":["Hershey","Kirk Tanner","Milton S. Hershey"],"XOM":["ExxonMobil","Darren Woods","John D. Rockefeller"],"CVX":["Chevron","Mike Wirth",""],"COP":["ConocoPhillips","Andy O'Brien",""],"SLB":["SLB","Olivier Le Peuch",""],"EOG":["EOG Resources","Ezra Yacob",""],"WMB":["Williams Companies","Chad Zamarin",""],"PSX":["Phillips 66","Mark Lashier",""],"MPC":["Marathon Petroleum","Maryann Mannen",""],"OXY":["Occidental Petroleum","Vicki Hollub","Armand Hammer"],"KMI":["Kinder Morgan","Kim Dang","Rich Kinder"],"VLO":["Valero","Lane Riggs",""],"EPD":["Enterprise Products","Randy Fowler","Dan Duncan","Co-CEO"],"GOOGL":["Alphabet","Sundar Pichai","Larry Page|Sergey Brin"],"GOOG":["Alphabet","Sundar Pichai","Larry Page|Sergey Brin"],"META":["Meta","Mark Zuckerberg","Mark Zuckerberg|Eduardo Saverin"],"NFLX":["Netflix","Ted Sarandos","Reed Hastings|Marc Randolph","Co-CEO"],"DIS":["Disney","Josh D'Amaro","Walt Disney|Roy O. Disney"],"TMUS":["T-Mobile","Srini Gopalan",""],"T":["AT&T","John Stankey",""],"VZ":["Verizon","Dan Schulman",""],"CMCSA":["Comcast","Brian Roberts","Ralph J. Roberts"],"SPOT":["Spotify","Alex Norstrom","Daniel Ek|Martin Lorentzon","Co-CEO"],"EA":["Electronic Arts","Andrew Wilson","Trip Hawkins"],"TTWO":["Take-Two","Strauss Zelnick",""],"GE":["General Electric","Larry Culp",""],"CAT":["Caterpillar","Joe Creed",""],"RTX":["RTX","Chris Calio",""],"UNP":["Union Pacific","Jim Vena",""],"BA":["Boeing","Kelly Ortberg","William Boeing"],"HON":["Honeywell","Vimal Kapur",""],"DE":["Deere","John May","John Deere"],"LMT":["Lockheed Martin","Jim Taiclet",""],"UPS":["UPS","Carol Tome","Jim Casey"],"ETN":["Eaton","Paulo Ruiz",""],"GEV":["GE Vernova","Scott Strazik",""],"ADP":["ADP","Maria Black","Henry Taub"],"WM":["Waste Management","Jim Fish","Dean Buntrock"],"NOC":["Northrop Grumman","Kathy Warden","Jack Northrop"],"UBER":["Uber","Dara Khosrowshahi","Garrett Camp|Travis Kalanick"],"PYPL":["PayPal","Enrique Lores","Max Levchin|Peter Thiel"],"SHOP":["Shopify","Tobias Lutke","Tobias Lutke"],"SNAP":["Snap","Evan Spiegel","Evan Spiegel|Bobby Murphy"],"PINS":["Pinterest","Bill Ready","Ben Silbermann|Evan Sharp"],"COIN":["Coinbase","Brian Armstrong","Brian Armstrong|Fred Ehrsam"],"HOOD":["Robinhood","Vlad Tenev","Vlad Tenev|Baiju Bhatt"],"DASH":["DoorDash","Tony Xu","Tony Xu"],"RBLX":["Roblox","David Baszucki","David Baszucki|Erik Cassel"],"RIVN":["Rivian","RJ Scaringe","RJ Scaringe"],"SOFI":["SoFi","Anthony Noto","Mike Cagney"],"LULU":["Lululemon","Heidi O'Neill","Chip Wilson"],"UAL":["United Airlines","Scott Kirby",""],"DAL":["Delta Air Lines","Ed Bastian",""],"LUV":["Southwest Airlines","Bob Jordan","Herb Kelleher|Rollin King"],"FDX":["FedEx","Raj Subramaniam","Fred Smith"],"SPCX":["SpaceX","Elon Musk","Elon Musk"]};
+  var MQ_PP = {};
+  function mqLead(sym){
+    var r = MQ_LEAD[sym]; if(!r) return null;
+    var f = r[2] ? r[2].split('|') : [];
+    return { co: r[0], ceo: r[1], label: r[3] || 'CEO', founders: f };
+  }
+  function mqPersonPhoto(name, co){
+    var k = name + '|' + co;
+    return MQ_PP[k] = MQ_PP[k] || fetch(SUPABASE_URL + '/functions/v1/player-photo?kind=person&name=' + encodeURIComponent(name) + '&team=' + encodeURIComponent(co))
       .then(function(r){ return r.json(); }).catch(function(){ return null; })
       .then(function(d){ return d && d.found && /^https:\/\/commons\.wikimedia\.org\//.test(d.photo || '') ? d : null; });
   }
+  function mqPerson(name, co, role){
+    return '<span class="ceo-p"><span class="ceo-ph" data-who="' + escapeHtml(name) + '" data-co="' + escapeHtml(co) + '"><i>' + escapeHtml(mqInitials({ name: name })) + '</i></span><span class="ceo-t"><b>' + escapeHtml(name) + '</b><em>' + escapeHtml(role) + '</em></span></span>';
+  }
+  // Everyone for a ticker: the CEO first, then founders who are not the CEO. A founder who runs the company is labelled so once.
+  function mqPeople(sym, maxF){
+    var L = mqLead(sym); if(!L) return [];
+    var isF = L.founders.indexOf(L.ceo) >= 0;
+    var out = [[L.ceo, L.co, L.label + (isF ? ' · Founder' : '')]];
+    L.founders.filter(function(n){ return n !== L.ceo; }).slice(0, maxF == null ? 4 : maxF).forEach(function(n){ out.push([n, L.co, 'Founder']); });
+    return out;
+  }
   function mqCeoLine(sym){
-    var c = MQ_CEO[sym]; if(!c) return '';
-    return '<div class="ceo-line co-ceo" data-sym="' + sym + '"><span class="ceo-ph"><i>' + escapeHtml(mqInitials({ name: c[0] })) + '</i></span><span class="ceo-t"><b>' + escapeHtml(c[0]) + '</b><em>CEO</em></span></div>';
+    var p = mqPeople(sym); if(!p.length) return '';
+    return '<div class="ceo-line" data-sym="' + sym + '">' + p.map(function(x){ return mqPerson(x[0], x[1], x[2]); }).join('') + '</div>';
+  }
+  function mqCeoCell(sym){
+    var p = mqPeople(sym, 2); if(!p.length) return '<td class="ceo"></td>';
+    return '<td class="ceo">' + p.map(function(x, i){ return mqPerson(x[0], x[1], x[2]); }).join('') + '</td>';
   }
   function mqCeoFaces(root){
-    [].forEach.call(root.querySelectorAll('.co-ceo[data-sym]'), function(row){
-      var sym = row.getAttribute('data-sym');
-      mqCeoPhoto(sym).then(function(d){
-        var ph = row.querySelector('.ceo-ph'); if(!d || !ph || !row.isConnected || ph.querySelector('img')) return;
+    [].forEach.call(root.querySelectorAll('.ceo-ph[data-who]'), function(ph){
+      var who = ph.getAttribute('data-who'), co = ph.getAttribute('data-co');
+      mqPersonPhoto(who, co).then(function(d){
+        if(!d || !ph.isConnected || ph.querySelector('img')) return;
         var img = new Image();
         img.onload = function(){
-          if(!row.isConnected || ph.querySelector('img')) return;
+          if(!ph.isConnected || ph.querySelector('img')) return;
           img.alt = ''; img.referrerPolicy = 'no-referrer'; ph.innerHTML = ''; ph.appendChild(img);
+          var href = /^https:\/\/commons\.wikimedia\.org\//.test(d.pageUrl || '') ? d.pageUrl : 'https://commons.wikimedia.org';
+          var label = who + ': ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || '');
           var box = document.getElementById('co-cr');
-          if(box && !row.classList.contains('ceo-line') && !box.querySelector('[data-s="' + sym + '"]')){
-            var a = document.createElement('a'); a.setAttribute('data-s', sym); a.target = '_blank'; a.rel = 'noopener noreferrer';
-            a.href = /^https:\/\/commons\.wikimedia\.org\//.test(d.pageUrl || '') ? d.pageUrl : 'https://commons.wikimedia.org';
-            a.textContent = MQ_CEO[sym][0] + ': ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || '');
-                        box.appendChild(a);
-          }
-          if(row.classList.contains('ceo-line') && !row.querySelector('.kp-cr')){
-            var cr = document.createElement('a'); cr.className = 'kp-cr'; cr.target = '_blank'; cr.rel = 'noopener noreferrer';
-            cr.href = /^https:\/\/commons\.wikimedia\.org\//.test(d.pageUrl || '') ? d.pageUrl : 'https://commons.wikimedia.org';
-            cr.textContent = 'Photo: ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || '');
-            row.querySelector('.ceo-t').appendChild(cr);
+          if(box && ph.closest('.co-t')){
+            if(box.querySelector('[data-s="' + who.replace(/"/g, '') + '"]')) return;
+            var a = document.createElement('a'); a.setAttribute('data-s', who.replace(/"/g, '')); a.target = '_blank'; a.rel = 'noopener noreferrer'; a.href = href; a.textContent = label; box.appendChild(a);
+          } else {
+            var t = ph.parentNode.querySelector('.ceo-t');
+            if(t && !t.querySelector('.kp-cr')){
+              var cr = document.createElement('a'); cr.className = 'kp-cr'; cr.target = '_blank'; cr.rel = 'noopener noreferrer'; cr.href = href;
+              cr.textContent = 'Photo: ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || ''); t.appendChild(cr);
+            }
           }
         };
         img.src = d.photo;
@@ -9185,14 +9209,14 @@
     var secCap = cs !== 'all' ? '<p class="co-sec-cap">Ten largest · ' + escapeHtml(d.sectors[cs].label || '') + '</p>' : '';
     var sw = '<div class="co-per" role="tablist">' + MQ_PERIODS.map(function(p){ return '<button type="button" data-per="' + p[0] + '"' + (p[0] === per ? ' class="on"' : '') + '>' + p[1] + '</button>'; }).join('') + '</div>';
     var head = per === 'd' ? 'Today' : (MQ_PERIODS.filter(function(p){ return p[0] === per; })[0] || [0, ''])[1];
-    return secBar + secCap + sw + '<table class="rk-t co-t"><thead><tr><th>#</th><th>Company</th><th class="ceo-h">CEO</th><th>Value</th><th>Price</th><th>' + head + '</th></tr></thead><tbody>' + list.map(function(c, i){
+    return secBar + secCap + sw + '<table class="rk-t co-t"><thead><tr><th>#</th><th>Company</th><th class="ceo-h">Leadership</th><th>Value</th><th>Price</th><th>' + head + '</th></tr></thead><tbody>' + list.map(function(c, i){
       var sym = String(c.symbol || ''), px = mqRkNum(c.price), col = mqCoColor(sym), pc, wait = false;
       if(per === 'd') pc = mqRkNum(c.pct);
       else { var pp = perf[sym]; if(pp && pp[per] != null) pc = Number(pp[per]); else { pc = null; wait = !(sym in perf); } }
       var up = (pc || 0) >= 0;
       var tile = '<span class="co-tile' + (sym.length > 3 ? ' sm' : '') + '" style="--bc:' + col + '">' + escapeHtml(sym.slice(0, 4)) + '</span>';
       var bar = '<span class="co-bar"><i style="width:' + Math.max(3, Math.round((Number(c.cap) || 0) / max * 100)) + '%"></i></span>';
-      var ceo = MQ_CEO[sym] ? '<td class="ceo co-ceo" data-sym="' + sym + '"><span class="ceo-ph"><i>' + escapeHtml(mqInitials({ name: MQ_CEO[sym][0] })) + '</i></span><span class="ceo-t"><b>' + escapeHtml(MQ_CEO[sym][0]) + '</b></span></td>' : '<td class="ceo"></td>';
+      var ceo = mqCeoCell(sym);
       return '<tr class="rk-go" data-act="co" data-i="' + i + '" tabindex="0"><td class="n">' + c.rank + '</td><td class="t">' + tile + '<span class="co-m"><b>' + escapeHtml(c.name) + '</b>' + bar + '</span></td>' + ceo + '<td class="cap">' + escapeHtml(mqMoney(Number(c.cap))) + '</td><td>' + (px != null ? '$' + px.toFixed(2) : '') + '</td><td class="' + (up ? 'up' : 'dn') + '">' + (wait ? '<span class="co-chg wait">…</span>' : pc == null ? '<span class="co-na">–</span>' : '<span class="co-chg ' + (up ? 'up' : 'dn') + '">' + (up ? '+' : '') + pc.toFixed(2) + '%</span>') + '</td></tr>';
     }).join('') + '</tbody></table><details class="co-cr"><summary>Photo credits · Wikimedia Commons</summary><div class="co-cr-list" id="co-cr"></div></details>';
   }
@@ -9639,15 +9663,16 @@
     return '<div class="sched-boards">' + out + '</div>';
   }
 
-  // The still row on the Play page: today's bigger events only. Hidden until the schedule has data.
+  // The top strip on the Play page: every event today, in every league. It must never be thinned by
+  // importance or a count cap (that is how a full Sunday used to show one game). The stored schedule
+  // supplies earnings, releases and anything a question is about; the live scoreboard supplies every game.
+  // Hidden only until there is something to show.
   function renderSchedToday(fromQuote){
     var box = document.getElementById('sched-today'), cards = document.getElementById('sched-today-cards');
     if(!box || !cards) return;
-    if(!mqSched.loaded || mqSched.events.length === 0){ box.style.display = 'none'; return; }
     var today = getETDateInfo().dateStr;
-    var list = mqSchedSort(mqSched.events.filter(function(ev){
-      return mqSchedEventDay(ev) === today && ev.importance >= 2;
-    })).slice(0, 12);
+    var list = (mqSched.loaded || (mqScore.games && mqScore.games.length)) ? mqSchedSort(mqSchedDayEvents(today)) : [];
+    if(!list.length && (!mqSched.loaded || mqSched.events.length === 0)){ box.style.display = 'none'; return; }
     box.style.display = '';
     var oldTrack = cards.querySelector('.sstrip-track'), keep = oldTrack ? oldTrack.scrollLeft : 0;
     cards.innerHTML = list.length
@@ -9721,11 +9746,10 @@
     chips.style.display = order.length > 1 ? '' : 'none';
     chips.innerHTML = [['all', 'All']].concat(order.map(function(k){ return [k, k]; })).map(function(c){
       var isAll = c[0] === 'all', n = isAll ? dayLists[sel].length : counts[c[0]], live = isAll ? liveAll : liveN[c[0]];
-      // Live games get a pulsing red count so the league with action in it stands out; otherwise a quiet count.
+      // Plain text tabs: the league name and a quiet count; a small red dot marks a league with a live game.
       return '<button type="button" class="scope-tab' + (filter === c[0] ? ' active' : '') + (live ? ' has-live' : '') + '" style="--lg:' + (isAll ? '#EEF0F4' : mqLgColor(c[0])) + '" data-cat="' + escapeHtml(c[0]) + '">' +
-        (isAll ? '' : mqLgIcon(c[0])) +
         '<span class="sc-name">' + escapeHtml(isAll ? 'All' : mqLgName(c[1])) + '</span>' +
-        (live ? '<span class="sc-live"><span class="ag-pulse"></span>' + live + ' live</span>' : '<span class="sc-ct">' + n + '</span>') +
+        '<span class="sc-ct"' + (live ? ' title="' + live + ' live now"' : '') + '>' + n + '</span>' +
       '</button>';
     }).join('');
     var byDay = {};
