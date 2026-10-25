@@ -1802,15 +1802,12 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
    its league's single accent; live cards glow in it, and whoever is trailing is dimmed. */
 .gc{background:linear-gradient(180deg,#1E2126,#1A1D22)}
 .gc .gm-bd{background:#262A32 !important;color:#D7DAE0 !important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
-.gc.is-live{
-  border-color:color-mix(in srgb,var(--lg,#FF5B4D) 42%,#262A31);
-  background:linear-gradient(180deg,color-mix(in srgb,var(--lg,#FF5B4D) 10%,#1A1D22),#1A1D22 62%);
-  box-shadow:0 14px 30px -20px var(--lg,#FF5B4D);
-}
-.gc.is-live .gm-bd{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--lg,#FF5B4D) 55%,transparent)}
+/* Live cards look like every other card: no colored border, tint, glow or badge ring. The red time text still marks them live. */
+.gc.is-live{border-color:#262A31;box-shadow:none}
+.gc.is-live .gm-bd{box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
 .gc-tm span{font:800 24px/1 'Big Shoulders Display','Barlow',sans-serif;letter-spacing:.02em}
 .gc-tm.lost span{color:#6E737D}
-.gc.is-click:hover{border-color:color-mix(in srgb,var(--lg,#3A3F48) 45%,#3A3F48)}
+.gc.is-click:hover{border-color:#3A3F48}
 
 /* 4c. Standings: neutral badges and one gold accent for the leader, instead of every team's color. */
 .rk-t .rk-dot,.rk-confs .rk-t td.tm .rk-dot{background:#262A32 !important;color:#D7DAE0 !important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
