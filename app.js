@@ -8460,6 +8460,13 @@
     var l = (side.leaders || []).filter(function(x){ return x.num; })[0];
     return l ? String(l.num).slice(0, 2) : '';
   }
+  // Team logo (ESPN's own artwork, from the same feed as the scores). Drawn over the letters, which stay as the fallback.
+  function mqLogoImg(side){
+    var u = String((side && side.logo) || '');
+    if(!/^https:\/\/a\.espncdn\.com\/i\/teamlogos\/[a-z0-9\/_\-.]+\.png$/i.test(u)) return '';
+    u = u.replace(/\/teamlogos\/([a-z0-9_\-]+)\/500\/(scoreboard\/)?/i, '/teamlogos/$1/500-dark/');
+    return '<img class="tl" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + escapeHtml(u) + '" onload="this.parentNode.classList.add(\'has-logo\')" onerror="var s=this.src;if(s.indexOf(\'500-dark\')>0){this.src=s.replace(\'500-dark\',\'500/scoreboard\')}else{this.remove()}">';
+  }
   function mqBadgeStyle(side){
     var c = mqTeamColor(side);
     return 'background:' + c + ';color:' + (mqLum(c) > .4 ? '#10131A' : '#fff');
@@ -8467,7 +8474,7 @@
   function mqLiveRowHtml(side, winning, showScore){
     var right = showScore && side.score != null ? side.score : (side.record || '');
     return '<div class="sstrip-team live' + (winning === false ? ' lost' : '') + '" title="' + escapeHtml(side.name) + '">' +
-      '<i class="sstrip-badge" aria-hidden="true" style="' + mqBadgeStyle(side) + '">' + escapeHtml(side.abbr.charAt(0)) + '</i>' +
+      '<i class="sstrip-badge mq-lg-host" aria-hidden="true" style="' + mqBadgeStyle(side) + '"><u>' + escapeHtml(side.abbr.charAt(0)) + '</u>' + mqLogoImg(side) + '</i>' +
       (side.rank ? '<em class="sstrip-rk">' + side.rank + '</em>' : '') +
       '<b>' + escapeHtml(side.abbr) + '</b><span class="sstrip-rec' + (showScore && side.score != null ? ' score' : '') + '">' + escapeHtml(right) + '</span></div>';
   }
@@ -9114,9 +9121,7 @@
   }
   // Team mark: the badge picture when we have one, otherwise a team-colored circle with the abbreviation.
   function mqRkTeamMark(r, big){
-    var dot = '<span class="rk-dot' + (big ? ' big' : '') + '" style="' + mqBadgeStyle(r) + '">' + escapeHtml((r.abbr || '').slice(0, 3)) + '</span>';
-    if(!MQ_USE_LOGOS || !/^https:\/\//.test(r.logo || '')) return dot;
-    return '<span data-fb="' + escapeHtml(dot) + '" class="rk-tl' + (big ? ' big' : '') + '"><img src="' + escapeHtml(r.logo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.outerHTML=this.parentNode.getAttribute(\'data-fb\')"></span>';
+    return '<span class="rk-dot mq-lg-host' + (big ? ' big' : '') + '" style="' + mqBadgeStyle(r) + '"><u>' + escapeHtml((r.abbr || '').slice(0, 3)) + '</u>' + mqLogoImg(r) + '</span>';
   }
   function mqRkNum(v){ var n = parseFloat(String(v == null ? '' : v).replace(/[$,%\s+]/g, '')); return isNaN(n) ? null : n; }
   function mqRkWinPct(r, otl){
@@ -9556,43 +9561,11 @@
   }
   function mqBadge(side){
     var ab = String(side.abbr || side.name || '?').slice(0, 3);
-    return '<i class="gm-bd" style="' + mqBadgeStyle(side) + '" aria-hidden="true">' + escapeHtml(ab) + '</i>';
+    return '<i class="gm-bd mq-lg-host" style="' + mqBadgeStyle(side) + '" aria-hidden="true"><u>' + escapeHtml(ab) + '</u>' + mqLogoImg(side) + '</i>';
   }
   // Schedule cards: the team circle shows the head coach's photo when an openly licensed one exists; the letters stay otherwise.
-  var MQ_COACH = {}, MQ_COACH_ON = false; // off: ESPN publishes no coach headshots, and mixed-source photos looked inconsistent
-  function mqCoachBadge(side, lg){
-    var ab = String(side.abbr || side.name || '?').slice(0, 3);
-    var ok = MQ_COACH_ON && side.id != null && /^\d{1,6}$/.test(String(side.id)) && { NFL:1, NBA:1, NHL:1, MLB:1, NCAAF:1, WNBA:1, MLS:1, EPL:1 }[lg];
-    return '<i class="gm-bd" style="' + mqBadgeStyle(side) + '"' + (ok ? ' data-coach="' + escapeHtml(lg + ':' + side.id) + '" data-team="' + escapeHtml(side.name || '') + '"' : '') + ' aria-hidden="true"><u>' + escapeHtml(ab) + '</u></i>';
-  }
-  function mqCoachGet(lg, id, team){
-    var k = lg + ':' + id;
-    return MQ_COACH[k] = MQ_COACH[k] || fetch(SUPABASE_URL + '/functions/v1/player-photo?kind=coach&league=' + encodeURIComponent(lg) + '&id=' + encodeURIComponent(id) + '&team=' + encodeURIComponent(team))
-      .then(function(r){ return r.json(); }).catch(function(){ return null; })
-      .then(function(d){ return d && d.found && /^https:\/\/commons\.wikimedia\.org\//.test(d.photo || '') ? d : null; });
-  }
-  function mqCoachFaces(root){
-    var cr = [];
-    [].forEach.call(root.querySelectorAll('.gm-bd[data-coach]'), function(el){
-      var parts = el.getAttribute('data-coach').split(':');
-      mqCoachGet(parts[0], parts[1], el.getAttribute('data-team')).then(function(d){
-        if(!d || !el.isConnected || el.querySelector('img')) return;
-        var img = new Image();
-        img.onload = function(){
-          if(!el.isConnected || el.querySelector('img')) return;
-          img.alt = ''; img.referrerPolicy = 'no-referrer'; el.appendChild(img); el.classList.add('has-coach');
-          var box = root.querySelector('.co-cr-list');
-          if(box && !box.querySelector('[data-s="' + el.getAttribute('data-coach') + '"]')){
-            var a = document.createElement('a'); a.setAttribute('data-s', el.getAttribute('data-coach')); a.target = '_blank'; a.rel = 'noopener noreferrer';
-            a.href = /^https:\/\/commons\.wikimedia\.org\//.test(d.pageUrl || '') ? d.pageUrl : 'https://commons.wikimedia.org';
-            a.textContent = el.getAttribute('data-team') + ' coach: ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || '');
-            box.appendChild(a); var det = box.parentNode; if(det) det.hidden = false;
-          }
-        };
-        img.src = d.photo;
-      });
-    });
-  }
+  function mqCoachBadge(side){ return mqBadge(side); }
+  function mqCoachFaces(){}
   function mqUntil(ev){
     var ms = new Date(ev.starts_at).getTime() - Date.now();
     if(!(ms > 0) || ms > 86400000 || ev.all_day) return '';
@@ -9633,7 +9606,7 @@
       var started = st !== 'pre', hs = parseInt(g.home.score, 10), as = parseInt(g.away.score, 10), done = st === 'post';
       status = st === 'in' ? (g.detail || 'Live') : done ? (/^f/i.test(g.detail || '') ? g.detail : 'Final') : mqSchedTime(ev);
       var line = function(t, lost){
-        return '<div class="gc-tm' + (lost ? ' lost' : '') + '">' + mqCoachBadge(t, g.league) + '<b>' + escapeHtml(t.name) + '</b><span>' +
+        return '<div class="gc-tm' + (lost ? ' lost' : '') + '">' + mqBadge(t) + '<b>' + escapeHtml(t.name) + '</b><span>' +
           (started ? escapeHtml(t.score == null ? '0' : t.score) : (t.record ? '<small>' + escapeHtml(t.record) + '</small>' : '')) + '</span></div>';
       };
       // Whoever is trailing is dimmed, live or final, so the leader reads at a glance.
@@ -9807,10 +9780,6 @@
     listEl.innerHTML =
       (byDay[sel].length ? mqSchedAgendaHtml(byDay[sel]) : '<p class="sched-none">Nothing scheduled</p>');
     var ns = listEl.querySelector('.lv-row'); if(ns && keep) ns.scrollLeft = keep;
-    if(listEl.querySelector('.gm-bd[data-coach]')){
-      listEl.insertAdjacentHTML('beforeend', '<details class="co-cr" hidden><summary>Coach photo credits</summary><div class="co-cr-list"></div></details>');
-      mqCoachFaces(listEl);
-    }
     mqLoadQuotes(byDay[sel]);
   }
 

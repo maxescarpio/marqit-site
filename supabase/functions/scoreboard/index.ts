@@ -122,7 +122,7 @@ function side(c: any) {
   const rec = (c?.records || []).find((r: any) => r.type === 'total') || (c?.records || [])[0];
   return {
     id: String(c?.team?.id || ''), name: String(c?.team?.displayName || ''), abbr: String(c?.team?.abbreviation || ''),
-    color: hex(c?.team?.color), alt: hex(c?.team?.alternateColor), leaders: leaders(c),
+    color: hex(c?.team?.color), alt: hex(c?.team?.alternateColor), logo: String(c?.team?.logo || '').replace(/^http:/, 'https:'), leaders: leaders(c),
     rank: Number(c?.curatedRank?.current) >= 1 && Number(c?.curatedRank?.current) <= 25 ? Number(c.curatedRank.current) : null,
     score: c?.score != null && c.score !== '' ? String(c.score) : null,
     record: rec?.summary ? String(rec.summary) : null,
@@ -185,7 +185,7 @@ async function game(key: string) {
   for (const c of comp.competitors || []) {
     sides[c.homeAway] = {
       id: String(c.team?.id || ''), abbr: String(c.team?.abbreviation || ''), name: String(c.team?.displayName || ''),
-      color: hex(c.team?.color), score: c.score != null ? String(c.score) : null, record: (c.record || []).find((r: any) => r.type === 'total')?.displayValue || null,
+      color: hex(c.team?.color), logo: String(c.team?.logo || '').replace(/^http:/, 'https:'), score: c.score != null ? String(c.score) : null, record: (c.record || []).find((r: any) => r.type === 'total')?.displayValue || null,
       lines: (c.linescores || []).map((l: any) => num(l.displayValue ?? l.value)),
     };
   }

@@ -74,26 +74,10 @@ async function standings(kind: string) {
   try {
     const tl = await getJson(`https://site.api.espn.com/apis/site/v2/sports/${SPORTS[kind]}/teams?limit=100`);
     const col: Record<string, any> = {};
-    for (const t of tl?.sports?.[0]?.leagues?.[0]?.teams || []) { const x = t?.team; if (x?.id) col[String(x.id)] = { color: /^[0-9a-f]{6}$/i.test(x.color || '') ? '#' + x.color.toLowerCase() : null, alt: /^[0-9a-f]{6}$/i.test(x.alternateColor || '') ? '#' + x.alternateColor.toLowerCase() : null }; }
+    for (const t of tl?.sports?.[0]?.leagues?.[0]?.teams || []) { const x = t?.team; if (x?.id) col[String(x.id)] = { logo: String(x.logos?.[0]?.href || '').replace(/^http:/, 'https:'), color: /^[0-9a-f]{6}$/i.test(x.color || '') ? '#' + x.color.toLowerCase() : null, alt: /^[0-9a-f]{6}$/i.test(x.alternateColor || '') ? '#' + x.alternateColor.toLowerCase() : null }; }
     for (const g of groups) for (const r of g.rows) Object.assign(r, col[r.id] || {});
   } catch (_) { /* colors are decoration */ }
-  try {
-    const bm = await badges(kind);
-    const todo: any[] = [];
-    for (const g of groups) for (const r of g.rows) { r.logo = badgeFor(bm, String(r.name || '')); if (!r.logo && !bm['!' + String(r.name).toLowerCase()]) todo.push(r); }
-    // The free list endpoint only returns 10 teams, so look the rest up one by one (20 a time, remembered for a day).
-    const key = Deno.env.get('THESPORTSDB_API_KEY') || '123';
-    await Promise.all(todo.slice(0, 20).map(async (r) => {
-      const n = String(r.name).toLowerCase();
-      try {
-        const d = await getJson(`https://www.thesportsdb.com/api/v1/json/${key}/searchteams.php?t=${encodeURIComponent(r.name)}`);
-        const t = (d?.teams || []).find((x: any) => String(x?.strTeam || '').toLowerCase() === n && String(x?.strLeague || '') === LEAGUE_NAME[kind]);
-        const b = String(t?.strBadge || t?.strTeamBadge || '');
-        if (/^https:\/\//.test(b)) { bm[n] = b + '/small'; r.logo = bm[n]; } else bm['!' + n] = '1';
-      } catch (_) { /* try again next time */ }
-    }));
-  } catch (_) { /* badges are decoration */ }
-  const partial = groups.some((g: any) => g.rows.some((r: any) => !r.logo && !badgeCacheMiss(kind, r.name)));
+  const partial = false;
   const season = d?.seasons?.[0]?.displayName || d?.season?.displayName || null;
   const st = groups[0]?.st;
   const phase = st === 1 ? 'Preseason' : st === 3 ? 'Postseason' : st === 2 ? 'Regular season' : null;
