@@ -9559,10 +9559,10 @@
     return '<i class="gm-bd" style="' + mqBadgeStyle(side) + '" aria-hidden="true">' + escapeHtml(ab) + '</i>';
   }
   // Schedule cards: the team circle shows the head coach's photo when an openly licensed one exists; the letters stay otherwise.
-  var MQ_COACH = {};
+  var MQ_COACH = {}, MQ_COACH_ON = false; // off: ESPN publishes no coach headshots, and mixed-source photos looked inconsistent
   function mqCoachBadge(side, lg){
     var ab = String(side.abbr || side.name || '?').slice(0, 3);
-    var ok = side.id != null && /^\d{1,6}$/.test(String(side.id)) && { NFL:1, NBA:1, NHL:1, MLB:1, NCAAF:1, WNBA:1, MLS:1, EPL:1 }[lg];
+    var ok = MQ_COACH_ON && side.id != null && /^\d{1,6}$/.test(String(side.id)) && { NFL:1, NBA:1, NHL:1, MLB:1, NCAAF:1, WNBA:1, MLS:1, EPL:1 }[lg];
     return '<i class="gm-bd" style="' + mqBadgeStyle(side) + '"' + (ok ? ' data-coach="' + escapeHtml(lg + ':' + side.id) + '" data-team="' + escapeHtml(side.name || '') + '"' : '') + ' aria-hidden="true"><u>' + escapeHtml(ab) + '</u></i>';
   }
   function mqCoachGet(lg, id, team){
