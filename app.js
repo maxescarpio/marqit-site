@@ -9105,7 +9105,7 @@
   function mqRkFetch(kind){
     var k = (kind === 'country' || kind === 'songs' || kind === 'artists') ? 'music' : kind;
     if(MQ_RK.cache[k] && Date.now() - MQ_RK.cache[k].at < 300000) return Promise.resolve(MQ_RK.cache[k].d);
-    return fetch(SUPABASE_URL + '/functions/v1/rankings?v=3&kind=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+    return fetch(SUPABASE_URL + '/functions/v1/rankings?v=4&kind=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
       .then(function(d){ if(d && !d.error) MQ_RK.cache[k] = { at: Date.now(), d: d }; return d && !d.error ? d : null; });
   }
   function mqRkConf(kind, g){
@@ -9270,7 +9270,7 @@
       '<div class="evp-body"><p class="evp-muted">Loading top tracks…</p></div>');
     mqRkBack(el);
     if(!a.id) return;
-    fetch(SUPABASE_URL + '/functions/v1/rankings?v=3&kind=artist&id=' + a.id).then(function(x){ return x.json(); }).catch(function(){ return null; }).then(function(d){
+    fetch(SUPABASE_URL + '/functions/v1/rankings?v=4&kind=artist&id=' + a.id).then(function(x){ return x.json(); }).catch(function(){ return null; }).then(function(d){
       var body = el.querySelector('.evp-body'); if(!body || !body.isConnected) return;
       if(!d || d.error){ body.innerHTML = ''; return; }
       var f = el.querySelector('#ar-fans'); if(f && d.fans) f.textContent = d.fans.toLocaleString('en-US') + ' fans on Deezer';
