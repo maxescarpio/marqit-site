@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // Puts the small circle photo on the daily questions, automatically.
 //
 // ONE real person per question, always (never a poster, badge, logo or group shot):
-//   shows / movies -> the biggest lead actor; games -> a head coach or star player;
+//   shows / movies -> the top-billed actor or actress (taken from TMDB's cast billing, never a poster); games -> a head coach or star player;
 //   companies -> the best-known leader or founder.
 //   The AI names the person, Wikipedia/Commons supplies a free head-and-shoulders portrait
 //   (TheSportsDB player photo as a sports fallback), and the link is checked to really load
@@ -29,9 +29,10 @@ const PROMPT = `You pick the photo for the daily prediction questions on Marqit.
 Return, per question:
 - "subject": {"name": the person's short display name (max 22 characters), "type": "person", "search": the person's full name as their English Wikipedia article is titled}. Return null if no single suitable person exists.
 - "vs": always null. Never return a second person or a head-to-head.
+- "work": only when the question is about a specific movie or TV show: {"kind": "movie" or "tv", "title": the title exactly as released}. Otherwise null. (The server then uses the top-billed actor or actress of that title from TMDB, so "subject" is only a backup.)
 
 Who to pick (ALWAYS exactly one real person, never a team badge, poster, logo, product or group):
-- A question about a TV show or a movie: the single biggest, best-known lead actor of that show or movie, for example "Keri Russell" for The Diplomat. Never the director or a minor cast member.
+- A question about a TV show or a movie: the most prominent actor or actress in it, the top-billed star, for example "Keri Russell" for The Diplomat or "Tom Rhys Harries" for Clayface. Never the director, never a supporting or minor cast member, never a poster.
 - A question about a game, team or league (NFL, NBA, MLB, NHL, soccer, college): the team's head coach or its single biggest star player, whoever is most famous and most current. For a game between two teams pick one person: the head coach or star of the team the question asks about ("Will the Cowboys defeat the Packers" -> the Cowboys' head coach or quarterback).
 - A question about a named player, athlete, fighter, artist or celebrity: that person.
 - A question about a company, or about a product, launch, console or event run by a company, with no person named: that company's best-known current leader or founder: SpaceX, Starlink, Tesla -> "Elon Musk"; Nvidia -> "Jensen Huang"; Meta -> "Mark Zuckerberg"; Apple -> "Tim Cook"; Sony or PlayStation -> Sony's current CEO; and the same for Google, Microsoft, Amazon, OpenAI and so on.
@@ -43,7 +44,7 @@ Rules:
 - Return null for private individuals, and for anything about death, crime or tragedy.
 - If you are not sure of the exact name or who currently holds the role, return null rather than guessing. Do not rely on old memory for who is a current coach or CEO; pick the person you are most certain about.
 
-Reply with JSON only: {"items":[{"i":0,"subject":{"name":"Keri Russell","type":"person","search":"Keri Russell"},"vs":null}]}`;
+Reply with JSON only: {"items":[{"i":0,"subject":{"name":"Keri Russell","type":"person","search":"Keri Russell"},"vs":null,"work":{"kind":"tv","title":"The Diplomat"}}]}`;
 
 // ---- the model: free Gemini key first, Claude as a backup (same as the news writer) ----
 const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
@@ -155,6 +156,34 @@ async function tmdbPoster(kind: 'tv' | 'movie', title: string): Promise<string |
   return `https://image.tmdb.org/t/p/w342${pick.poster_path}`;
 }
 
+// The top-billed actor or actress of a movie or show, with their TMDB profile photo. TMDB lists the cast in
+// billing order, so the first people are the stars. Only the top 3 are considered: a supporting player is never used.
+function tmdbGet(path: string): Promise<any> {
+  const key = Deno.env.get('TMDB_API_KEY');
+  if (!key) throw new Error('TMDB_API_KEY is not set');
+  const q = `https://api.themoviedb.org/3/${path}?language=en-US`;
+  return key.startsWith('eyJ') ? getJson(q, { authorization: 'Bearer ' + key }) : getJson(q + '&api_key=' + encodeURIComponent(key));
+}
+async function tmdbLead(kind: 'tv' | 'movie', title: string): Promise<{ name: string; url: string } | null> {
+  const data = await tmdbRequest('search/' + kind, title);
+  const results = (data?.results || []).slice(0, 6);
+  if (!results.length) return null;
+  const dateOf = (r: any) => Date.parse(kind === 'tv' ? r.first_air_date : r.release_date) || 0;
+  const now = Date.now(), from = now - 548 * 86400000, to = now + 366 * 86400000;
+  const recent = results.filter((r: any) => dateOf(r) >= from && dateOf(r) <= to);
+  const pick = (recent.length ? recent : results).sort((a: any, b: any) => b.popularity - a.popularity)[0];
+  const credits = await tmdbGet(`${kind}/${pick.id}/credits`);
+  const top = (credits?.cast || []).filter((c: any) => c.known_for_department === 'Acting').sort((a: any, b: any) => a.order - b.order).slice(0, 3);
+  const lead = top.find((c: any) => c.profile_path);
+  if (!lead) return null;
+  return { name: String(lead.name).slice(0, 22), url: `https://image.tmdb.org/t/p/w342${lead.profile_path}` };
+}
+function cleanWork(w: any): { kind: 'tv' | 'movie'; title: string } | null {
+  if (!w || (w.kind !== 'tv' && w.kind !== 'movie') || typeof w.title !== 'string') return null;
+  const title = w.title.trim();
+  return title.length >= 2 && title.length <= 80 ? { kind: w.kind, title } : null;
+}
+
 // ---- TheSportsDB: team badges and player photos ----
 function sportsBase(): string { return `https://www.thesportsdb.com/api/v1/json/${Deno.env.get('THESPORTSDB_API_KEY') || '123'}`; }
 function sized(url: string): string { return /\.(png|jpe?g)$/i.test(url) ? url + '/small' : url; }
@@ -251,7 +280,13 @@ Deno.serve(async (req: Request) => {
       const subject = cleanSide(it.subject), vs: Side | null = null; // one person per question, never a face-off
       let row: any = { question_id: q.id, subject_name: null, subject_image_url: null, vs_name: null, vs_image_url: null, updated_at: new Date().toISOString() };
       try {
-        if (subject) {
+        // Movies and shows: the top-billed cast member from TMDB first. If TMDB cannot answer, fall through to the named person.
+        const work = cleanWork(it.work);
+        if (work) {
+          const lead = await tmdbLead(work.kind, work.title).catch(() => null);
+          if (lead && (await imageLoads(lead.url))) row = { ...row, subject_name: lead.name, subject_image_url: lead.url };
+        }
+        if (!row.subject_image_url && subject) {
           const subImg = await findPhoto(subject, q.category);
           if (vs) {
             const vsImg = subImg ? await findPhoto(vs, q.category) : null;
