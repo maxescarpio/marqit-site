@@ -1950,3 +1950,18 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 
 /* TMDB actor photos in the round question photo: faces sit near the top of a portrait, so keep the crop high */
 .mq-photo.is-poster .mq-photo-img img{object-position:center 18%}
+
+/* Schedule cards: head coach photo in the team circle, and the live football detail line */
+.gc .gm-bd{position:relative;overflow:hidden}
+.gc .gm-bd u{text-decoration:none}
+.gc .gm-bd img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 22%;border-radius:50%}
+.gc .gm-bd.has-coach u{visibility:hidden}
+.gc-sit{display:grid;gap:2px;margin-top:8px;padding-top:8px;border-top:1px solid #262A31;font:500 12.5px/1.35 'Barlow',sans-serif;color:#9AA1AD}
+.gc-sit b{font-weight:600;color:#E4E7EC}
+.gc-sit.red b{color:#E5604F}
+.gc-sit span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.co-cr{margin:14px 0 0;font:500 12px 'Barlow',sans-serif;color:#7E838D}
+.co-cr[hidden]{display:none}
+.co-cr summary{cursor:pointer}
+.co-cr-list{display:grid;gap:3px;margin-top:6px}
+.co-cr-list a{color:#9AA1AD}

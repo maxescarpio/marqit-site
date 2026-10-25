@@ -147,9 +147,12 @@ async function load(date: string | null) {
         if (league === 'NCAAF' && !side(home).rank && !side(away).rank) continue;
         const t = e?.status?.type || {};
         const net = (comp?.broadcasts || []).flatMap((b: any) => b?.names || [])[0] || (comp?.geoBroadcasts || [])[0]?.media?.shortName || null;
+        // Live football: who has the ball, down and distance, and the last play (ESPN's "situation"). Empty for other sports.
+        const sx = t.state === 'in' ? comp?.situation : null;
+        const sit = sx ? { poss: String(sx.possession || ''), text: String(sx.downDistanceText || sx.shortDownDistanceText || '').slice(0, 60), last: String(sx.lastPlay?.text || '').slice(0, 140), red: !!sx.isRedZone } : null;
         games.push({
           league, id: String(e.id || ''), start: e.date, state: String(t.state || 'pre'), detail: String(t.shortDetail || t.detail || ''),
-          network: net, home: side(home), away: side(away),
+          network: net, home: side(home), away: side(away), sit: sit && (sit.text || sit.last) ? sit : null,
         });
       }
     } catch (e) { errors.push(league + ' ' + String(e).slice(0, 60)); }

@@ -9558,6 +9558,41 @@
     var ab = String(side.abbr || side.name || '?').slice(0, 3);
     return '<i class="gm-bd" style="' + mqBadgeStyle(side) + '" aria-hidden="true">' + escapeHtml(ab) + '</i>';
   }
+  // Schedule cards: the team circle shows the head coach's photo when an openly licensed one exists; the letters stay otherwise.
+  var MQ_COACH = {};
+  function mqCoachBadge(side, lg){
+    var ab = String(side.abbr || side.name || '?').slice(0, 3);
+    var ok = side.id != null && /^\d{1,6}$/.test(String(side.id)) && { NFL:1, NBA:1, NHL:1, MLB:1, NCAAF:1, WNBA:1, MLS:1, EPL:1 }[lg];
+    return '<i class="gm-bd" style="' + mqBadgeStyle(side) + '"' + (ok ? ' data-coach="' + escapeHtml(lg + ':' + side.id) + '" data-team="' + escapeHtml(side.name || '') + '"' : '') + ' aria-hidden="true"><u>' + escapeHtml(ab) + '</u></i>';
+  }
+  function mqCoachGet(lg, id, team){
+    var k = lg + ':' + id;
+    return MQ_COACH[k] = MQ_COACH[k] || fetch(SUPABASE_URL + '/functions/v1/player-photo?kind=coach&league=' + encodeURIComponent(lg) + '&id=' + encodeURIComponent(id) + '&team=' + encodeURIComponent(team))
+      .then(function(r){ return r.json(); }).catch(function(){ return null; })
+      .then(function(d){ return d && d.found && /^https:\/\/commons\.wikimedia\.org\//.test(d.photo || '') ? d : null; });
+  }
+  function mqCoachFaces(root){
+    var cr = [];
+    [].forEach.call(root.querySelectorAll('.gm-bd[data-coach]'), function(el){
+      var parts = el.getAttribute('data-coach').split(':');
+      mqCoachGet(parts[0], parts[1], el.getAttribute('data-team')).then(function(d){
+        if(!d || !el.isConnected || el.querySelector('img')) return;
+        var img = new Image();
+        img.onload = function(){
+          if(!el.isConnected || el.querySelector('img')) return;
+          img.alt = ''; img.referrerPolicy = 'no-referrer'; el.appendChild(img); el.classList.add('has-coach');
+          var box = root.querySelector('.co-cr-list');
+          if(box && !box.querySelector('[data-s="' + el.getAttribute('data-coach') + '"]')){
+            var a = document.createElement('a'); a.setAttribute('data-s', el.getAttribute('data-coach')); a.target = '_blank'; a.rel = 'noopener noreferrer';
+            a.href = /^https:\/\/commons\.wikimedia\.org\//.test(d.pageUrl || '') ? d.pageUrl : 'https://commons.wikimedia.org';
+            a.textContent = el.getAttribute('data-team') + ' coach: ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || '');
+            box.appendChild(a); var det = box.parentNode; if(det) det.hidden = false;
+          }
+        };
+        img.src = d.photo;
+      });
+    });
+  }
   function mqUntil(ev){
     var ms = new Date(ev.starts_at).getTime() - Date.now();
     if(!(ms > 0) || ms > 86400000 || ev.all_day) return '';
@@ -9593,17 +9628,23 @@
   }
   // Schedule, boards layout: a grid of game cards per league, live games on top, earnings split by before/after the market.
   function mqSchedCardHtml(ev, x, showLg){
-    var g = x.g, st = x.st, status, body, net = '';
+    var g = x.g, st = x.st, status, body, net = '', sit = '';
     if(g){
       var started = st !== 'pre', hs = parseInt(g.home.score, 10), as = parseInt(g.away.score, 10), done = st === 'post';
       status = st === 'in' ? (g.detail || 'Live') : done ? (/^f/i.test(g.detail || '') ? g.detail : 'Final') : mqSchedTime(ev);
       var line = function(t, lost){
-        return '<div class="gc-tm' + (lost ? ' lost' : '') + '">' + mqBadge(t) + '<b>' + escapeHtml(t.name) + '</b><span>' +
+        return '<div class="gc-tm' + (lost ? ' lost' : '') + '">' + mqCoachBadge(t, g.league) + '<b>' + escapeHtml(t.name) + '</b><span>' +
           (started ? escapeHtml(t.score == null ? '0' : t.score) : (t.record ? '<small>' + escapeHtml(t.record) + '</small>' : '')) + '</span></div>';
       };
       // Whoever is trailing is dimmed, live or final, so the leader reads at a glance.
       body = line(g.away, started && as < hs) + line(g.home, started && hs < as);
       net = g.network || '';
+      // Live football: who has the ball, down and distance, and the last play.
+      if(st === 'in' && g.sit){
+        var po = String(g.sit.poss || ''), pt = po && po === String(g.home.id) ? g.home : po && po === String(g.away.id) ? g.away : null;
+        var head = [pt ? (pt.abbr || pt.name) + ' ball' : '', g.sit.text || ''].filter(Boolean).join(' · ');
+        sit = '<div class="gc-sit' + (g.sit.red ? ' red' : '') + '">' + (head ? '<b>' + escapeHtml(head) + '</b>' : '') + (g.sit.last ? '<span>' + escapeHtml(g.sit.last) + '</span>' : '') + '</div>';
+      }
     } else {
       var teams = mqSchedTeams(ev);
       status = mqSchedTime(ev);
@@ -9615,7 +9656,7 @@
     var lgTag = showLg ? '<span class="gc-lg" style="color:' + mqLgColor(mqSchedKey(ev)) + '">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</span>' : '';
     return '<div class="gc ' + (st === 'in' ? 'is-live ' : st === 'post' ? 'is-done ' : '') + (x.open ? 'is-click' : '') + '" style="--lg:' + mqLgColor(mqSchedKey(ev)) + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
       '<div class="gc-top"><span class="gc-st">' + (st === 'in' ? '<i class="ag-pulse"></i>' : '') + escapeHtml(status) + (st === 'pre' && mqUntil(ev) ? '<em>' + mqUntil(ev) + '</em>' : '') + '</span>' + lgTag + '</div>' +
-      '<div class="gc-body">' + body + '</div>' +
+      '<div class="gc-body">' + body + '</div>' + sit +
       ((net && !/^</.test(net)) || ev.question_id ? '<div class="gc-foot">' + (net ? '<small>' + escapeHtml(net) + '</small>' : '<small></small>') + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + '</div>' : '') + '</div>';
   }
   // Earnings tiles pick up each company's brand hue. Tickers we don't have a hue for get a steady one
@@ -9766,6 +9807,10 @@
     listEl.innerHTML =
       (byDay[sel].length ? mqSchedAgendaHtml(byDay[sel]) : '<p class="sched-none">Nothing scheduled</p>');
     var ns = listEl.querySelector('.lv-row'); if(ns && keep) ns.scrollLeft = keep;
+    if(listEl.querySelector('.gm-bd[data-coach]')){
+      listEl.insertAdjacentHTML('beforeend', '<details class="co-cr" hidden><summary>Coach photo credits</summary><div class="co-cr-list"></div></details>');
+      mqCoachFaces(listEl);
+    }
     mqLoadQuotes(byDay[sel]);
   }
 

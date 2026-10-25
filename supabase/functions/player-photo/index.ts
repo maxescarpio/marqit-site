@@ -113,7 +113,7 @@ async function person(name: string, company: string, trace: string[]) {
   const want = norm(name), toks = want.split(' ').filter((t) => t.length > 1), last = toks[toks.length - 1] || want;
   // Any real word of the company name counts ("Super Micro" -> super / micro), not just the first, and short forms like "TSMC" still work.
   const coToks = norm(company).split(' ').filter((t) => t.length >= 2 && !/^(the|inc|corp|co|group|holdings|companies|company)$/.test(t));
-  const ok = (p: any) => { if (!p) return false; const ex = norm(String(p.extract || '')); return coToks.some((t) => ex.includes(t)) && /chief executive|ceo|founder|founded|co founder|chairman|businessman|businessperson|business magnate|entrepreneur|executive|billionaire|investor|banker|engineer|computer scientist|president|philanthropist|engineer/i.test(String(p.extract || '')); };
+  const ok = (p: any) => { if (!p) return false; const ex = norm(String(p.extract || '')); return coToks.some((t) => ex.includes(t)) && /chief executive|ceo|founder|founded|co founder|chairman|businessman|businessperson|business magnate|entrepreneur|executive|billionaire|investor|banker|engineer|computer scientist|president|philanthropist|engineer|coach|manager/i.test(String(p.extract || '')); };
   // The article under the person's own name first, then a search as a fallback.
   const d = await wiki('en.wikipedia.org', { action: 'query', titles: name, redirects: '1', prop: 'extracts|pageimages', piprop: 'name', exintro: '1', explaintext: '1', exchars: '1500' });
   let page: any = (Object.values(d?.query?.pages || {}) as any[]).find(ok);
@@ -175,6 +175,31 @@ async function person(name: string, company: string, trace: string[]) {
   };
 }
 
+// A team's current head coach, from ESPN's core API (team -> coaches -> coach). The season in the URL can be the
+// starting or the ending year of the season depending on the league, so a few years are tried.
+const COACH_LEAGUES: Record<string, string> = {
+  NFL: 'football/nfl', NBA: 'basketball/nba', NHL: 'hockey/nhl', MLB: 'baseball/mlb', NCAAF: 'football/college-football',
+  WNBA: 'basketball/wnba', MLS: 'soccer/usa.1', EPL: 'soccer/eng.1',
+};
+// ESPN rejects bot-like user agents, so its requests use a plain one (same as the scoreboard function).
+const ESPN_UA = { 'user-agent': 'curl/8.5.0', accept: 'application/json' };
+async function coachName(league: string, id: string): Promise<string | null> {
+  const path = COACH_LEAGUES[league]; if (!path) return null;
+  const [sp, lg] = path.split('/');
+  const y = new Date().getUTCFullYear();
+  for (const yr of [y, y + 1, y - 1]) {
+    try {
+      const r = await fetch(`https://sports.core.api.espn.com/v2/sports/${sp}/leagues/${lg}/seasons/${yr}/teams/${id}/coaches`, { headers: ESPN_UA, signal: AbortSignal.timeout(8000) });
+      if (!r.ok) continue;
+      const ref = (await r.json())?.items?.[0]?.$ref; if (!ref) continue;
+      const c = await (await fetch(String(ref).replace(/^http:/, 'https:'), { headers: ESPN_UA, signal: AbortSignal.timeout(8000) })).json();
+      const n = [c?.firstName, c?.lastName].filter(Boolean).join(' ').trim();
+      if (n) return n;
+    } catch (_) { /* try the next season */ }
+  }
+  return null;
+}
+
 async function dbGet(key: string) {
   const r = await fetch(`${SB}/rest/v1/player_photos?key=eq.${encodeURIComponent(key)}&select=*`, { headers: { apikey: KEY, authorization: 'Bearer ' + KEY } });
   const rows = r.ok ? await r.json() : [];
@@ -188,19 +213,28 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
   const u = new URL(req.url);
   const name = (u.searchParams.get('name') || '').trim(), team = (u.searchParams.get('team') || '').trim().slice(0, 60), sport = (u.searchParams.get('sport') || '').toLowerCase();
+  const isCoach = u.searchParams.get('kind') === 'coach';
+  const coachLg = (u.searchParams.get('league') || '').toUpperCase(), coachId = (u.searchParams.get('id') || '').trim();
   const isPerson = u.searchParams.get('kind') === 'person';
-  if (!/^[\p{L}][\p{L} .'\-]{2,59}$/u.test(name) || (!isPerson && !SPORT_WORDS[sport])) return new Response(JSON.stringify({ found: false, error: 'bad request' }), { status: 400, headers: CORS });
-  const key = isPerson ? 'person|' + norm(name) + '|' + norm(team) : 'v4|' + norm(name) + '|' + norm(team) + '|' + sport;
+  if (isCoach) {
+    if (!COACH_LEAGUES[coachLg] || !/^\d{1,6}$/.test(coachId) || team.length < 3) return new Response(JSON.stringify({ found: false, error: 'bad request' }), { status: 400, headers: CORS });
+  } else if (!/^[\p{L}][\p{L} .'\-]{2,59}$/u.test(name) || (!isPerson && !SPORT_WORDS[sport])) return new Response(JSON.stringify({ found: false, error: 'bad request' }), { status: 400, headers: CORS });
+  const key = isCoach ? 'coach|' + coachLg + ':' + coachId : isPerson ? 'person|' + norm(name) + '|' + norm(team) : 'v4|' + norm(name) + '|' + norm(team) + '|' + sport;
   const send = (o: any) => new Response(JSON.stringify(o), { headers: { ...CORS, 'cache-control': 'public, max-age=86400' } });
   try {
     const hit = u.searchParams.get('debug') ? null : await dbGet(key);
     if (hit) {
       const age = Date.now() - new Date(hit.checked_at).getTime();
-      if (hit.found && age < 90 * 86400000) return send({ found: true, photo: hit.photo, author: hit.author, license: hit.license, licenseUrl: hit.license_url, pageUrl: hit.page_url });
-      if (!hit.found && age < 14 * 86400000) return send({ found: false });
+      if (hit.found && age < (isCoach ? 30 : 90) * 86400000) return send({ found: true, photo: hit.photo, author: hit.author, license: hit.license, licenseUrl: hit.license_url, pageUrl: hit.page_url });
+      if (!hit.found && age < (isCoach ? 7 : 14) * 86400000) return send({ found: false });
     }
     const trace: string[] = [];
-    const res = isPerson ? await person(name, team, trace) : await lookup(name, team, sport, trace);
+    let res: any;
+    if (isCoach) {
+      const cn = await coachName(coachLg, coachId);
+      trace.push('coach:' + (cn || 'none'));
+      res = cn ? await person(cn, team, trace) : null;
+    } else res = isPerson ? await person(name, team, trace) : await lookup(name, team, sport, trace);
     if (u.searchParams.get('debug')) return new Response(JSON.stringify({ res, trace }), { headers: CORS });
     await dbSet(res
       ? { key, found: true, photo: res.photo, author: res.author, license: res.license, license_url: res.licenseUrl, page_url: res.pageUrl, checked_at: new Date().toISOString() }
