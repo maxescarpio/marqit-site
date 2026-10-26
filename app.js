@@ -2993,6 +2993,21 @@
     var text = opts.text || '';
     var full = (text + ' ' + url).trim();
     var packaged = opts.packaged || null;
+
+    // Fast path on phones: skip our own sheet and open the phone's share sheet
+    // with just the story-size image. Instagram (Stories / Feed / DM), Snapchat,
+    // Messages etc. are all listed there, so it's one tap on Share, one tap on
+    // Instagram. If the browser refuses (it wants the tap to be very recent), we
+    // fall through to our sheet, whose big Instagram button is a fresh tap.
+    var isPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+    if(packaged && !opts.noDirect && isPhone && navigator.share && navigator.canShare && navigator.canShare({ files: [packaged.file] })){
+      navigator.share({ files: [packaged.file] }).catch(function(e){
+        if(e && e.name === 'AbortError') return; // they closed it on purpose
+        mqOpenShareSheet(Object.assign({}, opts, { noDirect: true }));
+      });
+      return;
+    }
+
     var previewUrl = packaged ? URL.createObjectURL(packaged.blob) : null;
     function done(){ if(previewUrl) setTimeout(function(){ URL.revokeObjectURL(previewUrl); }, 500); wrap.classList.remove('open'); setTimeout(function(){ wrap.remove(); }, 220); document.removeEventListener('keydown', onKey); }
     function onKey(e){ if(e.key === 'Escape') done(); }
@@ -3023,9 +3038,25 @@
       '<button type="button" class="mq-ss-x" aria-label="Close">&times;</button>' +
       '<div class="mq-ss-head">' + (previewUrl ? '<img class="mq-ss-prev" alt="" src="' + previewUrl + '">' : '') +
         '<div class="mq-ss-ht"><b>' + escapeHtml(opts.title || 'Share') + '</b><span>' + escapeHtml(url.replace(/^https?:\/\//, '').slice(0, 44)) + '</span></div></div>' +
+      (packaged ? '<button type="button" class="mq-ss-ig">Share to Instagram Story</button>' : '') +
       '<div class="mq-ss-grid"></div><div class="mq-ss-msg" role="status"></div></div>';
     var grid = wrap.querySelector('.mq-ss-grid'), msg = wrap.querySelector('.mq-ss-msg');
     function say(t){ msg.textContent = t; }
+    var igBtn = wrap.querySelector('.mq-ss-ig');
+    if(igBtn) igBtn.addEventListener('click', async function(){
+      // Best: the phone's share sheet with the image -- pick Instagram > Story.
+      if(navigator.share && navigator.canShare && navigator.canShare({ files: [packaged.file] })){
+        try{ await navigator.share({ files: [packaged.file] }); done(); return; }
+        catch(e){ if(e && e.name === 'AbortError') return; }
+      }
+      // Otherwise save the image and open Instagram's story camera: they pick
+      // the picture we just saved from the camera roll.
+      var a = document.createElement('a'); a.href = URL.createObjectURL(packaged.blob); a.download = opts.filename || 'marqit.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      try{ navigator.clipboard.writeText(url); }catch(e){}
+      say('Image saved. Opening Instagram — pick it from your photos. Your link is copied for a link sticker.');
+      if(isPhone) setTimeout(function(){ window.location.href = 'instagram://story-camera'; }, 900);
+    });
     tiles.forEach(function(t){
       var b = document.createElement(t.href ? 'a' : 'button');
       b.className = 'mq-ss-tile'; b.style.setProperty('--tc', t.c);
