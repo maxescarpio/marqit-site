@@ -2468,7 +2468,7 @@
     if(!resolvedQ) return;
     const date = resolvedQ.question_date;
 
-    const { data: questions } = await sb.from('daily_questions').select('*').eq('question_date', date).order('category');
+    const { data: questions } = await sb.from('daily_questions').select('*').eq('question_date', date).order('slot', { ascending: true });
     if(!questions || questions.length === 0) return;
     // Only this day's picks -- an unfiltered read of a player's whole history
     // would silently stop at 1,000 rows and could drop the picks we need.
@@ -2547,7 +2547,7 @@
       const { data: resolvedQ } = await sb.from('daily_questions').select('question_date').eq('resolved', true).order('question_date', { ascending: false }).limit(1).maybeSingle();
       if(!resolvedQ) return;
       const date = resolvedQ.question_date;
-      const { data: questions } = await sb.from('daily_questions').select('*').eq('question_date', date).order('category');
+      const { data: questions } = await sb.from('daily_questions').select('*').eq('question_date', date).order('slot', { ascending: true });
       if(!questions || !questions.length) return;
       const { data: picks } = await sb.rpc('get_guest_picks', { p_device_id: dev, p_question_ids: questions.map(function(q){ return q.id; }) });
       const predMap = {};
@@ -4778,7 +4778,7 @@
         var welcome = document.getElementById('welcome-sheet');
         if(welcome && !welcome.hidden) return;
 
-        var qres = await sb.from('daily_questions').select('id, question_text, category, correct_answer, resolved, voided, void_reason').eq('question_date', yDate).order('category');
+        var qres = await sb.from('daily_questions').select('id, question_text, category, correct_answer, resolved, voided, void_reason').eq('question_date', yDate).order('slot', { ascending: true });
         var questions = qres.data || [];
         if(!questions.length) return;
         var ids = questions.map(function(q){ return q.id; });
@@ -5746,7 +5746,7 @@
     container.innerHTML = mqSkeletonCardsHtml(3);
 
     const today = getETDateInfo().dateStr;
-    let { data: questions, error } = await sb.from('daily_questions').select('*').eq('question_date', today).order('lock_time', { ascending: true });
+    let { data: questions, error } = await sb.from('daily_questions').select('*').eq('question_date', today).order('slot', { ascending: true }).order('lock_time', { ascending: true });
     let effectiveDate = today;
 
     // Today's set hasn't posted yet -- before falling back to the "on its
@@ -5761,7 +5761,7 @@
       const { data: lastDateRow } = await sb.from('daily_questions').select('question_date').lt('question_date', today).order('question_date', { ascending: false }).limit(1);
       if(lastDateRow && lastDateRow.length){
         const lastDate = lastDateRow[0].question_date;
-        const { data: lastQuestions } = await sb.from('daily_questions').select('*').eq('question_date', lastDate).order('lock_time', { ascending: true });
+        const { data: lastQuestions } = await sb.from('daily_questions').select('*').eq('question_date', lastDate).order('slot', { ascending: true }).order('lock_time', { ascending: true });
         if(lastQuestions && lastQuestions.length && lastQuestions.some(function(q){ return !q.resolved; })){
           questions = lastQuestions;
           effectiveDate = lastDate;
@@ -5773,10 +5773,11 @@
       const { data: sessionRes } = await sb.auth.getSession();
       const session = sessionRes && sessionRes.session;
       const signedIn = !!session;
-      const cats = ['sports', 'pop_culture', 'news'];
-      const placeholders = cats.map(function(cat){
+      // The day's three calls are picked from what's trending, so the topics (and
+      // categories) are a surprise until they post -- placeholders stay generic.
+      const placeholders = [1, 2, 3].map(function(n){
         return '<div class="ticket predict-card" style="max-width:480px; margin-bottom:16px; opacity:0.7;">' +
-          '<p class="ticket-meta">' + (CATEGORY_LABELS[cat] || cat) + '</p>' +
+          '<p class="ticket-meta">Call ' + n + ' of 3</p>' +
           '<p class="ticket-q" style="color:var(--ink-soft); margin-top:6px;">Today\'s call is on its way.</p>' +
           '</div>';
       }).join('');
@@ -7142,7 +7143,7 @@
     var qs = MQ_REC.qcache[d];
     if(!qs){
       panel.innerHTML = '<div class="rd-h">' + mqRecDayLabel(d) + '</div><p class="rd-empty">Loading…</p>'; mqRecPlace();
-      var r = await sb.from('daily_questions').select('id, question_text, category, correct_answer, resolved, voided').eq('question_date', d).order('lock_time', { ascending: true });
+      var r = await sb.from('daily_questions').select('id, question_text, category, correct_answer, resolved, voided').eq('question_date', d).order('slot', { ascending: true }).order('lock_time', { ascending: true });
       qs = MQ_REC.qcache[d] = r.data || [];
     }
     if(MQ_REC.sel !== d) return;

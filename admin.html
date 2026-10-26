@@ -355,7 +355,8 @@
       const row = document.createElement('div');
       row.className = 'qrow';
       row.innerHTML =
-        '<div class="qmeta">' + (CATEGORY_LABELS[d.category] || d.category) + ' \u00b7 For ' + d.question_date + '</div>' +
+        '<div class="qmeta">' + (d.slot ? '#' + d.slot + ' \u00b7 ' : '') + (CATEGORY_LABELS[d.category] || d.category) + ' \u00b7 For ' + d.question_date + '</div>' +
+        '<div class="qmeta trend-note" style="display:none;"></div>' +
         '<label>Question</label><textarea rows="2" id="draft-text-' + d.id + '"></textarea>' +
         '<label>Lock time</label><input type="datetime-local" id="draft-lock-' + d.id + '">' +
         '<label>Resolution criteria</label><textarea rows="2" id="draft-resolution-' + d.id + '"></textarea>' +
@@ -364,6 +365,11 @@
           '<button class="btn-delete" data-reject-id="' + d.id + '">Reject</button>' +
         '</div>';
       list.appendChild(row);
+      if(d.trend_note){
+        const noteEl = row.querySelector('.trend-note');
+        noteEl.textContent = 'Why it’s a top story: ' + d.trend_note;
+        noteEl.style.display = '';
+      }
       document.getElementById('draft-text-' + d.id).value = d.question_text;
       document.getElementById('draft-lock-' + d.id).value = toLocalInput(d.suggested_lock_time);
       document.getElementById('draft-resolution-' + d.id).value = d.resolution_criteria;
@@ -406,7 +412,7 @@
     const date = document.getElementById('view-date').value;
     const list = document.getElementById('question-list');
     list.innerHTML = 'Loading…';
-    const { data, error } = await sb.from('daily_questions').select('*').eq('question_date', date).order('category');
+    const { data, error } = await sb.from('daily_questions').select('*').eq('question_date', date).order('slot', { ascending: true });
     if(error || !data || data.length === 0){
       list.innerHTML = '<p style="font-size:13px; color:var(--ink-soft);">No questions for this date yet.</p>';
       return;
@@ -611,7 +617,9 @@
       return;
     }
 
-    const { error } = await sb.rpc('admin_add_question', {
+    // A day can now hold two or three questions of the same category, so use the
+    // id the database hands back instead of looking the new row up by category.
+    const { data: newQId, error } = await sb.rpc('admin_add_question', {
       p_date: date,
       p_category: category,
       p_question_text: text,
@@ -626,7 +634,7 @@
     const subName = document.getElementById('add-sub-name').value, subImg = document.getElementById('add-sub-img').value,
           vsName = document.getElementById('add-vs-name').value, vsImg = document.getElementById('add-vs-img').value;
     if(resolution || subImg || vsImg){
-      const { data: newQ } = await sb.from('daily_questions').select('id').eq('question_date', date).eq('category', category).maybeSingle();
+      const newQ = newQId ? { id: newQId } : null;
       if(newQ){
         if(resolution) await sb.rpc('admin_set_resolution_criteria', { p_question_id: newQ.id, p_resolution_criteria: resolution });
         if(subImg || vsImg){
@@ -697,12 +705,15 @@
     // admin_bulk_add_questions only knows about category/question_text/lock_time,
     // so any resolution_criteria in the pasted JSON needs to be applied separately
     // once the questions actually exist.
+    // A day can have several questions in the same category, so match each pasted
+    // question to its row by question text (falling back to slot when one was given).
     const withResolution = parsed.filter(function(q){ return q.resolution_criteria; });
     if(withResolution.length > 0){
-      const { data: createdRows } = await sb.from('daily_questions').select('id, category').eq('question_date', date);
+      const { data: createdRows } = await sb.from('daily_questions').select('id, slot, question_text').eq('question_date', date);
       if(createdRows){
         for(const q of withResolution){
-          const match = createdRows.find(function(r){ return r.category === q.category; });
+          const match = createdRows.find(function(r){ return r.question_text === q.question_text; })
+            || (q.slot ? createdRows.find(function(r){ return r.slot === Number(q.slot); }) : null);
           if(match){
             await sb.rpc('admin_set_resolution_criteria', { p_question_id: match.id, p_resolution_criteria: q.resolution_criteria });
           }
