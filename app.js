@@ -2633,13 +2633,15 @@
     ctx.textAlign = prevAlign;
   }
 
-  // Charcoal ground, the same #111318 as the site and the og-image --
-  // and only the app's actual green/red (the same --yes/--no used for YES
-  // and NO everywhere else on the site) ever show up as accent color, so
-  // the cards read as the same product rather than a separate palette.
+  // Ground: the site's charcoal (#111318) lit by two soft glows -- brand blue
+  // top-right, the app's green bottom-left -- so a card has depth instead of
+  // reading as a flat slab. The only accent colors on the content itself are
+  // still the app's own --yes/--no.
   const MQ_CARD_BG = '#111318';
   const MQ_YES = '#33D18B';
   const MQ_NO = '#F5644F';
+  const MQ_BLUE = '#468CFF';
+  const MQ_PENDING = '#9AA3B2';
   const MQ_INK = '#FFFFFF';
   const MQ_INK_SOFT = 'rgba(255,255,255,0.82)';
   const MQ_INK_MUTED = 'rgba(255,255,255,0.6)';
@@ -2647,6 +2649,127 @@
   function mqCardBackground(ctx, width, height){
     ctx.fillStyle = MQ_CARD_BG;
     ctx.fillRect(0, 0, width, height);
+    const g1 = ctx.createRadialGradient(width * 0.9, height * 0.08, 0, width * 0.9, height * 0.08, width * 1.1);
+    g1.addColorStop(0, 'rgba(70,140,255,0.28)');
+    g1.addColorStop(1, 'rgba(70,140,255,0)');
+    ctx.fillStyle = g1;
+    ctx.fillRect(0, 0, width, height);
+    const g2 = ctx.createRadialGradient(width * 0.05, height * 0.96, 0, width * 0.05, height * 0.96, width * 1.1);
+    g2.addColorStop(0, 'rgba(51,209,139,0.20)');
+    g2.addColorStop(1, 'rgba(51,209,139,0)');
+    ctx.fillStyle = g2;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  // Instagram (and TikTok/Snap) lay their own UI over a 1080x1920 story: the
+  // profile row + progress bar over roughly the top 250px and the reply bar
+  // over roughly the bottom 340px. Anything of ours in those bands gets
+  // covered or cropped, so every card keeps ALL of its content inside this
+  // safe box. `u` is a size unit: 1 on a story, smaller on the 1:1 square, so
+  // the same layout numbers work for both.
+  function mqCardLayout(width, height){
+    const story = height > width * 1.4;
+    const top = story ? height * (250 / 1920) : height * 0.07;
+    const bottom = story ? height * (1 - 340 / 1920) : height * 0.93;
+    const H = bottom - top;
+    return { story: story, top: top, bottom: bottom, H: H, u: H / 1330 };
+  }
+
+  function mqAlpha(hex, a){
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+
+  function mqTrackedWidth(ctx, text, trackingPx){
+    let w = 0;
+    text.split('').forEach(function(ch){ w += ctx.measureText(ch).width; });
+    return w + trackingPx * (text.length - 1);
+  }
+
+  // Left-aligned tracked text (mqTrackedText centers on a point).
+  function mqTrackedLeft(ctx, text, x, y, trackingPx){
+    mqTrackedText(ctx, text, x + mqTrackedWidth(ctx, text, trackingPx) / 2, y, trackingPx);
+  }
+
+  // Word-wraps to maxLines, ending the last line with an ellipsis if cut off.
+  function mqWrapLines(ctx, text, maxW, maxLines){
+    const words = String(text || '').split(' ');
+    let line = '', out = [];
+    words.forEach(function(w){
+      const test = line ? line + ' ' + w : w;
+      if(ctx.measureText(test).width > maxW && line){ out.push(line); line = w; }
+      else line = test;
+    });
+    if(line) out.push(line);
+    if(out.length > maxLines){
+      out = out.slice(0, maxLines);
+      let last = out[maxLines - 1];
+      while(last.length > 1 && ctx.measureText(last + '…').width > maxW) last = last.slice(0, -1);
+      out[maxLines - 1] = last.replace(/\s+$/, '') + '…';
+    }
+    return out;
+  }
+
+  // Soft rounded panel behind a row of content. `accent` (a hex) tints it.
+  function mqCardPanel(ctx, x, y, w, h, r, accent){
+    mqRoundRect(ctx, x, y, w, h, r);
+    ctx.fillStyle = accent ? mqAlpha(accent, 0.10) : 'rgba(255,255,255,0.06)';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = accent ? mqAlpha(accent, 0.45) : 'rgba(255,255,255,0.10)';
+    ctx.stroke();
+  }
+
+  // Tinted pill with centered text; returns the pill width.
+  function mqCardChip(ctx, text, rightX, cy, h, color, fontPx){
+    ctx.font = "800 " + Math.round(fontPx) + "px " + MQ_HEAD_FONT;
+    const w = ctx.measureText(text).width + h * 0.9;
+    mqRoundRect(ctx, rightX - w, cy - h / 2, w, h, h / 2);
+    ctx.fillStyle = mqAlpha(color, 0.16);
+    ctx.fill();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = color;
+    ctx.fillText(text, rightX - w / 2, cy + fontPx * 0.35);
+    return w;
+  }
+
+  // Round status mark for a call: check (correct), cross (incorrect), ring
+  // (pending) or dash (void).
+  function mqStatusDot(ctx, cx, cy, r, kind, color){
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    if(kind === 'pending' || kind === 'void'){
+      ctx.lineWidth = r * 0.2;
+      ctx.strokeStyle = color;
+      ctx.stroke();
+      if(kind === 'void'){
+        ctx.beginPath();
+        ctx.moveTo(cx - r * 0.45, cy);
+        ctx.lineTo(cx + r * 0.45, cy);
+        ctx.stroke();
+      }
+    }else{
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = MQ_CARD_BG;
+      ctx.lineWidth = r * 0.24;
+      ctx.beginPath();
+      if(kind === 'correct'){
+        ctx.moveTo(cx - r * 0.42, cy + r * 0.02);
+        ctx.lineTo(cx - r * 0.1, cy + r * 0.36);
+        ctx.lineTo(cx + r * 0.46, cy - r * 0.3);
+      }else{
+        ctx.moveTo(cx - r * 0.34, cy - r * 0.34);
+        ctx.lineTo(cx + r * 0.34, cy + r * 0.34);
+        ctx.moveTo(cx + r * 0.34, cy - r * 0.34);
+        ctx.lineTo(cx - r * 0.34, cy + r * 0.34);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   // A thin 1px rule -- the divider language this whole redesign leans on
@@ -2667,20 +2790,21 @@
   const MQ_LOGO_VB = { x: 29.42, y: -167.8, w: 842.01, h: 581.46 };
   const MQ_LOGO_D = "M103.96 254.66L72.82 254.66Q69.77 254.66 69.77 251.30L72.21 58.35Q72.21 54.69 75.57 54.69L113.73 54.69Q116.79 54.69 117.40 57.44L144.57 158.49L171.74 57.44Q172.35 54.69 175.40 54.69L213.57 54.69Q216.31 54.69 216.31 58.35L219.06 251.30Q219.06 254.66 216.01 254.66L184.87 254.66Q181.81 254.66 181.81 251L181.20 166.43Q180.90 150.86 181.51 138.19Q182.12 125.52 183.04 114.83L182.73 114.83Q180.29 124.30 177.39 134.22Q174.49 144.14 171.43 153.61L147.93 227.79Q147.32 230.24 145.18 230.24L143.65 230.24Q141.82 230.24 140.90 227.79L117.40 153.61Q114.34 143.84 111.60 134.07Q108.85 124.30 106.41 114.83L105.80 114.83Q106.71 125.52 107.32 138.19Q107.93 150.86 107.63 166.43L107.02 251Q107.02 254.66 103.96 254.66M274.94 248.08L240.75 248.08Q239.53 248.08 238.92 247.46Q238 246.55 238.31 244.11L279.52 50.85Q280.13 48.10 282.88 48.10L323.79 48.10Q326.84 48.10 327.45 50.85L368.36 244.11Q368.97 246.55 368.06 247.46Q367.45 248.08 366.23 248.08L331.12 248.08Q328.37 248.08 327.76 245.33L321.65 206.55L284.41 206.55L278.30 245.33Q277.99 248.08 274.94 248.08M289.29 175.72L317.07 175.72L309.44 126.57Q307.91 116.19 306.39 105.65Q304.86 95.12 303.64 84.74L303.03 84.74Q301.50 95.12 300.28 105.65Q299.06 116.19 297.23 126.87M424.61 246.01L392.86 246.01Q389.81 246.01 389.81 242.35L389.81 49.71Q389.81 46.04 392.86 46.04L438.04 46.04Q468.88 46.04 483.08 60.24Q497.27 74.44 497.27 105.27Q497.27 127.25 491.32 140.53Q485.37 153.81 473.46 159.61L473.15 160.22L504.90 241.74Q505.52 244.18 504.60 245.10Q503.99 246.01 502.46 246.01L467.96 246.01Q465.22 246.01 464.30 243.57L438.04 167.25L427.66 167.25L427.66 242.35Q427.66 246.01 424.61 246.01M427.66 79.93L427.66 135.50L438.35 135.50Q449.65 135.50 454.53 128.47Q459.42 121.45 459.42 107.10Q459.42 92.75 454.22 86.34Q449.03 79.93 438.04 79.93M614.47 303.10Q602.57 303.10 594.63 296.54Q586.69 289.97 583.03 275.32Q579.98 264.63 579.37 249.06Q555.86 247.23 542.73 232.58Q527.46 215.78 527.46 183.12L527.46 112.59Q527.46 79.32 542.58 62.52Q557.69 45.73 586.69 45.73Q615.70 45.73 630.96 62.52Q646.23 79.32 646.23 112.59L646.23 183.12Q646.23 215.78 630.96 232.58Q623.02 241.43 610.81 245.70Q611.12 254.56 612.03 260.05Q613.25 267.99 615.70 270.89Q618.14 273.79 621.80 273.79Q624.55 273.79 626.38 273.33Q628.21 272.88 630.05 272.26Q631.27 271.96 632.18 272.26Q633.10 272.88 633.10 275.32L633.10 295.47Q633.10 299.13 630.66 300.05Q628.52 301.27 624.40 302.18Q620.28 303.10 614.47 303.10M586.69 215.17Q597.99 215.17 603.18 207.39Q608.37 199.60 608.37 181.59L608.37 113.81Q608.37 95.50 603.18 87.71Q597.99 79.93 586.69 79.93Q575.70 79.93 570.36 87.71Q565.02 95.50 565.02 113.81L565.02 181.59Q565.02 199.60 570.36 207.39Q575.70 215.17 586.69 215.17M711.61 251.14L679.86 251.14Q676.81 251.14 676.81 247.48L676.81 54.84Q676.81 51.17 679.86 51.17L711.61 51.17Q714.66 51.17 714.66 54.84L714.66 247.48Q714.66 251.14 711.61 251.14M809.58 256.20L778.14 256.20Q775.08 256.20 775.08 252.53L775.08 90.11L743.03 90.11Q739.97 90.11 739.97 86.45L739.97 59.89Q739.97 56.23 743.03 56.23L844.39 56.23Q847.44 56.23 847.44 59.89L847.44 86.45Q847.44 90.11 844.39 90.11L812.64 90.11L812.64 252.53Q812.64 256.20 809.58 256.20M70.6 244.66H107.5V325.66H124.68L89.05 389.66L53.43 325.66H70.6ZM775.1 66.2V-79.8H758.23L793.85 -143.8L829.48 -79.8H812.6V66.2Z";
   let __mqLogoPath = null;
-  function mqCardLogoRow(ctx, width, y){
+  function mqCardLogoRow(ctx, width, top, scale){
     if(!__mqLogoPath){
       try{ __mqLogoPath = new Path2D(MQ_LOGO_D); }catch(e){ __mqLogoPath = null; }
     }
-    const left = width * 0.075;
-    const top = width * 0.035;
-    const k = (width * 0.15) / MQ_LOGO_VB.w;          // logo is 15% of the card width
+    const logoW = width * 0.17 * (scale || 1);
+    const k = logoW / MQ_LOGO_VB.w;
+    const logoH = MQ_LOGO_VB.h * k;
+    const left = (width - logoW) / 2;
     if(!__mqLogoPath){
       // Path2D unavailable (very old browser): fall back to plain type.
-      ctx.textAlign = 'left';
+      ctx.textAlign = 'center';
       ctx.fillStyle = MQ_INK;
-      ctx.font = "800 " + Math.round(width * 0.046) + "px " + MQ_DISPLAY_FONT;
-      ctx.fillText('MARQIT', left, y);
-      return;
+      ctx.font = "800 " + Math.round(logoH * 0.5) + "px " + MQ_DISPLAY_FONT;
+      ctx.fillText('MARQIT', width / 2, top + logoH * 0.6);
+      return top + logoH;
     }
     ctx.save();
     ctx.translate(left - MQ_LOGO_VB.x * k, top - MQ_LOGO_VB.y * k);
@@ -2688,104 +2812,124 @@
     ctx.fillStyle = MQ_INK;
     ctx.fill(__mqLogoPath);
     ctx.restore();
+    return top + logoH;
   }
 
-  // Full-width footer with a hairline top border -- white headline, muted
-  // white url line, both sitting right on the navy ground rather than a
-  // separate contrasting band.
+  // Footer lives INSIDE the story-safe box (above Instagram's reply bar): a
+  // bold one-line challenge, then the url in an outlined pill. Returns the y
+  // of the top of the footer so each card can fit its content above it.
   function mqCardFooterBand(ctx, width, height, line1, line2){
-    const bandH = height * 0.135;
-    const bandY = height - bandH;
-    mqHairline(ctx, 0, width, bandY, 0.18);
+    const L = mqCardLayout(width, height);
+    const u = L.u;
+    const urlText = (line2 || 'playmarqit.com').toUpperCase();
+    const track = 4 * u;
+    ctx.font = "700 " + Math.round(30 * u) + "px " + MQ_HEAD_FONT;
+    const pillH = 66 * u;
+    const pillW = mqTrackedWidth(ctx, urlText, track) + 84 * u;
+    const pillX = (width - pillW) / 2;
+    const pillY = L.bottom - pillH;
+    mqRoundRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+    ctx.stroke();
+    ctx.fillStyle = MQ_INK;
+    mqTrackedText(ctx, urlText, width / 2, pillY + pillH / 2 + 10 * u, track);
 
+    let fs = Math.round(46 * u);
+    ctx.font = "800 " + fs + "px " + MQ_HEAD_FONT;
+    while(fs > 20 && ctx.measureText(line1).width > width * 0.88){ fs -= 2; ctx.font = "800 " + fs + "px " + MQ_HEAD_FONT; }
+    const baseline = pillY - 34 * u;
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK;
-    ctx.font = "800 " + Math.round(width * 0.032) + "px " + MQ_HEAD_FONT;
-    ctx.fillText(line1, width / 2, bandY + bandH * 0.48);
-
-    ctx.fillStyle = MQ_INK_FAINT;
-    ctx.font = "700 " + Math.round(width * 0.022) + "px " + MQ_HEAD_FONT;
-    mqTrackedText(ctx, (line2 || 'playmarqit.com').toUpperCase(), width / 2, bandY + bandH * 0.78, width * 0.003);
+    ctx.fillText(line1, width / 2, baseline);
+    return baseline - fs;
   }
 
   // Draws the daily-results card onto a canvas at the given size (used for
   // both the 9:16 story export and the 1:1 square export -- same layout,
-  // just different vertical spacing/canvas height). Returns the canvas.
-  // Strava-style hero number for the streak, then today's calls as a row
-  // of big Wordle-style tiles -- color and content fill the whole frame.
+  // scaled by the layout unit). Returns the canvas.
+  // Big glowing streak number, then today's calls as clean rows with a status
+  // mark and a verdict chip. Everything sits inside the story-safe box.
   function mqDrawResultsCard(width, height, data){
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     const cx = width / 2;
+    const L = mqCardLayout(width, height), u = L.u, T = L.top;
 
     mqCardBackground(ctx, width, height);
-    mqCardLogoRow(ctx, width, height * 0.065);
+    mqCardLogoRow(ctx, width, T, Math.max(0.85, u));
+    const footerTop = mqCardFooterBand(ctx, width, height, data.guest ? 'Think you can beat my calls?' : 'Beat my ' + data.standing.streakDays + '-day streak', 'playmarqit.com');
 
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK_MUTED;
-    ctx.font = "700 " + Math.round(width * 0.022) + "px " + MQ_HEAD_FONT;
-    mqTrackedText(ctx, data.guest ? 'CORRECT CALLS' : 'DAY STREAK', cx, height * 0.2, width * 0.01);
+    ctx.font = "700 " + Math.round(30 * u) + "px " + MQ_HEAD_FONT;
+    mqTrackedText(ctx, data.guest ? 'CORRECT CALLS' : 'DAY STREAK', cx, T + 215 * u, 9 * u);
 
-    // Hero number: same sans as the rest of the card, just bigger and
-    // heavier -- no tilt, no shadow, no box, no separate typeface.
+    // Hero number: the same display face as the wordmark, with a soft blue glow.
+    ctx.save();
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK;
-    ctx.font = "800 " + Math.round(width * 0.26) + "px " + MQ_DISPLAY_FONT;
-    ctx.fillText(data.guest ? (data.guestCorrect + '/' + data.questions.length) : String(data.standing.streakDays), cx, height * 0.335);
+    ctx.font = "800 " + Math.round(330 * u) + "px " + MQ_DISPLAY_FONT;
+    ctx.shadowColor = 'rgba(70,140,255,0.55)';
+    ctx.shadowBlur = 70 * u;
+    ctx.fillText(data.guest ? (data.guestCorrect + '/' + data.questions.length) : String(data.standing.streakDays), cx, T + 520 * u);
+    ctx.restore();
 
+    ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK_SOFT;
-    ctx.font = "700 " + Math.round(width * 0.026) + "px " + MQ_HEAD_FONT;
-    const tierLine = data.standing.tierName + (data.standing.rankLabel ? '  \u00b7  ' + data.standing.rankLabel : '');
-    ctx.fillText(tierLine, cx, height * 0.38);
+    ctx.font = "700 " + Math.round(36 * u) + "px " + MQ_HEAD_FONT;
+    const tierLine = data.standing.tierName + (data.standing.rankLabel ? '  ·  ' + data.standing.rankLabel : '');
+    ctx.fillText(tierLine, cx, T + 590 * u);
 
-    // Change 3: "Called it" line, if this card earned one -- a quiet
-    // aside, not a badge shouting for attention.
+    // "Called it" -- a green chip under the tier line, if this card earned one.
     if(data.calledIt){
+      const txt = 'Called it — only ' + data.calledIt.pct + '% saw this coming';
+      ctx.font = "700 " + Math.round(28 * u) + "px " + MQ_HEAD_FONT;
+      const cw = ctx.measureText(txt).width + 56 * u, ch = 56 * u, cy = T + 650 * u;
+      mqRoundRect(ctx, cx - cw / 2, cy - ch / 2, cw, ch, ch / 2);
+      ctx.fillStyle = mqAlpha(MQ_YES, 0.14);
+      ctx.fill();
+      ctx.textAlign = 'center';
       ctx.fillStyle = MQ_YES;
-      ctx.font = "700 " + Math.round(width * 0.021) + "px " + MQ_HEAD_FONT;
-      ctx.fillText('Called it \u2014 only ' + data.calledIt.pct + '% saw this coming', cx, height * 0.415);
+      ctx.fillText(txt, cx, cy + 10 * u);
     }
-
-    mqHairline(ctx, width * 0.3, width * 0.7, height * 0.47, 0.15);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK_FAINT;
-    ctx.font = "700 " + Math.round(width * 0.02) + "px " + MQ_HEAD_FONT;
-    mqTrackedText(ctx, "TODAY'S CALLS", cx, height * 0.51, width * 0.012);
+    ctx.font = "700 " + Math.round(24 * u) + "px " + MQ_HEAD_FONT;
+    mqTrackedText(ctx, "TODAY'S CALLS", cx, T + 760 * u, 8 * u);
 
-    // Change 2: each call as a plain text line -- category, then the
-    // verdict itself as the only color on the card (the app's own
-    // --yes/--no), no shape, box or icon of any kind.
-    const lineGap = height * 0.058;
-    let ly = height * 0.575;
-    data.questions.forEach(function(q){
+    const n = data.questions.length;
+    const rowX = width * 0.075, rowW = width * 0.85;
+    const rs = T + 795 * u;
+    const avail = footerTop - 30 * u - rs;
+    const gap = 14 * u;
+    const rowH = Math.min(112 * u, (avail - gap * (n - 1)) / Math.max(n, 1));
+    const fs = Math.min(1, rowH / (112 * u));
+    data.questions.forEach(function(q, i){
       const myChoice = data.predMap[q.id];
       const isVoid = !!q.voided;
       const correct = !isVoid && !!myChoice && q.resolved && myChoice === q.correct_answer;
       const incorrect = !isVoid && !!myChoice && q.resolved && myChoice !== q.correct_answer;
-      const color = correct ? MQ_YES : (incorrect ? MQ_NO : MQ_INK_MUTED);
+      const kind = isVoid ? 'void' : (correct ? 'correct' : (incorrect ? 'incorrect' : 'pending'));
+      const color = correct ? MQ_YES : (incorrect ? MQ_NO : MQ_PENDING);
       const word = isVoid ? 'Void' : (correct ? 'Correct' : (incorrect ? 'Incorrect' : 'Pending'));
       const rawLabel = CATEGORY_LABELS[q.category] || q.category;
-      const label = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1).toLowerCase() + '  \u2014  ';
+      const label = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1).toLowerCase();
+      const ry = rs + i * (rowH + gap), mid = ry + rowH / 2;
 
-      ctx.font = "700 " + Math.round(width * 0.028) + "px " + MQ_HEAD_FONT;
-      const lw = ctx.measureText(label).width;
-      const ww = ctx.measureText(word).width;
-      const startX = cx - (lw + ww) / 2;
-
+      mqCardPanel(ctx, rowX, ry, rowW, rowH, 22 * u, null);
+      mqStatusDot(ctx, rowX + 56 * u, mid, 22 * u * fs, kind, color);
       ctx.textAlign = 'left';
-      ctx.fillStyle = MQ_INK_SOFT;
-      ctx.fillText(label, startX, ly);
-      ctx.fillStyle = color;
-      ctx.fillText(word, startX + lw, ly);
-
-      ly += lineGap;
+      ctx.fillStyle = MQ_INK;
+      ctx.font = "700 " + Math.round(38 * u * fs) + "px " + MQ_HEAD_FONT;
+      ctx.fillText(label, rowX + 100 * u, mid + 13 * u * fs);
+      mqCardChip(ctx, word, rowX + rowW - 26 * u, mid, 54 * u * fs, color, 28 * u * fs);
     });
-
-    // Change 7: a one-line challenge + the link, edge to edge.
-    mqCardFooterBand(ctx, width, height, data.guest ? 'Think you can beat my calls?' : 'Beat my ' + data.standing.streakDays + '-day streak', 'playmarqit.com');
 
     return canvas;
   }
@@ -2984,59 +3128,54 @@
   // have actually locked, matching the spec's availability rule exactly.
   var __mqPreResultData = null;
 
-  // Solid blue, full bleed -- each pick is its own big tile with the
-  // YES/NO call itself as a solid block of color on the right, Wordle-tile
-  // style, rather than a thin pill lost in a mostly-empty card.
+  // Each locked pick is its own panel: category label, the question, and the
+  // YES/NO call as a colored chip -- all inside the story-safe box.
   function mqDrawPreResultCard(width, height, data){
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     const cx = width / 2;
+    const L = mqCardLayout(width, height), u = L.u, T = L.top;
 
     mqCardBackground(ctx, width, height);
-    mqCardLogoRow(ctx, width, height * 0.065);
+    mqCardLogoRow(ctx, width, T, Math.max(0.85, u));
+    const footerTop = mqCardFooterBand(ctx, width, height, 'Think I’m wrong? Pick yours.', 'playmarqit.com');
 
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK;
-    ctx.font = "800 " + Math.round(width * 0.05) + "px " + MQ_HEAD_FONT;
-    ctx.fillText('My picks today', cx, height * 0.18);
+    ctx.font = "800 " + Math.round(76 * u) + "px " + MQ_HEAD_FONT;
+    ctx.fillText('My picks today', cx, T + 245 * u);
+    ctx.fillStyle = MQ_INK_MUTED;
+    ctx.font = "700 " + Math.round(26 * u) + "px " + MQ_HEAD_FONT;
+    mqTrackedText(ctx, 'LOCKED IN', cx, T + 305 * u, 8 * u);
 
-    const rowX = width * 0.075;
-    const rowW = width * 0.85;
-    const rowGap = height * 0.155;
-    const rowStart = height * 0.28;
+    const n = data.picks.length;
+    const rowX = width * 0.075, rowW = width * 0.85, padX = 36 * u;
+    const rs = T + 360 * u;
+    const avail = footerTop - 30 * u - rs;
+    const gap = 22 * u;
+    const rowH = Math.min(250 * u, (avail - gap * (n - 1)) / Math.max(n, 1));
+    const fs = Math.min(1, rowH / (250 * u));
     data.picks.forEach(function(p, i){
-      const ry = rowStart + i * rowGap;
+      const ry = rs + i * (rowH + gap);
       const choiceColor = p.choice === 'yes' ? MQ_YES : MQ_NO;
-
-      mqHairline(ctx, rowX, rowX + rowW, ry, 0.2);
+      mqCardPanel(ctx, rowX, ry, rowW, rowH, 26 * u, null);
 
       ctx.textAlign = 'left';
       ctx.fillStyle = MQ_INK_MUTED;
-      ctx.font = "700 " + Math.round(width * 0.018) + "px " + MQ_HEAD_FONT;
-      ctx.fillText((CATEGORY_LABELS[p.category] || p.category).toUpperCase(), rowX, ry + height * 0.032);
+      ctx.font = "700 " + Math.round(24 * u * fs) + "px " + MQ_HEAD_FONT;
+      mqTrackedLeft(ctx, (CATEGORY_LABELS[p.category] || p.category).toUpperCase(), rowX + padX, ry + 58 * u * fs, 4 * u);
 
-      ctx.textAlign = 'right';
-      ctx.fillStyle = choiceColor;
-      ctx.font = "800 " + Math.round(width * 0.024) + "px " + MQ_HEAD_FONT;
-      ctx.fillText(p.choice.toUpperCase(), rowX + rowW, ry + height * 0.032);
+      mqCardChip(ctx, p.choice.toUpperCase(), rowX + rowW - padX, ry + 46 * u * fs, 54 * u * fs, choiceColor, 28 * u * fs);
 
       ctx.textAlign = 'left';
       ctx.fillStyle = MQ_INK;
-      ctx.font = "700 " + Math.round(width * 0.029) + "px " + MQ_HEAD_FONT;
-      const words = p.questionText.split(' ');
-      let line = '', lines = [], maxWidth = rowW;
-      words.forEach(function(w){
-        const test = line ? line + ' ' + w : w;
-        if(ctx.measureText(test).width > maxWidth && line){ lines.push(line); line = w; }
-        else{ line = test; }
+      ctx.font = "700 " + Math.round(40 * u * fs) + "px " + MQ_HEAD_FONT;
+      mqWrapLines(ctx, p.questionText, rowW - padX * 2, 2).forEach(function(l, li){
+        ctx.fillText(l, rowX + padX, ry + 128 * u * fs + li * 52 * u * fs);
       });
-      if(line) lines.push(line);
-      lines.slice(0, 2).forEach(function(l, li){ ctx.fillText(l, rowX, ry + height * 0.065 + li * height * 0.038); });
     });
-
-    mqCardFooterBand(ctx, width, height, 'Think I\u2019m wrong? Pick yours.', 'playmarqit.com');
 
     return canvas;
   }
@@ -7531,53 +7670,55 @@
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     const cx = width / 2;
+    const L = mqCardLayout(width, height), u = L.u, T = L.top;
+
     mqCardBackground(ctx, width, height);
-    mqCardLogoRow(ctx, width, height * 0.065);
+    mqCardLogoRow(ctx, width, T, Math.max(0.85, u));
+    const footerTop = mqCardFooterBand(ctx, width, height, 'Join our league', referralTag ? 'playmarqit.com/join' : 'playmarqit.com');
 
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK;
-    ctx.font = "800 " + Math.round(width * 0.045) + "px " + MQ_HEAD_FONT;
-    let y = height * 0.18;
-    const words = groupName.split(' ');
-    let line = '', lines = [];
-    words.forEach(function(w){
-      const test = line ? line + ' ' + w : w;
-      if(ctx.measureText(test).width > width * 0.82 && line){ lines.push(line); line = w; }
-      else line = test;
-    });
-    if(line) lines.push(line);
-    lines.slice(0, 2).forEach(function(l, i){ ctx.fillText(l, cx, y + i * height * 0.05); });
-    y += lines.length * height * 0.05;
+    ctx.font = "800 " + Math.round(78 * u) + "px " + MQ_HEAD_FONT;
+    const nameLines = mqWrapLines(ctx, groupName, width * 0.84, 2);
+    nameLines.forEach(function(l, i){ ctx.fillText(l, cx, T + 245 * u + i * 92 * u); });
+    const weekY = T + 245 * u + (nameLines.length - 1) * 92 * u + 74 * u;
 
     ctx.fillStyle = MQ_YES;
-    ctx.font = "700 " + Math.round(width * 0.022) + "px " + MQ_HEAD_FONT;
-    mqTrackedText(ctx, 'WEEK ' + weekData.weekNumber + '  ·  ' + weekData.memberCount + ' MEMBERS', cx, y + height * 0.035, width * 0.0025);
+    ctx.font = "700 " + Math.round(28 * u) + "px " + MQ_HEAD_FONT;
+    mqTrackedText(ctx, 'WEEK ' + weekData.weekNumber + '  ·  ' + weekData.memberCount + ' MEMBERS', cx, weekY, 7 * u);
 
-    const rowX = width * 0.075;
-    const rowW = width * 0.85;
-    const rowGap = height * 0.088;
-    const rowStart = height * 0.335;
+    const n = weekData.top3.length;
+    const rowX = width * 0.075, rowW = width * 0.85;
+    const rs = weekY + 60 * u;
+    const avail = footerTop - 30 * u - rs;
+    const gap = 20 * u;
+    const rowH = Math.min(150 * u, (avail - gap * (n - 1)) / Math.max(n, 1));
+    const fs = Math.min(1, rowH / (150 * u));
     weekData.top3.forEach(function(m, i){
-      const ry = rowStart + i * rowGap;
-
-      mqHairline(ctx, rowX, rowX + rowW, ry, 0.2);
+      const ry = rs + i * (rowH + gap), mid = ry + rowH / 2;
+      mqCardPanel(ctx, rowX, ry, rowW, rowH, 26 * u, i === 0 ? MQ_YES : null);
 
       ctx.textAlign = 'left';
       ctx.fillStyle = i === 0 ? MQ_YES : MQ_INK_MUTED;
-      ctx.font = "800 " + Math.round(width * 0.028) + "px " + MQ_HEAD_FONT;
-      ctx.fillText('0' + (i + 1), rowX, ry + height * 0.05);
+      ctx.font = "800 " + Math.round(70 * u * fs) + "px " + MQ_DISPLAY_FONT;
+      ctx.fillText('0' + (i + 1), rowX + 38 * u, mid + 24 * u * fs);
 
-      ctx.fillStyle = MQ_INK;
-      ctx.font = "700 " + Math.round(width * 0.032) + "px " + MQ_HEAD_FONT;
-      ctx.fillText(m.username, rowX + width * 0.09, ry + height * 0.05);
-
+      const pts = m.points.toLocaleString();
       ctx.textAlign = 'right';
       ctx.fillStyle = i === 0 ? MQ_YES : MQ_INK_SOFT;
-      ctx.font = "800 " + Math.round(width * 0.028) + "px " + MQ_HEAD_FONT;
-      ctx.fillText(m.points.toLocaleString(), rowX + rowW, ry + height * 0.05);
-    });
+      ctx.font = "800 " + Math.round(44 * u * fs) + "px " + MQ_HEAD_FONT;
+      ctx.fillText(pts, rowX + rowW - 36 * u, mid + 16 * u * fs);
+      const ptsW = ctx.measureText(pts).width;
 
-    mqCardFooterBand(ctx, width, height, 'Join our league', referralTag ? 'playmarqit.com/join' : 'playmarqit.com');
+      ctx.textAlign = 'left';
+      ctx.fillStyle = MQ_INK;
+      ctx.font = "700 " + Math.round(44 * u * fs) + "px " + MQ_HEAD_FONT;
+      const maxW = rowW - 150 * u - 36 * u - ptsW - 24 * u;
+      let uname = String(m.username || '');
+      while(uname.length > 1 && ctx.measureText(uname).width > maxW) uname = uname.slice(0, -1);
+      if(uname !== m.username) uname = uname.replace(/\s+$/, '') + '…';
+      ctx.fillText(uname, rowX + 150 * u, mid + 16 * u * fs);
+    });
 
     return canvas;
   }
@@ -7615,52 +7756,55 @@
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     const cx = width / 2;
+    const L = mqCardLayout(width, height), u = L.u, T = L.top;
 
     mqCardBackground(ctx, width, height);
-    mqCardLogoRow(ctx, width, height * 0.065);
-    ctx.textAlign = 'center';
+    const logoBottom = mqCardLogoRow(ctx, width, T, Math.max(0.85, u));
+    const footerTop = mqCardFooterBand(ctx, width, height, 'Think your chapter can beat this?', 'playmarqit.com');
 
-    // A quiet, editorial mark instead of a medallion + emoji: a tracked
-    // label between two thin rules, like an award citation rather than a
-    // sticker.
-    let y = height * 0.22;
-    mqHairline(ctx, cx - width * 0.09, cx - width * 0.02, y - height * 0.01, 0.5);
-    mqHairline(ctx, cx + width * 0.02, cx + width * 0.09, y - height * 0.01, 0.5);
+    // The block (label, symbol, name, subtitle) is centered in the room between
+    // the logo and the footer, so a short name doesn't leave it floating high.
+    ctx.font = "800 " + Math.round(80 * u) + "px " + MQ_HEAD_FONT;
+    const nameLines = mqWrapLines(ctx, name, width * 0.84, 2);
+    const labelBase = 30 * u;
+    const symBase = labelBase + 250 * u;
+    const nameBase = symbol ? symBase + 130 * u : labelBase + 140 * u;
+    const lastBase = nameBase + (nameLines.length - 1) * 96 * u;
+    const subBase = lastBase + 66 * u;
+    const blockH = (subtitle ? subBase : lastBase) + 10 * u;
+    const areaTop = logoBottom + 20 * u, areaBottom = footerTop - 20 * u;
+    const y0 = areaTop + Math.max(0, (areaBottom - areaTop - blockH) / 2);
+
+    // Tracked label between two thin rules, like an award citation.
+    ctx.textAlign = 'center';
     ctx.fillStyle = MQ_YES;
-    ctx.font = "700 " + Math.round(width * 0.026) + "px " + MQ_HEAD_FONT;
-    mqTrackedText(ctx, 'CHAMPION', cx, y, width * 0.009);
+    ctx.font = "700 " + Math.round(32 * u) + "px " + MQ_HEAD_FONT;
+    const lw = mqTrackedWidth(ctx, 'CHAMPION', 10 * u);
+    mqTrackedText(ctx, 'CHAMPION', cx, y0 + labelBase, 10 * u);
+    mqHairline(ctx, cx - lw / 2 - 150 * u, cx - lw / 2 - 30 * u, y0 + labelBase - 11 * u, 0.5);
+    mqHairline(ctx, cx + lw / 2 + 30 * u, cx + lw / 2 + 150 * u, y0 + labelBase - 11 * u, 0.5);
 
     if(symbol){
-      y += height * 0.135;
+      ctx.save();
+      ctx.textAlign = 'center';
       ctx.fillStyle = MQ_INK;
-      ctx.font = "800 " + Math.round(width * 0.13) + "px " + MQ_DISPLAY_FONT;
-      ctx.fillText(symbol, cx, y);
-      y += height * 0.075;
-    } else {
-      y += height * 0.045;
+      ctx.font = "800 " + Math.round(210 * u) + "px " + MQ_DISPLAY_FONT;
+      ctx.shadowColor = 'rgba(70,140,255,0.55)';
+      ctx.shadowBlur = 80 * u;
+      ctx.fillText(symbol, cx, y0 + symBase);
+      ctx.restore();
     }
 
+    ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK;
-    ctx.font = "800 " + Math.round(width * 0.048) + "px " + MQ_HEAD_FONT;
-    // Wrap long chapter/org names onto two lines rather than overflow the card.
-    const words = String(name || '').split(' ');
-    let line = '', lines = [];
-    words.forEach(function(w){
-      const test = line ? (line + ' ' + w) : w;
-      if(ctx.measureText(test).width > width * 0.82 && line){ lines.push(line); line = w; }
-      else line = test;
-    });
-    if(line) lines.push(line);
-    lines.slice(0, 2).forEach(function(l, i){ ctx.fillText(l, cx, y + i * height * 0.056); });
-    y += lines.length * height * 0.056 + height * 0.022;
+    ctx.font = "800 " + Math.round(80 * u) + "px " + MQ_HEAD_FONT;
+    nameLines.forEach(function(l, i){ ctx.fillText(l, cx, y0 + nameBase + i * 96 * u); });
 
     if(subtitle){
       ctx.fillStyle = MQ_INK_FAINT;
-      ctx.font = "700 " + Math.round(width * 0.023) + "px " + MQ_HEAD_FONT;
-      ctx.fillText(subtitle, cx, y);
+      ctx.font = "700 " + Math.round(34 * u) + "px " + MQ_HEAD_FONT;
+      ctx.fillText(subtitle, cx, y0 + subBase);
     }
-
-    mqCardFooterBand(ctx, width, height, 'Think your chapter can beat this?', 'playmarqit.com');
 
     return canvas;
   }

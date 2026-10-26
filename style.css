@@ -1574,7 +1574,7 @@ button,input,select,textarea{font-family:inherit;}
 @media (min-width:640px){.mq-ss{align-items:center;}.mq-ss-card{border-radius:24px;border-bottom:1px solid var(--line);}}
 .mq-ss-x{position:absolute;top:10px;right:12px;width:40px;height:40px;border:0;border-radius:50%;background:rgba(255,255,255,.07);color:var(--ink);font-size:24px;line-height:1;cursor:pointer;}
 .mq-ss-head{display:flex;align-items:center;gap:14px;padding-right:44px;margin-bottom:18px;}
-.mq-ss-prev{flex:none;width:54px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--line);}
+.mq-ss-prev{flex:none;width:81px;height:144px;object-fit:cover;border-radius:12px;border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.45);}
 .mq-ss-ht{min-width:0;display:flex;flex-direction:column;gap:3px;}
 .mq-ss-ht b{font-family:'Big Shoulders Display',sans-serif;font-size:24px;font-weight:700;line-height:1.1;color:var(--ink);overflow-wrap:anywhere;}
 .mq-ss-ht span{font-size:12.5px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
