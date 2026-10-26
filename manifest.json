@@ -1,7 +1,7 @@
 {
   "name": "Marqit",
   "short_name": "Marqit",
-  "description": "A free daily prediction game — call sports, pop culture, and news outcomes. Three calls a day, same three worldwide.",
+  "description": "A free daily prediction game — call the three biggest stories of the day. Three calls a day, same three worldwide.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
