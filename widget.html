@@ -17,6 +17,8 @@
   .card{background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:12px 14px 10px;box-shadow:0 10px 30px rgba(10,20,40,.28);}
   .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
   .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;letter-spacing:.01em;}
+  /* Logo image: the arrows make it taller than a line of type, so negative margins keep the header the same height. */
+  .brand img{display:block;height:40px;width:auto;margin:-9px 0;}
   .tag{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);}
   h1{font-size:17px;line-height:1.25;margin:0 0 10px;font-weight:700;}
   .btns{display:flex;gap:10px;}
@@ -179,8 +181,9 @@
     card.hidden = false; card.textContent = '';
     var top = el('div','top');
     var brand = el('div','brand');
-    brand.appendChild(svg('<path d="M4 18l5-6 4 3 7-9" stroke="#33D18B" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 6h5v5" stroke="#33D18B" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>', 24, 24));
-    brand.appendChild(el('span', null, 'Marqit'));
+    var logoImg = document.createElement('img');
+    logoImg.src = 'marqit-logo-white.svg'; logoImg.alt = 'Marqit';
+    brand.appendChild(logoImg);
     top.appendChild(brand); top.appendChild(el('span','tag','Make the call'));
     card.appendChild(top);
     card.appendChild(el('h1', null, d.question.text));

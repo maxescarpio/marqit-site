@@ -201,7 +201,8 @@ Deno.serve(async (req: Request) => {
 
                 <div style="background:#FFFFFF; border:1px solid #E4E3DD; border-radius:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                   <div style="background:linear-gradient(90deg, ${BRAND.orange}, ${BRAND.red}); padding:16px 20px;">
-                    <div style="font-family:sans-serif; font-weight:800; font-size:18px; color:#FFFFFF;">Marqit &middot; ${pretty}</div>
+                    <img src="https://playmarqit.com/marqit-logo-white.png" alt="Marqit" height="42" style="display:block; height:42px; width:auto; border:0; margin:0 0 6px;">
+                    <div style="font-family:sans-serif; font-weight:800; font-size:15px; color:#FFFFFF;">${pretty}</div>
                     <div style="margin-top:4px; font-family:sans-serif; font-size:13px; color:#FFFFFF; opacity:0.95;">🔥 ${streakCount}-day streak &middot; ${points} pts</div>
                   </div>
                   <div style="padding:14px 20px 18px;">

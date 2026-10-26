@@ -48,6 +48,9 @@
     #hamburger-btn{padding:6px;}
   }
   .word{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:32px;letter-spacing:0.02em;flex-shrink:0;}
+  /* Logo image used in place of the old text wordmark. The arrows make it taller than a line of type, so negative margins keep the nav height where it was. */
+  .word .logo{display:block;height:64px;width:auto;margin:-12px 0;}
+  @media (max-width:480px){.word .logo{height:52px;margin:-9px 0;}}
   .navcta{font-size:14px;font-weight:500;padding:9px 18px;border:1px solid var(--ink);border-radius:100px;text-decoration:none;transition:background .15s, color .15s;}
   .navcta:hover{background:var(--ink);color:var(--paper);}
   .pagenav{background:#17191D;position:sticky;top:env(safe-area-inset-top);z-index:10;}
@@ -1406,6 +1409,7 @@ body{overflow-x:hidden;}
 .site-foot-grid{display:flex;justify-content:space-between;align-items:flex-start;gap:28px 48px;flex-wrap:wrap;}
 .sf-brand{flex:1 1 280px;max-width:380px;}
 .sf-brand .word{font-size:26px;display:block;margin-bottom:8px;}
+.sf-brand .word .logo{height:56px;margin:-4px 0 -2px;}
 .sf-brand p{margin:0;font-size:13.5px;line-height:1.55;color:var(--ink-soft);}
 .sf-right{display:flex;align-items:center;gap:28px 36px;flex-wrap:wrap;margin-left:auto;}
 .sf-links{display:flex;flex-direction:row;flex-wrap:wrap;gap:10px 24px;}
