@@ -2815,26 +2815,26 @@
   // a button, which is what people expect to tap. (A flat image can't be a
   // link itself; the share flow copies the link so it pastes into a link
   // sticker.) Returns the y of the top of the footer.
-  function mqCardFooterBand(ctx, width, height, line1, line2){
+  function mqCardFooterBand(ctx, width, height, line1, line2, pillBottomY){
     const L = mqCardLayout(width, height);
     const u = L.u;
     const urlText = (line2 || 'playmarqit.com').toUpperCase();
-    const track = 4 * u;
-    ctx.font = "800 " + Math.round(32 * u) + "px " + MQ_HEAD_FONT;
-    const pillH = 78 * u;
-    const pillW = mqTrackedWidth(ctx, urlText, track) + 100 * u;
+    const track = 3 * u;
+    ctx.font = "800 " + Math.round(26 * u) + "px " + MQ_HEAD_FONT;
+    const pillH = 62 * u;
+    const pillW = mqTrackedWidth(ctx, urlText, track) + 80 * u;
     const pillX = (width - pillW) / 2;
-    const pillY = L.bottom - pillH;
+    const pillY = (pillBottomY || L.bottom) - pillH;
     mqRoundRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
     ctx.fillStyle = MQ_INK;
     ctx.fill();
     ctx.fillStyle = MQ_CARD_BG;
-    mqTrackedText(ctx, urlText, width / 2, pillY + pillH / 2 + 11 * u, track);
+    mqTrackedText(ctx, urlText, width / 2, pillY + pillH / 2 + 9 * u, track);
 
-    let fs = Math.round(48 * u);
+    let fs = Math.round(38 * u);
     ctx.font = "800 " + fs + "px " + MQ_HEAD_FONT;
     while(fs > 20 && ctx.measureText(line1).width > width * 0.88){ fs -= 2; ctx.font = "800 " + fs + "px " + MQ_HEAD_FONT; }
-    const baseline = pillY - 36 * u;
+    const baseline = pillY - 28 * u;
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK;
     ctx.fillText(line1, width / 2, baseline);
@@ -2852,34 +2852,49 @@
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     const cx = width / 2;
-    const L = mqCardLayout(width, height), u = L.u, T = L.top;
+    const L = mqCardLayout(width, height), u = L.u;
+
+    // Vertical plan, in story pixels (times u), measured from the top of the
+    // stack so the whole stack can be centered in the safe area as one block.
+    const n = data.questions.length;
+    const hasCalled = !!data.calledIt;
+    const calledBottom = hasCalled ? 593 : 520;
+    const labelY = calledBottom + 55;
+    const rowsTop = labelY + 32;
+    const gap = 12;
+    let rowH = 100;
+    const footerH = 28 + 38 + 62;          // line gap + line + pill
+    const footerGap = 44;                  // space between the last row and the footer
+    const stackH = function(rh){ return rowsTop + n * rh + Math.max(n - 1, 0) * gap + footerGap + footerH; };
+    while(rowH > 50 && stackH(rowH) * u > L.H) rowH -= 4;
+    const fs = Math.min(1, rowH / 100);
+    const T = L.top + Math.max(0, (L.H - stackH(rowH) * u) / 2);
 
     mqCardBackground(ctx, width, height);
     mqCardLogoRow(ctx, width, T, Math.max(0.85, u));
-    const footerTop = mqCardFooterBand(ctx, width, height, data.guest ? 'Think you can beat my calls?' : 'Beat my ' + data.standing.streakDays + '-day streak', 'playmarqit.com');
 
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK_MUTED;
     ctx.font = "700 " + Math.round(30 * u) + "px " + MQ_HEAD_FONT;
-    mqTrackedText(ctx, data.guest ? 'CORRECT CALLS' : 'DAY STREAK', cx, T + 215 * u, 9 * u);
+    mqTrackedText(ctx, data.guest ? 'CORRECT CALLS' : 'DAY STREAK', cx, T + 205 * u, 9 * u);
 
     // Hero number: the same display face as the wordmark, flat white.
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK;
-    ctx.font = "800 " + Math.round(330 * u) + "px " + MQ_DISPLAY_FONT;
-    ctx.fillText(data.guest ? (data.guestCorrect + '/' + data.questions.length) : String(data.standing.streakDays), cx, T + 520 * u);
+    ctx.font = "800 " + Math.round(270 * u) + "px " + MQ_DISPLAY_FONT;
+    ctx.fillText(data.guest ? (data.guestCorrect + '/' + data.questions.length) : String(data.standing.streakDays), cx, T + 435 * u);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK_SOFT;
     ctx.font = "700 " + Math.round(36 * u) + "px " + MQ_HEAD_FONT;
     const tierLine = data.standing.tierName + (data.standing.rankLabel ? '  ·  ' + data.standing.rankLabel : '');
-    ctx.fillText(tierLine, cx, T + 590 * u);
+    ctx.fillText(tierLine, cx, T + 500 * u);
 
     // "Called it" -- a green chip under the tier line, if this card earned one.
-    if(data.calledIt){
+    if(hasCalled){
       const txt = 'Called it — only ' + data.calledIt.pct + '% saw this coming';
       ctx.font = "700 " + Math.round(28 * u) + "px " + MQ_HEAD_FONT;
-      const cw = ctx.measureText(txt).width + 56 * u, ch = 56 * u, cy = T + 650 * u;
+      const cw = ctx.measureText(txt).width + 56 * u, ch = 56 * u, cy = T + 565 * u;
       mqRoundRect(ctx, cx - cw / 2, cy - ch / 2, cw, ch, ch / 2);
       ctx.fillStyle = mqAlpha(MQ_YES, 0.14);
       ctx.fill();
@@ -2891,15 +2906,9 @@
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK_FAINT;
     ctx.font = "700 " + Math.round(24 * u) + "px " + MQ_HEAD_FONT;
-    mqTrackedText(ctx, "TODAY'S CALLS", cx, T + 760 * u, 8 * u);
+    mqTrackedText(ctx, "TODAY'S CALLS", cx, T + labelY * u, 8 * u);
 
-    const n = data.questions.length;
     const rowX = width * 0.075, rowW = width * 0.85;
-    const rs = T + 795 * u;
-    const avail = footerTop - 30 * u - rs;
-    const gap = 14 * u;
-    const rowH = Math.min(112 * u, (avail - gap * (n - 1)) / Math.max(n, 1));
-    const fs = Math.min(1, rowH / (112 * u));
     data.questions.forEach(function(q, i){
       const myChoice = data.predMap[q.id];
       const isVoid = !!q.voided;
@@ -2910,9 +2919,9 @@
       const word = isVoid ? 'Void' : (correct ? 'Correct' : (incorrect ? 'Incorrect' : 'Pending'));
       const rawLabel = CATEGORY_LABELS[q.category] || q.category;
       const label = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1).toLowerCase();
-      const ry = rs + i * (rowH + gap), mid = ry + rowH / 2;
+      const ry = T + (rowsTop + i * (rowH + gap)) * u, rh = rowH * u, mid = ry + rh / 2;
 
-      mqCardPanel(ctx, rowX, ry, rowW, rowH, 22 * u, null);
+      mqCardPanel(ctx, rowX, ry, rowW, rh, 22 * u, null);
       mqStatusDot(ctx, rowX + 56 * u, mid, 22 * u * fs, kind, color);
       ctx.textAlign = 'left';
       ctx.fillStyle = MQ_INK;
@@ -2920,6 +2929,9 @@
       ctx.fillText(label, rowX + 100 * u, mid + 13 * u * fs);
       mqCardChip(ctx, word, rowX + rowW - 26 * u, mid, 54 * u * fs, color, 28 * u * fs);
     });
+
+    const rowsBottom = T + (rowsTop + n * rowH + Math.max(n - 1, 0) * gap) * u;
+    mqCardFooterBand(ctx, width, height, data.guest ? 'Think you can beat my calls?' : 'Beat my ' + data.standing.streakDays + '-day streak', 'playmarqit.com', rowsBottom + (footerGap + footerH) * u);
 
     return canvas;
   }
