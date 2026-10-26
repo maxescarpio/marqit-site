@@ -42,7 +42,7 @@ function marqit_widget_page() {
 	$key = get_option( 'marqit_widget_key', '' );
 	?>
 	<div class="wrap">
-		<h1>Marqit</h1>
+		<h1 style="margin:0 0 8px;"><img src="https://playmarqit.com/marqit-logo-black.png" alt="Marqit" style="height:56px;width:auto;display:block;"></h1>
 		<p>Paste the site key we sent you and press Save. The widget then appears inside your articles automatically. There is nothing else to set up.</p>
 		<form method="post" action="options.php">
 			<?php settings_fields( 'marqit_widget' ); ?>
