@@ -2633,31 +2633,25 @@
     ctx.textAlign = prevAlign;
   }
 
-  // Ground: the site's charcoal (#111318) lit by two soft glows -- brand blue
-  // top-right, the app's green bottom-left -- so a card has depth instead of
-  // reading as a flat slab. The only accent colors on the content itself are
-  // still the app's own --yes/--no.
+  // Ground: the same deep charcoal gradient the site itself uses (see
+  // refresh.css, "Background"), and the site's own panel/line colors and
+  // YES/NO greens and reds, so a card reads as a screenshot of the product.
   const MQ_CARD_BG = '#111318';
-  const MQ_YES = '#33D18B';
-  const MQ_NO = '#F5644F';
-  const MQ_BLUE = '#468CFF';
-  const MQ_PENDING = '#9AA3B2';
-  const MQ_INK = '#FFFFFF';
-  const MQ_INK_SOFT = 'rgba(255,255,255,0.82)';
-  const MQ_INK_MUTED = 'rgba(255,255,255,0.6)';
-  const MQ_INK_FAINT = 'rgba(255,255,255,0.55)';
+  const MQ_PANEL = '#1B1E24';
+  const MQ_LINE = '#2C2F37';
+  const MQ_YES = '#2DBE7E';
+  const MQ_NO = '#E5533F';
+  const MQ_PENDING = '#A8ABB3';
+  const MQ_INK = '#F4F4F1';
+  const MQ_INK_SOFT = 'rgba(244,244,241,0.82)';
+  const MQ_INK_MUTED = 'rgba(244,244,241,0.6)';
+  const MQ_INK_FAINT = 'rgba(244,244,241,0.55)';
   function mqCardBackground(ctx, width, height){
-    ctx.fillStyle = MQ_CARD_BG;
-    ctx.fillRect(0, 0, width, height);
-    const g1 = ctx.createRadialGradient(width * 0.9, height * 0.08, 0, width * 0.9, height * 0.08, width * 1.1);
-    g1.addColorStop(0, 'rgba(70,140,255,0.28)');
-    g1.addColorStop(1, 'rgba(70,140,255,0)');
-    ctx.fillStyle = g1;
-    ctx.fillRect(0, 0, width, height);
-    const g2 = ctx.createRadialGradient(width * 0.05, height * 0.96, 0, width * 0.05, height * 0.96, width * 1.1);
-    g2.addColorStop(0, 'rgba(51,209,139,0.20)');
-    g2.addColorStop(1, 'rgba(51,209,139,0)');
-    ctx.fillStyle = g2;
+    const g = ctx.createLinearGradient(0, 0, 0, height);
+    g.addColorStop(0, '#191C23');
+    g.addColorStop(0.5, '#101218');
+    g.addColorStop(1, '#0B0D11');
+    ctx.fillStyle = g;
     ctx.fillRect(0, 0, width, height);
   }
 
@@ -2713,10 +2707,11 @@
   // Soft rounded panel behind a row of content. `accent` (a hex) tints it.
   function mqCardPanel(ctx, x, y, w, h, r, accent){
     mqRoundRect(ctx, x, y, w, h, r);
-    ctx.fillStyle = accent ? mqAlpha(accent, 0.10) : 'rgba(255,255,255,0.06)';
+    ctx.fillStyle = MQ_PANEL;
     ctx.fill();
+    if(accent){ ctx.fillStyle = mqAlpha(accent, 0.10); ctx.fill(); }
     ctx.lineWidth = 2;
-    ctx.strokeStyle = accent ? mqAlpha(accent, 0.45) : 'rgba(255,255,255,0.10)';
+    ctx.strokeStyle = accent ? mqAlpha(accent, 0.55) : MQ_LINE;
     ctx.stroke();
   }
 
@@ -2816,31 +2811,30 @@
   }
 
   // Footer lives INSIDE the story-safe box (above Instagram's reply bar): a
-  // bold one-line challenge, then the url in an outlined pill. Returns the y
-  // of the top of the footer so each card can fit its content above it.
+  // bold one-line challenge, then the url as a solid light pill -- it reads as
+  // a button, which is what people expect to tap. (A flat image can't be a
+  // link itself; the share flow copies the link so it pastes into a link
+  // sticker.) Returns the y of the top of the footer.
   function mqCardFooterBand(ctx, width, height, line1, line2){
     const L = mqCardLayout(width, height);
     const u = L.u;
     const urlText = (line2 || 'playmarqit.com').toUpperCase();
     const track = 4 * u;
-    ctx.font = "700 " + Math.round(30 * u) + "px " + MQ_HEAD_FONT;
-    const pillH = 66 * u;
-    const pillW = mqTrackedWidth(ctx, urlText, track) + 84 * u;
+    ctx.font = "800 " + Math.round(32 * u) + "px " + MQ_HEAD_FONT;
+    const pillH = 78 * u;
+    const pillW = mqTrackedWidth(ctx, urlText, track) + 100 * u;
     const pillX = (width - pillW) / 2;
     const pillY = L.bottom - pillH;
     mqRoundRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
-    ctx.stroke();
     ctx.fillStyle = MQ_INK;
-    mqTrackedText(ctx, urlText, width / 2, pillY + pillH / 2 + 10 * u, track);
+    ctx.fill();
+    ctx.fillStyle = MQ_CARD_BG;
+    mqTrackedText(ctx, urlText, width / 2, pillY + pillH / 2 + 11 * u, track);
 
-    let fs = Math.round(46 * u);
+    let fs = Math.round(48 * u);
     ctx.font = "800 " + fs + "px " + MQ_HEAD_FONT;
     while(fs > 20 && ctx.measureText(line1).width > width * 0.88){ fs -= 2; ctx.font = "800 " + fs + "px " + MQ_HEAD_FONT; }
-    const baseline = pillY - 34 * u;
+    const baseline = pillY - 36 * u;
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK;
     ctx.fillText(line1, width / 2, baseline);
@@ -2869,15 +2863,11 @@
     ctx.font = "700 " + Math.round(30 * u) + "px " + MQ_HEAD_FONT;
     mqTrackedText(ctx, data.guest ? 'CORRECT CALLS' : 'DAY STREAK', cx, T + 215 * u, 9 * u);
 
-    // Hero number: the same display face as the wordmark, with a soft blue glow.
-    ctx.save();
+    // Hero number: the same display face as the wordmark, flat white.
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK;
     ctx.font = "800 " + Math.round(330 * u) + "px " + MQ_DISPLAY_FONT;
-    ctx.shadowColor = 'rgba(70,140,255,0.55)';
-    ctx.shadowBlur = 70 * u;
     ctx.fillText(data.guest ? (data.guestCorrect + '/' + data.questions.length) : String(data.standing.streakDays), cx, T + 520 * u);
-    ctx.restore();
 
     ctx.textAlign = 'center';
     ctx.fillStyle = MQ_INK_SOFT;
@@ -3001,6 +2991,8 @@
     // fall through to our sheet, whose big Instagram button is a fresh tap.
     var isPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
     if(packaged && !opts.noDirect && isPhone && navigator.share && navigator.canShare && navigator.canShare({ files: [packaged.file] })){
+      // Put the link on the clipboard too, ready to paste into an Instagram link sticker.
+      try{ navigator.clipboard.writeText(url).catch(function(){}); }catch(e){}
       navigator.share({ files: [packaged.file] }).catch(function(e){
         if(e && e.name === 'AbortError') return; // they closed it on purpose
         mqOpenShareSheet(Object.assign({}, opts, { noDirect: true }));
@@ -7816,14 +7808,10 @@
     mqHairline(ctx, cx + lw / 2 + 30 * u, cx + lw / 2 + 150 * u, y0 + labelBase - 11 * u, 0.5);
 
     if(symbol){
-      ctx.save();
       ctx.textAlign = 'center';
       ctx.fillStyle = MQ_INK;
       ctx.font = "800 " + Math.round(210 * u) + "px " + MQ_DISPLAY_FONT;
-      ctx.shadowColor = 'rgba(70,140,255,0.55)';
-      ctx.shadowBlur = 80 * u;
       ctx.fillText(symbol, cx, y0 + symBase);
-      ctx.restore();
     }
 
     ctx.textAlign = 'center';
