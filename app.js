@@ -8773,8 +8773,9 @@
     var tags = mqSchedTagsHtml(ev, clickable);
     var side = net || ev.subtitle;
     if(ev.category === 'finance' && ev.league && clickable === false){
-      status = 'Earnings';
-      side = /before/i.test(ev.subtitle || '') ? 'Before open' : /after/i.test(ev.subtitle || '') ? 'After close' : (ev.subtitle || '');
+      // The group header already says "Earnings", so the cell shows the timing instead of repeating it.
+      status = /before/i.test(ev.subtitle || '') ? 'Before open' : /after/i.test(ev.subtitle || '') ? 'After close' : (ev.subtitle || 'Earnings');
+      side = '';
       body = '<div class="sstrip-title one">' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</div>' + mqQuoteHtml(ev.league);
     }
     var canOpen = (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && teams) || mqIsMedia(ev);
@@ -9700,7 +9701,7 @@
   function mqSchedStripHtml(list, clickable, lead){
     var groups = [], byKey = {};
     mqSchedSort(list).forEach(function(ev){
-      var key = ev.league || (MQ_SCHED_CATS.filter(function(c){ return c[0] === ev.category; })[0] || [0, 'Events'])[1];
+      var key = ev.category === 'finance' ? 'Earnings' : ev.league || (MQ_SCHED_CATS.filter(function(c){ return c[0] === ev.category; })[0] || [0, 'Events'])[1];
       if(!byKey[key]){ byKey[key] = { name: key, events: [] }; groups.push(byKey[key]); }
       byKey[key].events.push(ev);
     });
