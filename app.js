@@ -3032,7 +3032,9 @@
       { k:'copy', label:'Copy link', c:'#B07CFF', act:'copy' }
     ];
     if(packaged) tiles.push({ k:'save', label:'Save image', c:'#FFB020', act:'save' });
-    var canNative = !!navigator.share;
+    // The device's own share sheet (AirDrop, Mail, Notes ...) is only offered on phones. On a computer it
+    // pops a clunky system menu over the page, so there we keep everything inside our own sheet.
+    var canNative = isPhone && !!navigator.share;
     if(canNative) tiles.push({ k:'more', label:'More', c:'#8A93A6', act:'native' });
 
     var wrap = document.createElement('div');
@@ -3041,14 +3043,14 @@
       '<button type="button" class="mq-ss-x" aria-label="Close">&times;</button>' +
       '<div class="mq-ss-head">' + (previewUrl ? '<img class="mq-ss-prev" alt="" src="' + previewUrl + '">' : '') +
         '<div class="mq-ss-ht"><b>' + escapeHtml(opts.title || 'Share') + '</b><span>' + escapeHtml(url.replace(/^https?:\/\//, '').slice(0, 44)) + '</span></div></div>' +
-      (packaged ? '<button type="button" class="mq-ss-ig">Share to Instagram Story</button>' : '') +
+      (packaged ? '<button type="button" class="mq-ss-ig' + (isPhone ? '' : ' dl') + '">' + (isPhone ? 'Share to Instagram Story' : 'Download story image') + '</button>' : '') +
       '<div class="mq-ss-grid"></div><div class="mq-ss-msg" role="status"></div></div>';
     var grid = wrap.querySelector('.mq-ss-grid'), msg = wrap.querySelector('.mq-ss-msg');
     function say(t){ msg.textContent = t; }
     var igBtn = wrap.querySelector('.mq-ss-ig');
     if(igBtn) igBtn.addEventListener('click', async function(){
       // Best: the phone's share sheet with the image -- pick Instagram > Story.
-      if(navigator.share && navigator.canShare && navigator.canShare({ files: [packaged.file] })){
+      if(isPhone && navigator.share && navigator.canShare && navigator.canShare({ files: [packaged.file] })){
         try{ await navigator.share({ files: [packaged.file] }); done(); return; }
         catch(e){ if(e && e.name === 'AbortError') return; }
       }
@@ -3057,8 +3059,12 @@
       var a = document.createElement('a'); a.href = URL.createObjectURL(packaged.blob); a.download = opts.filename || 'marqit.png';
       document.body.appendChild(a); a.click(); a.remove();
       try{ navigator.clipboard.writeText(url); }catch(e){}
-      say('Image saved. Opening Instagram — pick it from your photos. Your link is copied for a link sticker.');
-      if(isPhone) setTimeout(function(){ window.location.href = 'instagram://story-camera'; }, 900);
+      if(isPhone){
+        say('Image saved. Opening Instagram — pick it from your photos. Your link is copied for a link sticker.');
+        setTimeout(function(){ window.location.href = 'instagram://story-camera'; }, 900);
+      } else {
+        say('Saved. Post it from the Instagram app on your phone. Your link is copied for a link sticker.');
+      }
     });
     tiles.forEach(function(t){
       var b = document.createElement(t.href ? 'a' : 'button');
@@ -9291,12 +9297,12 @@
   // Team badges and company logos are trademarks, so they stay off unless this is deliberately switched on.
   var MQ_USE_LOGOS = false;
   var MQ_RK = { cache: {}, kind: 'nba' };
-  var MQ_RK_TABS = [['nba','NBA'],['nfl','NFL'],['nhl','NHL'],['mlb','MLB'],['country','Country songs'],['songs','Top songs'],['artists','Artists'],['markets','Biggest companies']];
+  var MQ_RK_TABS = [['nba','NBA'],['nfl','NFL'],['nhl','NHL'],['mlb','MLB'],['songs','Songs'],['artists','Artists'],['markets','Biggest companies']];
   var MQ_DOMAINS = { NVDA:'nvidia.com', AAPL:'apple.com', GOOGL:'google.com', GOOG:'google.com', MSFT:'microsoft.com', AMZN:'amazon.com', TSM:'tsmc.com', META:'meta.com', AVGO:'broadcom.com', TSLA:'tesla.com', BRK:'berkshirehathaway.com', WMT:'walmart.com', JPM:'jpmorganchase.com', LLY:'lilly.com', V:'visa.com', ORCL:'oracle.com', NFLX:'netflix.com', XOM:'exxonmobil.com', MA:'mastercard.com', COST:'costco.com', JNJ:'jnj.com', HD:'homedepot.com', PG:'pg.com', BAC:'bankofamerica.com', ABBV:'abbvie.com', KO:'coca-cola.com', AMD:'amd.com', PLTR:'palantir.com', SAP:'sap.com', ASML:'asml.com', BABA:'alibaba.com', NVO:'novonordisk.com', SPCX:'spacex.com' };
   function mqRkFetch(kind){
     var k = (kind === 'country' || kind === 'songs' || kind === 'artists') ? 'music' : kind;
     if(MQ_RK.cache[k] && Date.now() - MQ_RK.cache[k].at < 300000) return Promise.resolve(MQ_RK.cache[k].d);
-    return fetch(SUPABASE_URL + '/functions/v1/rankings?v=4&kind=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+    return fetch(SUPABASE_URL + '/functions/v1/rankings?v=5&kind=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
       .then(function(d){ if(d && !d.error) MQ_RK.cache[k] = { at: Date.now(), d: d }; return d && !d.error ? d : null; });
   }
   function mqRkConf(kind, g){
@@ -9346,6 +9352,45 @@
     return out + '<div class="rk-confs">' + confs.map(function(c){
       return '<div class="rk-confcol">' + (c.name ? '<div class="rk-conf">' + escapeHtml(c.name) + '</div>' : '') + c.items.map(function(it){ return table(it[0], it[1], it[2]); }).join('') + '</div>';
     }).join('') + '</div>';
+  }
+  // Songs: one tab, with genre pills. Older cached responses only carry the overall and country charts, so those still work.
+  var MQ_GENRES = [['all', 'All genres'], ['pop', 'Pop'], ['hiphop', 'Hip-hop'], ['country', 'Country'], ['rnb', 'R&B'], ['rock', 'Rock'], ['latin', 'Latin']];
+  function mqRkGenres(d){
+    var g = d.genres || {}, out = [];
+    MQ_GENRES.forEach(function(x){
+      var items = x[0] === 'all' ? d.songs : (g[x[0]] || (x[0] === 'country' ? d.countrySongs : null));
+      if(items && items.length) out.push({ key: x[0], label: x[1], items: items });
+    });
+    return out;
+  }
+  function mqRkGenreList(d){
+    var all = mqRkGenres(d), cur = MQ_RK.genre || 'all';
+    var hit = all.filter(function(x){ return x.key === cur; })[0] || all[0] || { key: 'all', label: 'Top', items: [] };
+    return { items: hit.items, label: hit.key === 'all' ? 'Top' : hit.label, key: hit.key };
+  }
+  function mqRkSongs(d){
+    var all = mqRkGenres(d), cur = mqRkGenreList(d);
+    var bar = all.length > 1 ? '<div class="rk-pills" role="tablist" aria-label="Genre">' + all.map(function(x){
+      return '<button type="button" role="tab" data-genre="' + x.key + '"' + (x.key === cur.key ? ' class="on" aria-selected="true"' : ' aria-selected="false"') + '>' + escapeHtml(x.label) + '</button>';
+    }).join('') + '</div>' : '';
+    return bar + mqRkList(cur.items) + '<p class="rk-src">Apple iTunes charts. Album art © its owners.</p>';
+  }
+  function mqRkFans(n){ n = Number(n) || 0; return n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n); }
+  // Artists: a hero card for #1, then rows with fans, a fan bar against the leader and the artist's most played track.
+  function mqRkArtists(items){
+    if(!items || !items.length) return '<p class="evp-muted">This chart isn’t available right now.</p>';
+    var max = Math.max.apply(null, items.map(function(a){ return Number(a.fans) || 0; })) || 0;
+    function pic(a, cls){ return '<span class="ar-pic ' + cls + '">' + (a.picture ? '<img src="' + escapeHtml(a.picture) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<i>' + escapeHtml(String(a.name || '').charAt(0)) + '</i></span>'; }
+    var h = items[0];
+    var hero = '<div class="ar-hero rk-go" data-act="artist" data-i="0" tabindex="0">' + pic(h, 'xl') + '<div class="ar-hero-t"><span class="ar-crown">No. 1 artist right now</span><b>' + escapeHtml(h.name) + '</b>' +
+      (h.fans ? '<em>' + mqRkFans(h.fans) + ' fans</em>' : '') + (h.topTrack ? '<small>Most played: ' + escapeHtml(h.topTrack) + '</small>' : '') + '</div><span class="rk-chev">›</span></div>';
+    var rows = items.slice(1).map(function(a, j){
+      var i = j + 1, w = max && a.fans ? Math.max(6, Math.round(Number(a.fans) / max * 100)) : 0;
+      return '<li class="rk-go ar-row" data-act="artist" data-i="' + i + '" tabindex="0"><span class="n">' + (a.rank || i + 1) + '</span>' + pic(a, 'md') +
+        '<span class="m"><b>' + escapeHtml(a.name) + '</b>' + (a.topTrack ? '<em>' + escapeHtml(a.topTrack) + '</em>' : '') + (w ? '<span class="ar-bar"><i style="width:' + w + '%"></i></span>' : '') + '</span>' +
+        (a.fans ? '<span class="ar-fans"><b>' + mqRkFans(a.fans) + '</b><small>fans</small></span>' : '') + '<span class="rk-chev">›</span></li>';
+    }).join('');
+    return hero + '<ol class="rk-l ar-list">' + rows + '</ol><p class="rk-src">Deezer. Photos © their owners.</p>';
   }
   function mqRkList(items, artist){
     if(!items || !items.length) return '<p class="evp-muted">This chart isn’t available right now.</p>';
@@ -9420,7 +9465,7 @@
     mqCeoFaces(root);
     mqRkCoList(d).slice(0, 12).forEach(function(c){ mqFundGet(c.symbol); });
   }
-  var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', country: 'Apple iTunes charts, album art © its owners', songs: 'Apple iTunes charts, album art © its owners', artists: 'Deezer, photos © their owners', markets: 'Nasdaq' };
+  var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', songs: 'Apple iTunes charts, album art © its owners', artists: 'Deezer, photos © their owners', markets: 'Nasdaq' };
   function mqRkBack(el){
     var b = document.createElement('button'); b.type = 'button'; b.className = 'rk-back'; b.textContent = '‹ Back';
     b.addEventListener('click', function(){ mqPanelClose(); });
@@ -9540,6 +9585,7 @@
   // Standings & charts lives on its own page (the last nav tab). Team, song and artist details still open as a panel on top.
   var mqRkReady = false, mqRkCur = null;
   function mqRkShow(k){
+    if(k === 'country'){ MQ_RK.genre = 'country'; k = 'songs'; } // old links
     var root = document.getElementById('rk-page'); if(!root) return;
     MQ_RK.kind = k; mqRkCur = null;
     root.querySelectorAll('.rk-tabs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-k') === k); });
@@ -9557,7 +9603,7 @@
       if(!d){ body.innerHTML = '<p class="evp-muted">Couldn’t load this right now. Try again in a minute.</p>'; return; }
       mqRkCur = d;
       if(k === 'markets') MQ_RK.per = MQ_RK.per || 'd';
-      body.innerHTML = mqRkSubBar(k) + (k === 'markets' ? mqRkMarkets(d) : k === 'country' ? mqRkList(d.countrySongs) : k === 'songs' ? mqRkList(d.songs) : k === 'artists' ? mqRkList(d.artists, true) : mqRkStandings(k, d));
+      body.innerHTML = mqRkSubBar(k) + (k === 'markets' ? mqRkMarkets(d) : k === 'songs' ? mqRkSongs(d) : k === 'artists' ? mqRkArtists(d.artists) : mqRkStandings(k, d));
       if(k === 'markets'){ mqRkMarketsAfter(body, d); if(MQ_RK.per !== 'd') mqRkSetPer(MQ_RK.per); }
     });
   }
@@ -9587,7 +9633,7 @@
     var a = row.getAttribute('data-act'), k = MQ_RK.kind, i = Number(row.getAttribute('data-i'));
     if(a === 'team') mqOpenTeamPanel(k, cur.groups[Number(row.getAttribute('data-g'))].rows[Number(row.getAttribute('data-r'))]);
     else if(a === 'co'){ var c = mqRkCoList(cur)[i]; mqOpenStockPanel({ league: c.symbol, title: c.name + ' earnings', subtitle: 'Largest companies' }); var p = document.querySelector('#mq-evpanel .evp'); if(p) mqRkBack(p); }
-    else if(a === 'song') mqOpenSongPanel((k === 'country' ? cur.countrySongs : cur.songs)[i], k === 'country' ? 'Country songs' : 'Top songs');
+    else if(a === 'song'){ var gl = mqRkGenreList(cur); mqOpenSongPanel(gl.items[i], gl.label + ' songs'); }
     else if(a === 'artist') mqOpenArtistPanel(cur.artists[i]);
   }
   function mqOpenRankings(kind){
@@ -9601,6 +9647,8 @@
         if(sb){ MQ_RK.sub = sb.getAttribute('data-sub'); MQ_RK.lcat = 0; mqRkShow(MQ_RK.kind); return; }
         var lb = e.target.closest('button[data-lcat]');
         if(lb){ MQ_RK.lcat = Number(lb.getAttribute('data-lcat')) || 0; var ld = (MQ_RK.lead || {})[MQ_RK.kind]; if(ld){ var bd = root.querySelector('#rk-body'); bd.innerHTML = mqRkSubBar(MQ_RK.kind) + mqRkLeadersHtml(MQ_RK.kind, ld.d); } return; }
+        var gb = e.target.closest('button[data-genre]');
+        if(gb){ MQ_RK.genre = gb.getAttribute('data-genre'); if(mqRkCur) root.querySelector('#rk-body').innerHTML = mqRkSongs(mqRkCur); return; }
         var sc = e.target.closest('button[data-sec]'); if(sc){ mqRkSetSec(sc.getAttribute('data-sec')); return; }
         var pb = e.target.closest('button[data-per]'); if(pb){ mqRkSetPer(pb.getAttribute('data-per')); return; } mqRkAct(e.target.closest('.rk-go')); });
       root.querySelector('#rk-body').addEventListener('keydown', function(e){ if(e.key === 'Enter') mqRkAct(e.target.closest('.rk-go')); });
@@ -9684,7 +9732,24 @@
     var id = cell.getAttribute('data-ev');
     var ev = mqSched.events.filter(function(x){ return String(x.id) === id; })[0] || mqSynth[id];
     if(!ev) return;
-    if(ev.category === 'finance') mqOpenStockPanel(ev); else if(mqIsMedia(ev)) mqOpenMediaPanel(ev); else mqOpenGamePanel(ev);
+    if(ev.category === 'finance' && MQ_MACRO[String(ev.league || '').toLowerCase()]) mqOpenMacroPanel(ev);
+    else if(ev.category === 'finance') mqOpenStockPanel(ev); else if(mqIsMedia(ev)) mqOpenMediaPanel(ev); else mqOpenGamePanel(ev);
+  }
+  // Economic releases (the Fed, jobs, inflation) have no price chart of their own, so they get a plain explainer, not the stock panel.
+  var MQ_MACRO = {
+    fed: { label: 'Federal Reserve', what: 'The Fed’s rate-setting committee announces whether borrowing costs go up, down or stay put.', why: 'Mortgage rates, savings yields and stock prices often move within minutes of the 2:00 PM ET statement.' },
+    jobs: { label: 'Labor market', what: 'The monthly employment report counts how many jobs the economy added and where unemployment stands.', why: 'A strong or weak number shifts bets on future interest rates, which moves stocks and bonds.' },
+    cpi: { label: 'Inflation', what: 'The Consumer Price Index tracks how much everyday prices rose compared with a year ago.', why: 'Hotter inflation makes rate cuts less likely. Cooler inflation does the opposite.' }
+  };
+  function mqOpenMacroPanel(ev){
+    var m = MQ_MACRO[String(ev.league || '').toLowerCase()] || {};
+    var when = new Date(ev.starts_at).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: ev.all_day ? undefined : 'numeric', minute: ev.all_day ? undefined : '2-digit', timeZone: 'America/New_York' }) + (ev.all_day ? '' : ' ET');
+    mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + escapeHtml(m.label || ev.league || 'Economy') + '</div>' +
+      '<h3 class="evp-title">' + escapeHtml(ev.title) + '</h3>' +
+      '<div class="evp-macro-when">' + escapeHtml(when) + '</div>' +
+      (m.what ? '<div class="kp-head">What it is</div><p class="evp-macro-p">' + escapeHtml(m.what) + '</p>' : '') +
+      (m.why ? '<div class="kp-head">Why it matters</div><p class="evp-macro-p">' + escapeHtml(m.why) + '</p>' : '') +
+      (ev.subtitle ? '<p class="evp-foot">' + escapeHtml(ev.subtitle) + '</p>' : ''));
   }
   document.addEventListener('click', function(e){
     var c = e.target.closest('.sstrip-cell.is-click, .gm.is-click, .gc.is-click, .gx-tile.is-click');
@@ -10619,11 +10684,18 @@
       }
       return '';
     }
+    // The stored question often restates the headline before asking. Cards show only the closing question.
+    function shortQ(q){
+      q = String(q || '').replace(/\s+/g, ' ').trim();
+      var parts = q.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [q];
+      parts = parts.map(function(x){ return x.trim(); }).filter(Boolean);
+      for(var i = parts.length - 1; i >= 0; i--){ if(/\?$/.test(parts[i])) return parts[i]; }
+      return q;
+    }
     function takeHtml(r){
       if(!r.take_question) return '';
       return '<div class="news-take" data-take-id="' + escapeHtml(r.id) + '">' +
-        '<div class="take-label">The debate</div>' +
-        '<div class="take-q">' + escapeHtml(mqDecodeEntities(r.take_question)) + '</div>' +
+        '<div class="take-q">' + escapeHtml(shortQ(mqDecodeEntities(r.take_question))) + '</div>' +
         '<div class="take-btns"><button type="button" class="take-btn take-yes" data-choice="yes">Yes</button><button type="button" class="take-btn take-no" data-choice="no">No</button></div>' +
         '<div class="take-result" hidden></div>' +
         '<div class="take-note">No points. Just the debate.</div></div>';

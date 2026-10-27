@@ -1,6 +1,6 @@
 // Current standings and charts for the Rankings panel. Public, no keys. Cached per list.
 //   GET .../functions/v1/rankings?kind=nba|nfl|nhl|mlb   standings (ESPN public feed, unofficial), 10 min
-//   GET .../functions/v1/rankings?kind=music             top 10 country songs, top 10 songs, top 10 artists, 1 hour
+//   GET .../functions/v1/rankings?kind=music             top 10 songs overall and by genre (pop, hip-hop, country, R&B, rock, Latin), top 10 artists with fans and top track, 1 hour
 //   GET .../functions/v1/rankings?kind=markets           largest US-listed companies by market cap (Nasdaq public API), 5 min
 //   GET .../functions/v1/rankings?kind=artist&id=246791  one artist: photo, fans, top tracks (Deezer)
 // Team badges come from TheSportsDB (free, already credited on the site); team colors from ESPN's team list; album art and artist photos from Apple and Deezer.
@@ -86,14 +86,29 @@ async function standings(kind: string) {
 
 // ---- music ----
 async function music() {
-  const out: any = { countrySongs: [], songs: [], artists: [] };
+  const out: any = { countrySongs: [], songs: [], genres: {}, artists: [] };
   const errors: string[] = [];
   const itunes = (genre: string) => `https://itunes.apple.com/us/rss/topsongs/limit=10${genre}/json`;
   const parseSongs = (d: any) => (d?.feed?.entry || []).slice(0, 10).map((e: any, i: number) => ({ rank: i + 1, title: String(e?.['im:name']?.label || ''), artist: String(e?.['im:artist']?.label || ''), image: String((e?.['im:image'] || []).slice(-1)[0]?.label || '').replace(/\/\d+x\d+bb/, '/300x300bb'), link: String(e?.id?.label || e?.link?.attributes?.href || ''), album: String(e?.['im:collection']?.['im:name']?.label || '') }));
+  // iTunes genre ids: Pop 14, Hip-Hop/Rap 18, Country 6, R&B/Soul 15, Rock 21, Latin 12
+  const GENRES: Record<string, number> = { pop: 14, hiphop: 18, country: 6, rnb: 15, rock: 21, latin: 12 };
+  const artistsTask = getJson('https://api.deezer.com/chart/0/artists?limit=10').then(async (d) => {
+    const base = (d?.data || []).slice(0, 10).map((a: any, i: number) => ({ rank: i + 1, id: Number(a?.id) || null, name: String(a?.name || ''), picture: String(a?.picture_medium || ''), link: String(a?.link || ''), fans: null as number | null, topTrack: '' }));
+    // Fans and the most played track make each row worth reading. If Deezer says no, the plain row still works.
+    await Promise.all(base.map(async (a: any) => {
+      if (!a.id) return;
+      try {
+        const [info, top] = await Promise.all([getJson(`https://api.deezer.com/artist/${a.id}`), getJson(`https://api.deezer.com/artist/${a.id}/top?limit=1`)]);
+        a.fans = Number(info?.nb_fan) || null;
+        a.topTrack = String(top?.data?.[0]?.title_short || top?.data?.[0]?.title || '');
+      } catch (_) { /* decoration */ }
+    }));
+    out.artists = base;
+  }).catch((e) => errors.push('artists ' + String(e).slice(0, 40)));
   await Promise.all([
-    getJson(itunes('/genre=6')).then((d) => { out.countrySongs = parseSongs(d); }).catch((e) => errors.push('country ' + String(e).slice(0, 40))),
     getJson(itunes('')).then((d) => { out.songs = parseSongs(d); }).catch((e) => errors.push('songs ' + String(e).slice(0, 40))),
-    getJson('https://api.deezer.com/chart/0/artists?limit=10').then((d) => { out.artists = (d?.data || []).slice(0, 10).map((a: any, i: number) => ({ rank: i + 1, id: Number(a?.id) || null, name: String(a?.name || ''), picture: String(a?.picture_medium || ''), link: String(a?.link || '') })); }).catch((e) => errors.push('artists ' + String(e).slice(0, 40))),
+    ...Object.entries(GENRES).map(([k, id]) => getJson(itunes('/genre=' + id)).then((d) => { out.genres[k] = parseSongs(d); if (k === 'country') out.countrySongs = out.genres[k]; }).catch((e) => errors.push(k + ' ' + String(e).slice(0, 40)))),
+    artistsTask,
   ]);
   out.errors = errors;
   return out;

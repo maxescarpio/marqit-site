@@ -1995,3 +1995,94 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 
 /* The earned level (Rookie, Pro, ...) lives in the profile now, not in the header */
 #nav-badge{display:none !important}
+
+/* ==========================================================================
+   8. Polish pass (Oct 27): share sheet, schedule grid alignment, compact
+   debate cards, macro event panel, artists, filter tabs.
+   ========================================================================== */
+
+/* ---- Share sheet: quiet, dark, no rainbow ---- */
+.mq-ss-bg{background:rgba(6,8,11,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.mq-ss-card{background:#16191E;border:1px solid #2A2D33;border-radius:18px 18px 0 0;box-shadow:0 24px 64px rgba(0,0,0,.55);padding:22px 22px calc(22px + env(safe-area-inset-bottom))}
+@media (min-width:640px){.mq-ss-card{border-radius:18px}}
+.mq-ss-x{background:#20242B;color:#C9CDD4;width:34px;height:34px;font-size:20px;top:14px;right:14px}
+.mq-ss-x:hover{background:#2A2F38;color:#fff}
+.mq-ss-prev{border-radius:8px;border:1px solid #2A2D33;box-shadow:0 10px 28px rgba(0,0,0,.5)}
+.mq-ss-ht b{font-size:26px;letter-spacing:.01em}
+.mq-ss-ht span{color:#7E838D}
+.mq-ss-ig{height:50px;padding:0 18px;border-radius:12px;font-size:15px;font-weight:700;letter-spacing:.01em;background:linear-gradient(120deg,#E8A04E 0%,#D4406F 55%,#7A47D4 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.mq-ss-ig.dl{background:#F2F3F5;color:#15171B;box-shadow:none}
+.mq-ss-ig.dl:hover{background:#fff}
+.mq-ss-grid{gap:16px 8px}
+.mq-ss-ic{width:56px;height:56px;border-radius:14px;background:#1E2228;border:1px solid #2E323A;color:var(--tc);transition:background .15s,border-color .15s,transform .15s}
+.mq-ss-tile:hover .mq-ss-ic,.mq-ss-tile:focus-visible .mq-ss-ic{background:#262B33;border-color:#3C424C;transform:none}
+.mq-ss-lb{font-size:12px;font-weight:600;color:#B4B9C2}
+.mq-ss-tile:focus-visible{outline:none}
+.mq-ss-tile:focus-visible .mq-ss-ic{border-color:#8B909A}
+.mq-ss-msg{color:#9AA0AB;font-weight:500}
+
+/* ---- Schedule: every board sits on the same three-column grid, equal heights ---- */
+.gc-grid,.gx-cols{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:stretch}
+@media (max-width:960px){.gc-grid,.gx-cols{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.gc-grid,.gx-cols{grid-template-columns:minmax(0,1fr)}}
+.gc{height:100%;box-sizing:border-box}
+.gc-foot{margin-top:auto}
+.gx-col{display:flex;flex-direction:column;box-sizing:border-box}
+.gx-tiles{flex:1}
+
+/* ---- Debate cards: just the question and the two buttons ---- */
+.tcd .news-take{margin:4px 16px 0;padding:12px 0 2px}
+.tcd .take-q{font:600 14.5px/1.35 'Barlow',sans-serif;color:#C9CDD4;margin-top:0}
+.tcd .take-btns{margin-top:10px;gap:8px}
+.tsc .take-btn{min-height:36px;border-radius:6px;font-size:14px}
+.tcd .feed-foot{margin:10px 16px 0;padding:10px 0 12px}
+.tcd .take-label{display:none}
+
+/* ---- Macro (Fed, jobs, CPI) panel ---- */
+.evp-macro-when{margin:8px 0 6px;font:600 14px 'Barlow',sans-serif;letter-spacing:.02em;color:#F6C430}
+.evp-macro-p{margin:4px 0 12px;font-size:15px;line-height:1.5;color:#C9CDD4}
+
+/* ---- Filter tabs: text tabs with a gold underline instead of outlined pills ---- */
+.rk-tabs,.co-sec,.rk-pills{display:flex;gap:2px;margin:6px 0 14px;padding:0;border-bottom:1px solid #23262C;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;flex-wrap:nowrap}
+.rk-tabs::-webkit-scrollbar,.co-sec::-webkit-scrollbar,.rk-pills::-webkit-scrollbar{display:none}
+.rk-tabs{margin-top:14px}
+.rk-tabs button,.co-sec button,.rk-pills button{
+  flex:none;position:relative;background:none;border:0;border-radius:0;box-shadow:none;
+  padding:11px 14px 12px;font:600 14px 'Barlow',sans-serif;letter-spacing:.01em;text-transform:none;color:#8B909A;cursor:pointer;white-space:nowrap;
+  transition:color .15s}
+.rk-tabs button:hover,.co-sec button:hover,.rk-pills button:hover{color:#E4E6EA;background:none;border:0}
+.rk-tabs button.on,.co-sec button.on,.rk-pills button.on{background:none;color:#fff;border:0}
+.rk-tabs button.on::after,.co-sec button.on::after,.rk-pills button.on::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;background:#F6C430;border-radius:2px}
+.rk-tabs button:focus,.co-sec button:focus,.rk-pills button:focus,.co-per button:focus{outline:none}
+.rk-tabs button:focus-visible,.co-sec button:focus-visible,.rk-pills button:focus-visible,.co-per button:focus-visible{outline:2px solid #6E737D;outline-offset:-2px;border-radius:6px}
+.co-sec button:active{transform:none}
+/* time range: a small segmented control, same corner radius as the rest of the site */
+.co-per{gap:0;margin:0 0 14px;padding:2px;background:#15171B;border:1px solid #2A2D33;border-radius:8px}
+.co-per button{min-width:52px;padding:6px 14px;border-radius:6px;font:600 13px 'Barlow',sans-serif;color:#8B909A;transition:color .15s,background .15s}
+.co-per button:hover{color:#E4E6EA}
+.co-per button.on{background:#2A2E36;color:#fff}
+.rk-src{margin:14px 0 0;font-size:11.5px;color:#6E737D}
+
+/* ---- Artists ---- */
+.ar-pic{flex:none;position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;background:#2A2D33}
+.ar-pic img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover;object-position:50% 20%}
+.ar-pic i{position:absolute;font:700 20px 'Barlow',sans-serif;color:#8B909A;font-style:normal}
+.ar-pic.md{width:56px;height:56px}
+.ar-pic.xl{width:96px;height:96px;box-shadow:0 0 0 3px #F6C430,0 12px 30px rgba(0,0,0,.5)}
+.ar-hero{display:flex;align-items:center;gap:20px;padding:20px 18px;margin:8px 0 6px;border:1px solid #2A2D33;border-radius:12px;cursor:pointer;
+  background:radial-gradient(120% 140% at 0% 0%,rgba(246,196,48,.12),rgba(246,196,48,0) 55%),#1A1D22;transition:border-color .15s}
+.ar-hero:hover{border-color:#3C424C}
+.ar-hero-t{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.ar-crown{font:700 11px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#F6C430}
+.ar-hero-t b{font:800 34px/1.05 'Big Shoulders Display','Barlow',sans-serif;letter-spacing:.01em;color:#fff}
+.ar-hero-t em{font-style:normal;font-size:15px;font-weight:600;color:#C9CDD4}
+.ar-hero-t small{font-size:13px;color:#8B909A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ar-list li{gap:14px}
+.ar-row .m{flex:1;min-width:0;gap:2px}
+.ar-row .m em{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ar-bar{display:block;height:3px;margin-top:7px;border-radius:2px;background:#23262C;overflow:hidden;max-width:260px}
+.ar-bar i{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,#F6C430,rgba(246,196,48,.45))}
+.ar-fans{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}
+.ar-fans b{font:700 18px 'Big Shoulders Display','Barlow',sans-serif;color:#F2F3F5}
+.ar-fans small{font-size:11px;color:#6E737D;letter-spacing:.06em;text-transform:uppercase}
+@media (max-width:480px){.ar-pic.xl{width:76px;height:76px}.ar-hero-t b{font-size:28px}.ar-bar{max-width:none}}
