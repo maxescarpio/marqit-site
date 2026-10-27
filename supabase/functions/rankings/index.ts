@@ -94,7 +94,7 @@ async function music() {
   // iTunes genre ids: Pop 14, Hip-Hop/Rap 18, Country 6, R&B/Soul 15, Rock 21, Latin 12
   const GENRES: Record<string, number> = { pop: 14, hiphop: 18, country: 6, rnb: 15, rock: 21, latin: 12 };
   const artistsTask = getJson('https://api.deezer.com/chart/0/artists?limit=10').then(async (d) => {
-    const base = (d?.data || []).slice(0, 10).map((a: any, i: number) => ({ rank: i + 1, id: Number(a?.id) || null, name: String(a?.name || ''), picture: String(a?.picture_medium || ''), link: String(a?.link || ''), fans: null as number | null, topTrack: '' }));
+    const base = (d?.data || []).slice(0, 10).map((a: any, i: number) => ({ rank: i + 1, id: Number(a?.id) || null, name: String(a?.name || ''), picture: String(a?.picture_medium || ''), link: String(a?.link || ''), fans: null as number | null, topTrack: '', photo: null as string | null }));
     // Fans and the most played track make each row worth reading. If Deezer says no, the plain row still works.
     await Promise.all(base.map(async (a: any) => {
       if (!a.id) return;
@@ -103,6 +103,8 @@ async function music() {
         a.fans = Number(info?.nb_fan) || null;
         a.topTrack = String(top?.data?.[0]?.title_short || top?.data?.[0]?.title || '');
       } catch (_) { /* decoration */ }
+      const w = await wiki(`${a.name} musician`, [String(a.name).split(' ')[0]], 60, /singer|rapper|musician|band|songwriter|record producer|\bDJ\b|vocalist|group|duo|composer/i);
+      a.photo = w?.photo || null;
     }));
     out.artists = base;
   }).catch((e) => errors.push('artists ' + String(e).slice(0, 40)));
@@ -121,8 +123,9 @@ const norm = (x: unknown) => String(x || '').toLowerCase().replace(/&/g, ' and '
 const nice = { 'user-agent': NICE_UA };
 async function safe<T>(p: Promise<T>): Promise<T | null> { try { return await p; } catch (_) { return null; } }
 
-// Two sentences from Wikipedia, only when the page really is about what we asked (every `must` word appears).
-async function wiki(query: string, must: string[]): Promise<{ text: string; url: string } | null> {
+// A few sentences from Wikipedia, only when the page really is about what we asked (every `must` word appears, and `about` matches when given).
+// Also returns Wikipedia's one-line description ("Canadian rapper and singer") and its lead photo.
+async function wiki(query: string, must: string[], max = 420, about?: RegExp): Promise<{ text: string; url: string; desc: string; photo: string } | null> {
   const s = await safe(getJson(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=3&format=json&origin=*`, nice));
   for (const h of s?.query?.search || []) {
     const t = String(h.title || '');
@@ -131,10 +134,13 @@ async function wiki(query: string, must: string[]): Promise<{ text: string; url:
     if (!ex || sum?.type === 'disambiguation') continue;
     const low = (ex + ' ' + t).toLowerCase();
     if (!must.every((m) => low.includes(m.toLowerCase()))) continue;
+    if (about && !about.test(ex + ' ' + String(sum?.description || ''))) continue;
     const sentences = ex.match(/[^.!?]+[.!?]+(\s|$)/g) || [ex];
     let text = '';
-    for (const sn of sentences) { if ((text + sn).length > 420 && text) break; text += sn; }
-    return { text: text.trim(), url: String(sum?.content_urls?.desktop?.page || '') };
+    for (const sn of sentences) { if ((text + sn).length > max && text) break; text += sn; }
+    let photo = String(sum?.thumbnail?.source || '');
+    if (/^https:\/\/upload\.wikimedia\.org\//.test(photo)) photo = photo.replace(/\/\d+px-/, '/500px-'); else photo = '';
+    return { text: text.trim(), url: String(sum?.content_urls?.desktop?.page || ''), desc: String(sum?.description || ''), photo };
   }
   return null;
 }
@@ -157,11 +163,19 @@ async function song(id: string, artist: string, title: string) {
   // Deezer: popularity score, tempo and credited artists.
   const ds = await safe(getJson('https://api.deezer.com/search?limit=5&q=' + encodeURIComponent(`artist:"${by.split(/ & | feat\.? | x | and |, /i)[0]}" track:"${name.replace(/\(.*?\)/g, '').trim()}"`)));
   const dhit = (ds?.data || []).find((t: any) => norm(t.title_short || t.title) === norm(name)) || (ds?.data || [])[0] || null;
-  const [dt, lfm, about] = await Promise.all([
+  const [dt, lfm, about, alb, more] = await Promise.all([
     dhit ? safe(getJson('https://api.deezer.com/track/' + dhit.id)) : Promise.resolve(null),
     lastfm({ method: 'track.getInfo', artist: by.split(/ & | feat\.? |, /i)[0], track: name }),
-    wiki(`${name} ${by} song`, [name.replace(/\(.*?\)/g, '').trim().split(' ')[0]]),
+    wiki(`${name} ${by} song`, [name.replace(/\(.*?\)/g, '').trim().split(' ')[0]], 600, /song|single|track/i),
+    it?.collectionId ? safe(getJson(`https://itunes.apple.com/lookup?id=${it.collectionId}&entity=song&country=us`)) : Promise.resolve(null),
+    safe(getJson(`https://itunes.apple.com/search?media=music&entity=song&attribute=artistTerm&limit=40&country=us&term=${encodeURIComponent(by.split(/ & | feat\.? |, /i)[0])}`)),
   ]);
+  const coll = (alb?.results || []).find((r: any) => r.wrapperType === 'collection') || null;
+  const albumTracks = (alb?.results || []).filter((r: any) => r.wrapperType === 'track').sort((p: any, q: any) => (p.discNumber || 1) - (q.discNumber || 1) || (p.trackNumber || 0) - (q.trackNumber || 0)).slice(0, 40)
+    .map((r: any) => ({ n: r.trackNumber || null, title: String(r.trackName || ''), lengthSec: r.trackTimeMillis ? Math.round(r.trackTimeMillis / 1000) : null, current: String(r.trackId) === String(it?.trackId), explicit: r.trackExplicitness === 'explicit' }));
+  const seenM = new Set<string>([norm(name)]);
+  const moreBy = (more?.results || []).filter((r: any) => r.wrapperType === 'track' && norm(r.artistName) === norm(by)).filter((r: any) => { const k = norm(r.trackName); if (!k || seenM.has(k)) return false; seenM.add(k); return true; }).slice(0, 5)
+    .map((r: any) => ({ id: String(r.trackId || ''), title: String(r.trackName || ''), album: String(r.collectionName || ''), released: String(r.releaseDate || '').slice(0, 10), lengthSec: r.trackTimeMillis ? Math.round(r.trackTimeMillis / 1000) : null, cover: String(r.artworkUrl100 || '').replace(/\/\d+x\d+bb/, '/200x200bb'), preview: /^https:\/\//.test(String(r.previewUrl || '')) ? String(r.previewUrl) : null }));
   const t = lfm?.track || null;
   const art = String(it?.artworkUrl100 || '').replace(/\/\d+x\d+bb/, '/600x600bb');
   return {
@@ -178,7 +192,9 @@ async function song(id: string, artist: string, title: string) {
     plays: num(t?.playcount), listeners: num(t?.listeners),   // Last.fm, only with the API key
     preview: /^https:\/\//.test(String(it?.previewUrl || dt?.preview || '')) ? String(it?.previewUrl || dt?.preview) : null,
     link: String(it?.trackViewUrl || ''), deezer: String(dhit?.link || ''),
-    about,
+    about, artistId: num(dhit?.artist?.id), artistPhoto: String(dhit?.artist?.picture_medium || '') || null,
+    albumInfo: coll ? { name: String(coll.collectionName || ''), released: String(coll.releaseDate || '').slice(0, 10), label: String(coll.copyright || '').replace(/^[℗©]\s*\d{4}\s*/, '') || null, tracks: num(coll.trackCount), lengthSec: albumTracks.reduce((t: number, x: any) => t + (x.lengthSec || 0), 0) || null } : null,
+    albumTracks, moreBy,
   };
 }
 
@@ -202,17 +218,24 @@ async function artist(id: string, nameHint: string) {
   const firstYear = dated.length ? Math.min(...dated.map((r) => Number(r.year))) : null;
   const lastYear = dated.length ? Math.max(...dated.map((r) => Number(r.year))) : null;
   const counts = { albums: rows.filter((r) => r.type === 'album').length, eps: rows.filter((r) => r.type === 'ep').length, singles: rows.filter((r) => r.type === 'single').length };
-  const [mb, lfm, about] = await Promise.all([
+  const [mb, lfm, about, its] = await Promise.all([
     safe(getJson(`https://musicbrainz.org/ws/2/artist/?query=${encodeURIComponent('artist:"' + name + '"')}&fmt=json&limit=3`, nice)),
     lastfm({ method: 'artist.getInfo', artist: name }),
-    wiki(`${name} musician`, [name.split(' ')[0]]),
+    wiki(`${name} musician`, [name.split(' ')[0]], 900, /singer|rapper|musician|band|songwriter|record producer|\bDJ\b|vocalist|group|duo|composer/i),
+    safe(getJson(`https://itunes.apple.com/search?media=music&entity=song&attribute=artistTerm&limit=50&country=us&term=${encodeURIComponent(name)}`)),
   ]);
   const m = (mb?.artists || []).find((x: any) => norm(x.name) === norm(name) && Number(x.score) >= 85) || null;
   const tags = (m?.tags || []).slice().sort((p: any, q: any) => (q.count || 0) - (p.count || 0)).slice(0, 4).map((t: any) => String(t.name));
   const place = [m?.['begin-area']?.name || m?.area?.name].filter(Boolean)[0] || null;
+  const mine = (its?.results || []).filter((r: any) => r.wrapperType === 'track' && norm(r.artistName) === norm(name));
+  const seenT = new Set<string>();
+  const latest = mine.slice().sort((p: any, q: any) => String(q.releaseDate).localeCompare(String(p.releaseDate))).filter((r: any) => { const k = norm(r.trackName); if (!k || seenT.has(k)) return false; seenT.add(k); return true; }).slice(0, 6)
+    .map((r: any) => ({ id: String(r.trackId || ''), title: String(r.trackName || ''), album: String(r.collectionName || ''), released: String(r.releaseDate || '').slice(0, 10), lengthSec: r.trackTimeMillis ? Math.round(r.trackTimeMillis / 1000) : null, cover: String(r.artworkUrl100 || '').replace(/\/\d+x\d+bb/, '/200x200bb'), explicit: r.trackExplicitness === 'explicit', preview: /^https:\/\//.test(String(r.previewUrl || '')) ? String(r.previewUrl) : null }));
+  const gc: Record<string, number> = {}; for (const r of mine) if (r.primaryGenreName) gc[r.primaryGenreName] = (gc[r.primaryGenreName] || 0) + 1;
+  const genre = Object.entries(gc).sort((p, q) => q[1] - p[1])[0]?.[0] || null;
   const yr = (d: any) => (typeof d === 'string' && /^\d{4}/.test(d) ? d.slice(0, 4) : null);
   return {
-    kind: 'artist', id: Number(id), name, picture: String(a?.picture_xl || a?.picture_big || a?.picture_medium || ''), fans: num(a?.nb_fan), link: String(a?.link || ''),
+    kind: 'artist', id: Number(id), name, picture: String(a?.picture_xl || a?.picture_big || a?.picture_medium || ''), photo: about?.photo || null, tagline: about?.desc || null, genre, latest, fans: num(a?.nb_fan), link: String(a?.link || ''),
     type: m?.type || null,                                   // Person or Group
     born: m?.type === 'Person' ? (m?.['life-span']?.begin || null) : null,
     formed: m?.type === 'Group' ? yr(m?.['life-span']?.begin) : null,

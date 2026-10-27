@@ -8721,7 +8721,7 @@
     MQ_MEDIA[url] = { at: Date.now(), p: p };
     return p;
   }
-  function mqSafeImg(u){ return /^https:\/\/([a-z0-9-]+\.)*(tmdb\.org|dzcdn\.net|mzstatic\.com)\//i.test(u || '') ? u : ''; }
+  function mqSafeImg(u){ return /^https:\/\/([a-z0-9-]+\.)*(tmdb\.org|dzcdn\.net|mzstatic\.com|upload\.wikimedia\.org)\//i.test(u || '') ? u : ''; }
   function mqSafeLink(u){ return /^https:\/\/(www\.|music\.|itunes\.|en\.)?(themoviedb\.org|youtube\.com|deezer\.com|apple\.com|wikipedia\.org)\//i.test(u || '') ? u : ''; }
   function mqMediaDate(s){
     if(!s) return '';
@@ -8995,7 +8995,7 @@
   function mqRkFetch(kind){
     var k = (kind === 'country' || kind === 'songs' || kind === 'artists') ? 'music' : kind;
     if(MQ_RK.cache[k] && Date.now() - MQ_RK.cache[k].at < 300000) return Promise.resolve(MQ_RK.cache[k].d);
-    return fetch(SUPABASE_URL + '/functions/v1/rankings?v=5&kind=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+    return fetch(SUPABASE_URL + '/functions/v1/rankings?v=6&kind=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
       .then(function(d){ if(d && !d.error) MQ_RK.cache[k] = { at: Date.now(), d: d }; return d && !d.error ? d : null; });
   }
   function mqRkConf(kind, g){
@@ -9073,7 +9073,7 @@
   function mqRkArtists(items){
     if(!items || !items.length) return '<p class="evp-muted">This chart isn’t available right now.</p>';
     var max = Math.max.apply(null, items.map(function(a){ return Number(a.fans) || 0; })) || 0;
-    function pic(a, cls){ return '<span class="ar-pic ' + cls + '">' + (a.picture ? '<img src="' + escapeHtml(a.picture) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<i>' + escapeHtml(String(a.name || '').charAt(0)) + '</i></span>'; }
+    function pic(a, cls){ var ph = mqSafeImg(a.photo) || a.picture; return '<span class="ar-pic ' + cls + '">' + (ph ? '<img src="' + escapeHtml(ph) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<i>' + escapeHtml(String(a.name || '').charAt(0)) + '</i></span>'; }
     var rows = items.map(function(a, i){
       var w = max && a.fans ? Math.max(6, Math.round(Number(a.fans) / max * 100)) : 0;
       return '<li class="rk-go ar-row" data-act="artist" data-i="' + i + '" tabindex="0"><span class="n">' + (a.rank || i + 1) + '</span>' + pic(a, 'md') +
@@ -9155,7 +9155,7 @@
     mqCeoFaces(root);
     mqRkCoList(d).slice(0, 12).forEach(function(c){ mqFundGet(c.symbol); });
   }
-  var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', songs: 'Apple iTunes charts, album art © its owners', artists: 'Deezer, photos © their owners', markets: 'Nasdaq' };
+  var MQ_RK_SRC = { nba: 'ESPN', nfl: 'ESPN', nhl: 'ESPN', mlb: 'ESPN', songs: 'Apple iTunes charts, album art © its owners', artists: 'Deezer and Wikipedia, photos © their owners', markets: 'Nasdaq' };
   function mqRkBack(el){
     var b = document.createElement('button'); b.type = 'button'; b.className = 'rk-back'; b.textContent = '‹ Back';
     b.addEventListener('click', function(){ mqPanelClose(); });
@@ -9189,7 +9189,7 @@
   function mqCompact(n){ n = Number(n) || 0; return n >= 1e9 ? (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n); }
   function mqTiles(list){
     list = list.filter(function(t){ return t && t[1] != null && t[1] !== ''; });
-    return list.length ? '<div class="mdp-scores mu-tiles">' + list.map(function(t){ return '<div class="mdp-sc"><b>' + escapeHtml(String(t[1])) + '</b><span>' + escapeHtml(t[0]) + '</span></div>'; }).join('') + '</div>' : '';
+    return list.length ? '<div class="mdp-scores mu-tiles">' + list.map(function(t){ return '<div class="mdp-sc' + (String(t[1]).length > 9 ? ' long' : '') + '"><b>' + escapeHtml(String(t[1])) + '</b><span>' + escapeHtml(t[0]) + '</span></div>'; }).join('') + '</div>' : '';
   }
   // One audio player for the whole page: tapping another preview stops the first.
   var mqAudio = null, mqAudioBtn = null;
@@ -9211,67 +9211,128 @@
   function mqAbout(a){
     return a && a.text ? '<p class="evp-desc mu-about">' + escapeHtml(a.text) + (mqSafeLink(a.url) ? ' <a class="mdp-src" href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener noreferrer">Wikipedia</a>' : '') + '</p>' : '';
   }
+  function mqKey(x){ return String(x || '').toLowerCase().replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim(); }
+  function mqChartData(){ var m = MQ_RK.cache && MQ_RK.cache.music; return m && m.d ? m.d : null; }
+  // Where a song sits on the charts the site already loaded (overall plus each genre).
+  function mqSongCharts(title, artist){
+    var d = mqChartData(), out = []; if(!d) return out;
+    mqRkGenres(d).forEach(function(g){ g.items.forEach(function(s){ if(mqKey(s.title) === mqKey(title) && mqKey(s.artist) === mqKey(artist)) out.push({ label: g.key === 'all' ? 'Top songs' : g.label, rank: s.rank }); }); });
+    return out;
+  }
+  function mqArtistCharts(name){
+    var d = mqChartData(), k = mqKey(name), out = { rank: null, songs: [] }; if(!d || !k) return out;
+    (d.artists || []).forEach(function(a){ if(mqKey(a.name) === k) out.rank = a.rank; });
+    var seen = {};
+    (d.songs || []).concat(Object.keys(d.genres || {}).reduce(function(acc, g){ return acc.concat(d.genres[g] || []); }, [])).forEach(function(s){
+      if(mqKey(s.artist).indexOf(k) < 0) return;
+      var t = mqKey(s.title); if(seen[t]) return; seen[t] = 1; out.songs.push({ title: s.title, rank: s.rank, image: s.image });
+    });
+    out.songs.sort(function(a, b){ return a.rank - b.rank; });
+    return out;
+  }
+  function mqSongRow(t, i, o){
+    o = o || {};
+    return '<li' + (t.current ? ' class="cur"' : '') + '><span class="n">' + (o.num || t.n || i + 1) + '</span>' +
+      (o.cover ? '<span class="rk-art">' + (mqSafeImg(t.cover) ? '<img src="' + escapeHtml(t.cover) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '') + '</span>' : '') +
+      '<span class="m"><b>' + escapeHtml(t.title) + (t.explicit ? ' <em class="mq-e">E</em>' : '') + '</b>' + (o.sub !== false && (t.album || t.released) ? '<em>' + escapeHtml([t.album, t.released ? t.released.slice(0, 4) : ''].filter(Boolean).join(' · ')) + '</em>' : '') + '</span>' +
+      '<span class="ar-len">' + (t.lengthSec ? mqDur(t.lengthSec) : '') + '</span>' + mqPlayBtn(t.preview, '') + '</li>';
+  }
   function mqOpenSongPanel(x, label){
     var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + escapeHtml(label) + ' · #' + x.rank + '</div>' +
-      '<div class="sg-head">' + (x.image ? '<img class="sg-art" src="' + escapeHtml(x.image) + '" alt="" referrerpolicy="no-referrer">' : '') + '<div><h3 class="evp-title">' + escapeHtml(x.title) + '</h3><div class="tp-sub">' + escapeHtml(x.artist) + '</div>' + (x.album ? '<div class="sg-album">' + escapeHtml(x.album) + '</div>' : '') + '</div></div>' +
+      '<div class="sg-head">' + (x.image ? '<img class="sg-art" src="' + escapeHtml(x.image) + '" alt="" referrerpolicy="no-referrer">' : '') + '<div><h3 class="evp-title">' + escapeHtml(x.title) + '</h3><div class="tp-sub" id="sg-by">' + escapeHtml(x.artist) + '</div>' + (x.album ? '<div class="sg-album">' + escapeHtml(x.album) + '</div>' : '') + '</div></div>' +
       '<div class="evp-body" id="sg-more"><div class="fd-sk"><i></i><i></i><i></i></div></div>');
     mqRkBack(el);
     var base = [['Released', x.released ? mqMediaDate(x.released) : '']];
     var apple = /^https:\/\/(music|itunes)\.apple\.com\//.test(x.link || '') ? x.link : '';
-    fetch(SUPABASE_URL + '/functions/v1/rankings?v=5&kind=song&id=' + encodeURIComponent(x.id || '') + '&artist=' + encodeURIComponent(x.artist || '') + '&title=' + encodeURIComponent(x.title || ''))
+    var charts = mqSongCharts(x.title, x.artist);
+    var chartTiles = charts.slice(0, 3).map(function(c){ return [c.label === 'Top songs' ? 'Overall chart' : c.label + ' chart', '#' + c.rank]; });
+    fetch(SUPABASE_URL + '/functions/v1/rankings?v=6&kind=song&id=' + encodeURIComponent(x.id || '') + '&artist=' + encodeURIComponent(x.artist || '') + '&title=' + encodeURIComponent(x.title || ''))
       .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }).then(function(d){
         var box = el.querySelector('#sg-more'); if(!box || !box.isConnected) return;
         if(!d || d.error){
-          box.innerHTML = mqTiles(base) + (apple ? '<a class="sg-link" href="' + escapeHtml(apple) + '" target="_blank" rel="noopener noreferrer">Listen on Apple Music ↗</a>' : '');
+          box.innerHTML = mqTiles(chartTiles.concat(base)) + (apple ? '<a class="sg-link" href="' + escapeHtml(apple) + '" target="_blank" rel="noopener noreferrer">Listen on Apple Music ↗</a>' : '');
           return;
         }
+        var by = el.querySelector('#sg-by');
+        if(by && d.artistId){ by.innerHTML = '<button type="button" class="mu-artist" data-aid="' + d.artistId + '" data-an="' + escapeHtml(x.artist) + '" data-ap="' + escapeHtml(d.artistPhoto || '') + '">' + escapeHtml(x.artist) + ' <span>›</span></button>'; }
         var pop = d.popularity ? Math.max(1, Math.min(100, Math.round(d.popularity / 10000))) : null;
+        var ai = d.albumInfo || {};
         var out = mqPlayBtn(d.preview, 'Play 30-second preview');
-        out += mqTiles([
+        out += mqTiles(chartTiles.concat([
           ['Released', d.releaseDate ? mqMediaDate(d.releaseDate) : (x.released ? mqMediaDate(x.released) : '')],
           ['Length', d.lengthSec ? mqDur(d.lengthSec) : ''],
           ['Genre', d.genre || ''],
           ['Track', d.trackNumber && d.trackCount ? d.trackNumber + ' of ' + d.trackCount : ''],
           ['Tempo', d.bpm ? d.bpm + ' BPM' : ''],
-          ['Deezer popularity', pop ? pop + ' / 100' : ''],
+          ['Popularity', pop ? pop + ' / 100' : ''],
           ['Total plays', d.plays ? mqCompact(d.plays) : ''],
           ['Listeners', d.listeners ? mqCompact(d.listeners) : '']
-        ]);
+        ]));
+        if(pop) out += '<div class="mu-pop"><span style="width:' + pop + '%"></span></div>';
         if(d.explicit) out += '<p class="mu-flag"><em class="mq-e">E</em> Explicit lyrics</p>';
-        if(d.credits && d.credits.length > 1) out += '<div class="mdp-sec"><div class="fd-h">Artists on the track</div><div class="mu-chips">' + d.credits.map(function(n){ return '<span>' + escapeHtml(n) + '</span>'; }).join('') + '</div></div>';
         out += mqAbout(d.about);
+        if(d.credits && d.credits.length > 1) out += '<div class="mdp-sec"><div class="fd-h">Artists on the track</div><div class="mu-chips">' + d.credits.map(function(n){ return '<span>' + escapeHtml(n) + '</span>'; }).join('') + '</div></div>';
+        if(d.albumTracks && d.albumTracks.length > 1){
+          var meta = [ai.released ? mqMediaDate(ai.released) : '', ai.tracks ? ai.tracks + ' tracks' : '', ai.lengthSec ? Math.round(ai.lengthSec / 60) + ' min' : '', ai.label || ''].filter(Boolean).join(' · ');
+          out += '<div class="mdp-sec"><div class="fd-h">From the album · ' + escapeHtml(ai.name || d.album || '') + '</div>' + (meta ? '<p class="mu-meta">' + escapeHtml(meta) + '</p>' : '') +
+            '<ol class="rk-l ar-top mu-tl">' + d.albumTracks.map(function(t, i){ return mqSongRow(t, i, { sub: false }); }).join('') + '</ol></div>';
+        }
+        if(d.moreBy && d.moreBy.length) out += '<div class="mdp-sec"><div class="fd-h">More from ' + escapeHtml(x.artist) + '</div><ol class="rk-l ar-top">' + d.moreBy.map(function(t, i){ return mqSongRow(t, i, { cover: true, num: i + 1 }); }).join('') + '</ol></div>';
         var links = (apple || d.link ? '<a href="' + escapeHtml(apple || d.link) + '" target="_blank" rel="noopener noreferrer">Apple Music ↗</a>' : '') + (/^https:\/\/www\.deezer\.com\//.test(d.deezer || '') ? '<a href="' + escapeHtml(d.deezer) + '" target="_blank" rel="noopener noreferrer">Deezer ↗</a>' : '');
         if(links) out += '<div class="mdp-links">' + links + '</div>';
         out += '<p class="mdp-jw">Popularity is Deezer’s own score, not a stream count. Public sources do not publish stream totals' + (d.plays ? '; plays are from Last.fm.' : '.') + '</p>';
         box.innerHTML = out;
+        box.addEventListener('click', function(e){
+          var r = e.target.closest('.mu-artist'); if(!r) return;
+          mqStopAudio(); mqOpenArtistPanel({ id: Number(r.getAttribute('data-aid')), name: r.getAttribute('data-an'), picture: r.getAttribute('data-ap') });
+        });
+        by && by.addEventListener('click', function(e){
+          var r = e.target.closest('.mu-artist'); if(!r) return;
+          mqStopAudio(); mqOpenArtistPanel({ id: Number(r.getAttribute('data-aid')), name: r.getAttribute('data-an'), picture: r.getAttribute('data-ap') });
+        });
       });
   }
   function mqOpenArtistPanel(a){
+    var ph0 = mqSafeImg(a.photo) || a.picture;
     var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + (a.rank ? 'Top artists · #' + a.rank : 'Artist') + '</div>' +
-      '<div class="sg-head">' + (a.picture ? '<img class="sg-art round" src="' + escapeHtml(a.picture) + '" alt="" referrerpolicy="no-referrer">' : '') + '<div><h3 class="evp-title">' + escapeHtml(a.name) + '</h3><div class="tp-sub" id="ar-fans"></div></div></div>' +
+      '<div class="sg-head">' + (ph0 ? '<img class="sg-art round" id="ar-ph" src="' + escapeHtml(ph0) + '" alt="" referrerpolicy="no-referrer">' : '') + '<div><h3 class="evp-title">' + escapeHtml(a.name) + '</h3><div class="tp-sub" id="ar-fans"></div></div></div>' +
       '<div class="evp-body" id="ar-more"><div class="fd-sk"><i></i><i></i><i></i></div></div>');
     mqRkBack(el);
     if(!a.id) { el.querySelector('#ar-more').innerHTML = ''; return; }
-    fetch(SUPABASE_URL + '/functions/v1/rankings?v=5&kind=artist&id=' + a.id + '&name=' + encodeURIComponent(a.name || ''))
+    var ch = mqArtistCharts(a.name);
+    fetch(SUPABASE_URL + '/functions/v1/rankings?v=6&kind=artist&id=' + a.id + '&name=' + encodeURIComponent(a.name || ''))
       .then(function(x){ return x.ok ? x.json() : null; }).catch(function(){ return null; }).then(function(d){
         var body = el.querySelector('#ar-more'); if(!body || !body.isConnected) return;
         if(!d || d.error){ body.innerHTML = '<p class="evp-muted">Details aren’t available right now.</p>'; return; }
-        var sub = [d.type === 'Group' ? 'Group' : d.type === 'Person' ? 'Solo artist' : '', d.from, (d.tags || [])[0]].filter(Boolean).join(' · ');
+        var sub = d.tagline ? d.tagline.charAt(0).toUpperCase() + d.tagline.slice(1) : [d.type === 'Group' ? 'Group' : d.type === 'Person' ? 'Solo artist' : '', d.from, d.genre || (d.tags || [])[0]].filter(Boolean).join(' · ');
         var f = el.querySelector('#ar-fans'); if(f) f.textContent = sub || (d.fans ? mqCompact(d.fans) + ' fans on Deezer' : '');
-        var since = d.formed || d.firstYear;
+        var ph = el.querySelector('#ar-ph'), best = mqSafeImg(d.photo);
+        if(best){
+          if(ph) ph.src = best;
+          else { var h = el.querySelector('.sg-head'); if(h) h.insertAdjacentHTML('afterbegin', '<img class="sg-art round" id="ar-ph" src="' + escapeHtml(best) + '" alt="" referrerpolicy="no-referrer">'); }
+        }
+        var since = d.formed || d.firstYear, age = null;
+        if(d.born){ var by = Number(String(d.born).slice(0, 4)); if(by) age = new Date().getFullYear() - by; }
+        var years = since && d.lastYear ? (d.lastYear - since) + 1 : null;
         var out = mqTiles([
+          ch.rank ? ['Chart rank', '#' + ch.rank] : null,
           ['Fans on Deezer', d.fans ? mqCompact(d.fans) : ''],
-          [d.formed ? 'Formed' : 'First release', since || ''],
-          ['Born', d.born ? mqMediaDate(d.born) : ''],
-          ['Latest release', d.lastYear || ''],
+          [d.formed ? 'Formed' : 'Career began', since || ''],
+          ['Years active', years && years > 1 ? years : ''],
+          ['Born', d.born ? mqMediaDate(d.born) + (age ? ' (' + age + ')' : '') : ''],
+          ['From', d.from || ''],
+          ['Genre', d.genre || ''],
           ['Albums', d.counts && d.counts.albums ? d.counts.albums : ''],
           ['EPs', d.counts && d.counts.eps ? d.counts.eps : ''],
           ['Singles', d.counts && d.counts.singles ? d.counts.singles : ''],
+          ['Latest release', d.lastYear || ''],
           ['Monthly listeners', d.listeners ? mqCompact(d.listeners) : ''],
           ['Total plays', d.plays ? mqCompact(d.plays) : '']
         ]);
         if(d.tags && d.tags.length > 1) out += '<div class="mu-chips mu-genres">' + d.tags.map(function(t){ return '<span>' + escapeHtml(t) + '</span>'; }).join('') + '</div>';
         out += mqAbout(d.about);
+        if(ch.songs.length) out += '<div class="mdp-sec"><div class="fd-h">On the charts right now</div><div class="mu-chips">' + ch.songs.slice(0, 6).map(function(s){ return '<span><b class="mu-rk">#' + s.rank + '</b> ' + escapeHtml(s.title) + '</span>'; }).join('') + '</div></div>';
+        if(d.latest && d.latest.length) out += '<div class="mdp-sec"><div class="fd-h">Latest songs</div><ol class="rk-l ar-top">' + d.latest.map(function(t, i){ return mqSongRow(t, i, { cover: true, num: i + 1 }); }).join('') + '</ol></div>';
         if(d.top && d.top.length) out += '<div class="mdp-sec"><div class="fd-h">Most played</div><ol class="rk-l ar-top">' + d.top.map(function(t, i){
           return '<li><span class="n">' + (i + 1) + '</span><span class="rk-art">' + (mqSafeImg(t.cover) ? '<img src="' + escapeHtml(t.cover) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '') + '</span>' +
             '<span class="m"><b>' + escapeHtml(t.title) + (t.explicit ? ' <em class="mq-e">E</em>' : '') + '</b><em>' + escapeHtml(t.album) + '</em></span>' +
@@ -9280,8 +9341,10 @@
           return '<div class="ar-al"><span class="ar-cv">' + (mqSafeImg(al.cover) ? '<img src="' + escapeHtml(al.cover) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '') + '</span><b>' + escapeHtml(al.title) + '</b><em>' + escapeHtml(al.year) + (al.type === 'ep' ? ' · EP' : '') + '</em></div>'; }).join('') + '</div></div>';
         if(d.related && d.related.length) out += '<div class="mdp-sec"><div class="fd-h">Fans also like</div><div class="mu-chips mu-rel">' + d.related.map(function(r){
           return '<button type="button" class="mu-r" data-aid="' + r.id + '" data-an="' + escapeHtml(r.name) + '" data-ap="' + escapeHtml(r.picture) + '">' + (mqSafeImg(r.picture) ? '<img src="' + escapeHtml(r.picture) + '" alt="" referrerpolicy="no-referrer">' : '') + escapeHtml(r.name) + '</button>'; }).join('') + '</div></div>';
-        if(/^https:\/\/www\.deezer\.com\//.test(d.link || '')) out += '<div class="mdp-links"><a href="' + escapeHtml(d.link) + '" target="_blank" rel="noopener noreferrer">Open on Deezer ↗</a></div>';
-        out += '<p class="mdp-jw">Fans and discography from Deezer. Debut year is the earliest release Deezer lists' + (d.formed || d.born ? '; formed and born dates are from MusicBrainz' : '') + '. Public sources do not publish stream totals.</p>';
+        var wl = d.about && mqSafeLink(d.about.url) ? '<a href="' + escapeHtml(d.about.url) + '" target="_blank" rel="noopener noreferrer">Wikipedia ↗</a>' : '';
+        var dl = /^https:\/\/www\.deezer\.com\//.test(d.link || '') ? '<a href="' + escapeHtml(d.link) + '" target="_blank" rel="noopener noreferrer">Deezer ↗</a>' : '';
+        if(wl || dl) out += '<div class="mdp-links">' + dl + wl + '</div>';
+        out += '<p class="mdp-jw">Fans and discography from Deezer, songs from Apple, photo and bio from Wikipedia' + (d.formed || d.born ? ', dates from MusicBrainz' : '') + '. Career start is the earliest release Deezer lists. Public sources do not publish stream totals.</p>';
         body.innerHTML = out;
         body.addEventListener('click', function(e){
           var r = e.target.closest('.mu-r'); if(!r) return;

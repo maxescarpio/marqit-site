@@ -2196,3 +2196,18 @@ a.mq-ss-ig{text-decoration:none}
 .mq-ss-ig:not(.dl){color:#fff}
 .ar-list{margin-top:4px}
 @media (max-width:480px){.mq-ss-stage .mq-ss-prev{width:84px}.mq-ss-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+
+/* ---- 11. Richer music pages ---- */
+.sg-head{gap:20px}
+.sg-art.round{width:124px;height:124px;object-position:50% 20%}
+.mu-artist{background:none;border:0;padding:0;margin:0;color:#E4E6EA;font:600 16px 'Barlow',sans-serif;cursor:pointer}
+.mu-artist span{color:#6E737D;margin-left:2px}
+.mu-artist:hover{color:#fff;text-decoration:underline;text-underline-offset:3px}
+.mu-pop{height:4px;border-radius:2px;background:#2A2D33;margin:6px 0 4px;overflow:hidden}
+.mu-pop span{display:block;height:100%;background:#9AA0AB;border-radius:2px}
+.mu-meta{margin:-4px 0 8px;font-size:13px;color:#8B909A}
+.mu-rk{color:#fff;font-variant-numeric:tabular-nums}
+.ar-top li.cur{background:#1E2229;border-radius:8px}
+.ar-top li.cur .m b{color:#fff}
+.mu-tl .n{width:24px}
+.mu-tiles .mdp-sc.long b{font-size:16px;line-height:1.25}
