@@ -5,262 +5,468 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Marqit Admin</title>
 <meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
+  /* Marqit admin: bright workspace under the same dark header as the site.
+     Colour variable names are shared with the scripts below, so keep them. */
   :root{
-    --ink:#17191D; --ink-soft:#4B4E55; --paper:#FFFFFF; --panel:#F4F4F1; --line:#E4E3DD;
-    --yes:#1C7A4D; --yes-bg:#E7F3EC; --no:#B23A2E; --no-bg:#FBEAE8;
+    --ink:#17191D; --ink-soft:#5B5F69; --paper:#FFFFFF; --panel:#F3F2EC; --line:#E3E1D8;
+    --yes:#17884F; --yes-bg:#E1F4E9; --no:#C63B2D; --no-bg:#FCE9E6;
+    --gold:#F2C14E; --gold-deep:#B8891A; --bg:#F7F6F1; --head:#17191D;
   }
   *{box-sizing:border-box;}
-  body{font-family:'Inter',-apple-system,sans-serif;background:var(--paper);color:var(--ink);margin:0;padding:24px;max-width:720px;margin:0 auto;}
-  h1{font-size:24px;margin-bottom:4px;}
-  h2{font-size:16px;margin-top:40px;margin-bottom:12px;border-top:1px solid var(--line);padding-top:24px;}
-  .msg{padding:16px;background:var(--panel);border-radius:10px;font-size:14px;color:var(--ink-soft);}
-  label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-top:14px;margin-bottom:4px;}
-  input,select,textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;}
-  button{margin-top:16px;padding:10px 18px;border:none;border-radius:8px;background:var(--ink);color:var(--paper);font-weight:600;font-size:14px;cursor:pointer;}
-  button:hover{opacity:0.85;}
-  button.danger{background:var(--no);}
-  .qrow{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:10px;}
-  .qrow .qtext{font-weight:600;font-size:14px;}
-  .qrow .qmeta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
-  .qrow .actions{margin-top:10px;display:flex;gap:8px;}
-  .qrow .actions button{margin-top:0;padding:6px 14px;font-size:13px;}
+  html{-webkit-text-size-adjust:100%;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Barlow',-apple-system,system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Big Shoulders Display','Barlow',sans-serif;margin:0;letter-spacing:.01em;}
+
+  /* ---------- Header + tabs ---------- */
+  .top{background:var(--head);position:sticky;top:0;z-index:40;box-shadow:0 2px 0 var(--gold);}
+  .top-in,.tabs{max-width:960px;margin:0 auto;padding-left:20px;padding-right:20px;}
+  .top-in{display:flex;align-items:center;gap:12px;padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:8px;}
+  .top .logo{height:26px;width:auto;display:block;}
+  .top .tag{font:700 12px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--head);background:var(--gold);padding:3px 9px;border-radius:6px;}
+  .top .viewsite{margin-left:auto;color:#C9CBD1;font-size:13px;font-weight:600;text-decoration:none;}
+  .top .viewsite:hover{color:#fff;}
+  .tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{margin:0;padding:11px 16px;border:none;border-bottom:3px solid transparent;border-radius:0;background:none;color:#A9ACB4;font:600 14px 'Barlow',sans-serif;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;}
+  .tab:hover{color:#fff;opacity:1;}
+  .tab.active{color:#fff;border-bottom-color:var(--gold);}
+  .pip{display:none;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--gold);color:var(--head);font:700 11px/18px 'Barlow',sans-serif;text-align:center;}
+  .pip.on{display:inline-block;}
+
+  /* ---------- Page + cards ---------- */
+  main{max-width:960px;margin:0 auto;padding:18px 20px 40px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .msg{padding:16px;background:#fff;border:1px solid var(--line);border-radius:12px;font-size:14px;color:var(--ink-soft);}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(23,25,29,.04);}
+  .card>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:14px 18px;font:700 20px/1 'Big Shoulders Display',sans-serif;letter-spacing:.02em;user-select:none;}
+  .card>summary::-webkit-details-marker{display:none;}
+  .card>summary::before{content:"";width:8px;height:8px;border-right:2.5px solid var(--gold-deep);border-bottom:2.5px solid var(--gold-deep);transform:rotate(-45deg);transition:transform .15s;flex:none;margin-right:2px;}
+  .card[open]>summary::before{transform:rotate(45deg);}
+  .card>summary .pip{margin-left:2px;}
+  .card>summary .sub{margin-left:auto;font:500 12.5px 'Barlow',sans-serif;color:var(--ink-soft);letter-spacing:0;}
+  .card>.body{padding:2px 18px 18px;border-top:1px solid var(--line);}
+  .card[open]>summary{border-bottom:0;}
+  .hint{font-size:13px;color:var(--ink-soft);margin:12px 0 4px;}
+  .hint code{background:var(--panel);padding:1px 5px;border-radius:4px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 14px;}
+  .row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;}
+  .row>*{flex:1;min-width:120px;}
+  .row>button{flex:none;}
+  .row>input,.row>select,.row>button{margin-top:0;}
+  #widget-alert{position:static!important;}
+  .note{font-size:13px;margin:8px 0 0;color:var(--ink-soft);min-height:1em;}
+  .sublist{margin-top:14px;}
+  @media (max-width:640px){
+    .grid2,.grid3{grid-template-columns:1fr;}
+    main{padding:14px 14px 32px;}
+    .top-in,.tabs{padding-left:14px;padding-right:14px;}
+    .card>summary{font-size:18px;padding:13px 14px;}
+    .card>summary .sub{display:none;}
+    .card>.body{padding:2px 14px 16px;}
+  }
+
+  /* ---------- Form controls ---------- */
+  label{display:block;font-size:12.5px;font-weight:700;letter-spacing:.02em;color:var(--ink-soft);margin:14px 0 5px;}
+  input,select,textarea{width:100%;padding:10px 12px;min-height:42px;background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:10px;font:500 15px 'Barlow',system-ui,sans-serif;margin:0;}
+  input+input,input+select,select+input,textarea+input{margin-top:8px;}
+  textarea{resize:vertical;}
+  input::placeholder,textarea::placeholder{color:#9B9EA6;}
+  select{appearance:none;-webkit-appearance:none;padding-right:40px;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235B5F69' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 14px center;}
+  input[type=date],input[type=datetime-local]{cursor:pointer;}
+  input[type=checkbox]{width:auto;min-height:0;accent-color:var(--gold-deep);}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-offset:1px;border-color:var(--gold-deep);}
+  .check{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ink);}
+
+  /* ---------- Buttons ---------- */
+  button{margin-top:14px;padding:10px 18px;border:none;border-radius:10px;background:var(--ink);color:#fff;font:700 14px 'Barlow',sans-serif;cursor:pointer;transition:background .15s,opacity .15s;}
+  button:hover{opacity:.88;}
+  button:disabled{opacity:.45;cursor:default;}
+  button.primary{background:var(--gold);color:var(--head);}
+  button.ghost,.btn-edit,.btn-boost,.btn-void{background:var(--panel);border:1.5px solid var(--line);color:var(--ink);}
   .btn-yes{background:var(--yes-bg);color:var(--yes);}
   .btn-no{background:var(--no-bg);color:var(--no);}
-  .btn-edit{background:var(--panel);border:1.5px solid var(--line);color:var(--ink);}
-  .btn-delete{background:none;border:1.5px solid var(--no);color:var(--no);}
-  .btn-boost{background:var(--panel);border:1.5px solid var(--line);color:var(--ink);}
-  .btn-boost.on{background:#F6C430;border-color:#F6C430;color:#2A1E00;}
+  .btn-delete,button.danger{background:#fff;border:1.5px solid var(--no);color:var(--no);}
+  .btn-boost.on{background:var(--gold);border-color:var(--gold);color:#2A1E00;}
   .btn-undo{background:none;border:1.5px solid var(--line);color:var(--ink-soft);margin-left:8px;}
-  .resolved-tag{font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;}
+  .btn-void{color:var(--ink-soft);}
+
+  /* ---------- Rows the scripts draw ---------- */
+  .qrow{border:1px solid var(--line);background:#FCFBF8;border-radius:12px;padding:14px 16px;margin-top:10px;}
+  .qrow .qtext{font-weight:700;font-size:15px;}
+  .qrow .qmeta{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .qrow .actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .qrow .actions button{margin-top:0;padding:7px 14px;font-size:13px;}
+  .edit-form{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:none;}
+  .resolved-tag{font-size:12px;font-weight:700;padding:3px 9px;border-radius:6px;}
   .resolved-tag.yes{background:var(--yes-bg);color:var(--yes);}
   .resolved-tag.no{background:var(--no-bg);color:var(--no);}
-  .btn-void{background:var(--panel);border:1.5px solid var(--line);color:var(--ink-soft);}
   .resolved-tag.void{background:var(--panel);border:1px solid var(--line);color:var(--ink-soft);}
   .void-reason{font-size:12px;color:var(--ink-soft);margin-left:8px;}
-  .edit-form{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:none;}
-
-  .sug{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .sug{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
   .sug .sug-text{flex:1;min-width:200px;}
+  .sug button{margin-top:0;}
   .sug-ok{background:var(--yes-bg);border:1px solid var(--yes);}
-  .sug-wait{background:rgba(128,136,150,.14);color:var(--ink-soft);}
-  .sug-human{background:rgba(236,184,44,.16);color:var(--ink);}
+  .sug-wait{background:rgba(128,136,150,.12);color:var(--ink-soft);}
+  .sug-human{background:rgba(242,193,78,.22);color:var(--ink);}
 
-  /* cleaner selects and date pickers */
-  input,select,textarea{background:#15171B;color:#F2F3F5;border:1.5px solid #343944;border-radius:10px;min-height:44px;font:500 15px 'Barlow',system-ui,sans-serif}
-  select{appearance:none;-webkit-appearance:none;padding-right:40px;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239AA0AB' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 14px center}
-  input[type=date]{color-scheme:dark;cursor:pointer}
-  input[type=date]::-webkit-calendar-picker-indicator{opacity:.65;cursor:pointer;padding:2px}
-  input:focus,select:focus,textarea:focus{outline:2px solid #A88B3D;outline-offset:1px;border-color:#A88B3D}
+  /* ---------- Footer ---------- */
+  footer{max-width:960px;margin:0 auto;padding:6px 20px calc(30px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px;color:var(--ink-soft);font-size:12.5px;}
+  footer img{width:34px;height:34px;border-radius:8px;display:block;}
 </style>
 </head>
 <body>
 
-<h1>Marqit Admin</h1>
+<header class="top">
+  <div class="top-in">
+    <a href="/" style="display:flex;"><img class="logo" src="/marqit-logo-white.svg?v=3" alt="Marqit"></a>
+    <span class="tag">Admin</span>
+    <a class="viewsite" href="/">View site &rarr;</a>
+  </div>
+  <nav class="tabs" id="tabs" role="tablist">
+    <button class="tab active" data-tab="daily">Daily<span class="pip" id="pip-daily"></span></button>
+    <button class="tab" data-tab="moderation">Moderation<span class="pip" id="pip-moderation"></span></button>
+    <button class="tab" data-tab="content">Content</button>
+    <button class="tab" data-tab="widgets">Widgets<span class="pip" id="pip-widgets"></span></button>
+    <button class="tab" data-tab="chapters">Chapters</button>
+    <button class="tab" data-tab="challenge">Challenge</button>
+  </nav>
+</header>
+
+<main>
 <div id="gate" class="msg">Checking access…</div>
 <div id="app" style="display:none;">
 
-  <h2 style="border-top:none; margin-top:0; padding-top:0;">AI-drafted questions</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Drafted automatically each morning by Claude, grounded in real web search. Edit anything before approving — nothing here posts to the site until you approve it.</p>
-  <div id="drafts-list"></div>
+  <!-- ===================== DAILY ===================== -->
+  <section class="panel active" id="panel-daily">
 
-  <h2>Comments to review</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Comments the word filter held back, plus any that got 3 reports and were hidden. Held comments are only visible to their author until you approve them. Applies to News, Trending and the daily questions.</p>
-  <div id="review-list">Loading&hellip;</div>
+    <details class="card" open>
+      <summary>Resolve questions <span class="sub">pick a date, mark results, run scoring</span></summary>
+      <div class="body">
+        <div class="row">
+          <div><label>Date to view</label><input type="date" id="view-date"></div>
+          <button id="check-results-btn" class="ghost">Check results now</button>
+        </div>
+        <p id="check-results-msg" class="note"></p>
+        <div id="question-list"></div>
+        <div class="row" style="margin-top:6px;">
+          <button id="score-btn">Run scoring for this date</button>
+          <span class="note" style="flex:1;margin:0;">Results emails go out automatically when scoring finishes.</span>
+        </div>
+        <p id="score-msg" class="note"></p>
+      </div>
+    </details>
 
-  <h2>Trending posts</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Paste a link to a post on X, Instagram, TikTok, Bluesky, YouTube or Threads. It shows on the Trending tab as the real post (embedded from the platform, with credit and a link back) with its own Marqit discussion. Add a Yes/No question if you want a debate on it.</p>
-  <label>Post link</label><input id="upd-url" type="text" placeholder="https://x.com/AdamSchefter/status/123456789">
-  <label>Lane</label>
-  <select id="upd-lane"><option value="sports">Sports</option><option value="pop">Pop Culture</option><option value="music">Music</option><option value="tech">Tech</option><option value="news">News</option></select>
-  <label>One-line headline (what it is about)</label><input id="upd-title" type="text" maxlength="200" placeholder="Schefter: Ravens finalizing a deal with ...">
-  <label>Who posted it (optional)</label><input id="upd-source" type="text" maxlength="60" placeholder="Adam Schefter">
-  <label>Yes/No debate question (optional)</label><input id="upd-take" type="text" maxlength="120" placeholder="Is this the right move for the Ravens?">
-  <label style="display:flex;align-items:center;gap:8px;"><input id="upd-pin" type="checkbox" style="width:auto;"> Pin to the top</label>
-  <button id="upd-post-btn">Add post</button>
-  <p id="upd-msg" style="font-size:13px; margin-top:8px;"></p>
-  <div id="upd-list"></div>
+    <details class="card" data-count="#drafts-list .qrow" data-tab-pip="daily">
+      <summary>AI-drafted questions <span class="pip"></span><span class="sub">approve before they post</span></summary>
+      <div class="body">
+        <p class="hint">Drafted each morning by Claude from real web search. Edit anything; nothing posts until you approve it.</p>
+        <div id="drafts-list"></div>
+      </div>
+    </details>
 
-  <h2>Blocked words</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Block = the comment is rejected. Hold = it posts for the author only and waits in the review list above. Links, emails and phone numbers are always blocked. Each entry is a word or a simple pattern (lower case, e.g. <code>kill\s+him</code>). Letter swaps like 0 for o are caught automatically.</p>
-  <div style="display:flex; gap:8px;">
-    <input type="text" id="term-input" placeholder="word or pattern" style="flex:1;">
-    <select id="term-mode" style="width:auto;"><option value="hold">Hold</option><option value="block">Block</option></select>
-    <button id="term-add-btn" style="margin-top:0; white-space:nowrap;">Add</button>
-  </div>
-  <p id="term-msg" style="font-size:13px; margin-top:8px;"></p>
-  <div id="term-list"></div>
+    <details class="card" data-count="#suggestions-list .qrow" data-tab-pip="daily">
+      <summary>Question suggestions <span class="pip"></span><span class="sub">sent in by players</span></summary>
+      <div class="body">
+        <p class="hint">Submitted by users when today's calls are locked. Only visible to you.</p>
+        <div id="suggestions-list"></div>
+      </div>
+    </details>
 
-  <h2>Chapters</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Every group on the site. Verify a chapter (badge + prize eligibility) and set its school, national org, and letters — these feed the Top Chapters, Top Orgs, and Head-to-Head boards. Verifying a new chapter auto-grants "Founding Chapter" status to the first 20.</p>
-  <div id="chapters-list">Loading&hellip;</div>
+    <details class="card">
+      <summary>Add a question <span class="sub">single or bulk paste</span></summary>
+      <div class="body">
+        <div class="grid3">
+          <div><label>Date</label><input type="date" id="add-date"></div>
+          <div><label>Category</label>
+            <select id="add-category">
+              <option value="sports">Sports</option>
+              <option value="pop_culture">Pop culture</option>
+              <option value="news">News &amp; current events</option>
+            </select></div>
+          <div><label>Lock time</label><input type="datetime-local" id="add-lock"></div>
+        </div>
+        <label>Question</label>
+        <textarea id="add-text" rows="2" placeholder="Will..."></textarea>
+        <label>Resolution criteria (optional)</label>
+        <textarea id="add-resolution" rows="2" placeholder="How this will be judged, e.g. 'Based on final box score after OT'"></textarea>
+        <details style="margin-top:12px;">
+          <summary style="cursor:pointer;font-weight:700;font-size:13px;color:var(--ink-soft);">Photo (optional): subject, and the other side for a face-off</summary>
+          <div class="grid2">
+            <div><label>Subject name</label><input id="add-sub-name" placeholder="e.g. Jensen Huang"></div>
+            <div><label>Subject photo link</label><input id="add-sub-img" placeholder="https://..."></div>
+            <div><label>Versus name (face-off only)</label><input id="add-vs-name" placeholder="Versus name"></div>
+            <div><label>Versus photo link (face-off only)</label><input id="add-vs-img" placeholder="https://..."></div>
+          </div>
+        </details>
+        <button id="add-btn">Add question</button>
+        <p id="add-msg" class="note"></p>
 
-  <h2>Marqit Champion (non-monetary prize)</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Crown a chapter and/or a national org. Every member of the crowned chapter/org gets a permanent champion frame on their avatar site-wide, plus a shareable "Champion" card they can post. Clearing removes the title from everyone immediately.</p>
-  <div id="champion-current" style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Loading&hellip;</div>
-  <label>Crown a chapter</label>
-  <select id="champion-group-select"><option value="">Select a chapter&hellip;</option></select>
-  <div style="display:flex; gap:8px;">
-    <button id="champion-group-set-btn">Crown chapter</button>
-    <button id="champion-group-clear-btn" class="btn-delete" style="margin-top:16px;">Clear chapter title</button>
-  </div>
-  <label>Crown a national org</label>
-  <select id="champion-org-select"><option value="">Select a national org&hellip;</option></select>
-  <div style="display:flex; gap:8px;">
-    <button id="champion-org-set-btn">Crown org</button>
-    <button id="champion-org-clear-btn" class="btn-delete" style="margin-top:16px;">Clear org title</button>
-  </div>
-  <p class="msg" id="champion-status-msg" style="display:none; margin-top:10px; padding:10px 12px;"></p>
+        <details style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px;">
+          <summary style="cursor:pointer;font-weight:700;font-size:13px;color:var(--ink-soft);">Bulk add today's 3 (paste the JSON block from Claude)</summary>
+          <textarea id="bulk-json" rows="5" style="margin-top:10px;" placeholder='[{"category":"sports","question_text":"Will...","lock_time":"2026-09-15T20:30:00-04:00","resolution_criteria":"optional — how this will be judged"}, ...]'></textarea>
+          <button id="bulk-add-btn">Add all 3</button>
+          <p id="bulk-msg" class="note"></p>
+        </details>
+      </div>
+    </details>
+  </section>
 
-  <h2>Add a question</h2>
-  <label>Date</label>
-  <input type="date" id="add-date">
-  <label>Category</label>
-  <select id="add-category">
-    <option value="sports">Sports</option>
-    <option value="pop_culture">Pop culture</option>
-    <option value="news">News &amp; current events</option>
-  </select>
-  <label>Question</label>
-  <textarea id="add-text" rows="2" placeholder="Will..."></textarea>
-  <label>Lock time</label>
-  <input type="datetime-local" id="add-lock">
-  <label>Resolution criteria (optional)</label>
-  <textarea id="add-resolution" rows="2" placeholder="How this will be judged, e.g. 'Based on final box score after OT'"></textarea>
-  <label style="display:block;margin-top:8px;">Photo (optional): subject name, photo link, and for a face-off the other side</label>
-  <input id="add-sub-name" placeholder="Subject name, e.g. Jensen Huang">
-  <input id="add-sub-img" placeholder="Subject photo link (https://...)">
-  <input id="add-vs-name" placeholder="Versus name (face-off only)">
-  <input id="add-vs-img" placeholder="Versus photo link (face-off only)">
-  <button id="add-btn">Add question</button>
-  <p id="add-msg" style="font-size:13px; margin-top:8px;"></p>
+  <!-- ===================== MODERATION ===================== -->
+  <section class="panel" id="panel-moderation">
 
-  <h2>Bulk add today's 3 (paste from Claude)</h2>
-  <label>Paste the JSON block Claude gives you</label>
-  <textarea id="bulk-json" rows="6" placeholder='[{"category":"sports","question_text":"Will...","lock_time":"2026-09-15T20:30:00-04:00","resolution_criteria":"optional — how this will be judged"}, ...]'></textarea>
-  <button id="bulk-add-btn">Add all 3</button>
-  <p id="bulk-msg" style="font-size:13px; margin-top:8px;"></p>
+    <details class="card" open data-count="#review-list .qrow" data-tab-pip="moderation">
+      <summary>Comments to review <span class="pip"></span><span class="sub">held or reported</span></summary>
+      <div class="body">
+        <p class="hint">Comments the word filter held back, plus any hidden after 3 reports. Held comments are only visible to their author until you approve them. Covers News, Trending and the daily questions.</p>
+        <div id="review-list">Loading&hellip;</div>
+      </div>
+    </details>
 
-  <h2>Schedule (key dates)</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-top:0;">Sports, earnings and movie/TV dates fill in on their own. Add the rest here: tech launches, awards shows, news events. Importance 2 also shows on the Today row of the Play page; importance 1 shows on the Schedule page only.</p>
-  <label>Category</label>
-  <select id="sched-cat">
-    <option value="tech">Tech</option>
-    <option value="pop_culture">Pop culture</option>
-    <option value="news">News</option>
-    <option value="finance">Finance</option>
-    <option value="sports">Sports</option>
-  </select>
-  <label>Title</label>
-  <input id="sched-title" maxlength="140" placeholder="e.g. Billboard Latin Music Awards">
-  <label>Small line under the title (optional)</label>
-  <input id="sched-sub" maxlength="140" placeholder="e.g. Telemundo, 8pm ET">
-  <label>Badge (optional, a few letters)</label>
-  <input id="sched-badge" maxlength="40" placeholder="e.g. Awards, Keynote">
-  <label>Date and time (your time zone)</label>
-  <input type="datetime-local" id="sched-when">
-  <label style="display:flex; align-items:center; gap:8px; font-weight:500;"><input type="checkbox" id="sched-allday" style="width:auto; margin:0;"> All day (ignore the time, use just the date)</label>
-  <label>Importance</label>
-  <select id="sched-imp">
-    <option value="2">2 - shows on the Today row and the Schedule page</option>
-    <option value="1">1 - Schedule page only</option>
-  </select>
-  <label>Link (optional, https://...)</label>
-  <input id="sched-url" placeholder="https://...">
-  <button id="sched-add-btn">Add event</button>
-  <p id="sched-msg" style="font-size:13px; margin-top:8px;"></p>
-  <button id="sched-refresh-btn" class="btn-edit" style="margin-bottom:6px;">Refresh list</button>
-  <div id="sched-admin-list"></div>
+    <details class="card">
+      <summary>Users <span class="sub">search, suspend, unban</span></summary>
+      <div class="body">
+        <label>Search by username</label>
+        <div class="row">
+          <input type="text" id="user-search-input" placeholder="username">
+          <button id="user-search-btn" style="margin-top:0;">Search</button>
+        </div>
+        <p id="user-search-msg" class="note"></p>
+        <div id="user-search-results"></div>
+      </div>
+    </details>
 
-  <h2>Publisher widgets</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Partner sites that show the Marqit widget. Add a site, give it a question for each article, and approve comments.</p>
-  <label>New site name</label><input id="wsite-name" type="text" placeholder="Example Sports Blog">
-  <label>Allowed domains (comma separated, blank = any)</label><input id="wsite-domains" type="text" placeholder="examplesports.com, www.examplesports.com">
-  <label style="display:flex;align-items:center;gap:8px;"><input id="wsite-auto" type="checkbox" style="width:auto;"> Auto-approve comments (otherwise each comment waits for you)</label>
-  <label>How are questions made?</label>
-  <select id="wsite-mode">
-    <option value="review">Claude drafts each question, I approve it (recommended)</option>
-    <option value="auto">Claude drafts and posts questions automatically</option>
-    <option value="manual">I write every question myself</option>
-  </select>
-  <p style="font-size:12px;color:var(--ink-soft);margin:4px 0 0;">The first two need the site's website address above. Then the publisher pastes one line of code once and every article gets a question.</p>
-  <button id="wsite-add-btn">Add site</button>
-  <p id="wsite-msg" style="font-size:13px; margin-top:8px;"></p>
-  <label>Add or change a question</label>
-  <select id="wq-site"></select>
-  <input id="wq-url" type="text" placeholder="Article web address, e.g. https://examplesports.com/mahomes-knee" style="margin-top:8px;">
-  <button id="wq-draft-btn" type="button" style="margin-top:8px;">Draft question from this link</button>
-  <p id="wq-draft-msg" style="font-size:13px; margin-top:6px;"></p>
-  <input id="wq-text" type="text" placeholder="Will Patrick Mahomes be placed on IR?" maxlength="200" style="margin-top:8px;">
-  <input id="wq-note" type="text" placeholder="How it resolves (optional)" maxlength="300" style="margin-top:8px;">
-  <button id="wq-add-btn">Save question</button>
-  <p id="wq-msg" style="font-size:13px; margin-top:8px;"></p>
-  <div id="widget-pending-q"></div>
-  <div id="widget-overview"></div>
-  <div id="widget-comments"></div>
+    <details class="card">
+      <summary>Blocked words <span class="sub">block or hold</span></summary>
+      <div class="body">
+        <p class="hint"><b>Block</b> rejects the comment. <b>Hold</b> posts it for the author only and queues it under Comments to review. Links, emails and phone numbers are always blocked. Use a word or a simple lower-case pattern (e.g. <code>kill\s+him</code>); letter swaps like 0 for o are caught automatically.</p>
+        <div class="row">
+          <input type="text" id="term-input" placeholder="word or pattern" style="flex:2;">
+          <select id="term-mode" style="flex:1;"><option value="hold">Hold</option><option value="block">Block</option></select>
+          <button id="term-add-btn" style="margin-top:0;">Add</button>
+        </div>
+        <p id="term-msg" class="note"></p>
+        <div id="term-list"></div>
+      </div>
+    </details>
+  </section>
 
-  <h2>Question suggestions</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Submitted by users when today's calls are locked. Only visible to you.</p>
-  <div id="suggestions-list"></div>
+  <!-- ===================== CONTENT ===================== -->
+  <section class="panel" id="panel-content">
 
-  <h2>Resolve questions</h2>
-  <label>Date to view</label>
-  <input type="date" id="view-date">
-  <div style="margin-top:10px;">
-    <button id="check-results-btn" style="background:var(--panel); border:1.5px solid var(--line); color:var(--ink);">Check results now</button>
-    <span id="check-results-msg" style="font-size:13px; margin-left:10px; color:var(--ink-soft);"></span>
-  </div>
-  <div id="question-list"></div>
-  <button id="score-btn" style="margin-top:20px;">Run scoring for this date</button>
-  <p id="score-msg" style="font-size:13px; margin-top:8px;"></p>
-  <p style="font-size:12.5px; color:var(--ink-soft); margin-top:8px;">Results emails go out automatically when scoring finishes.</p>
+    <details class="card" open>
+      <summary>Trending posts <span class="sub">embed a social post</span></summary>
+      <div class="body">
+        <p class="hint">Paste a link from X, Instagram, TikTok, Bluesky, YouTube or Threads. It shows on the Trending tab as the real post, with credit, a link back and its own Marqit discussion. Add a Yes/No question to start a debate.</p>
+        <label>Post link</label><input id="upd-url" type="text" placeholder="https://x.com/AdamSchefter/status/123456789">
+        <div class="grid2">
+          <div><label>Lane</label>
+            <select id="upd-lane"><option value="sports">Sports</option><option value="pop">Pop Culture</option><option value="music">Music</option><option value="tech">Tech</option><option value="news">News</option></select></div>
+          <div><label>Who posted it (optional)</label><input id="upd-source" type="text" maxlength="60" placeholder="Adam Schefter"></div>
+        </div>
+        <label>One-line headline (what it is about)</label><input id="upd-title" type="text" maxlength="200" placeholder="Schefter: Ravens finalizing a deal with ...">
+        <label>Yes/No debate question (optional)</label><input id="upd-take" type="text" maxlength="120" placeholder="Is this the right move for the Ravens?">
+        <label class="check"><input id="upd-pin" type="checkbox"> Pin to the top</label>
+        <button id="upd-post-btn">Add post</button>
+        <p id="upd-msg" class="note"></p>
+        <div id="upd-list"></div>
+      </div>
+    </details>
 
-  <h2>Users</h2>
-  <label>Search by username</label>
-  <div style="display:flex; gap:8px;">
-    <input type="text" id="user-search-input" placeholder="username" style="flex:1;">
-    <button id="user-search-btn" style="margin-top:0; white-space:nowrap;">Search</button>
-  </div>
-  <p id="user-search-msg" style="font-size:13px; margin-top:8px; color:var(--ink-soft);"></p>
-  <div id="user-search-results"></div>
+    <details class="card">
+      <summary>Schedule (key dates) <span class="sub">tech, awards, news</span></summary>
+      <div class="body">
+        <p class="hint">Sports, earnings and movie/TV dates fill in on their own; add the rest here. Importance 2 also shows on the Play page's Today row; importance 1 appears on the Schedule page only.</p>
+        <div class="grid2">
+          <div><label>Category</label>
+            <select id="sched-cat">
+              <option value="tech">Tech</option>
+              <option value="pop_culture">Pop culture</option>
+              <option value="news">News</option>
+              <option value="finance">Finance</option>
+              <option value="sports">Sports</option>
+            </select></div>
+          <div><label>Importance</label>
+            <select id="sched-imp">
+              <option value="2">2 - Today row + Schedule page</option>
+              <option value="1">1 - Schedule page only</option>
+            </select></div>
+        </div>
+        <label>Title</label>
+        <input id="sched-title" maxlength="140" placeholder="e.g. Billboard Latin Music Awards">
+        <div class="grid2">
+          <div><label>Small line under the title (optional)</label><input id="sched-sub" maxlength="140" placeholder="e.g. Telemundo, 8pm ET"></div>
+          <div><label>Badge (optional, a few letters)</label><input id="sched-badge" maxlength="40" placeholder="e.g. Awards, Keynote"></div>
+          <div><label>Date and time (your time zone)</label><input type="datetime-local" id="sched-when"></div>
+          <div><label>Link (optional)</label><input id="sched-url" placeholder="https://..."></div>
+        </div>
+        <label class="check"><input type="checkbox" id="sched-allday"> All day (ignore the time, use just the date)</label>
+        <div class="row" style="margin-top:4px;">
+          <button id="sched-add-btn" style="flex:none;">Add event</button>
+          <button id="sched-refresh-btn" class="ghost" style="flex:none;">Refresh list</button>
+        </div>
+        <p id="sched-msg" class="note"></p>
+        <div id="sched-admin-list"></div>
+      </div>
+    </details>
+  </section>
 
-  <h2>Challenge sign-ups</h2>
-  <p id="chal-su-count" style="font-size:13px; color:var(--ink-soft); margin-bottom:8px;"></p>
-  <div style="display:flex; gap:8px;">
-    <button id="chal-su-load" style="margin-top:0;">Load sign-ups</button>
-    <button id="chal-su-csv" style="margin-top:0;">Download CSV</button>
-  </div>
-  <div id="chal-su-list" style="margin-top:10px; font-size:13px;"></div>
+  <!-- ===================== WIDGETS ===================== -->
+  <section class="panel" id="panel-widgets">
 
-  <h2>Add a Challenge question</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Only November (numeric, closest-guess) and December (open-ended) are wired up on the backend. October (multiple choice) isn't built yet, so it isn't offered here — the live site's October card is illustrative only. Saving here creates a draft only — nothing goes live until you publish it below.</p>
-  <label>Month</label>
-  <select id="challenge-month">
-    <option value="november">November — closest guess wins</option>
-    <option value="december">December — open-ended</option>
-  </select>
-  <label>Question</label>
-  <textarea id="challenge-text" rows="2" placeholder="How many total points will be scored across all NFL games on Thanksgiving Day?"></textarea>
-  <label>Lock time</label>
-  <input type="datetime-local" id="challenge-lock">
-  <div id="challenge-answers-wrap">
-    <label>Accepted answers (December only — comma-separated, at least one required)</label>
-    <textarea id="challenge-answers" rows="2" placeholder="turnip, brat, demure"></textarea>
-  </div>
-  <button id="challenge-add-btn">Save as draft</button>
-  <p id="challenge-add-msg" style="font-size:13px; margin-top:8px;"></p>
+    <details class="card" open data-count="#widget-pending-q .qrow, #widget-comments .qrow" data-tab-pip="widgets">
+      <summary>Publisher widgets <span class="pip"></span><span class="sub">partner sites, questions, comments</span></summary>
+      <div class="body">
+        <p class="hint">Partner sites that show the Marqit widget. Add a site, give it a question for each article, and approve comments.</p>
+        <div class="grid2">
+          <div><label>New site name</label><input id="wsite-name" type="text" placeholder="Example Sports Blog"></div>
+          <div><label>Allowed domains (comma separated, blank = any)</label><input id="wsite-domains" type="text" placeholder="examplesports.com, www.examplesports.com"></div>
+        </div>
+        <label>How are questions made?</label>
+        <select id="wsite-mode">
+          <option value="review">Claude drafts each question, I approve it (recommended)</option>
+          <option value="auto">Claude drafts and posts questions automatically</option>
+          <option value="manual">I write every question myself</option>
+        </select>
+        <p class="hint" style="margin-top:6px;">The first two need the site's website address above. The publisher pastes one line of code once and every article gets a question.</p>
+        <label class="check"><input id="wsite-auto" type="checkbox"> Auto-approve comments (otherwise each comment waits for you)</label>
+        <button id="wsite-add-btn">Add site</button>
+        <p id="wsite-msg" class="note"></p>
 
-  <h2>Challenge question drafts</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Nothing here is visible to players. Edit freely, then Publish when it's ready — or Discard to throw it out.</p>
-  <div id="challenge-drafts-list"></div>
+        <div id="widget-pending-q" class="sublist"></div>
+        <div id="widget-overview" class="sublist"></div>
+        <div id="widget-comments"></div>
+      </div>
+    </details>
 
-  <h2>Resolve Challenge questions</h2>
-  <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">Resolving awards Challenge points immediately and can't be undone.</p>
-  <div id="challenge-list"></div>
-  <button id="challenge-refresh-btn" style="background:var(--panel); border:1.5px solid var(--line); color:var(--ink);">Refresh list</button>
+    <details class="card">
+      <summary>Add or change a widget question <span class="sub">per article</span></summary>
+      <div class="body">
+        <label>Site</label>
+        <select id="wq-site"></select>
+        <label>Article link</label>
+        <div class="row">
+          <input id="wq-url" type="text" placeholder="https://examplesports.com/mahomes-knee">
+          <button id="wq-draft-btn" type="button" class="ghost" style="margin-top:0;">Draft question from this link</button>
+        </div>
+        <p id="wq-draft-msg" class="note"></p>
+        <label>Question</label>
+        <input id="wq-text" type="text" placeholder="Will Patrick Mahomes be placed on IR?" maxlength="200">
+        <label>How it resolves (optional)</label>
+        <input id="wq-note" type="text" placeholder="e.g. Resolves YES if he is placed on IR by Friday" maxlength="300">
+        <button id="wq-add-btn">Save question</button>
+        <p id="wq-msg" class="note"></p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ===================== CHAPTERS ===================== -->
+  <section class="panel" id="panel-chapters">
+
+    <details class="card" open>
+      <summary>Marqit Champion <span class="sub">non-monetary prize</span></summary>
+      <div class="body">
+        <p class="hint">Crown a chapter and/or a national org. Every member gets a permanent champion frame on their avatar site-wide plus a shareable Champion card. Clearing removes the title from everyone immediately.</p>
+        <div id="champion-current" class="note" style="margin-bottom:6px;">Loading&hellip;</div>
+        <div class="grid2">
+          <div>
+            <label>Crown a chapter</label>
+            <select id="champion-group-select"><option value="">Select a chapter&hellip;</option></select>
+            <div class="row" style="gap:8px;">
+              <button id="champion-group-set-btn" class="primary" style="flex:none;">Crown chapter</button>
+              <button id="champion-group-clear-btn" class="btn-delete" style="flex:none;">Clear title</button>
+            </div>
+          </div>
+          <div>
+            <label>Crown a national org</label>
+            <select id="champion-org-select"><option value="">Select a national org&hellip;</option></select>
+            <div class="row" style="gap:8px;">
+              <button id="champion-org-set-btn" class="primary" style="flex:none;">Crown org</button>
+              <button id="champion-org-clear-btn" class="btn-delete" style="flex:none;">Clear title</button>
+            </div>
+          </div>
+        </div>
+        <p class="msg" id="champion-status-msg" style="display:none; margin-top:10px; padding:10px 12px;"></p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>All chapters <span class="sub">verify, school, org, letters</span></summary>
+      <div class="body">
+        <p class="hint">Verify a chapter (badge + prize eligibility) and set its school, national org and letters; these feed the Top Chapters, Top Orgs and Head-to-Head boards. Verifying a new chapter auto-grants Founding Chapter status to the first 20.</p>
+        <div id="chapters-list">Loading&hellip;</div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ===================== CHALLENGE ===================== -->
+  <section class="panel" id="panel-challenge">
+
+    <details class="card" open>
+      <summary>Resolve Challenge questions<span class="sub">awards points, can't be undone</span></summary>
+      <div class="body">
+        <div id="challenge-list"></div>
+        <button id="challenge-refresh-btn" class="ghost">Refresh list</button>
+      </div>
+    </details>
+
+    <details class="card" data-count="#challenge-drafts-list .qrow">
+      <summary>Challenge drafts <span class="pip"></span><span class="sub">publish when ready</span></summary>
+      <div class="body">
+        <p class="hint">Nothing here is visible to players. Edit freely, then Publish, or Discard to throw it out.</p>
+        <div id="challenge-drafts-list"></div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>Add a Challenge question <span class="sub">saves as a draft</span></summary>
+      <div class="body">
+        <p class="hint">Only November (numeric, closest guess) and December (open-ended) are wired up on the backend. Saving creates a draft only; nothing goes live until you publish it from Challenge drafts.</p>
+        <div class="grid2">
+          <div><label>Month</label>
+            <select id="challenge-month">
+              <option value="november">November — closest guess wins</option>
+              <option value="december">December — open-ended</option>
+            </select></div>
+          <div><label>Lock time</label><input type="datetime-local" id="challenge-lock"></div>
+        </div>
+        <label>Question</label>
+        <textarea id="challenge-text" rows="2" placeholder="How many total points will be scored across all NFL games on Thanksgiving Day?"></textarea>
+        <div id="challenge-answers-wrap">
+          <label>Accepted answers (December only, comma-separated, at least one)</label>
+          <textarea id="challenge-answers" rows="2" placeholder="turnip, brat, demure"></textarea>
+        </div>
+        <button id="challenge-add-btn">Save as draft</button>
+        <p id="challenge-add-msg" class="note"></p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>Challenge sign-ups <span class="sub" id="chal-su-count"></span></summary>
+      <div class="body">
+        <div class="row" style="margin-top:12px;">
+          <button id="chal-su-load" class="ghost" style="margin-top:0;flex:none;">Load sign-ups</button>
+          <button id="chal-su-csv" class="ghost" style="margin-top:0;flex:none;">Download CSV</button>
+        </div>
+        <div id="chal-su-list" style="margin-top:10px; font-size:13px;"></div>
+      </div>
+    </details>
+  </section>
 
 </div>
+</main>
+
+<footer>
+  <img src="/grand-media-group-logo.png" alt="Grand Media Group">
+  <span>Marqit is a Grand Media Group product.</span>
+</footer>
 
 <script>
 (function(){
@@ -1512,6 +1718,69 @@
     var csv = 'name,email,signed_up,has_account\n' + chalRows.map(function(x){ return [q(x.name), q(x.email), q(x.created_at), x.user_id ? 'yes' : 'no'].join(','); }).join('\n');
     var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'challenge-signups.csv'; a.click();
   });
+})();
+</script>
+<script>
+/* Tabs, jump-to-section links and count badges. Display only; the data scripts above are unchanged. */
+(function(){
+  var tabs = document.querySelectorAll('#tabs .tab');
+  var panels = document.querySelectorAll('.panel');
+  var KEY = 'mq_admin_tab';
+
+  function show(name){
+    var found = false;
+    tabs.forEach(function(t){ var on = t.getAttribute('data-tab') === name; t.classList.toggle('active', on); if(on) found = true; });
+    if(!found) return;
+    panels.forEach(function(p){ p.classList.toggle('active', p.id === 'panel-' + name); });
+    try{ localStorage.setItem(KEY, name); }catch(e){}
+  }
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){ show(t.getAttribute('data-tab')); window.scrollTo(0, 0); });
+  });
+
+  // Links like #widget-comments (the yellow alert bar) switch to the right tab and open the card.
+  function goHash(){
+    var id = location.hash.slice(1);
+    var el = id && document.getElementById(id);
+    if(!el) return;
+    var p = el.closest('.panel');
+    if(p) show(p.id.replace('panel-', ''));
+    var d = el.closest('details');
+    while(d){ d.open = true; d = d.parentElement ? d.parentElement.closest('details') : null; }
+    setTimeout(function(){ el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30);
+  }
+  window.addEventListener('hashchange', goHash);
+  document.addEventListener('click', function(e){
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if(a && a.getAttribute('href') === location.hash) setTimeout(goHash, 0);
+  });
+
+  var saved = null;
+  try{ saved = localStorage.getItem(KEY); }catch(e){}
+  show(saved || 'daily');
+  if(location.hash) goHash();
+
+  // Count badges: a card with data-count shows how many rows are waiting in it, and
+  // data-tab-pip adds that number to the tab so you can see what needs you without opening anything.
+  var cards = document.querySelectorAll('details[data-count]');
+  function recount(){
+    var totals = {};
+    cards.forEach(function(c){
+      var n = document.querySelectorAll(c.getAttribute('data-count')).length;
+      var pip = c.querySelector(':scope > summary .pip');
+      if(pip){ pip.textContent = n; pip.classList.toggle('on', n > 0); }
+      var tp = c.getAttribute('data-tab-pip');
+      if(tp) totals[tp] = (totals[tp] || 0) + n;
+    });
+    ['daily', 'moderation', 'widgets'].forEach(function(name){
+      var el = document.getElementById('pip-' + name), n = totals[name] || 0;
+      if(el){ el.textContent = n; el.classList.toggle('on', n > 0); }
+    });
+  }
+  var timer = null;
+  new MutationObserver(function(){ clearTimeout(timer); timer = setTimeout(recount, 150); })
+    .observe(document.getElementById('app'), { childList: true, subtree: true });
+  recount();
 })();
 </script>
 </body>
