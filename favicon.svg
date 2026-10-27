@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <clipPath id="top"><rect x="0" y="14" width="64" height="50"/></clipPath>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="#0b1f3f"/>
+  <g clip-path="url(#top)" fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linejoin="miter">
+    <!-- M: both legs and the V share the same weight and baseline -->
+    <line x1="22" y1="14" x2="22" y2="47"/>
+    <line x1="42" y1="14" x2="42" y2="40"/>
+    <polyline points="22,14 32,32 42,14"/>
+  </g>
+  <!-- arrowhead on the left leg -->
+  <polygon points="22,56 14.5,46 29.5,46" fill="#ffffff"/>
+</svg>
