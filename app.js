@@ -859,18 +859,11 @@
       openAuthPanel('signup');
     });
   }
-  const ctaOpenBtnChallenge = document.getElementById('cta-open-signup-challenge');
-  if(ctaOpenBtnChallenge){
-    ctaOpenBtnChallenge.addEventListener('click', function(){
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      openAuthPanel('signup', 'challenge');
-    });
-  }
   document.addEventListener('click', function(e){
     if(authPanel.style.display !== 'block') return;
     if(Date.now() - (window.__authOpenedAt || 0) < 300) return; // the click that just opened it
     const clickedInsidePanel = authPanel.contains(e.target);
-    const clickedNavButton = e.target.id === 'nav-login-btn' || e.target.id === 'nav-signup-btn' || e.target.id === 'cta-open-signup' || e.target.id === 'cta-open-signup-challenge';
+    const clickedNavButton = e.target.id === 'nav-login-btn' || e.target.id === 'nav-signup-btn' || e.target.id === 'cta-open-signup';
     if(!clickedInsidePanel && !clickedNavButton){ authPanel.style.display = 'none'; }
   });
 
@@ -2533,8 +2526,6 @@
     });
 
     document.getElementById('share-results-btn').style.display = 'inline-flex';
-    const squareBtn = document.getElementById('share-results-square-btn');
-    if(squareBtn) squareBtn.style.display = 'inline-flex';
   }
 
 
@@ -2572,7 +2563,6 @@
         row.appendChild(cell);
       });
       document.getElementById('share-results-btn').style.display = 'inline-flex';
-      const sq = document.getElementById('share-results-square-btn'); if(sq) sq.style.display = 'inline-flex';
     }catch(e){}
   }
 
@@ -2987,7 +2977,9 @@
 
   // ===== One share sheet for everything =====
   // opts: { title, text, url, packaged?: {file, blob}, filename? }
-  // Big, friendly tiles: Messages, WhatsApp, X, Email, Copy link, Save image, plus the device's own share sheet.
+  // Phones: straight to the phone's own share sheet with the story image (Instagram, Snapchat, Messages...).
+  // Computers: nothing to download and no system menu. One click copies the picture to the clipboard, and every
+  // destination (Messages, WhatsApp, X, Email) copies it first and then opens, so the picture is ready to paste.
   function mqOpenShareSheet(opts){
     var old = document.getElementById('mq-share-sheet'); if(old) old.remove();
     var url = opts.url || 'https://playmarqit.com/';
@@ -2995,11 +2987,6 @@
     var full = (text + ' ' + url).trim();
     var packaged = opts.packaged || null;
 
-    // Fast path on phones: skip our own sheet and open the phone's share sheet
-    // with just the story-size image. Instagram (Stories / Feed / DM), Snapchat,
-    // Messages etc. are all listed there, so it's one tap on Share, one tap on
-    // Instagram. If the browser refuses (it wants the tap to be very recent), we
-    // fall through to our sheet, whose big Instagram button is a fresh tap.
     var isPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
     if(packaged && !opts.noDirect && isPhone && navigator.share && navigator.canShare && navigator.canShare({ files: [packaged.file] })){
       // Put the link on the clipboard too, ready to paste into an Instagram link sticker.
@@ -3011,6 +2998,7 @@
       return;
     }
 
+    var canCopyImg = !!(packaged && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write);
     var previewUrl = packaged ? URL.createObjectURL(packaged.blob) : null;
     function done(){ if(previewUrl) setTimeout(function(){ URL.revokeObjectURL(previewUrl); }, 500); wrap.classList.remove('open'); setTimeout(function(){ wrap.remove(); }, 220); document.removeEventListener('keydown', onKey); }
     function onKey(e){ if(e.key === 'Escape') done(); }
@@ -3020,65 +3008,85 @@
       x:'<path d="M5 5l14 14M19 5L5 19"/>',
       mail:'<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>',
       copy:'<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.500 8.500v-2a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>',
+      img:'<rect x="3.5" y="4.5" width="17" height="15" rx="2.500"/><circle cx="9" cy="10" r="1.600"/><path d="M4 17l5-4.500 3.500 3L16 12l4 4"/>',
       save:'<path d="M12 4v11M7.500 10.500L12 15l4.500-4.500M5 19.500h14"/>',
       more:'<circle cx="6" cy="12" r="1.400" fill="currentColor"/><circle cx="12" cy="12" r="1.400" fill="currentColor"/><circle cx="18" cy="12" r="1.400" fill="currentColor"/>'
     };
-    function svg(k){ return '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ico[k] + '</svg>'; }
+    function svg(k, n){ return '<svg viewBox="0 0 24 24" width="' + (n || 24) + '" height="' + (n || 24) + '" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ico[k] + '</svg>'; }
     var tiles = [
       { k:'sms',  label:'Messages',  c:'#34C759', href:'sms:?&body=' + encodeURIComponent(full) },
       { k:'wa',   label:'WhatsApp',  c:'#25D366', href:'https://wa.me/?text=' + encodeURIComponent(full) },
-      { k:'x',    label:'X',         c:'#9AA3B2', href:'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url) },
-      { k:'mail', label:'Email',     c:'#4C8DFF', href:'mailto:?subject=' + encodeURIComponent(opts.title || 'Marqit') + '&body=' + encodeURIComponent(full) },
-      { k:'copy', label:'Copy link', c:'#B07CFF', act:'copy' }
+      { k:'x',    label:'X',         c:'#C9CDD4', href:'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url) },
+      { k:'mail', label:'Email',     c:'#5B9BFF', href:'mailto:?subject=' + encodeURIComponent(opts.title || 'Marqit') + '&body=' + encodeURIComponent(full) },
+      { k:'copy', label:'Copy link', c:'#B08CFF', act:'copy' }
     ];
-    if(packaged) tiles.push({ k:'save', label:'Save image', c:'#FFB020', act:'save' });
-    // The device's own share sheet (AirDrop, Mail, Notes ...) is only offered on phones. On a computer it
-    // pops a clunky system menu over the page, so there we keep everything inside our own sheet.
-    var canNative = isPhone && !!navigator.share;
-    if(canNative) tiles.push({ k:'more', label:'More', c:'#8A93A6', act:'native' });
+    // Saving a file is only offered where it is the natural thing (a phone) or the browser cannot copy a picture.
+    if(packaged && (isPhone || !canCopyImg)) tiles.push({ k:'save', label:'Save image', c:'#FFB020', act:'save' });
+    if(isPhone && navigator.share) tiles.push({ k:'more', label:'More', c:'#9AA0AB', act:'native' });
+
+    var main = !packaged ? '' : isPhone
+      ? '<button type="button" class="mq-ss-ig">Share to Instagram Story</button>'
+      : (canCopyImg ? '<button type="button" class="mq-ss-ig dl"><span class="mq-ss-igi">' + svg('img', 20) + '</span><span class="mq-ss-igt">Copy image</span></button>' : '');
+    var hint = packaged && !isPhone && canCopyImg ? 'Copy the picture, then paste it into Instagram, Messages, Slack, anywhere.' : '';
 
     var wrap = document.createElement('div');
-    wrap.id = 'mq-share-sheet'; wrap.className = 'mq-ss';
+    wrap.id = 'mq-share-sheet'; wrap.className = 'mq-ss' + (previewUrl ? ' has-prev' : '');
     wrap.innerHTML = '<div class="mq-ss-bg"></div><div class="mq-ss-card" role="dialog" aria-modal="true" aria-label="Share">' +
       '<button type="button" class="mq-ss-x" aria-label="Close">&times;</button>' +
-      '<div class="mq-ss-head">' + (previewUrl ? '<img class="mq-ss-prev" alt="" src="' + previewUrl + '">' : '') +
-        '<div class="mq-ss-ht"><b>' + escapeHtml(opts.title || 'Share') + '</b><span>' + escapeHtml(url.replace(/^https?:\/\//, '').slice(0, 44)) + '</span></div></div>' +
-      (packaged ? '<button type="button" class="mq-ss-ig' + (isPhone ? '' : ' dl') + '">' + (isPhone ? 'Share to Instagram Story' : 'Download story image') + '</button>' : '') +
-      '<div class="mq-ss-grid"></div><div class="mq-ss-msg" role="status"></div></div>';
+      (previewUrl ? '<div class="mq-ss-stage"><img class="mq-ss-prev" alt="Preview of your card" src="' + previewUrl + '"></div>' : '') +
+      '<div class="mq-ss-main"><div class="mq-ss-ht"><b>' + escapeHtml(opts.title || 'Share') + '</b>' + (hint ? '<p>' + hint + '</p>' : '<span>' + escapeHtml(url.replace(/^https?:\/\//, '').slice(0, 44)) + '</span>') + '</div>' +
+      main +
+      '<div class="mq-ss-grid"></div><div class="mq-ss-msg" role="status" aria-live="polite"></div></div></div>';
     var grid = wrap.querySelector('.mq-ss-grid'), msg = wrap.querySelector('.mq-ss-msg');
-    function say(t){ msg.textContent = t; }
+    function say(t, ok){ msg.textContent = t; msg.classList.toggle('ok', !!ok); }
+    // Puts the card on the clipboard. Resolves true when it worked.
+    function copyImage(){
+      if(!canCopyImg) return Promise.resolve(false);
+      try{ return navigator.clipboard.write([new ClipboardItem({ 'image/png': packaged.blob })]).then(function(){ return true; }, function(){ return false; }); }
+      catch(e){ return Promise.resolve(false); }
+    }
+    function saveFile(){
+      var a = document.createElement('a'); a.href = URL.createObjectURL(packaged.blob); a.download = opts.filename || 'marqit.png';
+      document.body.appendChild(a); a.click(); a.remove();
+    }
     var igBtn = wrap.querySelector('.mq-ss-ig');
     if(igBtn) igBtn.addEventListener('click', async function(){
+      if(!isPhone){
+        var ok = await copyImage();
+        if(ok){ igBtn.classList.add('ok'); igBtn.querySelector('.mq-ss-igt').textContent = 'Copied'; say('Picture copied. Paste it where you want it.', true); setTimeout(function(){ igBtn.classList.remove('ok'); igBtn.querySelector('.mq-ss-igt').textContent = 'Copy image'; }, 2400); }
+        else say('Your browser would not copy the picture. Try the Save image button.');
+        return;
+      }
       // Best: the phone's share sheet with the image -- pick Instagram > Story.
-      if(isPhone && navigator.share && navigator.canShare && navigator.canShare({ files: [packaged.file] })){
+      if(navigator.share && navigator.canShare && navigator.canShare({ files: [packaged.file] })){
         try{ await navigator.share({ files: [packaged.file] }); done(); return; }
         catch(e){ if(e && e.name === 'AbortError') return; }
       }
-      // Otherwise save the image and open Instagram's story camera: they pick
-      // the picture we just saved from the camera roll.
-      var a = document.createElement('a'); a.href = URL.createObjectURL(packaged.blob); a.download = opts.filename || 'marqit.png';
-      document.body.appendChild(a); a.click(); a.remove();
+      // Otherwise save the image and open Instagram's story camera: they pick the picture we just saved.
+      saveFile();
       try{ navigator.clipboard.writeText(url); }catch(e){}
-      if(isPhone){
-        say('Image saved. Opening Instagram — pick it from your photos. Your link is copied for a link sticker.');
-        setTimeout(function(){ window.location.href = 'instagram://story-camera'; }, 900);
-      } else {
-        say('Saved. Post it from the Instagram app on your phone. Your link is copied for a link sticker.');
-      }
+      say('Image saved. Opening Instagram — pick it from your photos. Your link is copied for a link sticker.', true);
+      setTimeout(function(){ window.location.href = 'instagram://story-camera'; }, 900);
     });
     tiles.forEach(function(t){
       var b = document.createElement(t.href ? 'a' : 'button');
       b.className = 'mq-ss-tile'; b.style.setProperty('--tc', t.c);
       b.innerHTML = '<span class="mq-ss-ic">' + svg(t.k) + '</span><span class="mq-ss-lb">' + t.label + '</span>';
-      if(t.href){ b.href = t.href; if(t.href.indexOf('http') === 0){ b.target = '_blank'; b.rel = 'noopener'; } b.addEventListener('click', function(){ setTimeout(done, 150); }); }
+      if(t.href){
+        b.href = t.href; if(t.href.indexOf('http') === 0){ b.target = '_blank'; b.rel = 'noopener'; }
+        b.addEventListener('click', function(){
+          // The picture goes to the clipboard in the same click, so it is ready to paste where the link opens.
+          if(!isPhone && canCopyImg){ copyImage().then(function(ok){ if(ok) say('Picture copied. Paste it into ' + t.label + '.', true); }); setTimeout(done, 1600); }
+          else setTimeout(done, 150);
+        });
+      }
       else{
         b.type = 'button';
         b.addEventListener('click', async function(){
           if(t.act === 'copy'){
-            try{ await navigator.clipboard.writeText(full); say('Link copied. Paste it anywhere.'); }catch(e){ say('Could not copy. Long-press the link to copy it.'); }
+            try{ await navigator.clipboard.writeText(full); say('Link copied. Paste it anywhere.', true); }catch(e){ say('Could not copy. Select the link and copy it by hand.'); }
           }else if(t.act === 'save' && packaged){
-            var a = document.createElement('a'); a.href = URL.createObjectURL(packaged.blob); a.download = opts.filename || 'marqit.png';
-            document.body.appendChild(a); a.click(); a.remove(); say('Image saved.');
+            saveFile(); say('Image saved.', true);
           }else if(t.act === 'native'){
             try{
               if(packaged && navigator.canShare && navigator.canShare({ files: [packaged.file] })) await navigator.share({ files: [packaged.file], text: text, url: url });
@@ -3095,7 +3103,7 @@
     wrap.querySelector('.mq-ss-bg').addEventListener('click', done);
     wrap.querySelector('.mq-ss-x').addEventListener('click', done);
     document.addEventListener('keydown', onKey);
-    var first = grid.querySelector('.mq-ss-tile'); if(first) first.focus();
+    var first = igBtn || grid.querySelector('.mq-ss-tile'); if(first) first.focus({ preventScroll: true });
   }
 
   function mqShareCanvasToFileAndCaption(canvas, filename){
@@ -3132,34 +3140,6 @@
   }
 
   document.getElementById('share-results-btn').addEventListener('click', function(){ mqShareResultsCard(null); });
-
-  // Acceptance criteria requires both a 9:16 story export (the default,
-  // above) and a 1:1 square export -- this is the square one, downloaded
-  // directly rather than run through the native share sheet (most share
-  // sheets are built around one image at a time; the story version is the
-  // one meant for that).
-  const shareSquareBtn = document.getElementById('share-results-square-btn');
-  if(shareSquareBtn){
-    shareSquareBtn.addEventListener('click', async function(){
-      const msgEl = document.getElementById('share-results-msg');
-      if(!__mqShareCardData){ if(msgEl){ msgEl.className = 'form-msg err'; msgEl.textContent = 'Nothing to share yet.'; } return; }
-      const data = __mqShareCardData;
-      await mqEnsureCardFonts();
-      const canvas = mqDrawResultsCard(1080, 1080, data);
-      const packaged = await mqShareCanvasToFileAndCaption(canvas, 'marqit-results-square.png');
-      if(!packaged) return;
-      if(data.session) mqLogCardShare(data.session.user.id, 'daily_results', null);
-      const blobUrl = URL.createObjectURL(packaged.blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = 'marqit-results-square.png';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(function(){ URL.revokeObjectURL(blobUrl); }, 1000);
-      if(msgEl){ msgEl.className = 'form-msg ok'; msgEl.textContent = 'Square image downloaded.'; setTimeout(function(){ msgEl.textContent = ''; }, 3000); }
-    });
-  }
 
   // --- Change 4: pre-result picks card ------------------------------------
   // A card for LOCKED-but-not-yet-resolved picks -- no correct/incorrect
@@ -6941,253 +6921,6 @@
     });
   })();
 
-  async function loadChallengeBoard(){
-    const el = document.getElementById('challenge-board-rows');
-    if(!el) return;
-    const { data, error } = await sb
-      .from('challenge_points')
-      .select('user_id, total_points, profiles(username, avatar_emoji, avatar_color)')
-      .order('total_points', { ascending: false })
-      .limit(10);
-
-    if(error || !data || data.length === 0){
-      el.innerHTML = '<div class="brow"><span>No points awarded yet.</span></div>';
-      return;
-    }
-
-    const myId = await mqMyId();
-    el.innerHTML = await mqBoardRows(data.map(function(row){
-      const p = row.profiles || {};
-      return { user_id: row.user_id, username: p.username, avatar_emoji: p.avatar_emoji, avatar_color: p.avatar_color, points: row.total_points };
-    }), myId);
-  }
-
-  loadChallengeBoard();
-
-  var challengeCountdownIntervals = [];
-
-  function clearChallengeCountdowns(){
-    challengeCountdownIntervals.forEach(function(id){ clearInterval(id); });
-    challengeCountdownIntervals = [];
-  }
-
-  const CHALLENGE_MONTH_LABELS = {
-    october: { text: 'OCTOBER &middot; MULTIPLE CHOICE', color: '#4C6EF5' },
-    november: { text: 'NOVEMBER &middot; CLOSEST GUESS WINS', color: '#F5C336' },
-    december: { text: 'DECEMBER &middot; OPEN-ENDED', color: 'var(--ink-soft)' }
-  };
-
-  // The shared formatCountdown() above is HH:MM:SS only -- fine for daily
-  // questions, which always lock same-day, but Challenge questions can stay
-  // open for days or weeks, where that would render as an absurd triple-digit
-  // hour count (e.g. "168:00:00" for a week out). Mirrors the day-aware format
-  // the hero kickoff countdown already uses on this same tab.
-  function formatChallengeCountdown(ms){
-    if(ms <= 0) return '0s';
-    const d = Math.floor(ms / 86400000);
-    const h = Math.floor((ms % 86400000) / 3600000);
-    const m = Math.floor((ms % 3600000) / 60000);
-    const s = Math.floor((ms % 60000) / 1000);
-    if(d > 0) return d + 'd ' + h + 'h ' + m + 'm';
-    if(h > 0) return h + 'h ' + m + 'm ' + s + 's';
-    return m + 'm ' + s + 's';
-  }
-
-  function buildChallengeCard(q, session, myAnswer){
-    const div = document.createElement('div');
-    div.className = 'ticket';
-    div.style.cssText = 'max-width:480px; margin-bottom:16px;';
-    div.setAttribute('data-challenge-question-id', q.id);
-
-    const isLocked = new Date() >= new Date(q.lock_time);
-    const isResolved = q.status === 'resolved';
-    const badge = (q.question_type === 'multiple_choice')
-      ? { text: 'WEEKLY CALL &middot; MULTIPLE CHOICE', color: '#4C6EF5' }
-      : (CHALLENGE_MONTH_LABELS[q.month] || { text: q.month, color: 'var(--ink-soft)' });
-    const alreadySubmitted = !!myAnswer;
-    const inputType = q.question_type === 'numeric' ? 'number' : 'text';
-    const placeholder = q.question_type === 'numeric' ? 'Your guess' : 'Your answer';
-    const prefill = myAnswer ? (q.question_type === 'numeric' ? myAnswer.guess_numeric : (myAnswer.answer_text || '')) : '';
-
-    let bodyHtml;
-    if(isResolved){
-      // NEW: resolved questions now render their outcome instead of just
-      // vanishing from the widget once status flips to 'resolved'.
-      const correctAnswerText = q.question_type === 'numeric'
-        ? String(q.correct_value)
-        : ((q.accepted_answers && q.accepted_answers.length) ? q.accepted_answers.join(' / ') : '—');
-      bodyHtml = '<div style="margin-top:16px; padding:12px 14px; border-radius:10px; background:var(--panel); font-size:14px;">Correct answer: <strong>' + escapeHtml(correctAnswerText) + '</strong></div>';
-      if(alreadySubmitted){
-        const gotPoints = (myAnswer.points_awarded || 0) > 0;
-        bodyHtml += '<p style="font-size:12.5px; margin-top:8px; color:' + (gotPoints ? 'var(--yes)' : 'var(--ink-soft)') + ';">Your pick: <strong>' + escapeHtml(String(prefill)) + '</strong> \u2014 ' + (gotPoints ? ('+' + myAnswer.points_awarded + ' pts') : 'not a match this time') + '</p>';
-      }else if(session){
-        bodyHtml += '<p style="font-size:12.5px; color:var(--ink-soft); margin-top:8px;">You didn\u2019t submit a pick before this one locked.</p>';
-      }
-    }else if(!session){
-      bodyHtml =
-        '<p style="font-size:13px; color:var(--ink-soft); margin-top:14px;">Sign in to submit your Challenge pick.</p>' +
-        '<button type="button" class="challenge-signin-btn" style="margin-top:10px; padding:11px 20px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:14px; cursor:pointer;">Sign in</button>';
-    }else if(isLocked){
-      bodyHtml = alreadySubmitted
-        ? '<div style="margin-top:16px; padding:12px 14px; border-radius:10px; background:var(--panel); font-size:14px;">Your pick: <strong>' + escapeHtml(String(prefill)) + '</strong></div>' +
-          '<p style="font-size:12.5px; color:var(--ink-soft); margin-top:8px;">Locked &mdash; results post once this is resolved.</p>'
-        : '<p style="font-size:13px; color:var(--ink-soft); margin-top:14px;">This one locked before you got a pick in.</p>';
-    }else{
-      if(q.question_type === 'multiple_choice'){
-        const optionsHtml = (q.options || []).map(function(opt){
-          const isSelected = !!prefill && String(prefill) === opt;
-          return '<button type="button" class="challenge-option-btn" data-option="' + escapeHtml(opt) + '" style="padding:12px 14px; border:1.5px solid ' + (isSelected ? 'var(--ink)' : 'var(--line)') + '; border-radius:10px; background:' + (isSelected ? 'var(--ink)' : 'var(--panel)') + '; color:' + (isSelected ? 'var(--paper)' : 'var(--ink)') + '; font-family:\'Inter\',sans-serif; font-size:14px; text-align:left; cursor:pointer;">' + escapeHtml(opt) + '</button>';
-        }).join('');
-        bodyHtml =
-          '<div class="challenge-options-row" style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">' + optionsHtml + '</div>' +
-          '<input type="hidden" class="challenge-answer-input" value="' + escapeHtml(String(prefill)) + '">' +
-          '<button type="button" class="challenge-submit-btn" ' + (prefill ? '' : 'disabled') + ' style="margin-top:10px; padding:11px 20px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:14px; cursor:pointer; opacity:' + (prefill ? '1' : '0.4') + ';">' + (alreadySubmitted ? 'Update pick' : 'Submit pick') + '</button>' +
-          '<p class="form-msg challenge-msg" style="margin-top:8px;"></p>';
-      }else{
-        bodyHtml =
-          '<div style="margin-top:16px;">' +
-            '<input type="' + inputType + '" class="challenge-answer-input" placeholder="' + placeholder + '" value="' + escapeHtml(String(prefill)) + '" style="width:100%; padding:12px 14px; border:1.5px solid var(--line); border-radius:10px; background:var(--panel); color:var(--ink); font-family:\'Inter\',sans-serif; font-size:14px;">' +
-          '</div>' +
-          '<button type="button" class="challenge-submit-btn" style="margin-top:10px; padding:11px 20px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:14px; cursor:pointer;">' + (alreadySubmitted ? 'Update pick' : 'Submit pick') + '</button>' +
-          '<p class="form-msg challenge-msg" style="margin-top:8px;"></p>';
-      }
-    }
-
-    div.innerHTML =
-      '<div style="display:inline-block; background:var(--panel); border:1px solid var(--line); border-radius:100px; padding:4px 12px; font-size:11px; font-weight:700; letter-spacing:0.04em; color:' + badge.color + ';">' + badge.text + (isResolved ? ' &middot; RESOLVED' : '') + '</div>' +
-      '<p class="ticket-q" style="max-width:none; margin-top:14px; font-weight:600;"></p>' +
-      '<p class="ticket-meta challenge-lock-meta" style="margin-top:6px;"></p>' +
-      bodyHtml;
-    div.querySelector('.ticket-q').textContent = q.question_text;
-
-    if(isResolved){
-      div.querySelector('.challenge-lock-meta').textContent = 'Resolved';
-    }else if(!isLocked){
-      const lockMetaEl = div.querySelector('.challenge-lock-meta');
-      function tick(){
-        const remaining = new Date(q.lock_time).getTime() - Date.now();
-        if(remaining <= 0){
-          lockMetaEl.textContent = 'Locking now\u2026';
-          loadChallengeQuestion(); // re-render into the locked state
-          return;
-        }
-        lockMetaEl.textContent = 'Locks in ' + formatChallengeCountdown(remaining);
-      }
-      tick();
-      challengeCountdownIntervals.push(setInterval(tick, 1000));
-    }else{
-      div.querySelector('.challenge-lock-meta').textContent = 'Locked';
-    }
-
-    return div;
-  }
-
-  async function loadChallengeQuestion(){
-    clearChallengeCountdowns();
-    const container = document.getElementById('challenge-live-container');
-    if(!container) return;
-
-    // FIXED: previously only fetched status='live', so a question vanished
-    // from the widget the instant it resolved. Now also pulls recently
-    // resolved ones (last 30 days) so people can see the outcome instead of
-    // it just disappearing.
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const [{ data: liveQuestions, error: liveErr }, { data: resolvedQuestions }] = await Promise.all([
-      sb.from('challenge_questions').select('*').eq('status', 'live').order('lock_time', { ascending: true }),
-      sb.from('challenge_questions').select('*').eq('status', 'resolved').gte('resolved_at', thirtyDaysAgo.toISOString()).order('resolved_at', { ascending: false })
-    ]);
-
-    const questions = (liveQuestions || []).concat(resolvedQuestions || []);
-    if(liveErr || questions.length === 0){
-      container.innerHTML = ''; // nothing live or recently resolved — keep the hero clean
-      return;
-    }
-
-    const { data: sessionRes } = await sb.auth.getSession();
-    const session = sessionRes && sessionRes.session;
-
-    container.innerHTML = '';
-    for(let i = 0; i < questions.length; i++){
-      const q = questions[i];
-      let myAnswer = null;
-      if(session){
-        const { data: existing } = await sb
-          .from('challenge_answers')
-          .select('guess_numeric, answer_text, points_awarded')
-          .eq('question_id', q.id)
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-        myAnswer = existing || null;
-      }
-      container.appendChild(buildChallengeCard(q, session, myAnswer));
-    }
-
-    container.querySelectorAll('.challenge-signin-btn').forEach(function(btn){
-      btn.addEventListener('click', function(){ openAuthPanel('signup', 'challenge'); });
-    });
-
-    container.querySelectorAll('.challenge-option-btn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        const card = btn.closest('[data-challenge-question-id]');
-        const hiddenInput = card.querySelector('.challenge-answer-input');
-        const submitBtn = card.querySelector('.challenge-submit-btn');
-        card.querySelectorAll('.challenge-option-btn').forEach(function(b){
-          b.style.background = 'var(--panel)';
-          b.style.color = 'var(--ink)';
-          b.style.borderColor = 'var(--line)';
-        });
-        btn.style.background = 'var(--ink)';
-        btn.style.color = 'var(--paper)';
-        btn.style.borderColor = 'var(--ink)';
-        hiddenInput.value = btn.getAttribute('data-option');
-        if(submitBtn){ submitBtn.disabled = false; submitBtn.style.opacity = '1'; }
-      });
-    });
-
-    container.querySelectorAll('.challenge-submit-btn').forEach(function(btn){
-      btn.addEventListener('click', async function(){
-        const card = btn.closest('[data-challenge-question-id]');
-        const questionId = card.getAttribute('data-challenge-question-id');
-        const q = questions.find(function(x){ return x.id === questionId; });
-        const input = card.querySelector('.challenge-answer-input');
-        const msg = card.querySelector('.challenge-msg');
-        const raw = input.value.trim();
-
-        if(!raw){
-          msg.textContent = q.question_type === 'multiple_choice' ? 'Pick an option first.' : 'Enter your pick first.';
-          msg.className = 'form-msg challenge-msg err';
-          return;
-        }
-
-        const payload = { p_question_id: questionId };
-        if(q.question_type === 'numeric'){
-          const num = Number(raw);
-          if(isNaN(num)){ msg.textContent = 'Enter a real number.'; msg.className = 'form-msg challenge-msg err'; return; }
-          payload.p_guess_numeric = num;
-        }else{
-          payload.p_answer_text = raw;
-        }
-
-        btn.disabled = true;
-        msg.textContent = '';
-        const { error: submitErr } = await sb.rpc('submit_challenge_answer', payload);
-        btn.disabled = false;
-
-        if(submitErr){
-          msg.textContent = submitErr.message || 'Something went wrong — try again.';
-          msg.className = 'form-msg challenge-msg err';
-          return;
-        }
-        msg.textContent = 'Locked in. You can update it until this closes.';
-        msg.className = 'form-msg challenge-msg ok';
-        btn.textContent = 'Update pick';
-      });
-    });
-  }
-
-  loadChallengeQuestion();
-
   async function loadCategoryBoard(category, elId){
     const el = document.getElementById(elId);
     if(!el) return;
@@ -8452,39 +8185,6 @@
     var timer = setInterval(tick, 3600000);
   })();
 
-  // 2026 Marqit Challenge — kickoff countdown (Nov 16, 2026, 12:00am ET)
-  (function(){
-    var el = document.getElementById('challenge-countdown');
-    if(!el) return;
-    var target = new Date('2026-11-16T00:00:00-05:00').getTime();
-    function tick(){
-      var now = Date.now();
-      var diff = target - now;
-      if(diff <= 0){
-        el.textContent = 'Live now';
-        clearInterval(timer);
-        return;
-      }
-      var d = Math.floor(diff / 86400000);
-      var h = Math.floor((diff % 86400000) / 3600000);
-      var m = Math.floor((diff % 3600000) / 60000);
-      var s = Math.floor((diff % 60000) / 1000);
-      if(!el.querySelector('.cd-seg')){
-        el.innerHTML = ['days','hrs','min','sec'].map(function(l){ return '<span class="cd-seg"><b>00</b><i>' + l + '</i></span>'; }).join('');
-      }
-      var segs = el.querySelectorAll('.cd-seg b');
-      [d, h, m, s].forEach(function(v, i){
-        var t = String(v).padStart(2, '0');
-        if(segs[i].textContent !== t){
-          segs[i].textContent = t;
-          segs[i].classList.remove('flip'); void segs[i].offsetWidth; segs[i].classList.add('flip');
-        }
-      });
-    }
-    tick();
-    var timer = setInterval(tick, 1000);
-  })();
-
   document.querySelectorAll('.pagenav-tab').forEach(function(tab){
     tab.addEventListener('click', function(){
       document.querySelectorAll('.pagenav-tab').forEach(function(t){ t.classList.remove('active'); });
@@ -8776,7 +8476,8 @@
         : '<div class="sstrip-title">' + escapeHtml(ev.title) + '</div>';
     }
     var tags = mqSchedTagsHtml(ev, clickable);
-    var side = net || ev.subtitle;
+    var side = net || mqSub(ev);
+    if(!g && mqIsMedia(ev)) status = 'Release day';
     if(ev.category === 'finance' && ev.league && clickable === false){
       // The group header already says "Earnings", so the cell shows the timing instead of repeating it.
       status = /before/i.test(ev.subtitle || '') ? 'Before open' : /after/i.test(ev.subtitle || '') ? 'After close' : (ev.subtitle || 'Earnings');
@@ -8800,7 +8501,7 @@
   // ---- Click a ribbon cell: sports -> score, records, season numbers; earnings -> price chart.
   var MQ_STAT_LABELS = { avgPointsFor: 'Points per game', avgPointsAgainst: 'Allowed per game', differential: 'Point differential',
     winPercent: 'Win %', pointsFor: 'Points for', pointsAgainst: 'Points against' };
-  function mqPanelClose(){ var m = document.getElementById('mq-evpanel'); if(m) m.remove(); document.body.classList.remove('mq-evopen'); }
+  function mqPanelClose(){ if(typeof mqStopAudio === 'function') mqStopAudio(); var m = document.getElementById('mq-evpanel'); if(m) m.remove(); document.body.classList.remove('mq-evopen'); }
   function mqPanelOpen(inner){
     mqPanelClose();
     var m = document.createElement('div');
@@ -9019,6 +8720,8 @@
   function mqIsMedia(ev){
     return ev && ev.category === 'pop_culture' && /^(movie|tv|album)$/i.test(String(ev.league || ''));
   }
+  // Old rows say "New album" / "In theaters" / "New series". Those labels read like a status, so they are never shown.
+  function mqSub(ev){ var t = String((ev && ev.subtitle) || ''); return /^(in theaters|new album|new series|out today|now playing)$/i.test(t) ? '' : t; }
   var MQ_MEDIA = {};
   function mqMediaUrl(ev){
     var kind = String(ev.league).toLowerCase();
@@ -9035,8 +8738,8 @@
     MQ_MEDIA[url] = { at: Date.now(), p: p };
     return p;
   }
-  function mqSafeImg(u){ return /^https:\/\/([a-z0-9-]+\.)*(tmdb\.org|dzcdn\.net)\//i.test(u || '') ? u : ''; }
-  function mqSafeLink(u){ return /^https:\/\/(www\.)?(themoviedb\.org|youtube\.com|deezer\.com)\//i.test(u || '') ? u : ''; }
+  function mqSafeImg(u){ return /^https:\/\/([a-z0-9-]+\.)*(tmdb\.org|dzcdn\.net|mzstatic\.com)\//i.test(u || '') ? u : ''; }
+  function mqSafeLink(u){ return /^https:\/\/(www\.|music\.|itunes\.|en\.)?(themoviedb\.org|youtube\.com|deezer\.com|apple\.com|wikipedia\.org)\//i.test(u || '') ? u : ''; }
   function mqMediaDate(s){
     if(!s) return '';
     var d = new Date(String(s).slice(0, 10) + 'T12:00:00Z');
@@ -9050,25 +8753,30 @@
     var out = '', link = mqSafeLink(d.link), poster = mqSafeImg(d.cover || d.poster);
     var facts = [];
     if(d.kind === 'album'){
-      if(d.found === false) return '<p class="evp-muted">This album isn’t listed with our music source yet. Check back on release day.</p>';
-      if(d.releaseDate) facts.push(mqMediaDate(d.releaseDate));
+      if(d.found === false) return '<p class="evp-muted">Full details for this album land on release day. Nothing is announced about it in our music sources yet.</p>';
+      if(d.releaseDate) facts.push((d.upcoming ? 'Out ' : '') + mqMediaDate(d.releaseDate));
       if(d.label) facts.push(d.label);
       if(d.tracks) facts.push(d.tracks + ' tracks');
       if(d.durationSec) facts.push(mqRunTime(Math.round(d.durationSec / 60)));
+      if(d.explicit) facts.push('Explicit');
       out += '<div class="mdp-head">' + (poster ? '<img class="mdp-cover sq" src="' + escapeHtml(poster) + '" alt="" referrerpolicy="no-referrer">' : '') +
         '<div class="mdp-meta">' +
           (d.artist ? '<div class="mdp-artist">' + (mqSafeImg(d.artistPhoto) ? '<img src="' + escapeHtml(mqSafeImg(d.artistPhoto)) + '" alt="" referrerpolicy="no-referrer">' : '') + '<b>' + escapeHtml(d.artist) + '</b></div>' : '') +
           (facts.length ? '<div class="mdp-facts">' + facts.map(function(f){ return '<span>' + escapeHtml(f) + '</span>'; }).join('') + '</div>' : '') +
           ((d.genres || []).length ? '<div class="mdp-genres">' + d.genres.map(escapeHtml).join(' · ') + '</div>' : '') +
         '</div></div>';
+      if(d.about && d.about.text) out += '<p class="evp-desc">' + escapeHtml(d.about.text) + (mqSafeLink(d.about.url) ? ' <a class="mdp-src" href="' + escapeHtml(d.about.url) + '" target="_blank" rel="noopener noreferrer">Wikipedia</a>' : '') + '</p>';
+      if(d.trackList && d.trackList.length) out += '<div class="mdp-sec"><div class="fd-h">Track list</div><ol class="mdp-tl">' + d.trackList.map(function(t){
+        return '<li><span class="n">' + t.n + '</span><span class="t">' + escapeHtml(t.title) + (t.explicit ? ' <em class="mq-e">E</em>' : '') + '</span><span class="l">' + (t.lengthSec ? mqDur(t.lengthSec) : '') + '</span></li>'; }).join('') + '</ol></div>';
+      else if(d.upcoming) out += '<p class="evp-muted">The track list is not out yet.</p>';
       var astats = [];
       if(d.chart && d.chart.position) astats.push(['Deezer top albums', '#' + d.chart.position, d.chart.position <= 10 ? 'good' : '']);
-      if(d.fans) astats.push(['Deezer fans', d.fans >= 1e6 ? (d.fans / 1e6).toFixed(1) + 'M' : d.fans >= 1e3 ? Math.round(d.fans / 1e3) + 'K' : String(d.fans), '']);
+      if(d.fans) astats.push(['Deezer fans', mqCompact(d.fans), '']);
       if(astats.length) out += '<div class="mdp-sec"><div class="fd-h">Performance</div><div class="mdp-scores">' +
         astats.map(function(t){ return '<div class="mdp-sc ' + t[2] + '"><b>' + escapeHtml(t[1]) + '</b><span>' + escapeHtml(t[0]) + '</span></div>'; }).join('') + '</div>' +
         '<p class="mdp-jw">Chart is Deezer’s worldwide top 100 albums today, not Billboard.</p></div>';
       else if(d.chart && d.chart.position === null) out += '<p class="evp-muted">Not in Deezer’s worldwide top 100 albums yet.</p>';
-      if(link) out += '<a class="mdp-link" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">Listen on Deezer ›</a>';
+      if(link) out += '<a class="mdp-link" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">Listen ›</a>';
       return out;
     }
     if(d.releaseDate) facts.push(mqMediaDate(d.releaseDate));
@@ -9086,6 +8794,8 @@
         (d.tagline ? '<div class="mdp-tag">' + escapeHtml(d.tagline) + '</div>' : '') +
       '</div></div>';
     if(d.overview) out += '<p class="evp-desc">' + escapeHtml(d.overview) + '</p>';
+    var crewRows = [[d.kind === 'tv' ? 'Created by' : 'Directed by', (d.directors || []).join(', ')], ['Written by', (d.writers || []).join(', ')], ['Studio', (d.studios || []).join(', ')], ['Language', d.language || '']].filter(function(r){ return r[1]; });
+    if(crewRows.length) out += '<div class="mdp-sec"><div class="fd-h">Behind the film</div><dl class="mdp-dl">' + crewRows.map(function(r){ return '<div><dt>' + r[0] + '</dt><dd class="txt">' + escapeHtml(r[1]) + '</dd></div>'; }).join('') + '</dl></div>';
 
     var s = d.scores || {}, tiles = [];
     if(s.rt != null) tiles.push(['Rotten Tomatoes', s.rt + '%', s.rt >= 60 ? 'good' : 'bad']);
@@ -9131,7 +8841,7 @@
   }
   function mqOpenMediaPanel(ev){
     var kind = String(ev.league).toLowerCase();
-    var kicker = (kind === 'tv' ? 'TV series' : kind === 'album' ? 'Album' : 'Movie') + ' · ' + escapeHtml(mqSchedTime(ev) === 'All day' ? (ev.subtitle || 'Out today') : mqSchedTime(ev));
+    var kicker = (kind === 'tv' ? 'TV series' : kind === 'album' ? 'Album' : 'Movie') + ' · Release day';
     var foot = kind === 'album'
       ? 'Album details and chart from Deezer.'
       : 'Film and TV details from TMDB, review scores and box office from OMDb. This product uses the TMDB API but is not endorsed or certified by TMDB.';
@@ -9494,26 +9204,111 @@
       body.innerHTML = out; mqPlayerPhotos(body);
     });
   }
+  // ---- Music detail panels: song and artist ----
+  function mqDur(sec){ sec = Math.round(Number(sec) || 0); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
+  function mqCompact(n){ n = Number(n) || 0; return n >= 1e9 ? (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n); }
+  function mqTiles(list){
+    list = list.filter(function(t){ return t && t[1] != null && t[1] !== ''; });
+    return list.length ? '<div class="mdp-scores mu-tiles">' + list.map(function(t){ return '<div class="mdp-sc"><b>' + escapeHtml(String(t[1])) + '</b><span>' + escapeHtml(t[0]) + '</span></div>'; }).join('') + '</div>' : '';
+  }
+  // One audio player for the whole page: tapping another preview stops the first.
+  var mqAudio = null, mqAudioBtn = null;
+  function mqSafeAudio(u){ return /^https:\/\/([a-z0-9-]+\.)*(dzcdn\.net|mzstatic\.com|itunes\.apple\.com)\//i.test(u || '') ? u : ''; }
+  function mqStopAudio(){ if(mqAudio){ mqAudio.pause(); } if(mqAudioBtn){ mqAudioBtn.classList.remove('on'); mqAudioBtn = null; } }
+  function mqPlayBtn(url, label){
+    var u = mqSafeAudio(url); if(!u) return '';
+    return '<button type="button" class="mu-play" data-prev="' + escapeHtml(u) + '" aria-label="Play 30 second preview"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path class="pl" d="M8 5v14l11-7z" fill="currentColor"/><path class="ps" d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>' + (label ? '<span>' + escapeHtml(label) + '</span>' : '') + '</button>';
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('.mu-play'); if(!b) return;
+    e.stopPropagation();
+    if(mqAudioBtn === b){ mqStopAudio(); return; }
+    mqStopAudio();
+    if(!mqAudio){ mqAudio = new Audio(); mqAudio.addEventListener('ended', mqStopAudio); }
+    mqAudio.src = b.getAttribute('data-prev'); mqAudioBtn = b; b.classList.add('on');
+    mqAudio.play().catch(function(){ mqStopAudio(); });
+  });
+  function mqAbout(a){
+    return a && a.text ? '<p class="evp-desc mu-about">' + escapeHtml(a.text) + (mqSafeLink(a.url) ? ' <a class="mdp-src" href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener noreferrer">Wikipedia</a>' : '') + '</p>' : '';
+  }
   function mqOpenSongPanel(x, label){
     var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + escapeHtml(label) + ' · #' + x.rank + '</div>' +
       '<div class="sg-head">' + (x.image ? '<img class="sg-art" src="' + escapeHtml(x.image) + '" alt="" referrerpolicy="no-referrer">' : '') + '<div><h3 class="evp-title">' + escapeHtml(x.title) + '</h3><div class="tp-sub">' + escapeHtml(x.artist) + '</div>' + (x.album ? '<div class="sg-album">' + escapeHtml(x.album) + '</div>' : '') + '</div></div>' +
-      (/^https:\/\//.test(x.link || '') ? '<a class="sg-link" href="' + escapeHtml(x.link) + '" target="_blank" rel="noopener noreferrer">Listen on Apple Music ↗</a>' : ''));
+      '<div class="evp-body" id="sg-more"><div class="fd-sk"><i></i><i></i><i></i></div></div>');
     mqRkBack(el);
+    var base = [['Released', x.released ? mqMediaDate(x.released) : '']];
+    var apple = /^https:\/\/(music|itunes)\.apple\.com\//.test(x.link || '') ? x.link : '';
+    fetch(SUPABASE_URL + '/functions/v1/rankings?v=5&kind=song&id=' + encodeURIComponent(x.id || '') + '&artist=' + encodeURIComponent(x.artist || '') + '&title=' + encodeURIComponent(x.title || ''))
+      .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }).then(function(d){
+        var box = el.querySelector('#sg-more'); if(!box || !box.isConnected) return;
+        if(!d || d.error){
+          box.innerHTML = mqTiles(base) + (apple ? '<a class="sg-link" href="' + escapeHtml(apple) + '" target="_blank" rel="noopener noreferrer">Listen on Apple Music ↗</a>' : '');
+          return;
+        }
+        var pop = d.popularity ? Math.max(1, Math.min(100, Math.round(d.popularity / 10000))) : null;
+        var out = mqPlayBtn(d.preview, 'Play 30-second preview');
+        out += mqTiles([
+          ['Released', d.releaseDate ? mqMediaDate(d.releaseDate) : (x.released ? mqMediaDate(x.released) : '')],
+          ['Length', d.lengthSec ? mqDur(d.lengthSec) : ''],
+          ['Genre', d.genre || ''],
+          ['Track', d.trackNumber && d.trackCount ? d.trackNumber + ' of ' + d.trackCount : ''],
+          ['Tempo', d.bpm ? d.bpm + ' BPM' : ''],
+          ['Deezer popularity', pop ? pop + ' / 100' : ''],
+          ['Total plays', d.plays ? mqCompact(d.plays) : ''],
+          ['Listeners', d.listeners ? mqCompact(d.listeners) : '']
+        ]);
+        if(d.explicit) out += '<p class="mu-flag"><em class="mq-e">E</em> Explicit lyrics</p>';
+        if(d.credits && d.credits.length > 1) out += '<div class="mdp-sec"><div class="fd-h">Artists on the track</div><div class="mu-chips">' + d.credits.map(function(n){ return '<span>' + escapeHtml(n) + '</span>'; }).join('') + '</div></div>';
+        out += mqAbout(d.about);
+        var links = (apple || d.link ? '<a href="' + escapeHtml(apple || d.link) + '" target="_blank" rel="noopener noreferrer">Apple Music ↗</a>' : '') + (/^https:\/\/www\.deezer\.com\//.test(d.deezer || '') ? '<a href="' + escapeHtml(d.deezer) + '" target="_blank" rel="noopener noreferrer">Deezer ↗</a>' : '');
+        if(links) out += '<div class="mdp-links">' + links + '</div>';
+        out += '<p class="mdp-jw">Popularity is Deezer’s own score, not a stream count. Public sources do not publish stream totals' + (d.plays ? '; plays are from Last.fm.' : '.') + '</p>';
+        box.innerHTML = out;
+      });
   }
   function mqOpenArtistPanel(a){
-    var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">Top artists · #' + a.rank + '</div>' +
+    var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + (a.rank ? 'Top artists · #' + a.rank : 'Artist') + '</div>' +
       '<div class="sg-head">' + (a.picture ? '<img class="sg-art round" src="' + escapeHtml(a.picture) + '" alt="" referrerpolicy="no-referrer">' : '') + '<div><h3 class="evp-title">' + escapeHtml(a.name) + '</h3><div class="tp-sub" id="ar-fans"></div></div></div>' +
-      '<div class="evp-body"><p class="evp-muted">Loading top tracks…</p></div>');
+      '<div class="evp-body" id="ar-more"><div class="fd-sk"><i></i><i></i><i></i></div></div>');
     mqRkBack(el);
-    if(!a.id) return;
-    fetch(SUPABASE_URL + '/functions/v1/rankings?v=4&kind=artist&id=' + a.id).then(function(x){ return x.json(); }).catch(function(){ return null; }).then(function(d){
-      var body = el.querySelector('.evp-body'); if(!body || !body.isConnected) return;
-      if(!d || d.error){ body.innerHTML = ''; return; }
-      var f = el.querySelector('#ar-fans'); if(f && d.fans) f.textContent = d.fans.toLocaleString('en-US') + ' fans on Deezer';
-      body.innerHTML = (d.top && d.top.length ? '<div class="kp-head">Most played</div><ol class="rk-l ar-top">' + d.top.map(function(t, i){
-        return '<li><span class="n">' + (i + 1) + '</span><span class="rk-art">' + (t.cover ? '<img src="' + escapeHtml(t.cover) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '') + '</span><span class="m"><b>' + escapeHtml(t.title) + '</b><em>' + escapeHtml(t.album) + '</em></span></li>';
-      }).join('') + '</ol>' : '') + (/^https:\/\//.test(d.link || '') ? '<a class="sg-link" href="' + escapeHtml(d.link) + '" target="_blank" rel="noopener noreferrer">Open on Deezer ↗</a>' : '');
-    });
+    if(!a.id) { el.querySelector('#ar-more').innerHTML = ''; return; }
+    fetch(SUPABASE_URL + '/functions/v1/rankings?v=5&kind=artist&id=' + a.id + '&name=' + encodeURIComponent(a.name || ''))
+      .then(function(x){ return x.ok ? x.json() : null; }).catch(function(){ return null; }).then(function(d){
+        var body = el.querySelector('#ar-more'); if(!body || !body.isConnected) return;
+        if(!d || d.error){ body.innerHTML = '<p class="evp-muted">Details aren’t available right now.</p>'; return; }
+        var sub = [d.type === 'Group' ? 'Group' : d.type === 'Person' ? 'Solo artist' : '', d.from, (d.tags || [])[0]].filter(Boolean).join(' · ');
+        var f = el.querySelector('#ar-fans'); if(f) f.textContent = sub || (d.fans ? mqCompact(d.fans) + ' fans on Deezer' : '');
+        var since = d.formed || d.firstYear;
+        var out = mqTiles([
+          ['Fans on Deezer', d.fans ? mqCompact(d.fans) : ''],
+          [d.formed ? 'Formed' : 'First release', since || ''],
+          ['Born', d.born ? mqMediaDate(d.born) : ''],
+          ['Latest release', d.lastYear || ''],
+          ['Albums', d.counts && d.counts.albums ? d.counts.albums : ''],
+          ['EPs', d.counts && d.counts.eps ? d.counts.eps : ''],
+          ['Singles', d.counts && d.counts.singles ? d.counts.singles : ''],
+          ['Monthly listeners', d.listeners ? mqCompact(d.listeners) : ''],
+          ['Total plays', d.plays ? mqCompact(d.plays) : '']
+        ]);
+        if(d.tags && d.tags.length > 1) out += '<div class="mu-chips mu-genres">' + d.tags.map(function(t){ return '<span>' + escapeHtml(t) + '</span>'; }).join('') + '</div>';
+        out += mqAbout(d.about);
+        if(d.top && d.top.length) out += '<div class="mdp-sec"><div class="fd-h">Most played</div><ol class="rk-l ar-top">' + d.top.map(function(t, i){
+          return '<li><span class="n">' + (i + 1) + '</span><span class="rk-art">' + (mqSafeImg(t.cover) ? '<img src="' + escapeHtml(t.cover) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '') + '</span>' +
+            '<span class="m"><b>' + escapeHtml(t.title) + (t.explicit ? ' <em class="mq-e">E</em>' : '') + '</b><em>' + escapeHtml(t.album) + '</em></span>' +
+            '<span class="ar-len">' + (t.lengthSec ? mqDur(t.lengthSec) : '') + '</span>' + mqPlayBtn(t.preview, '') + '</li>'; }).join('') + '</ol></div>';
+        if(d.albums && d.albums.length) out += '<div class="mdp-sec"><div class="fd-h">Albums and EPs</div><div class="ar-disc">' + d.albums.map(function(al){
+          return '<div class="ar-al"><span class="ar-cv">' + (mqSafeImg(al.cover) ? '<img src="' + escapeHtml(al.cover) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '') + '</span><b>' + escapeHtml(al.title) + '</b><em>' + escapeHtml(al.year) + (al.type === 'ep' ? ' · EP' : '') + '</em></div>'; }).join('') + '</div></div>';
+        if(d.related && d.related.length) out += '<div class="mdp-sec"><div class="fd-h">Fans also like</div><div class="mu-chips mu-rel">' + d.related.map(function(r){
+          return '<button type="button" class="mu-r" data-aid="' + r.id + '" data-an="' + escapeHtml(r.name) + '" data-ap="' + escapeHtml(r.picture) + '">' + (mqSafeImg(r.picture) ? '<img src="' + escapeHtml(r.picture) + '" alt="" referrerpolicy="no-referrer">' : '') + escapeHtml(r.name) + '</button>'; }).join('') + '</div></div>';
+        if(/^https:\/\/www\.deezer\.com\//.test(d.link || '')) out += '<div class="mdp-links"><a href="' + escapeHtml(d.link) + '" target="_blank" rel="noopener noreferrer">Open on Deezer ↗</a></div>';
+        out += '<p class="mdp-jw">Fans and discography from Deezer. Debut year is the earliest release Deezer lists' + (d.formed || d.born ? '; formed and born dates are from MusicBrainz' : '') + '. Public sources do not publish stream totals.</p>';
+        body.innerHTML = out;
+        body.addEventListener('click', function(e){
+          var r = e.target.closest('.mu-r'); if(!r) return;
+          mqStopAudio();
+          mqOpenArtistPanel({ id: Number(r.getAttribute('data-aid')), name: r.getAttribute('data-an'), picture: r.getAttribute('data-ap') });
+        });
+      });
   }
   // ---- Standings | Leaders subtabs for NBA / NFL / NHL / MLB (leaders = season stat leaders with ESPN headshots) ----
   var MQ_SPORT_KINDS = { nba: 1, nfl: 1, nhl: 1, mlb: 1 };
@@ -9851,7 +9646,7 @@
       var teams = mqSchedTeams(ev);
       status = mqSchedTime(ev);
       body = teams ? '<div class="gm-tm"><i class="gm-bd">' + escapeHtml(String(teams[0]).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) + '</i><b>' + escapeHtml(teams[0]) + '</b></div><div class="gm-tm"><i class="gm-bd">' + escapeHtml(String(teams[1]).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) + '</i><b>' + escapeHtml(teams[1]) + '</b></div>' : '<div class="gm-tm"><b>' + escapeHtml(ev.title) + '</b></div>';
-      tail = ev.subtitle || '';
+      tail = mqSub(ev);
     }
     var lg = showLg ? '<small class="gm-lg" style="color:' + mqLgColor(mqSchedKey(ev)) + '">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</small>' : '';
     return '<div class="gm ' + (st === 'in' ? 'is-live' : st === 'post' ? 'is-done' : '') + (x.open ? ' is-click' : '') + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
@@ -9877,19 +9672,27 @@
         var head = [pt ? (pt.abbr || pt.name) + ' ball' : '', g.sit.text || ''].filter(Boolean).join(' · ');
         sit = '<div class="gc-sit' + (g.sit.red ? ' red' : '') + '">' + (head ? '<b>' + escapeHtml(head) + '</b>' : '') + (g.sit.last ? '<span>' + escapeHtml(g.sit.last) + '</span>' : '') + '</div>';
       }
+    } else if(mqIsMedia(ev)){
+      // Movies, shows and albums: cover art, the title, and who it is by. Opens a full detail panel.
+      var isAlb = /^album$/i.test(String(ev.league)), ci = isAlb ? String(ev.title).indexOf(': ') : -1;
+      var nm = ci > 0 ? String(ev.title).slice(ci + 2) : ev.title, by = ci > 0 ? String(ev.title).slice(0, ci) : (/^tv$/i.test(String(ev.league)) ? 'Series premiere' : 'Movie');
+      status = 'Release day';
+      body = '<div class="gc-media"><span class="gc-art' + (isAlb ? ' sq' : '') + '" data-art="' + escapeHtml(String(ev.id)) + '"><i>' + escapeHtml(String(nm).charAt(0)) + '</i></span>' +
+        '<div class="gc-mt"><b>' + escapeHtml(nm) + '</b><small>' + escapeHtml(by) + '</small></div></div>';
+      net = '';
     } else {
       var teams = mqSchedTeams(ev);
       status = mqSchedTime(ev);
       body = teams
         ? [teams[0], teams[1]].map(function(n){ return '<div class="gc-tm"><i class="gm-bd">' + escapeHtml(String(n).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) + '</i><b>' + escapeHtml(n) + '</b></div>'; }).join('')
         : '<div class="gc-tm"><b>' + escapeHtml(ev.title) + '</b></div>';
-      net = ev.subtitle || '';
+      net = mqSub(ev);
     }
     var lgTag = showLg ? '<span class="gc-lg" style="color:' + mqLgColor(mqSchedKey(ev)) + '">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</span>' : '';
     return '<div class="gc ' + (st === 'in' ? 'is-live ' : st === 'post' ? 'is-done ' : '') + (x.open ? 'is-click' : '') + '" style="--lg:' + mqLgColor(mqSchedKey(ev)) + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
       '<div class="gc-top"><span class="gc-st">' + (st === 'in' ? '<i class="ag-pulse"></i>' : '') + escapeHtml(status) + (st === 'pre' && mqUntil(ev) ? '<em>' + mqUntil(ev) + '</em>' : '') + '</span>' + lgTag + '</div>' +
       '<div class="gc-body">' + body + '</div>' + sit +
-      ((net && !/^</.test(net)) || ev.question_id ? '<div class="gc-foot">' + (net ? '<small>' + escapeHtml(net) + '</small>' : '<small></small>') + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + '</div>' : '') + '</div>';
+      ((net && !/^</.test(net)) || ev.question_id || (!g && mqIsMedia(ev)) ? '<div class="gc-foot">' + (net ? '<small>' + escapeHtml(net) + '</small>' : (!g && mqIsMedia(ev) ? '<small class="gc-more">Details ›</small>' : '<small></small>')) + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + '</div>' : '') + '</div>';
   }
   // Earnings tiles pick up each company's brand hue. Tickers we don't have a hue for get a steady one
   // derived from the ticker, so the same company always looks the same.
@@ -9931,7 +9734,7 @@
     groups.forEach(function(k){
       if(k === 'Earnings'){ out += mqSchedEarnHtml(byKey[k]); return; }
       var l = byKey[k].filter(function(p){ return p[1].st !== 'in'; });
-      if(l.length) out += '<section class="gx" style="--lg:' + mqLgColor(k) + '"><h5 class="gx-h"><span>' + mqLgIcon(k) + escapeHtml(mqLgName(k)) + '</span><em>' + l.length + (l.length === 1 ? ' game' : ' games') + '</em></h5>' + cards(l, false) + '</section>';
+      if(l.length) out += '<section class="gx" style="--lg:' + mqLgColor(k) + '"><h5 class="gx-h"><span>' + mqLgIcon(k) + escapeHtml(mqLgName(k)) + '</span><em>' + l.length + (/^(Album|Movie|TV)$/.test(k) ? (l.length === 1 ? ' release' : ' releases') : (l.length === 1 ? ' game' : ' games')) + '</em></h5>' + cards(l, false) + '</section>';
     });
     return '<div class="sched-boards">' + out + '</div>';
   }
@@ -9966,13 +9769,13 @@
   function mqArtSave(o){ try{ localStorage.setItem(MQ_ART_KEY, JSON.stringify(o)); }catch(e){} }
   function mqArtFill(root){
     var cache = mqArtLoad();
-    [].forEach.call(root.querySelectorAll('.sstrip-art[data-art]'), function(span){
+    [].forEach.call(root.querySelectorAll('.sstrip-art[data-art], .gc-art[data-art]'), function(span){
       var cell = span.parentNode, id = span.getAttribute('data-art');
       var ev = mqSched.events.filter(function(x){ return String(x.id) === id; })[0];
-      function drop(){ if(span.parentNode){ cell.classList.remove('has-art'); span.remove(); } }
+      function drop(){ if(span.parentNode){ cell.classList.remove('has-art'); if(span.classList.contains('gc-art')) span.classList.add('none'); else span.remove(); } }
       function show(u){
         var im = new Image();
-        im.onload = function(){ if(span.isConnected){ span.appendChild(im); span.classList.add('on'); } };
+        im.onload = function(){ if(span.isConnected){ span.innerHTML = ''; span.appendChild(im); span.classList.add('on'); } };
         im.onerror = drop;
         im.alt = ''; im.referrerPolicy = 'no-referrer'; im.decoding = 'async'; im.src = u;
       }
@@ -10040,6 +9843,7 @@
       (byDay[sel].length ? mqSchedAgendaHtml(byDay[sel]) : '<p class="sched-none">Nothing scheduled</p>');
     var ns = listEl.querySelector('.lv-row'); if(ns && keep) ns.scrollLeft = keep;
     mqLoadQuotes(byDay[sel]);
+    mqArtFill(listEl);
   }
 
   (function(){
@@ -10109,45 +9913,6 @@
     setInterval(function(){ if(!document.hidden) loadSchedule(true); }, 300000);
   })();
 
-  const homeCtaChallenge = document.getElementById('home-cta-challenge');
-  if(homeCtaChallenge){
-    homeCtaChallenge.addEventListener('click', function(){
-      document.querySelectorAll('.pagenav-tab').forEach(function(t){
-        t.classList.toggle('active', t.getAttribute('data-page') === 'challenge');
-      });
-      document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
-      document.getElementById('page-challenge').style.display = 'block';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      var cn = document.getElementById('chal-name'); if(cn) setTimeout(function(){ cn.focus({ preventScroll: true }); }, 350);
-    });
-  }
-
-  // ---- Marqit Challenge sign-up: its own short form (name + email), separate from creating a site account ----
-  (function(){
-    var form = document.getElementById('challenge-signup-form'), box = document.getElementById('chal-join');
-    if(!form || !box) return;
-    function done(name, already){
-      box.innerHTML = '<div class="chal-done"><b>' + (already ? 'You’re already on the list' : 'You’re in') + (name ? ', ' + escapeHtml(name) : '') + '.</b><span>We’ll email you before the Challenge kicks off on Nov 16.</span></div>';
-    }
-    var joined = null; try { joined = JSON.parse(localStorage.getItem('mq_chal_joined') || 'null'); } catch(e){}
-    if(joined && joined.email){ done(joined.name, false); return; }
-    form.addEventListener('submit', function(e){
-      e.preventDefault();
-      var name = document.getElementById('chal-name').value.trim(), email = document.getElementById('chal-email').value.trim();
-      var note = document.getElementById('chal-note'), btn = document.getElementById('chal-submit');
-      if(!name){ note.textContent = 'Add your name.'; note.className = 'signup-note err'; return; }
-      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ note.textContent = 'Check your email address.'; note.className = 'signup-note err'; return; }
-      btn.disabled = true; btn.textContent = 'Joining…';
-      sb.rpc('challenge_signup', { p_name: name, p_email: email, p_source: 'challenge_page' }).then(function(r){
-        btn.disabled = false; btn.textContent = 'Join the Challenge';
-        var res = r && r.data;
-        if(r.error || (res !== 'ok' && res !== 'already')){ note.textContent = res === 'bad_email' ? 'Check your email address.' : 'Something went wrong. Try again.'; note.className = 'signup-note err'; return; }
-        try { localStorage.setItem('mq_chal_joined', JSON.stringify({ name: name, email: email })); } catch(e){}
-        done(name, res === 'already');
-      });
-    });
-  })();
-
   const navHomeLink = document.getElementById('nav-home-link');
   if(navHomeLink){
     navHomeLink.addEventListener('click', function(){
@@ -10168,14 +9933,14 @@
     hamburgerMenu.style.display = hamburgerMenu.style.display === 'block' ? 'none' : 'block';
     if(hamburgerMenu.style.display === 'block') loadNotificationSettings();
   });
-  // How to play and the Challenge are no longer top tabs; they open from the menu and the footer
+  // How to play is no longer a top tab; they open from the menu and the footer
   // (the tab buttons stay in the page, hidden, so every existing link into them still works).
   function mqOpenHiddenTab(page){
     var t = document.querySelector('.pagenav-tab[data-page="' + page + '"]');
     if(t) t.click();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  [['hamburger-how-btn', 'how'], ['hamburger-challenge-btn', 'challenge'], ['footer-how-link', 'how'], ['footer-challenge-link', 'challenge']].forEach(function(p){
+  [['hamburger-how-btn', 'how'], ['footer-how-link', 'how']].forEach(function(p){
     var el = document.getElementById(p[0]);
     if(el) el.addEventListener('click', function(){ hamburgerMenu.style.display = 'none'; mqOpenHiddenTab(p[1]); });
   });

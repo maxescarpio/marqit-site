@@ -2,13 +2,14 @@
 //   GET .../functions/v1/rankings?kind=nba|nfl|nhl|mlb   standings (ESPN public feed, unofficial), 10 min
 //   GET .../functions/v1/rankings?kind=music             top 10 songs overall and by genre (pop, hip-hop, country, R&B, rock, Latin), top 10 artists with fans and top track, 1 hour
 //   GET .../functions/v1/rankings?kind=markets           largest US-listed companies by market cap (Nasdaq public API), 5 min
-//   GET .../functions/v1/rankings?kind=artist&id=246791  one artist: photo, fans, top tracks (Deezer)
+//   GET .../functions/v1/rankings?kind=artist&id=246791&name=Drake  one artist: photo, fans, debut year, albums, top tracks, bio (Deezer, MusicBrainz, Wikipedia; listeners if LASTFM_API_KEY is set)
+//   GET .../functions/v1/rankings?kind=song&id=<iTunes track id>&artist=..&title=..  one song: length, release date, album, genre, popularity, 30s preview, bio (iTunes, Deezer, Wikipedia; plays if LASTFM_API_KEY is set)
 // Team badges come from TheSportsDB (free, already credited on the site); team colors from ESPN's team list; album art and artist photos from Apple and Deezer.
 
 const UA = 'curl/8.5.0';
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'content-type': 'application/json' };
 const cache = new Map<string, { at: number; body: string }>();
-const TTL: Record<string, number> = { nba: 600000, nfl: 600000, nhl: 600000, mlb: 600000, music: 3600000, markets: 300000, artist: 3600000 };
+const TTL: Record<string, number> = { nba: 600000, nfl: 600000, nhl: 600000, mlb: 600000, music: 3600000, markets: 300000, artist: 3600000, song: 3600000 };
 const SPORTS: Record<string, string> = { nba: 'basketball/nba', nfl: 'football/nfl', nhl: 'hockey/nhl', mlb: 'baseball/mlb' };
 
 async function getJson(url: string, headers: Record<string, string> = {}): Promise<any> {
@@ -89,7 +90,7 @@ async function music() {
   const out: any = { countrySongs: [], songs: [], genres: {}, artists: [] };
   const errors: string[] = [];
   const itunes = (genre: string) => `https://itunes.apple.com/us/rss/topsongs/limit=10${genre}/json`;
-  const parseSongs = (d: any) => (d?.feed?.entry || []).slice(0, 10).map((e: any, i: number) => ({ rank: i + 1, title: String(e?.['im:name']?.label || ''), artist: String(e?.['im:artist']?.label || ''), image: String((e?.['im:image'] || []).slice(-1)[0]?.label || '').replace(/\/\d+x\d+bb/, '/300x300bb'), link: String(e?.id?.label || e?.link?.attributes?.href || ''), album: String(e?.['im:collection']?.['im:name']?.label || '') }));
+  const parseSongs = (d: any) => (d?.feed?.entry || []).slice(0, 10).map((e: any, i: number) => ({ rank: i + 1, title: String(e?.['im:name']?.label || ''), artist: String(e?.['im:artist']?.label || ''), image: String((e?.['im:image'] || []).slice(-1)[0]?.label || '').replace(/\/\d+x\d+bb/, '/300x300bb'), id: String(e?.id?.attributes?.['im:id'] || ''), released: String(e?.['im:releaseDate']?.label || '').slice(0, 10), link: String(e?.id?.label || e?.link?.attributes?.href || ''), album: String(e?.['im:collection']?.['im:name']?.label || '') }));
   // iTunes genre ids: Pop 14, Hip-Hop/Rap 18, Country 6, R&B/Soul 15, Rock 21, Latin 12
   const GENRES: Record<string, number> = { pop: 14, hiphop: 18, country: 6, rnb: 15, rock: 21, latin: 12 };
   const artistsTask = getJson('https://api.deezer.com/chart/0/artists?limit=10').then(async (d) => {
@@ -114,12 +115,116 @@ async function music() {
   return out;
 }
 
+// ---- shared helpers for the detail panels ----
+const NICE_UA = 'MarqitBot/1.0 (https://playmarqit.com; music details)';
+const norm = (x: unknown) => String(x || '').toLowerCase().replace(/&/g, ' and ').replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+const nice = { 'user-agent': NICE_UA };
+async function safe<T>(p: Promise<T>): Promise<T | null> { try { return await p; } catch (_) { return null; } }
+
+// Two sentences from Wikipedia, only when the page really is about what we asked (every `must` word appears).
+async function wiki(query: string, must: string[]): Promise<{ text: string; url: string } | null> {
+  const s = await safe(getJson(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=3&format=json&origin=*`, nice));
+  for (const h of s?.query?.search || []) {
+    const t = String(h.title || '');
+    const sum = await safe(getJson('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(t.replace(/ /g, '_')), nice));
+    const ex = String(sum?.extract || '');
+    if (!ex || sum?.type === 'disambiguation') continue;
+    const low = (ex + ' ' + t).toLowerCase();
+    if (!must.every((m) => low.includes(m.toLowerCase()))) continue;
+    const sentences = ex.match(/[^.!?]+[.!?]+(\s|$)/g) || [ex];
+    let text = '';
+    for (const sn of sentences) { if ((text + sn).length > 420 && text) break; text += sn; }
+    return { text: text.trim(), url: String(sum?.content_urls?.desktop?.page || '') };
+  }
+  return null;
+}
+// Listener and play counts. Needs a free Last.fm API key in the LASTFM_API_KEY secret; without it this is null.
+async function lastfm(params: Record<string, string>): Promise<any | null> {
+  const key = Deno.env.get('LASTFM_API_KEY');
+  if (!key) return null;
+  return safe(getJson('https://ws.audioscrobbler.com/2.0/?format=json&autocorrect=1&api_key=' + encodeURIComponent(key) + '&' + new URLSearchParams(params).toString(), nice));
+}
+const num = (v: unknown): number | null => { const n = Number(v); return isFinite(n) && n > 0 ? n : null; };
+
+// ---- one song ----
+async function song(id: string, artist: string, title: string) {
+  if (id && !/^\d{1,14}$/.test(id)) throw new Error('bad id');
+  const lk = id ? await safe(getJson(`https://itunes.apple.com/lookup?id=${id}&country=us`)) : null;
+  const it = (lk?.results || []).find((r: any) => r.wrapperType === 'track') || null;
+  const name = String(it?.trackName || title || '');
+  const by = String(it?.artistName || artist || '');
+  if (!name) throw new Error('no title');
+  // Deezer: popularity score, tempo and credited artists.
+  const ds = await safe(getJson('https://api.deezer.com/search?limit=5&q=' + encodeURIComponent(`artist:"${by.split(/ & | feat\.? | x | and |, /i)[0]}" track:"${name.replace(/\(.*?\)/g, '').trim()}"`)));
+  const dhit = (ds?.data || []).find((t: any) => norm(t.title_short || t.title) === norm(name)) || (ds?.data || [])[0] || null;
+  const [dt, lfm, about] = await Promise.all([
+    dhit ? safe(getJson('https://api.deezer.com/track/' + dhit.id)) : Promise.resolve(null),
+    lastfm({ method: 'track.getInfo', artist: by.split(/ & | feat\.? |, /i)[0], track: name }),
+    wiki(`${name} ${by} song`, [name.replace(/\(.*?\)/g, '').trim().split(' ')[0]]),
+  ]);
+  const t = lfm?.track || null;
+  const art = String(it?.artworkUrl100 || '').replace(/\/\d+x\d+bb/, '/600x600bb');
+  return {
+    kind: 'song', title: name, artist: by, album: String(it?.collectionName || dt?.album?.title || ''),
+    cover: art || String(dt?.album?.cover_big || ''),
+    releaseDate: String(it?.releaseDate || dt?.release_date || '').slice(0, 10) || null,
+    lengthSec: it?.trackTimeMillis ? Math.round(it.trackTimeMillis / 1000) : num(dt?.duration),
+    genre: String(it?.primaryGenreName || '') || null,
+    explicit: it ? it.trackExplicitness === 'explicit' : (dt ? !!dt.explicit_lyrics : null),
+    trackNumber: num(it?.trackNumber), trackCount: num(it?.trackCount),
+    bpm: num(dt?.bpm),
+    popularity: num(dt?.rank),           // Deezer's own 0 to 1,000,000 score, not a stream count
+    credits: (dt?.contributors || []).map((c: any) => String(c.name || '')).filter(Boolean).slice(0, 6),
+    plays: num(t?.playcount), listeners: num(t?.listeners),   // Last.fm, only with the API key
+    preview: /^https:\/\//.test(String(it?.previewUrl || dt?.preview || '')) ? String(it?.previewUrl || dt?.preview) : null,
+    link: String(it?.trackViewUrl || ''), deezer: String(dhit?.link || ''),
+    about,
+  };
+}
+
 // ---- one artist ----
-async function artist(id: string) {
+async function artist(id: string, nameHint: string) {
   if (!/^\d{1,12}$/.test(id)) throw new Error('bad id');
-  const [a, top] = await Promise.all([getJson(`https://api.deezer.com/artist/${id}`), getJson(`https://api.deezer.com/artist/${id}/top?limit=5`)]);
-  return { kind: 'artist', id: Number(id), name: String(a?.name || ''), picture: String(a?.picture_big || a?.picture_medium || ''), fans: Number(a?.nb_fan) || null, link: String(a?.link || ''),
-    top: (top?.data || []).slice(0, 5).map((t: any) => ({ title: String(t?.title_short || t?.title || ''), album: String(t?.album?.title || ''), cover: String(t?.album?.cover_medium || '') })) };
+  const [a, top, albums, related] = await Promise.all([
+    getJson(`https://api.deezer.com/artist/${id}`),
+    safe(getJson(`https://api.deezer.com/artist/${id}/top?limit=10`)),
+    safe(getJson(`https://api.deezer.com/artist/${id}/albums?limit=300`)),
+    safe(getJson(`https://api.deezer.com/artist/${id}/related?limit=6`)),
+  ]);
+  const name = String(a?.name || nameHint || '');
+  // Discography: one row per title (deluxe and explicit copies collapse), newest first.
+  const seen = new Set<string>(); const rows: any[] = [];
+  for (const x of (albums?.data || []).slice().sort((p: any, q: any) => String(q.release_date).localeCompare(String(p.release_date)))) {
+    const k = norm(x.title); if (!k || seen.has(k)) continue; seen.add(k);
+    rows.push({ title: String(x.title || ''), year: String(x.release_date || '').slice(0, 4), type: String(x.record_type || 'album'), cover: String(x.cover_medium || '') });
+  }
+  const dated = rows.filter((r) => r.year && r.year !== '0000');
+  const firstYear = dated.length ? Math.min(...dated.map((r) => Number(r.year))) : null;
+  const lastYear = dated.length ? Math.max(...dated.map((r) => Number(r.year))) : null;
+  const counts = { albums: rows.filter((r) => r.type === 'album').length, eps: rows.filter((r) => r.type === 'ep').length, singles: rows.filter((r) => r.type === 'single').length };
+  const [mb, lfm, about] = await Promise.all([
+    safe(getJson(`https://musicbrainz.org/ws/2/artist/?query=${encodeURIComponent('artist:"' + name + '"')}&fmt=json&limit=3`, nice)),
+    lastfm({ method: 'artist.getInfo', artist: name }),
+    wiki(`${name} musician`, [name.split(' ')[0]]),
+  ]);
+  const m = (mb?.artists || []).find((x: any) => norm(x.name) === norm(name) && Number(x.score) >= 85) || null;
+  const tags = (m?.tags || []).slice().sort((p: any, q: any) => (q.count || 0) - (p.count || 0)).slice(0, 4).map((t: any) => String(t.name));
+  const place = [m?.['begin-area']?.name || m?.area?.name].filter(Boolean)[0] || null;
+  const yr = (d: any) => (typeof d === 'string' && /^\d{4}/.test(d) ? d.slice(0, 4) : null);
+  return {
+    kind: 'artist', id: Number(id), name, picture: String(a?.picture_xl || a?.picture_big || a?.picture_medium || ''), fans: num(a?.nb_fan), link: String(a?.link || ''),
+    type: m?.type || null,                                   // Person or Group
+    born: m?.type === 'Person' ? (m?.['life-span']?.begin || null) : null,
+    formed: m?.type === 'Group' ? yr(m?.['life-span']?.begin) : null,
+    ended: m?.['life-span']?.ended ? yr(m?.['life-span']?.end) : null,
+    from: place, country: m?.country || null, tags,
+    firstYear, lastYear, counts,
+    listeners: num(lfm?.artist?.stats?.listeners), plays: num(lfm?.artist?.stats?.playcount),
+    top: (top?.data || []).slice(0, 10).map((t: any) => ({ title: String(t?.title_short || t?.title || ''), album: String(t?.album?.title || ''), cover: String(t?.album?.cover_medium || ''), lengthSec: num(t?.duration), popularity: num(t?.rank), explicit: !!t?.explicit_lyrics, preview: /^https:\/\//.test(String(t?.preview || '')) ? String(t.preview) : null })),
+    albums: rows.filter((r) => r.type !== 'single').slice(0, 8),
+    related: (related?.data || []).slice(0, 6).map((r: any) => ({ id: Number(r.id) || null, name: String(r.name || ''), picture: String(r.picture_medium || '') })),
+    about,
+  };
 }
 
 // ---- markets ----
@@ -191,13 +296,14 @@ Deno.serve(async (req: Request) => {
   const kind = (new URL(req.url).searchParams.get('kind') || '').toLowerCase();
   if (!TTL[kind]) return new Response(JSON.stringify({ error: 'bad kind' }), { status: 400, headers: CORS });
   const aid = new URL(req.url).searchParams.get('id') || '';
-  const ckey = kind === 'artist' ? 'artist:' + aid : kind;
+  const sp = new URL(req.url).searchParams;
+  const ckey = kind === 'artist' ? 'artist:' + aid : kind === 'song' ? 'song:' + aid + ':' + (sp.get('title') || '') : kind;
   const hit = cache.get(ckey);
   let body: string;
   if (hit && Date.now() - hit.at < TTL[kind]) body = hit.body;
   else {
     try {
-      const data = SPORTS[kind] ? await standings(kind) : kind === 'music' ? await music() : kind === 'artist' ? await artist(aid) : await markets();
+      const data = SPORTS[kind] ? await standings(kind) : kind === 'music' ? await music() : kind === 'artist' ? await artist(aid, (sp.get('name') || '').slice(0, 80)) : kind === 'song' ? await song(aid, (sp.get('artist') || '').slice(0, 120), (sp.get('title') || '').slice(0, 160)) : await markets();
       body = JSON.stringify({ ...data, at: new Date().toISOString() });
       cache.set(ckey, { at: (data as any).partial ? Date.now() - TTL[kind] + 45000 : Date.now(), body }); if (cache.size > 100) cache.delete(cache.keys().next().value as string);
     } catch (e) {

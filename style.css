@@ -593,18 +593,9 @@
   .phase-card{--tint:128,136,150;background:var(--panel);border-color:rgba(var(--tint),0.867);border-radius:22px;}
   .phase-card .ticket-q{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:24px !important;line-height:1.05;}
 
-  /* ---- challenge hero: floating trophy + segmented countdown ---- */
   .trophy-wrap{position:relative;width:84px;height:84px;margin-bottom:20px;}
   .trophy{position:relative;width:84px;height:84px;color:#F5C336;}
   .trophy-glow{display:none;}
-  .cd-wrap{margin-top:24px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;}
-  .cd-label{font-size:12.5px;font-weight:600;color:var(--ink-soft);}
-  .cd{display:flex;gap:8px;font-size:22px;}
-  .cd-seg{min-width:62px;padding:10px 8px 9px;text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;}
-  .cd-seg b{display:block;font-family:'Big Shoulders Display',sans-serif;font-size:36px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;}
-  .cd-seg i{display:block;font-style:normal;font-size:10.5px;font-weight:600;color:var(--ink-soft);margin-top:5px;}
-  .cd-seg b.flip{animation:flipIn .38s var(--ease);}
-  @keyframes flipIn{from{opacity:.15;transform:translateY(-9px);}}
 
   /* ---- streak row: days pop in, today pulses ---- */
   .streak-day{animation:dayPop .5s var(--ease) backwards;}
@@ -661,10 +652,6 @@
   .lock-bar{margin-top:8px;}
 
 
-  /* ---- Challenge banner: its own space, below the three questions ---- */
-  .challenge-banner{position:relative;overflow:hidden;display:flex;align-items:center;gap:14px;margin-top:22px;max-width:480px;padding:14px 16px;border-radius:20px;
-    border:1px solid rgba(var(--tint),0.867);background:var(--panel);}
-  @media (min-width:900px){.challenge-banner{max-width:none;}}
   .cb-ico{flex:none;width:46px;height:46px;border-radius:15px;display:inline-flex;align-items:center;justify-content:center;background:rgba(var(--tint),0.566);color:rgb(var(--tint));}
   .cb-ico svg{width:25px;height:25px;}
   .cb-text{flex:1;min-width:0;}
@@ -1628,7 +1615,6 @@ button,input,select,textarea{font-family:inherit;}
 .play-extras > *{margin-top:0;}
 .play-extras #play-suggest > div{border-top:0;}
 .play-extras #play-suggest > div > div{border:1px solid var(--line) !important;background:var(--panel) !important;border-radius:16px !important;}
-.challenge-banner{margin-top:36px;}
 .pagenav-tab.active{box-shadow:none;}
 
 /* ---- News: top three trending rows ---- */

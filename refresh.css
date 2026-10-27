@@ -465,7 +465,7 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 }
 
 /* ---- How to play / Challenge are reachable from the menu and footer, not the tab bar ---- */
-.pagenav-tab[data-page="how"],.pagenav-tab[data-page="challenge"]{display:none;}
+.pagenav-tab[data-page="how"]{display:none;}
 
 /* ---- Profile picker: icon tiles and color swatches ---- */
 .pc-label{margin:16px 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);}
@@ -901,10 +901,7 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .play-extras #share-section .share-card-lg .share-cell-label{font-size:11px;margin-top:4px}
 .play-extras #share-section .share-date{margin-bottom:6px;font-size:13px}
 .play-extras #share-section .share-card-lg .share-foot{margin-top:6px;font-size:12px}
-.challenge-banner{margin-top:14px;padding:10px 14px;gap:12px}
 .cb-ico{width:38px;height:38px;border-radius:12px}.cb-ico svg{width:20px;height:20px}
-.challenge-banner .cb-title{font-size:18px}.challenge-banner .cb-sub{font-size:12.5px}
-.challenge-banner .cb-btn{padding:7px 16px;font-size:13px}
 
 /* Leaderboard: record card is rings + calendar side by side; weekly cards side by side */
 #page-leaderboard .hero-lite{padding-top:14px;padding-bottom:6px}
@@ -1282,8 +1279,6 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .rec-legend{margin-top:12px}
 
 /* Challenge banner: equal space above and below */
-.challenge-banner{margin-top:16px !important;margin-bottom:0 !important}
-section:has(> .wrap > .challenge-banner){padding-bottom:16px !important}
 
 /* Standings: win-% bars, streak chips, leader tint */
 .rk-t th.wp,.rk-t td.wp{text-align:left;width:120px;padding-left:14px}
@@ -1313,7 +1308,6 @@ section:has(> .wrap > .challenge-banner){padding-bottom:16px !important}
 /* Button text is centered everywhere (footer link lists, how-to step cards and tile rows are content, not labels) */
 :where(button){text-align:center}
 button[style*="text-align:left"]:not(.hw-step):not(.sf-links button){text-align:center !important}
-.challenge-option-btn{text-align:center !important}
 #nav-badge{justify-content:center}
 
 /* Biggest companies: brand-colored ticker tiles, market-cap bars, change chips */
@@ -1480,19 +1474,6 @@ details.co-cr a:hover{text-decoration:underline}
 .mq-fold>summary{transition:background .15s}
 .mq-fold>summary:hover{background:#1D2025}
 .mq-fold[open]>summary .sec-ico{background:#F6C430 !important;border-color:#F6C430;color:#15171B !important}
-
-/* ---- Marqit Challenge: separate name + email sign-up ---- */
-.chal-join{margin-top:18px;max-width:460px}
-.chal-form{display:flex;flex-direction:column;gap:10px}
-.chal-form input{width:100%;padding:13px 14px;border:1px solid #343944;border-radius:10px;background:#15171B;color:#F2F3F5;font:500 15px 'Barlow',sans-serif}
-.chal-form input::placeholder{color:#6E737D}
-.chal-form input:focus{outline:2px solid #F6C430;outline-offset:1px;border-color:#F6C430}
-.chal-form button{padding:13px 24px;border:0;border-radius:10px;background:#F6C430;color:#15171B;font:700 15px 'Barlow',sans-serif;cursor:pointer}
-.chal-form button:disabled{opacity:.6;cursor:default}
-.chal-join .signup-note.err{color:#E5604D}
-.chal-done{display:flex;flex-direction:column;gap:4px;padding:16px 18px;border:1px solid #343944;border-left:4px solid #F6C430;border-radius:10px;background:#1D2025;text-align:left}
-.chal-done b{font-size:16px;color:#F2F3F5}
-.chal-done span{font-size:13.5px;color:#A8ADB6}
 
 /* ---- Rankings leaders: grouped cards, readable type (Barlow, not the condensed display face) ---- */
 .rk-grp{margin:6px 0 22px}
@@ -2086,3 +2067,122 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 .ar-fans b{font:700 18px 'Big Shoulders Display','Barlow',sans-serif;color:#F2F3F5}
 .ar-fans small{font-size:11px;color:#6E737D;letter-spacing:.06em;text-transform:uppercase}
 @media (max-width:480px){.ar-pic.xl{width:76px;height:76px}.ar-hero-t b{font-size:28px}.ar-bar{max-width:none}}
+
+/* ==========================================================================
+   9. Oct 27 (2): share sheet 2.0, release-day cards, music panels, calmer news cards
+   ========================================================================== */
+
+/* ---- Share sheet: card preview on the left, actions on the right (stacked on phones) ---- */
+.mq-ss-card{width:min(100%,720px);max-height:92vh;padding:26px;display:flex;flex-direction:column;gap:20px}
+.mq-ss.has-prev .mq-ss-card{flex-direction:row;align-items:stretch;gap:28px}
+.mq-ss-stage{flex:none;display:flex;align-items:center;justify-content:center;padding:6px 6px 6px 0}
+.mq-ss-stage .mq-ss-prev{display:block;width:210px;height:auto;aspect-ratio:9/16;object-fit:cover;border-radius:14px;border:1px solid #2E323A;box-shadow:0 22px 50px rgba(0,0,0,.6),0 0 0 6px rgba(255,255,255,.025)}
+.mq-ss-main{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:16px;padding-right:34px}
+.mq-ss-ht{display:flex;flex-direction:column;gap:6px}
+.mq-ss-ht b{font:800 32px/1.05 'Big Shoulders Display','Barlow',sans-serif;letter-spacing:.01em;color:#fff}
+.mq-ss-ht p,.mq-ss-ht span{margin:0;font-size:14px;line-height:1.45;color:#8B909A;white-space:normal}
+.mq-ss-ig{width:100%;margin:0;height:52px;display:flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:12px;font:700 15.5px 'Barlow',sans-serif;cursor:pointer;transition:background .15s,transform .1s}
+.mq-ss-ig.dl{background:#F2F3F5;color:#15171B}
+.mq-ss-ig.dl:hover{background:#fff}
+.mq-ss-ig.dl.ok{background:#3DDC97;color:#06241A}
+.mq-ss-ig:active{transform:scale(.985)}
+.mq-ss-igi{display:inline-flex}
+.mq-ss-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px 6px;margin-top:2px}
+.mq-ss-tile{gap:7px;padding:2px 0;min-width:0}
+.mq-ss-ic{width:50px;height:50px;border-radius:50%}
+.mq-ss-lb{font-size:11.5px;color:#9AA0AB;white-space:nowrap}
+.mq-ss-tile:hover .mq-ss-lb{color:#E4E6EA}
+.mq-ss-msg{min-height:20px;margin:0;text-align:left;font-size:13px}
+.mq-ss-msg.ok{color:#3DDC97}
+.mq-ss-x{top:14px;right:14px}
+@media (max-width:640px){
+  .mq-ss-card{padding:20px 18px calc(20px + env(safe-area-inset-bottom));gap:14px}
+  .mq-ss.has-prev .mq-ss-card{flex-direction:column;align-items:stretch;gap:14px}
+  .mq-ss-stage{padding:0}
+  .mq-ss-stage .mq-ss-prev{width:120px}
+  .mq-ss-main{padding-right:0;gap:14px}
+  .mq-ss-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .mq-ss-ht b{font-size:26px;padding-right:36px}
+}
+
+/* ---- Release-day cards (albums, movies, shows) ---- */
+.gc-media{display:flex;align-items:center;gap:12px;min-width:0}
+.gc-art{flex:none;position:relative;width:48px;height:72px;border-radius:6px;overflow:hidden;background:#242830;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.gc-art.sq{width:64px;height:64px}
+.gc-art i{font:700 20px 'Barlow',sans-serif;font-style:normal;color:#6E737D}
+.gc-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.gc-mt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.gc-mt b{font:600 15.5px/1.25 'Barlow',sans-serif;color:#F2F3F5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gc-mt small{font-size:12.5px;color:#8B909A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc-more{color:#8B909A}
+.gc.is-click:hover .gc-more{color:#E4E6EA}
+.mdp-dl dd.txt{font-variant-numeric:normal;font-weight:600;text-align:right}
+.mdp-src{color:#8B909A;font-size:12px;text-decoration:underline;text-underline-offset:2px}
+.mdp-tl{list-style:none;margin:0;padding:0}
+.mdp-tl li{display:flex;gap:12px;align-items:baseline;padding:8px 0;border-top:1px solid #23262C;font-size:14px}
+.mdp-tl li:first-child{border-top:0}
+.mdp-tl .n{flex:none;width:22px;color:#6E737D;font-variant-numeric:tabular-nums}
+.mdp-tl .t{flex:1;min-width:0;color:#F2F3F5}
+.mdp-tl .l{flex:none;color:#8B909A;font-variant-numeric:tabular-nums}
+.mq-e{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:3px;background:#3A3E46;color:#C9CDD4;font:700 10px 'Barlow',sans-serif;font-style:normal;vertical-align:1px}
+
+/* ---- Song and artist panels ---- */
+.mu-tiles{grid-template-columns:repeat(auto-fit,minmax(110px,1fr));margin:14px 0 4px}
+.mu-tiles .mdp-sc b{font-size:22px;line-height:1.1}
+.mu-play{display:inline-flex;align-items:center;gap:8px;margin:14px 0 2px;padding:9px 16px;border:1px solid #3A3E46;border-radius:999px;background:#1E2127;color:#F2F3F5;font:600 13.5px 'Barlow',sans-serif;cursor:pointer;transition:background .15s,border-color .15s}
+.mu-play:hover{background:#262A31;border-color:#555B66}
+.mu-play .ps{display:none}.mu-play.on .pl{display:none}.mu-play.on .ps{display:inline}
+.mu-play.on{background:#F2F3F5;color:#15171B;border-color:#F2F3F5}
+.mu-play:empty{display:none}
+.ar-top li .mu-play{margin:0;padding:7px 9px}
+.ar-top .ar-len{flex:none;font-size:13px;color:#8B909A;font-variant-numeric:tabular-nums}
+.mu-about{margin-top:14px}
+.mu-flag{margin:10px 0 0;font-size:13px;color:#8B909A;display:flex;align-items:center;gap:8px}
+.mu-chips{display:flex;flex-wrap:wrap;gap:8px}
+.mu-chips span,.mu-chips .mu-r{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid #2E323A;border-radius:999px;background:#1A1D22;color:#D7DAE0;font:600 13px 'Barlow',sans-serif}
+.mu-genres{margin:12px 0 0}
+.mu-genres span{text-transform:capitalize;color:#9AA0AB}
+.mu-chips .mu-r{cursor:pointer;padding:4px 12px 4px 4px;transition:border-color .15s,background .15s}
+.mu-chips .mu-r:hover{border-color:#555B66;background:#20242B}
+.mu-chips .mu-r img{width:26px;height:26px;border-radius:50%;object-fit:cover}
+.mu-chips .mu-r:not(:has(img)){padding-left:12px}
+.ar-disc{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 12px}
+.ar-al{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ar-cv{display:block;aspect-ratio:1/1;border-radius:6px;overflow:hidden;background:#242830;margin-bottom:4px}
+.ar-cv img{display:block;width:100%;height:100%;object-fit:cover}
+.ar-al b{font:600 12.5px/1.25 'Barlow',sans-serif;color:#F2F3F5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ar-al em{font-style:normal;font-size:11.5px;color:#8B909A}
+@media (max-width:520px){.ar-disc{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* ---- Calmer news cards: no coloured top bar, no glow, no filled colour chip ---- */
+.tsc-bar{height:0;background:none}
+.news-card.tcd{border-color:#262A31}
+.news-card.tcd:hover,.news-card.tcd:focus-visible{border-color:#3C424C;box-shadow:none;transform:none}
+.news-card:focus-visible{outline:none;border-color:#555B66}
+.news-card{border-top:1px solid #262A31}
+.tsc-lane{background:none;color:#9AA0AB;padding:0;border-radius:0;font-size:12px;font-weight:600;letter-spacing:.04em;display:inline-flex;align-items:center;gap:7px}
+.tsc-lane::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--lc);opacity:.75}
+.tsc{--lc:#7E8794}
+.tsc[data-lane="pop"]{--lc:#9A8CB8}.tsc[data-lane="sports"]{--lc:#B8946A}.tsc[data-lane="markets"]{--lc:#6FA38A}.tsc[data-lane="tech"]{--lc:#6F97C4}.tsc[data-lane="music"]{--lc:#B07F9E}
+.tsc-tr{background:none;padding:0;color:#9AA0AB}
+.tcd .take-q{color:#D7DAE0}
+.tsc .take-yes{background:rgba(61,220,151,.07);border-color:rgba(61,220,151,.28);color:#6BE3A4}
+.tsc .take-no{background:rgba(255,107,91,.07);border-color:rgba(255,107,91,.28);color:#FF8A7A}
+.tsc .take-yes:hover:not(:disabled){background:rgba(61,220,151,.14)}
+.tsc .take-no:hover:not(:disabled){background:rgba(255,107,91,.14)}
+.tsc .take-btn{min-height:38px;font-size:14px;font-weight:600}
+.tsc .take-bar-y{background:rgba(61,220,151,.35)}.tsc .take-bar-n{background:rgba(255,107,91,.35)}
+.news-card .lane-tag{color:#8B909A}
+.news-take .take-label{color:#8B909A}
+#news-grid .news-top3:not(.chart) .tr-n{color:#9AA0AB !important}
+.feed-chip.on{background:#2A2E36;border-color:#2A2E36;color:#fff}
+.feed-chip:hover{border-color:#555B66}
+/* matching calm on the Artists hero */
+.ar-pic.xl{box-shadow:0 0 0 2px #3A3E46,0 12px 30px rgba(0,0,0,.5)}
+.ar-hero{background:#1A1D22}
+.ar-crown{color:#9AA0AB}
+.ar-bar i{background:#6E7785}
+.rk-tabs button.on::after,.co-sec button.on::after,.rk-pills button.on::after{background:#E4E6EA}
+.rk-tabs button:focus-visible,.co-sec button:focus-visible,.rk-pills button:focus-visible,.co-per button:focus-visible{outline:none;color:#fff}
+.news-card:hover{transform:none;box-shadow:none;border-color:#3C424C}
+.mdp-links a,.mdp-link,.sg-link{color:#E4E6EA}

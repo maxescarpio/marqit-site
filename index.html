@@ -48,7 +48,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261026f">
-<link rel="stylesheet" href="refresh.css?v=20261027a">
+<link rel="stylesheet" href="refresh.css?v=20261027b">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -107,7 +107,6 @@
 
   <div id="hamburger-menu" style="display:none; position:absolute; top:100%; right:20px; margin-top:8px; width:190px; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:10px; box-shadow:0 12px 32px rgba(0,0,0,0.12); z-index:60;">
     <button type="button" id="hamburger-how-btn" style="width:100%; text-align:left; background:none; border:none; padding:10px 10px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; border-radius:8px;">How to play</button>
-    <button type="button" id="hamburger-challenge-btn" style="width:100%; text-align:center; background:none; border:none; padding:10px 10px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; border-radius:8px;">Marqit Challenge</button>
     <button type="button" id="hamburger-about-btn" style="width:100%; text-align:left; background:none; border:none; padding:10px 10px; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; border-radius:8px;">About Us</button>
     <div style="height:1px; background:var(--line); margin:6px 2px;"></div>
     <div style="padding:6px 10px 4px; font-size:11.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em;">Notifications</div>
@@ -295,7 +294,6 @@
     <button class="pagenav-tab" data-page="schedule">Schedule</button>
     <button class="pagenav-tab" data-page="news">News</button>
     <button class="pagenav-tab" data-page="how">How to play</button>
-    <button class="pagenav-tab" data-page="challenge">Challenge</button>
     <button class="pagenav-tab" data-page="standings">Rankings</button>
   </div>
 </div>
@@ -434,15 +432,9 @@
       </div>
       <div class="share-actions">
         <button type="button" id="share-results-btn" class="share-btn-primary" style="display:none;">Share your results</button>
-        <button type="button" id="share-results-square-btn" class="share-btn-secondary" style="display:none;">Download square</button>
       </div>
       <p class="form-msg" id="share-results-msg" style="margin-top:6px;"></p>
     </div>
-    </div>
-    <div class="challenge-banner" style="--tint:246,196,48;">
-      <span class="cb-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
-      <div class="cb-text"><div class="cb-title">2026 Marqit Challenge</div><div class="cb-sub">One big call a week. Starts Nov 16.</div></div>
-      <button type="button" id="home-cta-challenge" class="cb-btn">Join</button>
     </div>
 
   </div>
@@ -567,11 +559,6 @@
           <p>Add a rival from the Play tab. You each start with 5 golden stars.</p>
           <p>Whoever gets more of the day&rsquo;s calls right takes a star from the other.</p>
           <p>A tie changes nothing. A 5-day streak earns an extra star.</p>
-        </div>
-        <div class="hw-fact" style="--rc:242,193,78;">
-          <h4>Challenge</h4>
-          <p>The 2026 Marqit Challenge is one big call a week, from Nov 16 to Dec 31.</p>
-          <p>Climb the board to No. 1. Sign up on the Challenge tab.</p>
         </div>
       </div>
 
@@ -809,99 +796,6 @@
 </section>
 </div>
 
-<div id="page-challenge" class="page" style="display:none;">
-<header class="hero hero-challenge">
-  <div class="wrap">
-    <div class="trophy-wrap" aria-hidden="true"><span class="trophy-glow"></span><svg class="trophy" viewBox="0 0 24 24" fill="rgba(246,196,48,0.14)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></div>
-    <h1>Who will be crowned No.&nbsp;1?</h1>
-    <p class="sub">The 2026 Marqit Challenge: one big call a week, Nov 16 to Dec 31. Climb to No. 1.</p>
-    <div id="challenge-countdown-wrap" class="cd-wrap"><span class="cd-label">Kicks off in</span><strong id="challenge-countdown" class="cd">Nov 16</strong></div>
-    <p class="form-msg" id="challenge-hero-status-msg" style="margin-top:14px;"></p>
-    <div class="chal-join" id="chal-join">
-      <form id="challenge-signup-form" class="chal-form" novalidate>
-        <input id="chal-name" type="text" placeholder="Your name" maxlength="60" autocomplete="name" aria-label="Your name" required>
-        <input id="chal-email" type="email" placeholder="Email" maxlength="120" autocomplete="email" aria-label="Email" required>
-        <button type="submit" id="chal-submit">Join the Challenge</button>
-      </form>
-      <div class="signup-note" id="chal-note">No account needed. Takes 10 seconds.</div>
-    </div>
-  </div>
-</header>
-
-<section class="section" style="border-top:none; padding-top:0;">
-  <div class="wrap">
-    <div id="challenge-live-container"></div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="wrap">
-    <h3 class="ex-title">How it works</h3>
-    <div class="rule-grid rule-grid-2"><div class="rule-card" style="--rc:70,140,255;"><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16"/></svg></span><div class="rule-head">One call a week</div><div class="rule-body">Starts Nov 16. Picks lock when the window closes.</div></div><div class="rule-card" style="--rc:150,96,214;"><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h5v-5h5V9h6"/></svg></span><div class="rule-head">Pick one</div><div class="rule-body">Multiple choice. One answer, no typing.</div></div><div class="rule-card" style="--rc:51,209,139;"><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a3 3 0 0 1 5 0M9.5 14.5a3 3 0 0 0 5 0M12 6.5v11"/></svg></span><div class="rule-head">Free to play</div><div class="rule-body">No wagering. No purchases.</div></div><div class="rule-card" style="--rc:246,196,48;"><span class="rule-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span><div class="rule-head">Finish No. 1</div><div class="rule-body">Top the Challenge leaderboard.</div></div></div>
-    <p class="ex-sub" style="margin-top:16px;">Separate from your daily streak.</p>
-  </div>
-</section>
-
-<section class="section">
-  <div class="wrap">
-    <h3 class="ex-title">Sample calls</h3>
-    <p class="ex-sub">Examples only.</p>
-    <div class="snap-row" data-carousel="phases">
-      <div class="ticket phase-card" style="padding:22px; --tint:255,148,38;">
-        <div style="display:inline-block; background:var(--panel); border:1px solid var(--line); border-radius:100px; padding:4px 12px; font-size:11px; font-weight:700; letter-spacing:0.04em; color:#E08C3C;">SPORTS &middot; MULTIPLE CHOICE</div>
-        <div class="ticket-q" style="max-width:none; margin-top:14px; font-weight:600;">Which conference will land the most teams in the College Football Playoff?</div>
-        <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
-          <div style="border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-soft);">SEC</div>
-          <div style="border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-soft);">Big Ten</div>
-          <div style="border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-soft);">ACC</div>
-          <div style="border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-soft);">Big 12</div>
-        </div>
-        <div style="margin-top:14px; font-size:12px; color:var(--ink-soft);">Four contenders. Pick one.</div>
-      </div>
-      <div class="ticket phase-card" style="padding:22px; --tint:70,140,255;">
-        <div style="display:inline-block; background:var(--panel); border:1px solid var(--line); border-radius:100px; padding:4px 12px; font-size:11px; font-weight:700; letter-spacing:0.04em; color:#4C82E0;">NEWS &middot; MULTIPLE CHOICE</div>
-        <div class="ticket-q" style="max-width:none; margin-top:14px; font-weight:600;">What will the Federal Reserve do at its December meeting?</div>
-        <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
-          <div style="border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-soft);">Cut rates</div>
-          <div style="border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-soft);">Hold rates</div>
-          <div style="border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-soft);">Raise rates</div>
-        </div>
-        <div style="margin-top:14px; font-size:12px; color:var(--ink-soft);">Three outcomes. Pick one.</div>
-      </div>
-      <div class="ticket phase-card" style="padding:22px; --tint:170,112,255;">
-        <div style="display:inline-block; background:var(--panel); border:1px solid var(--line); border-radius:100px; padding:4px 12px; font-size:11px; font-weight:700; letter-spacing:0.04em; color:#A06EE1;">POP CULTURE &middot; MULTIPLE CHOICE</div>
-        <div class="ticket-q" style="max-width:none; margin-top:14px; font-weight:600;">Who will be Spotify&rsquo;s most-streamed artist worldwide in 2026?</div>
-        <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
-          <div style="border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-soft);">Bad Bunny</div>
-          <div style="border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-soft);">Taylor Swift</div>
-          <div style="border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-soft);">The Weeknd</div>
-          <div style="border:1.5px solid var(--line); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-soft);">Drake</div>
-        </div>
-        <div style="margin-top:14px; font-size:12px; color:var(--ink-soft);">Four contenders. Pick one.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="wrap">
-    <h3 class="ex-title">Challenge leaderboard</h3>
-    <p class="ex-sub">Challenge points only.</p>
-    <div class="boards" style="grid-template-columns:1fr; max-width:400px;">
-      <div class="board" style="--tint:246,196,48;">
-        <div class="board-title" style="display:flex; align-items:center; gap:6px;">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#F5C336" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg>
-          2026 Marqit Challenge
-        </div>
-        <div class="board-rows" id="challenge-board-rows">
-          <div class="brow"><span>No points awarded yet.</span></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-</div>
-
 <div id="page-about" class="page" style="display:none;">
 <section class="section hero-lite" style="--fx1:70,140,255;--fx2:51,209,139;">
   <div class="wrap">
@@ -956,7 +850,6 @@
     </div>
     <div class="sf-right"><nav class="sf-links" aria-label="Footer">
       <button type="button" id="footer-how-link">How to play</button>
-      <button type="button" id="footer-challenge-link">Challenge</button>
       <button type="button" id="footer-rankings-link">Rankings</button>
       <button type="button" id="footer-about-link">About</button>
       <button type="button" id="footer-credits-link">Credits</button>
@@ -989,7 +882,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261027a" defer></script>
+<script src="app.js?v=20261027b" defer></script>
 
 
 

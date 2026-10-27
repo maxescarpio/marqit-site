@@ -9,6 +9,7 @@
 //                 scores: { rt, metacritic, imdb, tmdb: { avg, votes } }, money: { domesticTotal, worldwideTotal, budget },
 //                 watch: { stream[], rent[], buy[], link } | null  (US, service names only; JustWatch data via TMDB) }
 //     album:    { kind, title, artist, artistPhoto, cover, thumb (small, for the strip), releaseDate, label, tracks, genres[], link,
+//                 trackList[{ n, title, lengthSec, explicit }], about { text, url } (Wikipedia, only when the page matches), upcoming (bool),
 //                 fans, chart: { position (1-100 or null = not in the top 100), of } | null  (Deezer worldwide top albums, only once released) }
 // Every block can be null when the source has nothing yet (a movie that opens today has no gross,
 // an album that is not out yet is not on Deezer). Nothing here is invented.
@@ -91,6 +92,9 @@ async function screen(kind: 'movie' | 'tv', id: string) {
 
   const trailer = (d.videos?.results || []).find((v: any) => v.site === 'YouTube' && v.type === 'Trailer' && v.official !== false)
     || (d.videos?.results || []).find((v: any) => v.site === 'YouTube' && v.type === 'Trailer');
+  const crew = (d.credits?.crew || []) as any[];
+  const directors = kind === 'movie' ? crew.filter((c) => c.job === 'Director').map((c) => String(c.name)).slice(0, 2) : (d.created_by || []).map((c: any) => String(c.name)).slice(0, 3);
+  const writers = kind === 'movie' ? [...new Set(crew.filter((c) => /^(Screenplay|Writer|Story)$/.test(c.job)).map((c) => String(c.name)))].slice(0, 3) : [];
   const cast = (d.credits?.cast || []).slice(0, 6).map((c: any) => ({ name: c.name, character: c.character || null, photo: img('w185', c.profile_path) }));
 
   // Where to watch, US only. Service names only (the site keeps logos off). Data is JustWatch's, via TMDB.
@@ -115,12 +119,15 @@ async function screen(kind: 'movie' | 'tv', id: string) {
     episodes: kind === 'tv' ? (d.number_of_episodes || null) : null,
     rating,
     genres: (d.genres || []).map((g: any) => g.name).slice(0, 3),
+    studios: (d.production_companies || []).map((c: any) => String(c.name)).slice(0, 3),
+    language: String(d.original_language || '').toUpperCase() || null,
     network: kind === 'tv' ? ((d.networks || [])[0]?.name || null) : ((d.production_companies || [])[0]?.name || null),
     status: d.status || null,
     poster: img('w342', d.poster_path),
     thumb: img('w154', d.poster_path),
     backdrop: img('w780', d.backdrop_path),
     trailer: trailer ? 'https://www.youtube.com/watch?v=' + trailer.key : null,
+    directors, writers,
     cast,
     scores: {
       rt: o?.rt ?? null,
@@ -169,16 +176,19 @@ async function album(title: string) {
     hit = (s?.data || []).find((a: any) => norm(a.title) === norm(name) && (want.size === 0 || [...words(a.artist?.name || '')].some((w) => want.has(w)))) || null;
     if (hit) break;
   }
-  if (!hit) return { kind: 'album', title: name, artist: artist || null, found: false };
+  if (!hit) return await itunesAlbum(name, artist);
   const a = await getJson('https://api.deezer.com/album/' + hit.id);
-  if (!a || a.error) return { kind: 'album', title: name, artist: artist || null, found: false };
+  if (!a || a.error) return await itunesAlbum(name, artist);
+  const today = new Date().toISOString().slice(0, 10);
   // Chart position only for albums that are already out. position null = not in the top 100. If the chart could not be fetched, chart stays null (nothing is claimed).
-  const released = !!a.release_date && String(a.release_date) <= new Date().toISOString().slice(0, 10);
+  const released = !!a.release_date && String(a.release_date) <= today;
   let chartInfo: { position: number | null; of: number } | null = null;
   if (released) {
     const ids = await deezerChartIds();
     if (ids.length) { const at = ids.indexOf(String(hit.id)); chartInfo = { position: at >= 0 ? at + 1 : null, of: ids.length }; }
   }
+  const about = await wikiAbout(`${a.title} ${a.artist?.name || artist} album`, [String(a.title).split(' ')[0]]);
+  const trackList = (a.tracks?.data || []).slice(0, 30).map((t: any, i: number) => ({ n: i + 1, title: String(t.title_short || t.title || ''), lengthSec: Number(t.duration) || null, explicit: !!t.explicit_lyrics }));
   return {
     kind: 'album',
     found: true,
@@ -188,14 +198,56 @@ async function album(title: string) {
     cover: a.cover_xl || a.cover_big || null,
     thumb: a.cover_medium || a.cover_big || null,
     releaseDate: a.release_date || null,
+    upcoming: !released,
     label: a.label || null,
     tracks: a.nb_tracks || null,
     durationSec: a.duration || null,
     fans: Number(a.fans) > 0 ? Number(a.fans) : null,
     chart: chartInfo,
     genres: (a.genres?.data || []).map((g: any) => g.name).slice(0, 3),
+    trackList, about,
+    explicit: !!a.explicit_lyrics,
     link: a.link || null,
   };
+}
+
+// Albums that are not on Deezer yet (pre-release) often are on Apple's catalogue, with cover, track count and date.
+async function itunesAlbum(name: string, artist: string) {
+  const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const r = await getJson(`https://itunes.apple.com/search?media=music&entity=album&limit=8&country=us&term=${encodeURIComponent((artist + ' ' + name).trim())}`);
+  const first = (artist || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2)[0] || '';
+  const hit = (r?.results || []).find((x: any) => norm(String(x.collectionName || '')).replace(/ (deluxe|single|ep)$/, '') === norm(name) && (!first || String(x.artistName || '').toLowerCase().includes(first))) || null;
+  if (!hit) return { kind: 'album', title: name, artist: artist || null, found: false };
+  const rel = String(hit.releaseDate || '').slice(0, 10);
+  const art = String(hit.artworkUrl100 || '').replace(/\/\d+x\d+bb/, '/600x600bb');
+  const about = await wikiAbout(`${name} ${artist} album`, [name.split(' ')[0]]);
+  return {
+    kind: 'album', found: true, title: hit.collectionName, artist: hit.artistName || artist || null, artistPhoto: null,
+    cover: art, thumb: art.replace('600x600bb', '300x300bb'), releaseDate: rel || null,
+    upcoming: !!rel && rel > new Date().toISOString().slice(0, 10),
+    label: String(hit.copyright || '').replace(/^[℗©]\s*\d{4}\s*/, '') || null,
+    tracks: Number(hit.trackCount) || null, durationSec: null, fans: null, chart: null,
+    genres: hit.primaryGenreName ? [String(hit.primaryGenreName)] : [], trackList: [], about,
+    explicit: hit.collectionExplicitness === 'explicit',
+    link: /^https:\/\/(music|itunes)\.apple\.com\//.test(String(hit.collectionViewUrl || '')) ? hit.collectionViewUrl : null,
+  };
+}
+
+async function wikiAbout(query: string, must: string[]): Promise<{ text: string; url: string } | null> {
+  const s = await getJson(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=3&format=json&origin=*`);
+  for (const h of s?.query?.search || []) {
+    const t = String(h.title || '');
+    const sum = await getJson('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(t.replace(/ /g, '_')));
+    const ex = String(sum?.extract || '');
+    if (!ex || sum?.type === 'disambiguation') continue;
+    if (!must.every((m) => (ex + ' ' + t).toLowerCase().includes(m.toLowerCase()))) continue;
+    if (!/album|ep\b|record|release|studio/i.test(ex)) continue;
+    const sentences = ex.match(/[^.!?]+[.!?]+(\s|$)/g) || [ex];
+    let text = '';
+    for (const sn of sentences) { if ((text + sn).length > 420 && text) break; text += sn; }
+    return { text: text.trim(), url: String(sum?.content_urls?.desktop?.page || '') };
+  }
+  return null;
 }
 
 Deno.serve(async (req: Request) => {
