@@ -9700,13 +9700,17 @@
 
   function mqSchedStripHtml(list, clickable, lead){
     var groups = [], byKey = {};
-    mqSchedSort(list).forEach(function(ev){
+    // Anything live right now goes first, so its league comes first in the strip.
+    function isLive(ev){ var g = mqGameFor(ev, mqSchedTeams(ev)); return !!g && g.state === 'in'; }
+    var sorted = mqSchedSort(list), live = sorted.filter(isLive);
+    sorted = live.concat(sorted.filter(function(ev){ return live.indexOf(ev) < 0; }));
+    sorted.forEach(function(ev){
       var key = ev.category === 'finance' ? 'Earnings' : ev.league || (MQ_SCHED_CATS.filter(function(c){ return c[0] === ev.category; })[0] || [0, 'Events'])[1];
       if(!byKey[key]){ byKey[key] = { name: key, events: [] }; groups.push(byKey[key]); }
       byKey[key].events.push(ev);
     });
     var cells = groups.map(function(g){
-      return '<div class="sstrip-league"><span>' + escapeHtml(g.name) + '</span></div>' +
+      return '<div class="sstrip-league' + (g.name === 'Earnings' ? ' is-earn' : '') + '"><span>' + escapeHtml(g.name) + '</span></div>' +
         g.events.map(function(ev){ return mqSchedCellHtml(ev, clickable); }).join('');
     }).join('');
     return '<div class="sstrip">' +
