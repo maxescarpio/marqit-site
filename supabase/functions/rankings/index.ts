@@ -103,8 +103,8 @@ async function music() {
         a.fans = Number(info?.nb_fan) || null;
         a.topTrack = String(top?.data?.[0]?.title_short || top?.data?.[0]?.title || '');
       } catch (_) { /* decoration */ }
-      const w = await wiki(`${a.name} musician`, [String(a.name).split(' ')[0]], 60, /singer|rapper|musician|band|songwriter|record producer|\bDJ\b|vocalist|group|duo|composer/i);
-      a.photo = w?.photo || null;
+      const [t, w] = await Promise.all([tsdb(a.name), wiki(`${a.name} musician`, [String(a.name).split(' ')[0]], 60, /singer|rapper|musician|band|songwriter|record producer|\bDJ\b|vocalist|group|duo|composer/i)]);
+      a.photo = t?.thumb || w?.photo || null;
     }));
     out.artists = base;
   }).catch((e) => errors.push('artists ' + String(e).slice(0, 40)));
@@ -149,6 +149,15 @@ async function lastfm(params: Record<string, string>): Promise<any | null> {
   const key = Deno.env.get('LASTFM_API_KEY');
   if (!key) return null;
   return safe(getJson('https://ws.audioscrobbler.com/2.0/?format=json&autocorrect=1&api_key=' + encodeURIComponent(key) + '&' + new URLSearchParams(params).toString(), nice));
+}
+// TheSportsDB artist art (promo thumb and wide fanart). Free key, already used for team badges.
+async function tsdb(name: string): Promise<{ thumb: string; banner: string } | null> {
+  const key = Deno.env.get('THESPORTSDB_API_KEY') || '123';
+  const d = await safe(getJson(`https://www.thesportsdb.com/api/v1/json/${key}/searchartist.php?s=${encodeURIComponent(name)}`, nice));
+  const a = (d?.artists || []).find((x: any) => norm(x.strArtist) === norm(name));
+  if (!a) return null;
+  const ok = (u: unknown) => (/^https:\/\/([a-z0-9-]+\.)*thesportsdb\.com\//i.test(String(u || '')) ? String(u) : '');
+  return { thumb: ok(a.strArtistThumb), banner: ok(a.strArtistFanart) || ok(a.strArtistWideThumb) };
 }
 const num = (v: unknown): number | null => { const n = Number(v); return isFinite(n) && n > 0 ? n : null; };
 
@@ -218,11 +227,12 @@ async function artist(id: string, nameHint: string) {
   const firstYear = dated.length ? Math.min(...dated.map((r) => Number(r.year))) : null;
   const lastYear = dated.length ? Math.max(...dated.map((r) => Number(r.year))) : null;
   const counts = { albums: rows.filter((r) => r.type === 'album').length, eps: rows.filter((r) => r.type === 'ep').length, singles: rows.filter((r) => r.type === 'single').length };
-  const [mb, lfm, about, its] = await Promise.all([
+  const [mb, lfm, about, its, art] = await Promise.all([
     safe(getJson(`https://musicbrainz.org/ws/2/artist/?query=${encodeURIComponent('artist:"' + name + '"')}&fmt=json&limit=3`, nice)),
     lastfm({ method: 'artist.getInfo', artist: name }),
     wiki(`${name} musician`, [name.split(' ')[0]], 900, /singer|rapper|musician|band|songwriter|record producer|\bDJ\b|vocalist|group|duo|composer/i),
     safe(getJson(`https://itunes.apple.com/search?media=music&entity=song&attribute=artistTerm&limit=50&country=us&term=${encodeURIComponent(name)}`)),
+    tsdb(name),
   ]);
   const m = (mb?.artists || []).find((x: any) => norm(x.name) === norm(name) && Number(x.score) >= 85) || null;
   const tags = (m?.tags || []).slice().sort((p: any, q: any) => (q.count || 0) - (p.count || 0)).slice(0, 4).map((t: any) => String(t.name));
@@ -235,7 +245,7 @@ async function artist(id: string, nameHint: string) {
   const genre = Object.entries(gc).sort((p, q) => q[1] - p[1])[0]?.[0] || null;
   const yr = (d: any) => (typeof d === 'string' && /^\d{4}/.test(d) ? d.slice(0, 4) : null);
   return {
-    kind: 'artist', id: Number(id), name, picture: String(a?.picture_xl || a?.picture_big || a?.picture_medium || ''), photo: about?.photo || null, tagline: about?.desc || null, genre, latest, fans: num(a?.nb_fan), link: String(a?.link || ''),
+    kind: 'artist', id: Number(id), name, picture: String(a?.picture_xl || a?.picture_big || a?.picture_medium || ''), photo: art?.thumb || about?.photo || null, banner: art?.banner || null, tagline: about?.desc || null, genre, latest, fans: num(a?.nb_fan), link: String(a?.link || ''),
     type: m?.type || null,                                   // Person or Group
     born: m?.type === 'Person' ? (m?.['life-span']?.begin || null) : null,
     formed: m?.type === 'Group' ? yr(m?.['life-span']?.begin) : null,

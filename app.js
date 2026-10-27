@@ -8721,7 +8721,7 @@
     MQ_MEDIA[url] = { at: Date.now(), p: p };
     return p;
   }
-  function mqSafeImg(u){ return /^https:\/\/([a-z0-9-]+\.)*(tmdb\.org|dzcdn\.net|mzstatic\.com|upload\.wikimedia\.org)\//i.test(u || '') ? u : ''; }
+  function mqSafeImg(u){ return /^https:\/\/([a-z0-9-]+\.)*(tmdb\.org|dzcdn\.net|mzstatic\.com|upload\.wikimedia\.org|thesportsdb\.com)\//i.test(u || '') ? u : ''; }
   function mqSafeLink(u){ return /^https:\/\/(www\.|music\.|itunes\.|en\.)?(themoviedb\.org|youtube\.com|deezer\.com|apple\.com|wikipedia\.org)\//i.test(u || '') ? u : ''; }
   function mqMediaDate(s){
     if(!s) return '';
@@ -9311,6 +9311,7 @@
           if(ph) ph.src = best;
           else { var h = el.querySelector('.sg-head'); if(h) h.insertAdjacentHTML('afterbegin', '<img class="sg-art round" id="ar-ph" src="' + escapeHtml(best) + '" alt="" referrerpolicy="no-referrer">'); }
         }
+        if(mqSafeImg(d.banner)){ var hd = el.querySelector('.sg-head'); if(hd && !el.querySelector('.ar-banner')) hd.insertAdjacentHTML('beforebegin', '<div class="ar-banner"><img src="' + escapeHtml(d.banner) + '" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>'); }
         var since = d.formed || d.firstYear, age = null;
         if(d.born){ var by = Number(String(d.born).slice(0, 4)); if(by) age = new Date().getFullYear() - by; }
         var years = since && d.lastYear ? (d.lastYear - since) + 1 : null;
