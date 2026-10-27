@@ -301,6 +301,7 @@ body:has(#page-home[style*="none"]) .cta-band{display:none;}
 .sched-today .sstrip-lead b{font-size:12.5px;}
 .sched-today .sstrip-lead span{font-size:11px;}
 .sched-today .sstrip-league{flex-basis:54px;padding:4px;font-size:12px;}
+.sched-today .sstrip-league.is-earn,.sstrip-league.is-earn{font-size:9.5px;letter-spacing:.04em;padding:4px 2px;}
 .sched-today .sstrip-cell{flex-basis:150px;min-height:0;padding:5px 12px 6px;gap:3px;}
 .sched-today .sstrip-time{display:flex;justify-content:space-between;gap:8px;font-size:11px;}
 .sched-today .sstrip-sub{font-size:11px;min-width:0;}
