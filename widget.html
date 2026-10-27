@@ -18,7 +18,7 @@
   .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
   .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;letter-spacing:.01em;}
   /* Logo image: the arrows make it taller than a line of type, so negative margins keep the header the same height. */
-  .brand img{display:block;height:40px;width:auto;margin:-9px 0;}
+  .brand img{display:block;height:19px;width:auto;margin:5px 0 -2px;}
   .tag{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);}
   h1{font-size:17px;line-height:1.25;margin:0 0 10px;font-weight:700;}
   .btns{display:flex;gap:10px;}
@@ -182,7 +182,7 @@
     var top = el('div','top');
     var brand = el('div','brand');
     var logoImg = document.createElement('img');
-    logoImg.src = 'marqit-logo-white.svg?v=2'; logoImg.alt = 'Marqit';
+    logoImg.src = 'marqit-logo-white.svg?v=3'; logoImg.alt = 'Marqit';
     brand.appendChild(logoImg);
     top.appendChild(brand); top.appendChild(el('span','tag','Make the call'));
     card.appendChild(top);
