@@ -2186,3 +2186,13 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 .rk-tabs button:focus-visible,.co-sec button:focus-visible,.rk-pills button:focus-visible,.co-per button:focus-visible{outline:none;color:#fff}
 .news-card:hover{transform:none;box-shadow:none;border-color:#3C424C}
 .mdp-links a,.mdp-link,.sg-link{color:#E4E6EA}
+
+/* ---- 10. Wordle-style share sheet, flat artists list ---- */
+.mq-ss-txt{white-space:pre-wrap;background:#1B1F25;border:1px solid #2E323A;border-radius:12px;padding:12px 14px;font:500 15px/1.55 'Barlow',sans-serif;color:#E4E6EA;word-break:break-word}
+.mq-ss-txt i{font-style:normal;color:#7E838D;font-size:13px}
+.mq-ss-btns{display:flex;flex-direction:column;gap:10px}
+a.mq-ss-ig{text-decoration:none}
+.mq-ss-ig.dl{color:#15171B}
+.mq-ss-ig:not(.dl){color:#fff}
+.ar-list{margin-top:4px}
+@media (max-width:480px){.mq-ss-stage .mq-ss-prev{width:84px}.mq-ss-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}

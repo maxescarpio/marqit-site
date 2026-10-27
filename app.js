@@ -718,6 +718,12 @@
       var params = new URLSearchParams(window.location.search);
       var ref = params.get('ref');
       if(!ref) return;
+      var sm = /^([A-Za-z0-9_-]{22})\.([dp])$/.exec(ref);
+      if(sm){
+        var raw = atob(sm[1].replace(/-/g, '+').replace(/_/g, '/')), h = '';
+        for(var k = 0; k < raw.length; k++) h += ('0' + raw.charCodeAt(k).toString(16)).slice(-2);
+        ref = h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20) + '~' + (sm[2] === 'd' ? 'daily_results' : 'pre_result');
+      }
       var parts = ref.split('~');
       if(parts.length < 2) return; // malformed -- ignore rather than half-attribute
       // The referrer id lands in a uuid foreign-key column, so anything that
@@ -824,6 +830,15 @@
   // back to them); cardType/trigger identify which card and which prompt
   // produced the share.
   function mqGetReferralTag(userId, cardType, trigger){
+    // Links that get posted publicly use a compact form: ref=<22 chars>.d (d = results, p = picks).
+    var code = { daily_results: 'd', pre_result: 'p' }[cardType];
+    if(code && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)){
+      try{
+        var hex = userId.replace(/-/g, ''), bin = '';
+        for(var i = 0; i < 32; i += 2) bin += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+        return 'ref=' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.' + code;
+      }catch(e){ /* fall through to the long form */ }
+    }
     return 'ref=' + encodeURIComponent(userId) + '~' + encodeURIComponent(cardType) + '~' + encodeURIComponent(trigger || 'none');
   }
 
@@ -2977,28 +2992,17 @@
 
   // ===== One share sheet for everything =====
   // opts: { title, text, url, packaged?: {file, blob}, filename? }
-  // Phones: straight to the phone's own share sheet with the story image (Instagram, Snapchat, Messages...).
-  // Computers: nothing to download and no system menu. One click copies the picture to the clipboard, and every
-  // destination (Messages, WhatsApp, X, Email) copies it first and then opens, so the picture is ready to paste.
+  // Wordle style: the result is plain text (emoji row + link) that goes straight into the app.
+  //   Computer: "Post on X" opens the composer already filled in. Nothing to copy, nothing to download.
+  //   Phone:    "Share" opens the phone's own share sheet with the text; "Instagram Story" sends the 9:16 picture.
   function mqOpenShareSheet(opts){
     var old = document.getElementById('mq-share-sheet'); if(old) old.remove();
     var url = opts.url || 'https://playmarqit.com/';
     var text = opts.text || '';
-    var full = (text + ' ' + url).trim();
+    var full = (text + '\n' + url).trim();
     var packaged = opts.packaged || null;
-
     var isPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
-    if(packaged && !opts.noDirect && isPhone && navigator.share && navigator.canShare && navigator.canShare({ files: [packaged.file] })){
-      // Put the link on the clipboard too, ready to paste into an Instagram link sticker.
-      try{ navigator.clipboard.writeText(url).catch(function(){}); }catch(e){}
-      navigator.share({ files: [packaged.file] }).catch(function(e){
-        if(e && e.name === 'AbortError') return; // they closed it on purpose
-        mqOpenShareSheet(Object.assign({}, opts, { noDirect: true }));
-      });
-      return;
-    }
-
-    var canCopyImg = !!(packaged && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write);
+    var canFile = !!(packaged && navigator.share && navigator.canShare && navigator.canShare({ files: [packaged.file] }));
     var previewUrl = packaged ? URL.createObjectURL(packaged.blob) : null;
     function done(){ if(previewUrl) setTimeout(function(){ URL.revokeObjectURL(previewUrl); }, 500); wrap.classList.remove('open'); setTimeout(function(){ wrap.remove(); }, 220); document.removeEventListener('keydown', onKey); }
     function onKey(e){ if(e.key === 'Escape') done(); }
@@ -3008,65 +3012,50 @@
       x:'<path d="M5 5l14 14M19 5L5 19"/>',
       mail:'<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>',
       copy:'<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.500 8.500v-2a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>',
-      img:'<rect x="3.5" y="4.5" width="17" height="15" rx="2.500"/><circle cx="9" cy="10" r="1.600"/><path d="M4 17l5-4.500 3.500 3L16 12l4 4"/>',
-      save:'<path d="M12 4v11M7.500 10.500L12 15l4.500-4.500M5 19.500h14"/>',
-      more:'<circle cx="6" cy="12" r="1.400" fill="currentColor"/><circle cx="12" cy="12" r="1.400" fill="currentColor"/><circle cx="18" cy="12" r="1.400" fill="currentColor"/>'
+      send:'<path d="M12 15V4M7.500 8.500L12 4l4.500 4.500M5 13v5.500h14V13"/>'
     };
     function svg(k, n){ return '<svg viewBox="0 0 24 24" width="' + (n || 24) + '" height="' + (n || 24) + '" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ico[k] + '</svg>'; }
-    var tiles = [
-      { k:'sms',  label:'Messages',  c:'#34C759', href:'sms:?&body=' + encodeURIComponent(full) },
-      { k:'wa',   label:'WhatsApp',  c:'#25D366', href:'https://wa.me/?text=' + encodeURIComponent(full) },
-      { k:'x',    label:'X',         c:'#C9CDD4', href:'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url) },
-      { k:'mail', label:'Email',     c:'#5B9BFF', href:'mailto:?subject=' + encodeURIComponent(opts.title || 'Marqit') + '&body=' + encodeURIComponent(full) },
-      { k:'copy', label:'Copy link', c:'#B08CFF', act:'copy' }
-    ];
-    // Saving a file is only offered where it is the natural thing (a phone) or the browser cannot copy a picture.
-    if(packaged && (isPhone || !canCopyImg)) tiles.push({ k:'save', label:'Save image', c:'#FFB020', act:'save' });
-    if(isPhone && navigator.share) tiles.push({ k:'more', label:'More', c:'#9AA0AB', act:'native' });
+    var xHref = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url);
+    var tiles = [];
+    if(isPhone) tiles.push({ k:'x', label:'X', c:'#C9CDD4', href:xHref });
+    tiles.push({ k:'sms', label:'Messages', c:'#34C759', href:'sms:?&body=' + encodeURIComponent(full) });
+    tiles.push({ k:'wa', label:'WhatsApp', c:'#25D366', href:'https://wa.me/?text=' + encodeURIComponent(full) });
+    tiles.push({ k:'mail', label:'Email', c:'#5B9BFF', href:'mailto:?subject=' + encodeURIComponent(opts.title || 'Marqit') + '&body=' + encodeURIComponent(full) });
+    tiles.push({ k:'copy', label:'Copy', c:'#B08CFF', act:'copy' });
 
-    var main = !packaged ? '' : isPhone
-      ? '<button type="button" class="mq-ss-ig">Share to Instagram Story</button>'
-      : (canCopyImg ? '<button type="button" class="mq-ss-ig dl"><span class="mq-ss-igi">' + svg('img', 20) + '</span><span class="mq-ss-igt">Copy image</span></button>' : '');
-    var hint = packaged && !isPhone && canCopyImg ? 'Copy the picture, then paste it into Instagram, Messages, Slack, anywhere.' : '';
+    var main = isPhone && navigator.share
+      ? '<button type="button" class="mq-ss-ig dl" data-a="share"><span class="mq-ss-igi">' + svg('send', 20) + '</span><span class="mq-ss-igt">Share</span></button>'
+      : '<a class="mq-ss-ig dl" data-a="x" href="' + escapeHtml(xHref) + '" target="_blank" rel="noopener"><span class="mq-ss-igi">' + svg('x', 18) + '</span><span class="mq-ss-igt">Post on X</span></a>';
+    if(canFile) main += '<button type="button" class="mq-ss-ig" data-a="story">Share to Instagram Story</button>';
+    var hint = packaged && !isPhone ? 'Instagram Stories are posted from your phone.' : '';
+    var shown = escapeHtml(text) + '\n<i>' + escapeHtml(url.replace(/^https?:\/\//, '')) + '</i>';
 
     var wrap = document.createElement('div');
     wrap.id = 'mq-share-sheet'; wrap.className = 'mq-ss' + (previewUrl ? ' has-prev' : '');
     wrap.innerHTML = '<div class="mq-ss-bg"></div><div class="mq-ss-card" role="dialog" aria-modal="true" aria-label="Share">' +
       '<button type="button" class="mq-ss-x" aria-label="Close">&times;</button>' +
       (previewUrl ? '<div class="mq-ss-stage"><img class="mq-ss-prev" alt="Preview of your card" src="' + previewUrl + '"></div>' : '') +
-      '<div class="mq-ss-main"><div class="mq-ss-ht"><b>' + escapeHtml(opts.title || 'Share') + '</b>' + (hint ? '<p>' + hint + '</p>' : '<span>' + escapeHtml(url.replace(/^https?:\/\//, '').slice(0, 44)) + '</span>') + '</div>' +
-      main +
+      '<div class="mq-ss-main"><div class="mq-ss-ht"><b>' + escapeHtml(opts.title || 'Share') + '</b>' + (hint ? '<p>' + hint + '</p>' : '') + '</div>' +
+      (text ? '<div class="mq-ss-txt">' + shown + '</div>' : '') +
+      '<div class="mq-ss-btns">' + main + '</div>' +
       '<div class="mq-ss-grid"></div><div class="mq-ss-msg" role="status" aria-live="polite"></div></div></div>';
     var grid = wrap.querySelector('.mq-ss-grid'), msg = wrap.querySelector('.mq-ss-msg');
     function say(t, ok){ msg.textContent = t; msg.classList.toggle('ok', !!ok); }
-    // Puts the card on the clipboard. Resolves true when it worked.
-    function copyImage(){
-      if(!canCopyImg) return Promise.resolve(false);
-      try{ return navigator.clipboard.write([new ClipboardItem({ 'image/png': packaged.blob })]).then(function(){ return true; }, function(){ return false; }); }
-      catch(e){ return Promise.resolve(false); }
-    }
     function saveFile(){
       var a = document.createElement('a'); a.href = URL.createObjectURL(packaged.blob); a.download = opts.filename || 'marqit.png';
       document.body.appendChild(a); a.click(); a.remove();
     }
-    var igBtn = wrap.querySelector('.mq-ss-ig');
-    if(igBtn) igBtn.addEventListener('click', async function(){
-      if(!isPhone){
-        var ok = await copyImage();
-        if(ok){ igBtn.classList.add('ok'); igBtn.querySelector('.mq-ss-igt').textContent = 'Copied'; say('Picture copied. Paste it where you want it.', true); setTimeout(function(){ igBtn.classList.remove('ok'); igBtn.querySelector('.mq-ss-igt').textContent = 'Copy image'; }, 2400); }
-        else say('Your browser would not copy the picture. Try the Save image button.');
-        return;
-      }
-      // Best: the phone's share sheet with the image -- pick Instagram > Story.
-      if(navigator.share && navigator.canShare && navigator.canShare({ files: [packaged.file] })){
-        try{ await navigator.share({ files: [packaged.file] }); done(); return; }
-        catch(e){ if(e && e.name === 'AbortError') return; }
-      }
-      // Otherwise save the image and open Instagram's story camera: they pick the picture we just saved.
-      saveFile();
-      try{ navigator.clipboard.writeText(url); }catch(e){}
-      say('Image saved. Opening Instagram — pick it from your photos. Your link is copied for a link sticker.', true);
-      setTimeout(function(){ window.location.href = 'instagram://story-camera'; }, 900);
+    var shareBtn = wrap.querySelector('[data-a="share"]'), storyBtn = wrap.querySelector('[data-a="story"]'), xBtn = wrap.querySelector('[data-a="x"]');
+    if(xBtn) xBtn.addEventListener('click', function(){ setTimeout(done, 200); });
+    if(shareBtn) shareBtn.addEventListener('click', async function(){
+      try{ await navigator.share({ title: opts.title || 'Marqit', text: text, url: url }); done(); }
+      catch(e){ /* canceled */ }
+    });
+    if(storyBtn) storyBtn.addEventListener('click', async function(){
+      // The link goes to the clipboard too, ready for an Instagram link sticker.
+      try{ navigator.clipboard.writeText(url).catch(function(){}); }catch(e){}
+      try{ await navigator.share({ files: [packaged.file] }); done(); }
+      catch(e){ if(e && e.name === 'AbortError') return; saveFile(); say('Image saved. Add it to your story from your photos.', true); }
     });
     tiles.forEach(function(t){
       var b = document.createElement(t.href ? 'a' : 'button');
@@ -3074,26 +3063,11 @@
       b.innerHTML = '<span class="mq-ss-ic">' + svg(t.k) + '</span><span class="mq-ss-lb">' + t.label + '</span>';
       if(t.href){
         b.href = t.href; if(t.href.indexOf('http') === 0){ b.target = '_blank'; b.rel = 'noopener'; }
-        b.addEventListener('click', function(){
-          // The picture goes to the clipboard in the same click, so it is ready to paste where the link opens.
-          if(!isPhone && canCopyImg){ copyImage().then(function(ok){ if(ok) say('Picture copied. Paste it into ' + t.label + '.', true); }); setTimeout(done, 1600); }
-          else setTimeout(done, 150);
-        });
-      }
-      else{
+        b.addEventListener('click', function(){ setTimeout(done, 200); });
+      }else{
         b.type = 'button';
         b.addEventListener('click', async function(){
-          if(t.act === 'copy'){
-            try{ await navigator.clipboard.writeText(full); say('Link copied. Paste it anywhere.', true); }catch(e){ say('Could not copy. Select the link and copy it by hand.'); }
-          }else if(t.act === 'save' && packaged){
-            saveFile(); say('Image saved.', true);
-          }else if(t.act === 'native'){
-            try{
-              if(packaged && navigator.canShare && navigator.canShare({ files: [packaged.file] })) await navigator.share({ files: [packaged.file], text: text, url: url });
-              else await navigator.share({ title: opts.title || 'Marqit', text: text, url: url });
-              done();
-            }catch(e){ /* canceled */ }
-          }
+          try{ await navigator.clipboard.writeText(full); say('Copied. Paste it anywhere.', true); }catch(e){ say('Could not copy. Select the text and copy it by hand.'); }
         });
       }
       grid.appendChild(b);
@@ -3103,7 +3077,7 @@
     wrap.querySelector('.mq-ss-bg').addEventListener('click', done);
     wrap.querySelector('.mq-ss-x').addEventListener('click', done);
     document.addEventListener('keydown', onKey);
-    var first = igBtn || grid.querySelector('.mq-ss-tile'); if(first) first.focus({ preventScroll: true });
+    var first = wrap.querySelector('.mq-ss-ig'); if(first) first.focus({ preventScroll: true });
   }
 
   function mqShareCanvasToFileAndCaption(canvas, filename){
@@ -3127,7 +3101,16 @@
     const correctCount = data.questions.filter(function(q){ return data.predMap[q.id] && q.resolved && data.predMap[q.id] === q.correct_answer; }).length;
     const refTag = mqGetReferralTag(session ? session.user.id : 'guest', 'daily_results', triggerName);
     const shareUrl = 'https://playmarqit.com/?' + refTag;
-    const shareText = (data.guest ? 'Think you can beat me? ' : 'Beat my ' + data.standing.streakDays + '-day streak. ') + correctCount + '/' + data.questions.filter(function(q){ return !q.voided; }).length + ' correct. ' + shareUrl;
+    const live = data.questions.filter(function(q){ return !q.voided; });
+    const grid = data.questions.map(function(q){
+      if(q.voided) return '\u2B1B';
+      var pick = data.predMap[q.id];
+      if(!pick || !q.resolved) return '\u2B1C';
+      return pick === q.correct_answer ? '\uD83D\uDFE9' : '\uD83D\uDFE5';
+    }).join('');
+    var when = ''; try{ when = new Date(data.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }catch(e){}
+    const shareText = 'Marqit' + (when ? ' \u00B7 ' + when : '') + '\n' + grid + ' ' + correctCount + '/' + live.length +
+      (!data.guest && data.standing.streakDays > 1 ? '\n\uD83D\uDD25 ' + data.standing.streakDays + '-day streak' : '') + '\nCan you beat me?\n' + shareUrl;
 
     await mqEnsureCardFonts();
     const canvas = mqDrawResultsCard(1080, 1920, data); // story ratio is the default share
@@ -3136,7 +3119,7 @@
 
     if(session) mqLogCardShare(session.user.id, 'daily_results', triggerName);
 
-    mqOpenShareSheet({ title: data.guest ? 'Share your picks' : 'Share your results', text: shareText.replace(' ' + shareUrl, ''), url: shareUrl, packaged: packaged, filename: 'marqit-results.png' });
+    mqOpenShareSheet({ title: data.guest ? 'Share your picks' : 'Share your results', text: shareText.replace('\n' + shareUrl, ''), url: shareUrl, packaged: packaged, filename: 'marqit-results.png' });
   }
 
   document.getElementById('share-results-btn').addEventListener('click', function(){ mqShareResultsCard(null); });
@@ -3212,7 +3195,7 @@
     // branches on session state and shows the right thing either way.
     const refTag = mqGetReferralTag(session.user.id, 'pre_result', null);
     const shareUrl = 'https://playmarqit.com/?' + refTag;
-    const shareText = 'My picks today. Think I\u2019m wrong? Pick yours. ' + shareUrl;
+    const shareText = 'My picks today on Marqit. Think I\u2019m wrong?\n' + shareUrl;
 
     await mqEnsureCardFonts();
     const canvas = mqDrawPreResultCard(1080, 1920, data);
@@ -3221,7 +3204,7 @@
 
     mqLogCardShare(session.user.id, 'pre_result', null);
 
-    mqOpenShareSheet({ title: 'Share your picks', text: shareText.replace(' ' + shareUrl, ''), url: shareUrl, packaged: packaged, filename: 'marqit-picks.png' });
+    mqOpenShareSheet({ title: 'Share your picks', text: shareText.replace('\n' + shareUrl, ''), url: shareUrl, packaged: packaged, filename: 'marqit-picks.png' });
   }
 
   // --- Change 5: when to prompt sharing (post-result) ---------------------
@@ -9091,16 +9074,13 @@
     if(!items || !items.length) return '<p class="evp-muted">This chart isn’t available right now.</p>';
     var max = Math.max.apply(null, items.map(function(a){ return Number(a.fans) || 0; })) || 0;
     function pic(a, cls){ return '<span class="ar-pic ' + cls + '">' + (a.picture ? '<img src="' + escapeHtml(a.picture) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<i>' + escapeHtml(String(a.name || '').charAt(0)) + '</i></span>'; }
-    var h = items[0];
-    var hero = '<div class="ar-hero rk-go" data-act="artist" data-i="0" tabindex="0">' + pic(h, 'xl') + '<div class="ar-hero-t"><span class="ar-crown">No. 1 artist right now</span><b>' + escapeHtml(h.name) + '</b>' +
-      (h.fans ? '<em>' + mqRkFans(h.fans) + ' fans</em>' : '') + (h.topTrack ? '<small>Most played: ' + escapeHtml(h.topTrack) + '</small>' : '') + '</div><span class="rk-chev">›</span></div>';
-    var rows = items.slice(1).map(function(a, j){
-      var i = j + 1, w = max && a.fans ? Math.max(6, Math.round(Number(a.fans) / max * 100)) : 0;
+    var rows = items.map(function(a, i){
+      var w = max && a.fans ? Math.max(6, Math.round(Number(a.fans) / max * 100)) : 0;
       return '<li class="rk-go ar-row" data-act="artist" data-i="' + i + '" tabindex="0"><span class="n">' + (a.rank || i + 1) + '</span>' + pic(a, 'md') +
         '<span class="m"><b>' + escapeHtml(a.name) + '</b>' + (a.topTrack ? '<em>' + escapeHtml(a.topTrack) + '</em>' : '') + (w ? '<span class="ar-bar"><i style="width:' + w + '%"></i></span>' : '') + '</span>' +
         (a.fans ? '<span class="ar-fans"><b>' + mqRkFans(a.fans) + '</b><small>fans</small></span>' : '') + '<span class="rk-chev">›</span></li>';
     }).join('');
-    return hero + '<ol class="rk-l ar-list">' + rows + '</ol><p class="rk-src">Deezer. Photos © their owners.</p>';
+    return '<ol class="rk-l ar-list">' + rows + '</ol><p class="rk-src">Deezer. Photos © their owners.</p>';
   }
   function mqRkList(items, artist){
     if(!items || !items.length) return '<p class="evp-muted">This chart isn’t available right now.</p>';
