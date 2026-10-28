@@ -1,5 +1,5 @@
 -- Weekly group-vs-group matchups. ADDITIVE ONLY: one new read-only function, no new tables.
--- Each week (Mon-Sun) chapters are paired by overall rank (1v2, 3v4, ...). Nothing is stored; it is computed live.
+-- Each week (Mon-Sun) groups are paired by overall rank (1v2, 3v4, ...). Nothing is stored; it is computed live.
 -- Score = average points per member this week (100 per correct call), so a small group can beat a big one.
 create or replace function public.get_group_matchups()
  returns table(pair_no int, group_id uuid, name text, symbol text, member_count bigint,

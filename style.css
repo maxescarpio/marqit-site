@@ -354,7 +354,7 @@
   /* ---- Weekly avatar frame: earned by a Perfect Day this week ---- */
   .has-frame{position:relative;box-shadow:0 0 0 2.5px #F6C430,0 0 0 4.5px var(--paper),0 0 10px 1px rgba(246,196,48,.55) !important;}
   #profile-circle-btn.has-frame{box-shadow:0 0 0 2px #F6C430,0 0 0 3.5px var(--panel),0 0 8px 1px rgba(246,196,48,.55) !important;}
-  /* ---- Champion frame: reigning Fall Chapter Cup chapter/org, permanent while held ---- */
+  /* ---- Champion frame: reigning champion group, permanent while held ---- */
   .has-champion-frame{position:relative;box-shadow:0 0 0 2.5px #DB6653,0 0 0 4.5px var(--paper),0 0 12px 2px rgba(219,102,83,.6) !important;}
   #profile-circle-btn.has-champion-frame{box-shadow:0 0 0 2px #DB6653,0 0 0 3.5px var(--panel),0 0 10px 2px rgba(219,102,83,.6) !important;}
   .champ-crown{position:absolute;top:-9px;right:-6px;font-size:12px;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35));}

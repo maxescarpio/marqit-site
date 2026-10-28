@@ -135,7 +135,7 @@
     <button class="tab" data-tab="moderation">Moderation<span class="pip" id="pip-moderation"></span></button>
     <button class="tab" data-tab="content">Content</button>
     <button class="tab" data-tab="widgets">Widgets<span class="pip" id="pip-widgets"></span></button>
-    <button class="tab" data-tab="chapters">Chapters</button>
+    <button class="tab" data-tab="groups">Groups</button>
   </nav>
 </header>
 
@@ -366,30 +366,20 @@
     </details>
   </section>
 
-  <!-- ===================== CHAPTERS ===================== -->
-  <section class="panel" id="panel-chapters">
+  <!-- ===================== GROUPS ===================== -->
+  <section class="panel" id="panel-groups">
 
     <details class="card" open>
       <summary>Marqit Champion <span class="sub">non-monetary prize</span></summary>
       <div class="body">
-        <p class="hint">Crown a chapter and/or a national org. Every member gets a permanent champion frame on their avatar site-wide plus a shareable Champion card. Clearing removes the title from everyone immediately.</p>
+        <p class="hint">Crown a group. Every member gets a permanent champion frame on their avatar site-wide plus a shareable Champion card. Clearing removes the title from everyone immediately.</p>
         <div id="champion-current" class="note" style="margin-bottom:6px;">Loading&hellip;</div>
-        <div class="grid2">
-          <div>
-            <label>Crown a chapter</label>
-            <select id="champion-group-select"><option value="">Select a chapter&hellip;</option></select>
-            <div class="row" style="gap:8px;">
-              <button id="champion-group-set-btn" class="primary" style="flex:none;">Crown chapter</button>
-              <button id="champion-group-clear-btn" class="btn-delete" style="flex:none;">Clear title</button>
-            </div>
-          </div>
-          <div>
-            <label>Crown a national org</label>
-            <select id="champion-org-select"><option value="">Select a national org&hellip;</option></select>
-            <div class="row" style="gap:8px;">
-              <button id="champion-org-set-btn" class="primary" style="flex:none;">Crown org</button>
-              <button id="champion-org-clear-btn" class="btn-delete" style="flex:none;">Clear title</button>
-            </div>
+        <div>
+          <label>Crown a group</label>
+          <select id="champion-group-select"><option value="">Select a group&hellip;</option></select>
+          <div class="row" style="gap:8px;">
+            <button id="champion-group-set-btn" class="primary" style="flex:none;">Crown group</button>
+            <button id="champion-group-clear-btn" class="btn-delete" style="flex:none;">Clear title</button>
           </div>
         </div>
         <p class="msg" id="champion-status-msg" style="display:none; margin-top:10px; padding:10px 12px;"></p>
@@ -397,10 +387,10 @@
     </details>
 
     <details class="card">
-      <summary>All chapters <span class="sub">verify, school, org, letters</span></summary>
+      <summary>All groups <span class="sub">rename</span></summary>
       <div class="body">
-        <p class="hint">Verify a chapter (badge + prize eligibility) and set its school, national org and letters; these feed the Top Chapters, Top Orgs and Head-to-Head boards. Verifying a new chapter auto-grants Founding Chapter status to the first 20.</p>
-        <div id="chapters-list">Loading&hellip;</div>
+        <p class="hint">Every group on the Top Groups, Head-to-Head and weekly matchup boards.</p>
+        <div id="groups-list">Loading&hellip;</div>
       </div>
     </details>
   </section>
@@ -1030,79 +1020,62 @@
     });
   }
 
-  async function loadChapters(){
-    const list = document.getElementById('chapters-list');
+  async function loadGroups(){
+    const list = document.getElementById('groups-list');
     list.innerHTML = 'Loading&hellip;';
     const { data, error } = await sb.rpc('admin_list_groups');
     if(error){
-      list.innerHTML = '<p style="font-size:13px; color:var(--ink-soft);">Error loading chapters: ' + error.message + '</p>';
+      list.innerHTML = '<p style="font-size:13px; color:var(--ink-soft);">Error loading groups: ' + error.message + '</p>';
       return;
     }
     if(!data || data.length === 0){
-      list.innerHTML = '<p style="font-size:13px; color:var(--ink-soft);">No chapters yet.</p>';
+      list.innerHTML = '<p style="font-size:13px; color:var(--ink-soft);">No groups yet.</p>';
       return;
     }
     list.innerHTML = data.map(function(g){
       const gid = g.group_id;
       return '<div class="qrow" data-gid="' + gid + '">' +
-        '<div class="qtext">' + g.name.replace(/</g, '&lt;') + (g.founding_chapter ? ' <span style="font-size:11px; font-weight:700; color:var(--ink-soft);">&middot; Founding Chapter</span>' : '') + '</div>' +
         '<div class="qmeta">' + g.member_count + ' member' + (g.member_count === 1 ? '' : 's') + ' &middot; ' + g.total_points + ' pts &middot; invite: ' + g.invite_code + '</div>' +
         '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">' +
-          '<input type="text" class="ch-school" placeholder="school" value="' + (g.school ? g.school.replace(/"/g, '&quot;') : '') + '" style="flex:1; min-width:140px;">' +
-          '<input type="text" class="ch-org" placeholder="national org" value="' + (g.org_name ? g.org_name.replace(/"/g, '&quot;') : '') + '" style="flex:1; min-width:120px;">' +
-          '<input type="text" class="ch-symbol" placeholder="letters" maxlength="6" value="' + (g.symbol ? g.symbol.replace(/"/g, '&quot;') : '') + '" style="width:90px;">' +
+          '<input type="text" class="gp-name" placeholder="group name" value="' + g.name.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '" style="flex:1; min-width:180px;">' +
         '</div>' +
-        '<label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-weight:500;"><input type="checkbox" class="ch-verified" style="width:auto; margin:0;"' + (g.verified ? ' checked' : '') + '> Verified</label>' +
-        '<div class="actions"><button class="btn-edit ch-save">Save</button><span class="ch-status" style="font-size:12px; color:var(--ink-soft); margin-left:8px;"></span></div>' +
+        '<div class="actions"><button class="btn-edit gp-save">Save</button><span class="gp-status" style="font-size:12px; color:var(--ink-soft); margin-left:8px;"></span></div>' +
       '</div>';
     }).join('');
 
-    list.querySelectorAll('.ch-save').forEach(function(btn){
+    list.querySelectorAll('.gp-save').forEach(function(btn){
       btn.addEventListener('click', async function(){
         const row = btn.closest('.qrow');
         const gid = row.dataset.gid;
-        const status = row.querySelector('.ch-status');
+        const status = row.querySelector('.gp-status');
+        const name = row.querySelector('.gp-name').value.trim();
+        if(!name){ status.textContent = 'Name required.'; status.style.color = 'var(--no)'; return; }
         btn.disabled = true;
-        const { error } = await sb.rpc('admin_update_group', {
-          p_group_id: gid,
-          p_verified: row.querySelector('.ch-verified').checked,
-          p_school: row.querySelector('.ch-school').value.trim(),
-          p_org_name: row.querySelector('.ch-org').value.trim(),
-          p_symbol: row.querySelector('.ch-symbol').value.trim()
-        });
+        const { error } = await sb.rpc('admin_update_group', { p_group_id: gid, p_name: name });
         btn.disabled = false;
         status.textContent = error ? ('Error: ' + error.message) : 'Saved.';
         status.style.color = error ? 'var(--no)' : 'var(--yes)';
       });
     });
   }
-  document.getElementById('chapters-list').insertAdjacentHTML('beforebegin', '<button id="chapters-refresh-btn" class="btn-edit" style="margin-bottom:10px;">Refresh</button>');
-  document.getElementById('chapters-refresh-btn').addEventListener('click', loadChapters);
+  document.getElementById('groups-list').insertAdjacentHTML('beforebegin', '<button id="groups-refresh-btn" class="btn-edit" style="margin-bottom:10px;">Refresh</button>');
+  document.getElementById('groups-refresh-btn').addEventListener('click', loadGroups);
 
   async function loadChampionSection(){
     const cur = document.getElementById('champion-current');
     const groupSel = document.getElementById('champion-group-select');
-    const orgSel = document.getElementById('champion-org-select');
 
     const { data: groups } = await sb.rpc('admin_list_groups');
-    const orgNames = Array.from(new Set((groups || []).map(function(g){ return g.org_name; }).filter(Boolean)));
-
-    groupSel.innerHTML = '<option value="">Select a chapter&hellip;</option>' + (groups || []).map(function(g){
-      return '<option value="' + g.group_id + '">' + g.name.replace(/</g, '&lt;') + (g.school ? ' (' + g.school.replace(/</g, '&lt;') + ')' : '') + '</option>';
-    }).join('');
-    orgSel.innerHTML = '<option value="">Select a national org&hellip;</option>' + orgNames.map(function(n){
-      return '<option value="' + n.replace(/"/g, '&quot;') + '">' + n.replace(/</g, '&lt;') + '</option>';
+    groupSel.innerHTML = '<option value="">Select a group&hellip;</option>' + (groups || []).map(function(g){
+      return '<option value="' + g.group_id + '">' + g.name.replace(/</g, '&lt;') + '</option>';
     }).join('');
 
     const { data: info } = await sb.rpc('get_champion_info');
     const row = info && info[0];
-    if(!row || (!row.champion_group_id && !row.champion_org_name)){
+    if(!row || !row.champion_group_id){
       cur.textContent = 'No champion crowned right now.';
     } else {
-      const parts = [];
-      if(row.champion_group_id) parts.push('Chapter: ' + row.champion_group_name + (row.champion_group_school ? ' (' + row.champion_group_school + ')' : ''));
-      if(row.champion_org_name) parts.push('National org: ' + row.champion_org_name);
-      cur.textContent = 'Currently crowned — ' + parts.join(' · ');
+      cur.textContent = 'Currently crowned — Group: ' + row.champion_group_name;
     }
   }
 
@@ -1116,26 +1089,14 @@
 
   document.getElementById('champion-group-set-btn').addEventListener('click', async function(){
     const gid = document.getElementById('champion-group-select').value;
-    if(!gid){ championMsg('Pick a chapter first.', true); return; }
+    if(!gid){ championMsg('Pick a group first.', true); return; }
     const { error } = await sb.rpc('admin_set_champion', { p_group_id: gid });
-    championMsg(error ? ('Error: ' + error.message) : 'Chapter crowned.', !!error);
+    championMsg(error ? ('Error: ' + error.message) : 'Group crowned.', !!error);
     if(!error) loadChampionSection();
   });
   document.getElementById('champion-group-clear-btn').addEventListener('click', async function(){
     const { error } = await sb.rpc('admin_set_champion', { p_clear_group: true });
-    championMsg(error ? ('Error: ' + error.message) : 'Chapter title cleared.', !!error);
-    if(!error) loadChampionSection();
-  });
-  document.getElementById('champion-org-set-btn').addEventListener('click', async function(){
-    const org = document.getElementById('champion-org-select').value;
-    if(!org){ championMsg('Pick a national org first.', true); return; }
-    const { error } = await sb.rpc('admin_set_champion', { p_org_name: org });
-    championMsg(error ? ('Error: ' + error.message) : 'National org crowned.', !!error);
-    if(!error) loadChampionSection();
-  });
-  document.getElementById('champion-org-clear-btn').addEventListener('click', async function(){
-    const { error } = await sb.rpc('admin_set_champion', { p_clear_org: true });
-    championMsg(error ? ('Error: ' + error.message) : 'Org title cleared.', !!error);
+    championMsg(error ? ('Error: ' + error.message) : 'Group title cleared.', !!error);
     if(!error) loadChampionSection();
   });
 
@@ -1440,7 +1401,7 @@
       loadQuestionsForDate();
       loadSuggestions();
       loadWidgets();
-      loadChapters();
+      loadGroups();
       loadChampionSection();
     }
   });

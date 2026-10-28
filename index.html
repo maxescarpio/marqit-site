@@ -47,8 +47,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261026f">
-<link rel="stylesheet" href="refresh.css?v=20261027f">
+<link rel="stylesheet" href="style.css?v=20261028a">
+<link rel="stylesheet" href="refresh.css?v=20261028a">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -638,17 +638,6 @@
       <div style="display:flex; gap:8px; margin-bottom:8px;">
         <input type="text" id="group-name-input" placeholder="group name (e.g. Roommates, Class of 2027)" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
       </div>
-      <button type="button" id="greek-opt-in-btn" style="display:block; background:none; border:none; color:var(--ink-soft); font-size:12px; text-decoration:underline; padding:0; margin:-2px 0 10px; cursor:pointer;">Setting up a fraternity or sorority chapter?</button>
-      <div id="greek-create-fields" style="display:none;">
-        <div style="display:flex; gap:8px; margin-bottom:10px;">
-          <input type="text" id="group-school-input" placeholder="school (optional, e.g. University of Florida)" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
-          <input type="text" id="group-org-input" placeholder="national org (optional, e.g. Sigma Chi)" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
-        </div>
-        <div style="display:flex; gap:8px; margin-bottom:10px;">
-          <input type="text" id="group-symbol-input" maxlength="6" placeholder="letters (optional, e.g. &Sigma;X)" style="width:160px; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
-        </div>
-        <p style="font-size:11.5px; color:var(--ink-soft); margin:-4px 0 10px;">School lets your chapter compete against other chapters at your school. National org rolls your chapter into a nationwide total against every other school's chapter of that same org. Letters show up as your badge everywhere on the site.</p>
-      </div>
       <div style="display:flex; gap:8px; margin-bottom:10px;">
         <button id="create-group-btn" style="flex:1; padding:10px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-weight:600; font-size:13.5px; cursor:pointer;">Create group</button>
       </div>
@@ -711,45 +700,19 @@
       </div>
     </div>
 
-    <div id="greek-section" style="display:none;">
-      <div id="chapter-cup-banner" style="margin-top:30px; padding:14px 18px; border-radius:14px; background:var(--panel); border:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-        <div>
-          <div style="font-weight:800; font-size:14.5px; display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#F2C14E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5.5a4 4 0 0 1-8 0z"/><path d="M8 6H5.2c0 2.6 1 3.9 3 4.3M16 6h2.8c0 2.6-1 3.9-3 4.3"/><path d="M12 13.5V17M10 17h4v3h-4zM8.5 20h7"/></svg>Fall Chapter Cup</div>
-          <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">Top chapter and top national org when it ends are crowned.</div>
-        </div>
-        <div id="chapter-cup-countdown" style="font-weight:800; font-size:16px; white-space:nowrap;">Nov 30</div>
-      </div>
-
-      <h3 class="ex-title" style="margin-top:30px;">Top Chapters</h3>
-      <p class="ex-sub">Ranked by combined points. The more people you bring in, the higher your chapter climbs. Verified chapters carry a blue check.</p>
-      <div style="margin-bottom:10px;">
-        <select id="group-school-filter" style="padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:13px; background:var(--panel); color:var(--ink); max-width:280px;">
-          <option value="">All schools</option>
-        </select>
-      </div>
+    <div id="groups-section">
+      <h3 class="ex-title" style="margin-top:30px;">Top Groups</h3>
+      <p class="ex-sub">Ranked by combined points. The more people you bring in, the higher your group climbs.</p>
       <div class="gvg" id="group-matchup" hidden></div>
       <div class="boards one">
         <div class="board" style="--tint:219,102,83;">
-          <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#DB6653" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg>Top Chapters</div>
+          <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#DB6653" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg>Top Groups</div>
           <div class="board-rows" id="board-top-groups"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
         </div>
       </div>
 
-      <h3 class="ex-title" style="margin-top:30px;">Top Fraternities &amp; Sororities Nationwide</h3>
-      <p class="ex-sub">Every chapter of the same national organization, combined across every school, competing against other national orgs.</p>
-      <div class="boards one">
-        <div class="board" style="--tint:74,158,255;">
-          <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#4A9EFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg>Top Organizations</div>
-          <div class="board-rows" id="board-top-orgs"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
-        </div>
-      </div>
-
       <h3 class="ex-title" style="margin-top:30px;">Head-to-Head</h3>
-      <p class="ex-sub">Pick any two chapters, or any two national orgs, and see who's winning.</p>
-      <div style="display:flex; gap:6px; margin-bottom:14px;">
-        <button type="button" id="h2h-mode-chapters" class="scope-tab-row-btn" data-active="true" style="padding:8px 14px; border:1.5px solid var(--line); border-radius:20px; background:var(--ink); color:var(--paper); font-weight:600; font-size:12.5px; cursor:pointer;">Chapters</button>
-        <button type="button" id="h2h-mode-orgs" class="scope-tab-row-btn" style="padding:8px 14px; border:1.5px solid var(--line); border-radius:20px; background:var(--panel); color:var(--ink); font-weight:600; font-size:12.5px; cursor:pointer;">National orgs</button>
-      </div>
+      <p class="ex-sub">Pick any two groups and see who's winning.</p>
       <div style="display:flex; align-items:center; gap:10px; max-width:560px; margin-bottom:16px; flex-wrap:wrap;">
         <select id="h2h-select-a" style="flex:1; min-width:180px; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);"><option value="">Pick one...</option></select>
         <span style="font-weight:700; color:var(--ink-soft); font-size:13px;">VS</span>
@@ -867,6 +830,9 @@
       <a href="https://www.facebook.com/playmarqit" target="_blank" rel="noopener noreferrer" aria-label="Marqit on Facebook" title="Facebook">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.5 22v-8.2h2.8l.5-3.3h-3.3V8.4c0-.9.4-1.7 1.8-1.7h1.6V3.9s-1.3-.2-2.5-.2c-2.6 0-4.2 1.5-4.2 4.3v2.5H7.4v3.3h2.8V22h3.3z"/></svg>
       </a>
+      <a href="https://www.youtube.com/@playmarqit" target="_blank" rel="noopener noreferrer" aria-label="Marqit on YouTube" title="YouTube">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z"/></svg>
+      </a>
     </div></div>
   </div>
   <div class="wrap sf-legal">&copy; 2026 Grand Media Group LLC. Marqit is a trademark of Grand Media Group LLC.</div>
@@ -882,7 +848,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261027f" defer></script>
+<script src="app.js?v=20261028a" defer></script>
 
 
 

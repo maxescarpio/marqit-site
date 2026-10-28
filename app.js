@@ -748,12 +748,12 @@
     }catch(e){ /* referral is a nice-to-have, never block page load over it */ }
   })();
 
-  // --- Group invite-link capture (chapter/org signup links) ---------------
+  // --- Group invite-link capture ---------------
   // A president DMs out https://playmarqit.com/?group=CODE. Most people who
   // click that link are NOT signed in yet, so the old code only auto-joined
   // when a session already existed and silently dropped the code otherwise --
   // meaning the exact people this link is for (brand-new signups) never
-  // actually landed in the chapter's group. Stash the code in sessionStorage
+  // actually landed in the group. Stash the code in sessionStorage
   // on first load so it survives the sign-up/sign-in flow, then both
   // autoJoinFromUrl (page-load) and the SIGNED_IN handler (same-page
   // sign-up/login) can consume it whenever a session becomes available.
@@ -765,58 +765,10 @@
         var CODE_RE = /^[a-zA-Z0-9_-]{1,32}$/;
         if(CODE_RE.test(code)){
           sessionStorage.setItem('marqit_pending_group_code', code);
-          // A chapter invite link IS the "certain link" that flags this visitor
-          // as a Greek recruit -- persists across visits, not just this page load.
-          localStorage.setItem('marqit_greek', '1');
         }
-      }
-      // A separate marketing link (no specific chapter yet) can also opt someone
-      // into the Greek/chapter-competition UI: playmarqit.com/?greek=1
-      if(params.get('greek') === '1'){
-        localStorage.setItem('marqit_greek', '1');
       }
     }catch(e){ /* nice-to-have, never block page load over it */ }
   })();
-
-  // ---- Greek/chapter mode gating: the whole Top Chapters / Top Orgs /
-  // Head-to-Head / Fall Chapter Cup suite is hidden from the general
-  // audience. It only shows for someone who arrived via a chapter invite
-  // link or a ?greek=1 link (flag set above, persists in localStorage), or
-  // who is already a member of a chapter that has a school/org set.
-  function mqIsGreekModeFlagged(){
-    try{ return localStorage.getItem('marqit_greek') === '1'; }catch(e){ return false; }
-  }
-  async function mqIsGreekMode(){
-    if(mqIsGreekModeFlagged()) return true;
-    try{
-      const { data: sessionRes } = await sb.auth.getSession();
-      const session = sessionRes && sessionRes.session;
-      if(!session) return false;
-      const { data: membership } = await sb.from('group_members').select('groups(school, org_name)').eq('user_id', session.user.id).maybeSingle();
-      const g = membership && membership.groups;
-      if(g && (g.school || g.org_name)){
-        try{ localStorage.setItem('marqit_greek', '1'); }catch(e){}
-        return true;
-      }
-      return false;
-    }catch(e){ return false; }
-  }
-  async function mqApplyGreekVisibility(){
-    const on = await mqIsGreekMode();
-    const section = document.getElementById('greek-section');
-    const createFields = document.getElementById('greek-create-fields');
-    const optInBtn = document.getElementById('greek-opt-in-btn');
-    const createBtn = document.getElementById('create-group-btn');
-    const nameInput = document.getElementById('group-name-input');
-    if(section) section.style.display = on ? 'block' : 'none';
-    if(createFields) createFields.style.display = on ? 'block' : 'none';
-    // Everyone else is just making a plain group -- only call it a "chapter"
-    // and show the Greek-specific example once they've actually flagged
-    // themselves as setting one up (or already belong to one).
-    if(optInBtn) optInBtn.style.display = on ? 'none' : '';
-    if(createBtn) createBtn.textContent = on ? 'Create chapter' : 'Create group';
-    if(nameInput) nameInput.placeholder = on ? 'chapter name (e.g. Sigma Chi – UF)' : 'group name (e.g. Roommates, Class of 2027)';
-  }
 
   function mqGetReferralInfo(){
     try{
@@ -3550,7 +3502,6 @@
       mqLoadNudgeBanner();
       setTimeout(function(){ mqMaybeAskPush('signin'); }, 2500);
       mqRegisterPushToken(session.user.id);
-      if(typeof mqApplyGreekVisibility === 'function') mqApplyGreekVisibility();
       if(typeof autoJoinFromUrl === 'function') autoJoinFromUrl(); // picks up a stashed ?group= invite code now that we have a session
     }
     if(event === 'PASSWORD_RECOVERY'){
@@ -6699,9 +6650,9 @@
     }
     return __mqFrameSetPromise;
   }
-  // ---- Champion frame: everyone in the reigning Fall Chapter Cup chapter, or
-  // the reigning national org, gets a distinct crown-colored ring, permanent
-  // for as long as their chapter/org holds the title. Set by Max via admin_set_champion.
+  // ---- Champion frame: everyone in the reigning champion group
+  // gets a distinct crown-colored ring, permanent
+  // for as long as their group holds the title. Set by Max via admin_set_champion.
   var __mqChampionSetPromise = null;
   function mqChampionSet(){
     if(!__mqChampionSetPromise){
@@ -7503,9 +7454,9 @@
   }
 
   // ---- Champion card: the one non-monetary prize asset. Shareable graphic
-  // for whichever chapter or national org Max has crowned via admin_set_champion.
-  // This is meant to be posted to the chapter's own Instagram/story -- their
-  // bragging rights, and free organic marketing for Marqit in their followers' feeds.
+  // for whichever group Max has crowned via admin_set_champion.
+  // Meant to be posted to the group's own story -- their bragging rights, and
+  // free organic marketing for Marqit in their followers' feeds.
   function mqDrawChampionCard(width, height, name, symbol, subtitle){
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -7516,7 +7467,7 @@
 
     mqCardBackground(ctx, width, height);
     const logoBottom = mqCardLogoRow(ctx, width, T, Math.max(0.85, u));
-    const footerTop = mqCardFooterBand(ctx, width, height, 'Think your chapter can beat this?', 'playmarqit.com');
+    const footerTop = mqCardFooterBand(ctx, width, height, 'Think your group can beat this?', 'playmarqit.com');
 
     // The block (label, symbol, name, subtitle) is centered in the room between
     // the logo and the footer, so a short name doesn't leave it floating high.
@@ -7578,36 +7529,27 @@
   }
 
   // Shows a "Share Champion card" button in the group section if (and only
-  // if) the signed-in user's own chapter, or its national org, currently
-  // holds the title -- so the button doesn't clutter things for anyone else.
+  // if) the signed-in user's own group currently holds the title.
   async function loadChampionCardButton(membershipGroup){
     const el = document.getElementById('champion-card-btn-wrap');
     if(!el) return;
     el.innerHTML = '';
     const { data } = await sb.rpc('get_champion_info');
     const info = data && data[0];
-    if(!info || (!info.champion_group_id && !info.champion_org_name)) return;
-
-    const isChapterChamp = membershipGroup && info.champion_group_id === membershipGroup.id;
-    const isOrgChamp = membershipGroup && membershipGroup.org_name && info.champion_org_name === membershipGroup.org_name;
-    if(!isChapterChamp && !isOrgChamp) return;
+    if(!info || !info.champion_group_id) return;
+    if(!membershipGroup || info.champion_group_id !== membershipGroup.id) return;
 
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.textContent = 'Share Champion card';
     btn.className = 'lb-share-btn';
     btn.addEventListener('click', function(){
-      if(isChapterChamp){
-        mqShareChampionCard('chapter', membershipGroup.name, info.champion_group_symbol, membershipGroup.school || 'Marqit Chapter Champion');
-      } else {
-        mqShareChampionCard('org', info.champion_org_name, info.champion_org_symbol, 'Marqit National Champion');
-      }
+      mqShareChampionCard('group', membershipGroup.name, '', 'Marqit Group Champion');
     });
     el.appendChild(btn);
   }
 
   async function loadGroupSection(){
-    if(typeof mqApplyGreekVisibility === 'function') mqApplyGreekVisibility();
     const { data: sessionRes } = await sb.auth.getSession();
     const session = sessionRes && sessionRes.session;
     const outEl = document.getElementById('group-signed-out');
@@ -7625,7 +7567,7 @@
 
     const { data: membership } = await sb
       .from('group_members')
-      .select('group_id, share_as_player, groups(id, name, invite_code, created_by, created_at, card_sharing_enabled, show_invite_on_card, org_name, school)')
+      .select('group_id, share_as_player, groups(id, name, invite_code, created_by, created_at, card_sharing_enabled, show_invite_on_card)')
       .eq('user_id', session.user.id)
       .maybeSingle();
 
@@ -7711,9 +7653,9 @@
     if(typeof loadGroupParticipation === 'function') loadGroupParticipation(membership.group_id);
   }
 
-  // ---- Today's participation: who in your chapter hasn't answered yet ----
+  // ---- Today's participation: who in your group hasn't answered yet ----
   // The raw-sum points model means one no-show member is lost points for the
-  // whole chapter, so surface it plainly so the president/social chair can
+  // whole group, so surface it plainly so the group owner can
   // chase stragglers in the group chat.
   async function loadGroupParticipation(groupId){
     const el = document.getElementById('board-group-participation');
@@ -7736,33 +7678,10 @@
     }).join('');
   }
 
-  // Self-serve opt-in: a president who lands on the plain site (no invite link
-  // yet) can flag themselves as setting up a chapter, right from the create form.
-  const greekOptInBtn = document.getElementById('greek-opt-in-btn');
-  if(greekOptInBtn){
-    greekOptInBtn.addEventListener('click', function(){
-      try{ localStorage.setItem('marqit_greek', '1'); }catch(e){}
-      greekOptInBtn.style.display = 'none';
-      const fields = document.getElementById('greek-create-fields');
-      if(fields) fields.style.display = 'block';
-      const createBtn = document.getElementById('create-group-btn');
-      if(createBtn) createBtn.textContent = 'Create chapter';
-      const nameInput = document.getElementById('group-name-input');
-      if(nameInput) nameInput.placeholder = 'chapter name (e.g. Sigma Chi – UF)';
-      if(typeof mqApplyGreekVisibility === 'function') mqApplyGreekVisibility();
-    });
-  }
-
   document.getElementById('create-group-btn').addEventListener('click', async function(){
     const btn = this;
     const msg = document.getElementById('group-msg');
     const name = document.getElementById('group-name-input').value.trim();
-    const schoolEl = document.getElementById('group-school-input');
-    const orgEl = document.getElementById('group-org-input');
-    const symbolEl = document.getElementById('group-symbol-input');
-    const school = schoolEl ? schoolEl.value.trim() : '';
-    const orgName = orgEl ? orgEl.value.trim() : '';
-    const symbol = symbolEl ? symbolEl.value.trim() : '';
     msg.className = 'form-msg';
     if(!name){ msg.classList.add('err'); msg.textContent = 'Enter a group name.'; return; }
 
@@ -7772,9 +7691,6 @@
 
     btn.disabled = true;
     const insertRow = { name: name, created_by: session.user.id };
-    if(school) insertRow.school = school;
-    if(orgName) insertRow.org_name = orgName;
-    if(symbol) insertRow.symbol = symbol;
     const { data: group, error } = await sb.from('groups').insert(insertRow).select().single();
     if(error){ btn.disabled = false; msg.classList.add('err'); msg.textContent = 'Error: ' + error.message; return; }
 
@@ -7786,7 +7702,6 @@
     msg.textContent = 'Group created!';
     loadGroupSection();
     if(typeof loadTopGroupsBoard === 'function') loadTopGroupsBoard();
-    if(typeof loadTopOrgsBoard === 'function') loadTopOrgsBoard();
   });
 
   document.getElementById('join-group-btn').addEventListener('click', async function(){
@@ -7860,7 +7775,6 @@
     try{ sessionStorage.removeItem('marqit_pending_group_code'); }catch(e){}
     loadGroupSection();
     if(typeof loadTopGroupsBoard === 'function') loadTopGroupsBoard();
-    if(typeof loadTopOrgsBoard === 'function') loadTopOrgsBoard();
   }
 
   // ---- Group vs. group: this week's head-to-head (get_group_matchups) ----
@@ -7884,7 +7798,7 @@
       var endTxt = wk.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       function side(g, lead){
         var d = document.createElement('div'); d.className = 'gvg-side' + (lead ? ' lead' : '');
-        var n = document.createElement('div'); n.className = 'gvg-name'; n.textContent = (g.symbol ? g.symbol + ' ' : '') + g.name;
+        var n = document.createElement('div'); n.className = 'gvg-name'; n.textContent = g.name;
         var sc = document.createElement('div'); sc.className = 'gvg-score'; sc.textContent = Number(g.score).toLocaleString(undefined, { maximumFractionDigits: 1 });
         var sm = document.createElement('div'); sm.className = 'gvg-sub'; sm.textContent = 'avg pts per member · ' + Number(g.member_count) + (Number(g.member_count) === 1 ? ' member' : ' members');
         d.appendChild(n); d.appendChild(sc); d.appendChild(sm);
@@ -7895,7 +7809,7 @@
       head.textContent = (mine ? 'Your matchup' : 'Matchup of the week') + ' · ends ' + endTxt;
       el.appendChild(head);
       if(!b){
-        var bye = document.createElement('div'); bye.className = 'gvg-bye'; bye.textContent = a.name + ' has a bye this week. More chapters means more matchups.';
+        var bye = document.createElement('div'); bye.className = 'gvg-bye'; bye.textContent = a.name + ' has a bye this week. More groups means more matchups.';
         el.appendChild(bye);
       }else{
         var row = document.createElement('div'); row.className = 'gvg-row';
@@ -7908,25 +7822,23 @@
         el.appendChild(row);
       }
       var note = document.createElement('div'); note.className = 'gvg-note';
-      note.textContent = 'Chapters are paired by rank each week. Score is average points per member, so size doesn’t decide it.';
+      note.textContent = 'Groups are paired by rank each week. Score is average points per member, so size doesn’t decide it.';
       el.appendChild(note);
       el.hidden = false;
     }catch(e){ el.hidden = true; }
   }
 
-  // ---- Top Chapters: cross-group leaderboard, ranked by combined points ---
-  // Deliberately a raw sum (not per-member average) -- a chapter that
+  // ---- Top Groups: cross-group leaderboard, ranked by combined points ---
+  // Deliberately a raw sum (not per-member average) -- a group that
   // recruits more people racks up more total points, so growing the group
   // is itself the winning move, not just playing well individually.
-  async function loadTopGroupsBoard(p_school){
+  async function loadTopGroupsBoard(){
     loadGroupMatchup();
     const el = document.getElementById('board-top-groups');
     if(!el) return;
-    const params = { p_limit: 25 };
-    if(p_school) params.p_school = p_school;
-    const { data, error } = await sb.rpc('get_top_groups', params);
+    const { data, error } = await sb.rpc('get_top_groups', { p_limit: 25 });
     if(error || !data || data.length === 0){
-      el.innerHTML = '<div class="brow"><span>No chapters on the board yet — create a group to be first.</span></div>';
+      el.innerHTML = '<div class="brow"><span>No groups on the board yet — create a group to be first.</span></div>';
       return;
     }
     const { data: sessionRes } = await sb.auth.getSession();
@@ -7936,14 +7848,8 @@
       const { data: membership } = await sb.from('group_members').select('group_id').eq('user_id', session.user.id).maybeSingle();
       myGroupId = membership ? membership.group_id : null;
     }
-    // Verified badge: a small blue check next to chapters Max has personally
-    // confirmed (groups.verified). This is the "exclusivity" lever -- anyone
-    // can create a group and start scoring instantly (no join friction), but
-    // only verified chapters carry the badge and are eligible for whatever
-    // prize/incentive is attached to the board.
-    const verifiedBadge = '<svg viewBox="0 0 24 24" width="13" height="13" fill="#4A9EFF" stroke="#4A9EFF" style="vertical-align:-2px; margin-left:4px;" aria-label="Verified chapter"><title>Verified chapter</title><path d="M12 2l2.4 1.9 3-.6 1 2.9 2.9 1-.6 3L22.6 12l-1.9 2.4.6 3-2.9 1-1 2.9-3-.6L12 22.6l-2.4-1.9-3 .6-1-2.9-2.9-1 .6-3L1.4 12l1.9-2.4-.6-3 2.9-1 1-2.9 3 .6L12 2z" stroke="none"/><path d="M8.5 12.2l2.4 2.4 4.8-5.2" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    // Trending tag: whichever chapter added the most new members in the last
-    // 7 days gets a callout, so smaller/newer chapters have a second way to
+    // Trending tag: whichever group added the most new members in the last
+    // 7 days gets a callout, so smaller/newer groups have a second way to
     // show up besides raw #1 -- keeps them engaged instead of giving up.
     let trendingGroupId = null, trendingMax = 0;
     data.forEach(function(g){
@@ -7953,11 +7859,9 @@
     el.innerHTML = data.map(function(g, i){
       const rank = i + 1;
       const mine = !!(myGroupId && g.group_id === myGroupId);
-      const symbolBadge = g.symbol ? '<span style="display:inline-block; min-width:22px; padding:1px 5px; margin-right:6px; border-radius:6px; background:var(--yes-bg); color:var(--yes); font-weight:800; font-size:11.5px; text-align:center; vertical-align:1px;">' + escapeHtml(g.symbol) + '</span>' : '';
       const trendingTag = (trendingMax > 0 && g.group_id === trendingGroupId) ? '<span style="margin-left:6px; font-size:11px; font-weight:700; color:#DB6653; display:inline-flex; align-items:center; gap:3px;">' + mqIcon('flame') + 'Trending</span>' : '';
       const championTag = g.is_champion ? '<span style="margin-left:6px; font-size:11px; font-weight:700; color:#DB6653; display:inline-flex; align-items:center; gap:3px;">' + mqIcon('crown') + 'Champion</span>' : '';
-      const foundingTag = g.founding_chapter ? '<span style="margin-left:6px; font-size:11px; font-weight:700; color:var(--ink-soft);">Founding Chapter</span>' : '';
-      // Gap-to-next-rank: how many points to overtake the chapter directly above -- the competitive nudge.
+      // Gap-to-next-rank: how many points to overtake the group directly above -- the competitive nudge.
       let gapLine = '';
       if(rank > 1){
         const above = data[i - 1];
@@ -7966,136 +7870,58 @@
       }
       return '<div class="brow lb' + (rank <= 3 ? ' medal m' + rank : '') + (mine ? ' mine' : '') + '">' +
         '<span class="lb-rank">' + rank + '</span>' +
-        '<span class="lb-name">' + symbolBadge + '<span class="lb-name-text">' + escapeHtml(g.name || 'group') + '</span>' + (g.verified ? verifiedBadge : '') + championTag + trendingTag + foundingTag + (mine ? '<em class="lb-you">Yours</em>' : '') +
+        '<span class="lb-name"><span class="lb-name-text">' + escapeHtml(g.name || 'group') + '</span>' + championTag + trendingTag + (mine ? '<em class="lb-you">Yours</em>' : '') +
           '<small style="margin-left:6px; color:var(--ink-soft); font-weight:600;">' + Number(g.member_count || 0).toLocaleString() + (g.member_count === 1 ? ' member' : ' members') + '</small>' + gapLine + '</span>' +
         '<span class="lb-pts"><b>' + Number(g.total_points || 0).toLocaleString() + '</b><small>pts</small></span>' +
       '</div>';
     }).join('');
   }
 
-  // ---- Top Fraternities & Sororities Nationwide: same-org chapters rolled
-  // up across every school into one combined-points entity. ----
-  async function loadTopOrgsBoard(){
-    const el = document.getElementById('board-top-orgs');
-    if(!el) return;
-    const { data, error } = await sb.rpc('get_top_orgs', { p_limit: 25 });
-    if(error || !data || data.length === 0){
-      el.innerHTML = '<div class="brow"><span>No national orgs yet — add a national org name when you create your chapter.</span></div>';
-      return;
-    }
-    el.innerHTML = data.map(function(o, i){
-      const rank = i + 1;
-      const symbolBadge = o.symbol ? '<span style="display:inline-block; min-width:22px; padding:1px 5px; margin-right:6px; border-radius:6px; background:var(--yes-bg); color:var(--yes); font-weight:800; font-size:11.5px; text-align:center; vertical-align:1px;">' + escapeHtml(o.symbol) + '</span>' : '';
-      const championTag = o.is_champion ? '<span style="margin-left:6px; font-size:11px; font-weight:700; color:#DB6653; display:inline-flex; align-items:center; gap:3px;">' + mqIcon('crown') + 'Champion</span>' : '';
-      let gapLine = '';
-      if(rank > 1){
-        const above = data[i - 1];
-        const gap = Number(above.total_points || 0) - Number(o.total_points || 0);
-        if(gap > 0) gapLine = '<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">' + gap.toLocaleString() + ' pts to catch #' + (rank - 1) + '</div>';
-      }
-      return '<div class="brow lb' + (rank <= 3 ? ' medal m' + rank : '') + '">' +
-        '<span class="lb-rank">' + rank + '</span>' +
-        '<span class="lb-name">' + symbolBadge + '<span class="lb-name-text">' + escapeHtml(o.org_name || 'org') + '</span>' + championTag +
-          '<small style="margin-left:6px; color:var(--ink-soft); font-weight:600;">' + Number(o.chapter_count || 0).toLocaleString() + (o.chapter_count === 1 ? ' chapter' : ' chapters') + ' &middot; ' + Number(o.member_count || 0).toLocaleString() + (o.member_count === 1 ? ' member' : ' members') + '</small>' + gapLine + '</span>' +
-        '<span class="lb-pts"><b>' + Number(o.total_points || 0).toLocaleString() + '</b><small>pts</small></span>' +
-      '</div>';
-    }).join('');
-  }
-
-  // ---- School filter dropdown for the Top Chapters board ----
-  async function loadGroupSchoolFilter(){
-    const sel = document.getElementById('group-school-filter');
-    if(!sel) return;
-    const { data, error } = await sb.rpc('get_group_schools');
-    if(error || !data) return;
-    const current = sel.value;
-    sel.innerHTML = '<option value="">All schools</option>' + data.map(function(s){
-      return '<option value="' + escapeHtml(s.school) + '">' + escapeHtml(s.school) + ' (' + s.group_count + ')</option>';
-    }).join('');
-    sel.value = current;
-    if(!sel.dataset.wired){
-      sel.dataset.wired = '1';
-      sel.addEventListener('change', function(){ loadTopGroupsBoard(sel.value || undefined); });
-    }
-  }
-
-  // ---- Head-to-Head: pick any two chapters, or any two national orgs ----
+  // ---- Head-to-Head: pick any two groups ----
   (function(){
     const selA = document.getElementById('h2h-select-a');
     const selB = document.getElementById('h2h-select-b');
     const result = document.getElementById('h2h-result');
-    const btnChapters = document.getElementById('h2h-mode-chapters');
-    const btnOrgs = document.getElementById('h2h-mode-orgs');
-    if(!selA || !selB || !result || !btnChapters || !btnOrgs) return;
+    if(!selA || !selB || !result) return;
 
-    let mode = 'chapters'; // 'chapters' | 'orgs'
-    let chapterRows = null; // cached [{group_id,name,member_count,total_points,verified}]
-    let orgRows = null;     // cached [{org_name,chapter_count,member_count,total_points}]
+    let groupRows = null; // cached [{group_id,name,member_count,total_points}]
 
-    function setActiveBtn(active, inactive){
-      active.style.background = 'var(--ink)'; active.style.color = 'var(--paper)';
-      inactive.style.background = 'var(--panel)'; inactive.style.color = 'var(--ink)';
-    }
-
-    function fillSelects(items, labelFn){
+    function fillSelects(items){
       const opts = '<option value="">Pick one...</option>' + items.map(function(it, i){
-        return '<option value="' + i + '">' + escapeHtml(labelFn(it)) + '</option>';
+        return '<option value="' + i + '">' + escapeHtml(it.name) + '</option>';
       }).join('');
       selA.innerHTML = opts;
       selB.innerHTML = opts;
     }
 
-    async function loadChapters(){
-      if(chapterRows) return chapterRows;
+    async function loadGroups(){
+      if(groupRows) return groupRows;
       const { data } = await sb.rpc('get_top_groups', { p_limit: 500 });
-      chapterRows = data || [];
-      return chapterRows;
-    }
-    async function loadOrgs(){
-      if(orgRows) return orgRows;
-      const { data } = await sb.rpc('get_top_orgs', { p_limit: 500 });
-      orgRows = data || [];
-      return orgRows;
+      groupRows = data || [];
+      return groupRows;
     }
 
     async function refreshOptions(){
       result.style.display = 'none';
-      selA.value = ''; selB.value = '';
-      if(mode === 'chapters'){
-        const rows = await loadChapters();
-        if(rows.length === 0){ selA.innerHTML = selB.innerHTML = '<option value="">No chapters yet</option>'; return; }
-        fillSelects(rows, function(r){ return r.name + (r.school ? ' (' + r.school + ')' : ''); });
-      } else {
-        const rows = await loadOrgs();
-        if(rows.length === 0){ selA.innerHTML = selB.innerHTML = '<option value="">No national orgs yet</option>'; return; }
-        fillSelects(rows, function(r){ return r.org_name; });
-      }
-    }
-
-    function shareKey(mode, item){
-      // Chapters are identified by group_id (stable uuid); orgs by their name (the only key we have).
-      return mode === 'chapters' ? item.group_id : item.org_name;
+      const rows = await loadGroups();
+      if(rows.length === 0){ selA.innerHTML = selB.innerHTML = '<option value="">No groups yet</option>'; return; }
+      fillSelects(rows);
     }
 
     function renderComparison(){
       const ia = selA.value, ib = selB.value;
       if(ia === '' || ib === ''){ result.style.display = 'none'; return; }
-      const rows = mode === 'chapters' ? chapterRows : orgRows;
-      const a = rows[Number(ia)], b = rows[Number(ib)];
+      const a = groupRows[Number(ia)], b = groupRows[Number(ib)];
       if(!a || !b){ result.style.display = 'none'; return; }
 
-      const nameA = mode === 'chapters' ? a.name : a.org_name;
-      const nameB = mode === 'chapters' ? b.name : b.org_name;
       const ptsA = Number(a.total_points || 0), ptsB = Number(b.total_points || 0);
       const memA = Number(a.member_count || 0), memB = Number(b.member_count || 0);
       const winner = ptsA === ptsB ? null : (ptsA > ptsB ? 'a' : 'b');
 
-      function card(name, pts, mem, symbol, side){
+      function card(name, pts, mem, side){
         const isWinner = winner === side;
-        const symbolBadge = symbol ? '<div style="display:inline-block; padding:3px 10px; margin-bottom:6px; border-radius:8px; background:var(--yes-bg); color:var(--yes); font-weight:800; font-size:13px;">' + escapeHtml(symbol) + '</div><br>' : '';
         return '<div style="flex:1; text-align:center; padding:14px 10px; border-radius:12px; ' + (isWinner ? 'background:var(--yes-bg); border:1.5px solid var(--yes);' : 'background:var(--paper); border:1.5px solid var(--line);') + '">' +
           (isWinner ? '<div style="font-size:11px; font-weight:700; color:var(--yes); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;">Leading</div>' : '<div style="height:15px;"></div>') +
-          symbolBadge +
           '<div style="font-weight:700; font-size:15px; margin-bottom:6px; word-break:break-word;">' + escapeHtml(name || '') + '</div>' +
           '<div style="font-size:22px; font-weight:800;">' + pts.toLocaleString() + '</div>' +
           '<div style="font-size:11.5px; color:var(--ink-soft); margin-top:2px;">points</div>' +
@@ -8103,7 +7929,7 @@
         '</div>';
       }
 
-      result.innerHTML = '<div style="display:flex; gap:12px; align-items:stretch;">' + card(nameA, ptsA, memA, a.symbol, 'a') + card(nameB, ptsB, memB, b.symbol, 'b') + '</div>' +
+      result.innerHTML = '<div style="display:flex; gap:12px; align-items:stretch;">' + card(a.name, ptsA, memA, 'a') + card(b.name, ptsB, memB, 'b') + '</div>' +
         (winner ? '' : '<p style="text-align:center; font-size:12.5px; color:var(--ink-soft); margin:10px 0 0;">Tied.</p>') +
         '<button type="button" id="h2h-share-btn" style="display:block; margin:14px auto 0; padding:8px 16px; border:1.5px solid var(--line); border-radius:20px; background:var(--panel); color:var(--ink); font-weight:600; font-size:12.5px; cursor:pointer;">Copy challenge link</button>';
       result.style.display = 'block';
@@ -8111,7 +7937,7 @@
       const shareBtn = document.getElementById('h2h-share-btn');
       if(shareBtn){
         shareBtn.addEventListener('click', function(){
-          const url = window.location.origin + window.location.pathname + '?h2h=' + mode + '&a=' + encodeURIComponent(shareKey(mode, a)) + '&b=' + encodeURIComponent(shareKey(mode, b));
+          const url = window.location.origin + window.location.pathname + '?h2h=groups&a=' + encodeURIComponent(a.group_id) + '&b=' + encodeURIComponent(b.group_id);
           navigator.clipboard.writeText(url).then(function(){
             shareBtn.textContent = 'Copied!';
             setTimeout(function(){ shareBtn.textContent = 'Copy challenge link'; }, 1500);
@@ -8120,53 +7946,29 @@
       }
     }
 
-    btnChapters.addEventListener('click', function(){ if(mode === 'chapters') return; mode = 'chapters'; setActiveBtn(btnChapters, btnOrgs); refreshOptions(); });
-    btnOrgs.addEventListener('click', function(){ if(mode === 'orgs') return; mode = 'orgs'; setActiveBtn(btnOrgs, btnChapters); refreshOptions(); });
     selA.addEventListener('change', renderComparison);
     selB.addEventListener('change', renderComparison);
 
-    // If someone opened a shared "?h2h=chapters&a=...&b=..." challenge link,
-    // switch to the right mode and preselect both sides automatically.
+    // If someone opened a shared "?h2h=groups&a=...&b=..." challenge link,
+    // preselect both sides automatically.
     (async function loadFromShareLink(){
       const params = new URLSearchParams(window.location.search);
-      const h2hMode = params.get('h2h');
       const aKey = params.get('a'), bKey = params.get('b');
-      if(!h2hMode || !aKey || !bKey) { refreshOptions(); return; }
-      mode = (h2hMode === 'orgs') ? 'orgs' : 'chapters';
-      setActiveBtn(mode === 'orgs' ? btnOrgs : btnChapters, mode === 'orgs' ? btnChapters : btnOrgs);
-      const rows = mode === 'chapters' ? await loadChapters() : await loadOrgs();
+      if(!params.get('h2h') || !aKey || !bKey){ refreshOptions(); return; }
+      const rows = await loadGroups();
       if(rows.length === 0){ refreshOptions(); return; }
-      fillSelects(rows, mode === 'chapters' ? function(r){ return r.name + (r.school ? ' (' + r.school + ')' : ''); } : function(r){ return r.org_name; });
-      const idxA = rows.findIndex(function(r){ return shareKey(mode, r) === aKey; });
-      const idxB = rows.findIndex(function(r){ return shareKey(mode, r) === bKey; });
+      fillSelects(rows);
+      const idxA = rows.findIndex(function(r){ return r.group_id === aKey; });
+      const idxB = rows.findIndex(function(r){ return r.group_id === bKey; });
       if(idxA >= 0) selA.value = String(idxA);
       if(idxB >= 0) selB.value = String(idxB);
       renderComparison();
     })();
   })();
 
-  mqApplyGreekVisibility();
   loadGroupSection();
   loadTopGroupsBoard();
-  loadTopOrgsBoard();
-  loadGroupSchoolFilter();
   autoJoinFromUrl();
-
-  // Fall Chapter Cup — season finish line for the Top Chapters/Orgs boards.
-  // Ends Nov 30, 2026 11:59pm ET (end of the fall semester rush window).
-  (function(){
-    var el = document.getElementById('chapter-cup-countdown');
-    if(!el) return;
-    var target = new Date('2026-11-30T23:59:59-05:00').getTime();
-    function tick(){
-      var diff = target - Date.now();
-      if(diff <= 0){ el.textContent = 'Ended'; clearInterval(timer); return; }
-      var d = Math.floor(diff / 86400000);
-      el.textContent = d + (d === 1 ? ' day left' : ' days left');
-    }
-    tick();
-    var timer = setInterval(tick, 3600000);
-  })();
 
   document.querySelectorAll('.pagenav-tab').forEach(function(tab){
     tab.addEventListener('click', function(){

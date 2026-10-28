@@ -1160,13 +1160,6 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
   #record-card .rec-ring span{font-size:10.5px}
   #record-card .rec-rings{margin-top:4px}
 }
-/* Greek-life sections: tighter */
-#greek-section #chapter-cup-banner{margin-top:14px !important;padding:10px 14px !important}
-#greek-section h3.ex-title{margin-top:16px !important}
-#greek-section .ex-sub{font-size:12.5px;margin-bottom:6px}
-#greek-section [id^="h2h-mode"]{padding:5px 12px !important;font-size:12.5px !important}
-#greek-section #h2h-select-a,#greek-section #h2h-select-b{padding:7px 10px !important}
-@media(min-width:900px){#greek-section .boards.one{max-width:640px}}
 
 /* Standings & charts is now the last nav tab, styled like the others (no pill) */
 .pagenav-rk{margin-left:0 !important;align-self:auto !important;height:auto !important;top:0 !important;border:0 !important;border-radius:0 !important;background:none !important;padding:14px 20px !important;color:#9A9CA3 !important;font:600 13.5px 'Barlow',sans-serif !important;border-bottom:3px solid transparent !important;transition:color .15s}
@@ -1270,8 +1263,6 @@ body:has(.sched-today:not([style*="none"])) nav{padding-top:28px;}
 .gp-side #copy-invite-btn{margin-left:auto !important}
 .gp-side > p:first-child{gap:8px !important}
 
-/* No Greek-life / chapter features */
-#greek-section,#greek-opt-in-btn,#greek-create-fields{display:none !important}
 
 /* Calendar: more room before the legend */
 #record-card .rec-cal{margin-bottom:0}
