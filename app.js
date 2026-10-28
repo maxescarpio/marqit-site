@@ -8721,7 +8721,10 @@
     MQ_MEDIA[url] = { at: Date.now(), p: p };
     return p;
   }
-  function mqSafeImg(u){ return /^https:\/\/([a-z0-9-]+\.)*(tmdb\.org|dzcdn\.net|mzstatic\.com|upload\.wikimedia\.org|thesportsdb\.com)\//i.test(u || '') ? u : ''; }
+  // Photos we picked by hand. Key = artist name, lowercase letters and numbers only; file lives in /artists/.
+  var MQ_ARTIST_PHOTOS = {};
+  function mqPinnedPhoto(name){ var k = String(name || '').toLowerCase().replace(/[^a-z0-9]/g, ''); return MQ_ARTIST_PHOTOS[k] || ''; }
+  function mqSafeImg(u){ if(/^\/artists\/[a-z0-9._-]+$/i.test(u || '')) return u; return /^https:\/\/([a-z0-9-]+\.)*(tmdb\.org|dzcdn\.net|mzstatic\.com|upload\.wikimedia\.org|thesportsdb\.com)\//i.test(u || '') ? u : ''; }
   function mqSafeLink(u){ return /^https:\/\/(www\.|music\.|itunes\.|en\.)?(themoviedb\.org|youtube\.com|deezer\.com|apple\.com|wikipedia\.org)\//i.test(u || '') ? u : ''; }
   function mqMediaDate(s){
     if(!s) return '';
@@ -9073,7 +9076,7 @@
   function mqRkArtists(items){
     if(!items || !items.length) return '<p class="evp-muted">This chart isn’t available right now.</p>';
     var max = Math.max.apply(null, items.map(function(a){ return Number(a.fans) || 0; })) || 0;
-    function pic(a, cls){ var ph = mqSafeImg(a.photo) || a.picture; return '<span class="ar-pic ' + cls + '">' + (ph ? '<img src="' + escapeHtml(ph) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<i>' + escapeHtml(String(a.name || '').charAt(0)) + '</i></span>'; }
+    function pic(a, cls){ var ph = mqPinnedPhoto(a.name) || mqSafeImg(a.photo) || a.picture; return '<span class="ar-pic ' + cls + '">' + (ph ? '<img src="' + escapeHtml(ph) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<i>' + escapeHtml(String(a.name || '').charAt(0)) + '</i></span>'; }
     var rows = items.map(function(a, i){
       var w = max && a.fans ? Math.max(6, Math.round(Number(a.fans) / max * 100)) : 0;
       return '<li class="rk-go ar-row" data-act="artist" data-i="' + i + '" tabindex="0"><span class="n">' + (a.rank || i + 1) + '</span>' + pic(a, 'md') +
@@ -9293,7 +9296,7 @@
       });
   }
   function mqOpenArtistPanel(a){
-    var ph0 = mqSafeImg(a.photo) || a.picture;
+    var ph0 = mqPinnedPhoto(a.name) || mqSafeImg(a.photo) || a.picture;
     var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + (a.rank ? 'Top artists · #' + a.rank : 'Artist') + '</div>' +
       '<div class="sg-head">' + (ph0 ? '<img class="sg-art round" id="ar-ph" src="' + escapeHtml(ph0) + '" alt="" referrerpolicy="no-referrer">' : '') + '<div><h3 class="evp-title">' + escapeHtml(a.name) + '</h3><div class="tp-sub" id="ar-fans"></div></div></div>' +
       '<div class="evp-body" id="ar-more"><div class="fd-sk"><i></i><i></i><i></i></div></div>');
@@ -9306,7 +9309,7 @@
         if(!d || d.error){ body.innerHTML = '<p class="evp-muted">Details aren’t available right now.</p>'; return; }
         var sub = d.tagline ? d.tagline.charAt(0).toUpperCase() + d.tagline.slice(1) : [d.type === 'Group' ? 'Group' : d.type === 'Person' ? 'Solo artist' : '', d.from, d.genre || (d.tags || [])[0]].filter(Boolean).join(' · ');
         var f = el.querySelector('#ar-fans'); if(f) f.textContent = sub || (d.fans ? mqCompact(d.fans) + ' fans on Deezer' : '');
-        var ph = el.querySelector('#ar-ph'), best = mqSafeImg(d.photo);
+        var ph = el.querySelector('#ar-ph'), best = mqPinnedPhoto(a.name) || mqSafeImg(d.photo);
         if(best){
           if(ph) ph.src = best;
           else { var h = el.querySelector('.sg-head'); if(h) h.insertAdjacentHTML('afterbegin', '<img class="sg-art round" id="ar-ph" src="' + escapeHtml(best) + '" alt="" referrerpolicy="no-referrer">'); }
