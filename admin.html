@@ -109,6 +109,23 @@
   .resolved-tag.yes{background:var(--yes-bg);color:var(--yes);}
   .resolved-tag.no{background:var(--no-bg);color:var(--no);}
   .resolved-tag.void{background:var(--panel);border:1px solid var(--line);color:var(--ink-soft);}
+  /* ---------- Resolved stamps ---------- */
+  .daystrip{display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px;margin-top:4px;}
+  .daychip{flex:none;min-width:64px;text-align:center;border:1px solid var(--line);background:#FCFBF8;border-radius:10px;padding:6px 8px;font-size:12px;line-height:1.25;cursor:pointer;color:var(--ink);font-family:inherit;margin:0;}
+  .daychip b{display:block;font-size:13px;}
+  .daychip em{display:block;font-style:normal;font-size:11px;font-weight:700;margin-top:2px;}
+  .daychip.sel{outline:2px solid var(--ink);}
+  .daychip.done{background:var(--yes-bg);border-color:var(--yes);} .daychip.done em{color:var(--yes);}
+  .daychip.wait{background:#FFF4D6;border-color:#C98A00;} .daychip.wait em{color:#8A5F00;}
+  .daychip.part em{color:var(--ink-soft);}
+  .daychip.none em{color:var(--ink-soft);font-weight:500;}
+  .daystamp{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-radius:10px;padding:10px 14px;margin:2px 0 8px;font-size:14px;font-weight:700;border:1px solid var(--line);}
+  .daystamp.done{background:var(--yes-bg);border-color:var(--yes);color:var(--yes);}
+  .daystamp.wait{background:#FFF4D6;border-color:#C98A00;color:#8A5F00;}
+  .daystamp.part,.daystamp.none{background:var(--panel);color:var(--ink-soft);}
+  .daystamp .big{font-size:20px;line-height:1;}
+  .qrow.is-resolved{border-left:4px solid var(--yes);}
+  .qrow.is-void{border-left:4px solid var(--line);}
   .void-reason{font-size:12px;color:var(--ink-soft);margin-left:8px;}
   .sug{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
   .sug .sug-text{flex:1;min-width:200px;}
@@ -154,6 +171,8 @@
           <button id="check-results-btn" class="ghost">Check results now</button>
         </div>
         <p id="check-results-msg" class="note"></p>
+        <div class="daystrip" id="day-strip" aria-label="Recent days"></div>
+        <div id="day-stamp"></div>
         <div id="question-list"></div>
         <div class="row" style="margin-top:6px;">
           <button id="score-btn">Run scoring for this date</button>
@@ -549,7 +568,46 @@
     });
   }
 
+  // Resolved stamps: one chip per day (last 14 and next 3) and a banner for the day being viewed.
+  // Done = every question marked and the day scored. Wait = every question marked but scoring not run yet.
+  async function loadDayStatus(){
+    const strip = document.getElementById('day-strip'), stamp = document.getElementById('day-stamp');
+    if(!strip || !stamp) return;
+    const sel = document.getElementById('view-date').value;
+    const days = [];
+    for(let i = -14; i <= 3; i++){ const d = new Date(todayStr() + 'T12:00:00'); d.setDate(d.getDate() + i); days.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')); }
+    const [qr, sr] = await Promise.all([
+      sb.from('daily_questions').select('question_date, resolved, voided').gte('question_date', days[0]).lte('question_date', days[days.length - 1]),
+      sb.rpc('admin_scored_days', { p_from: days[0], p_to: days[days.length - 1] }),
+    ]);
+    const by = {}; (qr.data || []).forEach(function(q){ const o = by[q.question_date] || (by[q.question_date] = { n: 0, r: 0, v: 0 }); o.n++; if(q.resolved) o.r++; if(q.resolved && q.voided) o.v++; });
+    const scored = new Set((sr.data || []).map(function(x){ return String(x.target_date).slice(0, 10); }));
+    const scoredKnown = !sr.error;
+    function state(d){
+      const o = by[d];
+      if(!o) return { k: 'none', short: '', long: 'No questions for this day.' };
+      if(o.r === o.n){
+        if(scored.has(d)) return { k: 'done', short: '\u2713 Scored', long: '\u2713 RESOLVED & SCORED \u2014 all ' + o.n + ' question' + (o.n === 1 ? '' : 's') + ' marked' + (o.v ? ' (' + o.v + ' voided)' : '') + ', points paid out.' };
+        if(!scoredKnown) return { k: 'done', short: '\u2713 Resolved', long: '\u2713 RESOLVED \u2014 all ' + o.n + ' question' + (o.n === 1 ? '' : 's') + ' marked' + (o.v ? ' (' + o.v + ' voided)' : '') + '.' };
+        return { k: 'wait', short: 'Not scored', long: 'All ' + o.n + ' question' + (o.n === 1 ? '' : 's') + ' are marked, but scoring has NOT been run for this day yet.' };
+      }
+      if(o.r === 0) return { k: 'part', short: 'Open', long: 'Not resolved yet \u2014 0 of ' + o.n + ' marked.' };
+      return { k: 'part', short: o.r + '/' + o.n + ' done', long: o.r + ' of ' + o.n + ' marked \u2014 ' + (o.n - o.r) + ' still open.' };
+    }
+    strip.innerHTML = days.map(function(d){
+      const st = state(d), dt = new Date(d + 'T12:00:00');
+      const label = dt.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + (dt.getMonth() + 1) + '/' + dt.getDate();
+      return '<button type="button" class="daychip ' + st.k + (d === sel ? ' sel' : '') + '" data-day="' + d + '"><b>' + label + '</b><em>' + (st.short || '\u2014') + '</em></button>';
+    }).join('');
+    strip.querySelectorAll('.daychip').forEach(function(b){
+      b.addEventListener('click', function(){ document.getElementById('view-date').value = b.getAttribute('data-day'); document.getElementById('view-date').dispatchEvent(new Event('change')); });
+    });
+    const cur = state(sel);
+    stamp.innerHTML = '<div class="daystamp ' + cur.k + '">' + cur.long + '</div>';
+  }
+
   async function loadQuestionsForDate(){
+    loadDayStatus();
     const date = document.getElementById('view-date').value;
     const list = document.getElementById('question-list');
     list.innerHTML = 'Loading…';
@@ -570,7 +628,7 @@
     }catch(e){ /* suggestions are a bonus */ }
     data.forEach(function(q){
       const row = document.createElement('div');
-      row.className = 'qrow';
+      row.className = 'qrow' + (q.resolved ? (q.voided ? ' is-void' : ' is-resolved') : '');
       var actionsHtml;
       var sug = props[q.id];
       var suggestionHtml = '';
@@ -586,10 +644,10 @@
       }
       if(q.resolved && q.voided){
         // Voided: nobody is right or wrong. The reason is filled in below with textContent.
-        actionsHtml = '<span class="resolved-tag void">Voided</span><span class="void-reason"></span>' +
+        actionsHtml = '<span class="resolved-tag void">\u2713 Voided</span><span class="void-reason"></span>' +
           '<button class="btn-undo" data-undo-id="' + q.id + '">Undo</button>';
       }else if(q.resolved){
-        actionsHtml = '<span class="resolved-tag ' + q.correct_answer + '">Resolved: ' + q.correct_answer.toUpperCase() + '</span>' +
+        actionsHtml = '<span class="resolved-tag ' + q.correct_answer + '">\u2713 Resolved: ' + q.correct_answer.toUpperCase() + '</span>' +
           '<button class="btn-undo" data-undo-id="' + q.id + '">Undo</button>';
       }else{
         actionsHtml =
@@ -985,6 +1043,7 @@
     }
     const { error } = await sb.rpc('resolve_day', { target_date: date });
     msg.textContent = error ? ('Error: ' + error.message) : 'Scoring complete for ' + date + '.';
+    loadDayStatus();
   });
 
   async function loadSuggestions(){
