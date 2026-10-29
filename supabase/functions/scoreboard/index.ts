@@ -129,6 +129,22 @@ function side(c: any) {
   };
 }
 
+// Playoff series state, from ESPN's own series block on a playoff game: { completed, summary }. A game that has not
+// started in a series somebody already won (a "Game 6 / Game 7, if necessary") is never played, so the site uses
+// completed to hide it. Null for anything that is not a playoff series (regular season, one-off games).
+function seriesOf(comp: any, e: any) {
+  const s = comp?.series;
+  if (!s) return null;
+  const title = String(s.title || s.summary || e?.season?.slug || '');
+  const isPlayoff = String(s.type || '').toLowerCase() === 'playoff' || /world series|championship series|division series|wild card|finals|conference|semifinal|playoff/i.test(title);
+  if (!isPlayoff) return null;
+  const total = Number(s.totalCompetitions) || 0;
+  const wins = (s.competitors || []).map((c: any) => Number(c?.wins) || 0);
+  const top = wins.length ? Math.max(...wins) : 0;
+  const completed = s.completed === true || (total > 0 && top >= Math.floor(total / 2) + 1);
+  return { completed, summary: String(s.summary || '').slice(0, 80) };
+}
+
 async function load(date: string | null) {
   const games: any[] = [];
   const errors: string[] = [];
@@ -153,6 +169,7 @@ async function load(date: string | null) {
         games.push({
           league, id: String(e.id || ''), start: e.date, state: String(t.state || 'pre'), detail: String(t.shortDetail || t.detail || ''),
           network: net, home: side(home), away: side(away), sit: sit && (sit.text || sit.last) ? sit : null,
+          series: seriesOf(comp, e),
         });
       }
     } catch (e) { errors.push(league + ' ' + String(e).slice(0, 60)); }

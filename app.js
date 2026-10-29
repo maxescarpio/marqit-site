@@ -8189,8 +8189,13 @@
     });
   }
   // The schedule table's events for a day, plus any ESPN game it left out (shown as ordinary events).
+  // A game that has not started in a playoff series somebody already won (the "Game 6 / Game 7, if necessary"
+  // nobody will play) is never shown, whether it comes from the stored schedule or from the live feed.
+  function mqSeriesDone(g){ return !!(g && g.state === 'pre' && g.series && g.series.completed); }
   function mqSchedDayEvents(day){
-    var list = mqSched.events.filter(function(ev){ return mqSchedEventDay(ev) === day; });
+    var list = mqSched.events.filter(function(ev){ return mqSchedEventDay(ev) === day; }).filter(function(ev){
+      return ev.category !== 'sports' || !mqSeriesDone(mqGameFor(ev, mqSchedTeams(ev)));
+    });
     var seen = {};
     list.forEach(function(ev){
       if(ev.category !== 'sports') return;
@@ -8203,6 +8208,7 @@
     var feed = (bd ? bd.games : []).concat(day === getETDateInfo().dateStr ? (mqScore.games || []) : []);
     feed.forEach(function(g){
       if(mqSchedEtDay(new Date(g.start)) !== day) return;
+      if(mqSeriesDone(g)) return;
       var key = g.league + ':' + g.away.id + '@' + g.home.id;
       if(seen[key]) return;
       seen[key] = true;
@@ -8269,9 +8275,10 @@
       side = '';
       body = '<div class="sstrip-title one">' + escapeHtml(ev.title.replace(/ earnings$/i, '')) + '</div>' + mqQuoteHtml(ev.league);
     }
-    var canOpen = (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && teams) || mqIsMedia(ev);
+    var canOpen = mqCanOpen(ev);
     var bandStyle = g ? ' style="--ca:' + mqTeamColor(g.away) + ';--cb:' + mqTeamColor(g.home) + '"' : '';
-    var isArt = mqIsMedia(ev), isAlbum = isArt && /^album$/i.test(ev.league || '');
+    // Movies, shows, albums and every other non-game event (awards, tech launches, news dates) carry a picture.
+    var isArt = mqIsMedia(ev) || mqIsGeneric(ev), isAlbum = isArt && (!mqIsMedia(ev) || /^album$/i.test(ev.league || ''));
     return '<div data-cat="' + escapeHtml(ev.category || '') + '" class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + (isArt ? ' has-art' : '') + '"' +
       (canOpen ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '') + '>' +
       (isArt ? '<span class="sstrip-art' + (isAlbum ? ' sq' : '') + '" data-art="' + escapeHtml(String(ev.id)) + '"></span>' : '') +
@@ -8505,6 +8512,61 @@
   function mqIsMedia(ev){
     return ev && ev.category === 'pop_culture' && /^(movie|tv|album)$/i.test(String(ev.league || ''));
   }
+  // Events with no matchup, ticker or release feed behind them: tech launches (Apple), awards shows, news dates, anything
+  // an admin added by hand. They get a picture (Wikipedia / Commons, via the event-details function) and a detail panel.
+  function mqIsGeneric(ev){
+    if(!ev || mqIsMedia(ev)) return false;
+    if(ev.category === 'finance' && ev.league) return false;
+    if(ev.category === 'sports' && mqSchedTeams(ev)) return false;
+    return true;
+  }
+  // Every card on the site opens something. (Kept as a function so there is one place to say so.)
+  function mqCanOpen(ev){ return !!ev; }
+  var MQ_EVD = {};
+  function mqEventGet(ev){
+    var title = String(ev.title || '').slice(0, 140), badge = String(ev.league || '').slice(0, 40), key = title + '|' + badge;
+    if(MQ_EVD[key] && Date.now() - MQ_EVD[key].at < 600000) return MQ_EVD[key].p;
+    var p = fetch(SUPABASE_URL + '/functions/v1/event-details?title=' + encodeURIComponent(title) + '&badge=' + encodeURIComponent(badge))
+      .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      .then(function(d){ if(!d || d.error){ delete MQ_EVD[key]; return null; } return d; });
+    MQ_EVD[key] = { at: Date.now(), p: p };
+    return p;
+  }
+  function mqEvLetter(ev){
+    var t = String((ev && ev.title) || ''), i = /^album$/i.test(String((ev && ev.league) || '')) ? t.indexOf(': ') : -1;
+    if(i > 0) t = t.slice(i + 2);
+    return (t.replace(/[^A-Za-z0-9]/g, '').charAt(0) || '•').toUpperCase();
+  }
+  function mqEventWhen(ev){
+    var d = new Date(ev.starts_at);
+    if(ev.all_day) return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }) + ' · All day';
+    return d.toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET';
+  }
+  var MQ_CAT_NAME = { tech: 'Tech', pop_culture: 'Pop culture', news: 'News', sports: 'Sports', finance: 'Finance' };
+  function mqOpenEventPanel(ev){
+    var el = mqPanelOpen('<div class="evp-bar"></div><div class="evp-kicker">' + escapeHtml(String(ev.league || MQ_CAT_NAME[ev.category] || 'Event')) + '</div>' +
+      '<h3 class="evp-title">' + escapeHtml(ev.title) + '</h3>' +
+      '<div class="evp-macro-when">' + escapeHtml(mqEventWhen(ev)) + '</div>' +
+      (mqSub(ev) ? '<p class="evp-macro-p">' + escapeHtml(mqSub(ev)) + '</p>' : '') +
+      '<div class="evp-body mdp" id="evd"><div class="fd-sk"><i></i><i></i><i></i></div></div>');
+    mqEventGet(ev).then(function(d){
+      var box = el.querySelector('#evd'); if(!box || !box.isConnected) return;
+      var out = '', img = d ? mqSafeImg(d.image) : '';
+      if(img){
+        var cr = d.credit || {}, href = /^https:\/\/commons\.wikimedia\.org\//.test(cr.pageUrl || '') ? cr.pageUrl : '';
+        var im = '<img class="evd-img" src="' + escapeHtml(img) + '" alt="" referrerpolicy="no-referrer">';
+        // The picture links to its Commons page, which names the photographer and the license.
+        out += '<figure class="evd-fig">' + (href ? '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer" title="' + escapeHtml('Photo: ' + (cr.author || 'Wikimedia Commons') + (cr.license ? ' · ' + cr.license : '')) + '">' + im + '</a>' : im) + '</figure>';
+      }
+      if(d && d.about && d.about.text){
+        var wu = /^https:\/\/en\.wikipedia\.org\//.test(d.about.url || '') ? d.about.url : '';
+        out += '<p class="evp-desc">' + escapeHtml(d.about.text) + (wu ? ' <a class="mdp-src" href="' + escapeHtml(wu) + '" target="_blank" rel="noopener noreferrer">Wikipedia</a>' : '') + '</p>';
+      }
+      var link = /^https:\/\/[^\s"'<>]+$/.test(ev.url || '') ? ev.url : '';
+      if(link) out += '<a class="mdp-link" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer nofollow">More details ›</a>';
+      box.innerHTML = out || '<p class="evp-muted">More details show up here as the date gets closer.</p>';
+    });
+  }
   // Old rows say "New album" / "In theaters" / "New series". Those labels read like a status, so they are never shown.
   function mqSub(ev){ var t = String((ev && ev.subtitle) || ''); return /^(in theaters|new album|new series|out today|now playing)$/i.test(t) ? '' : t; }
   var MQ_MEDIA = {};
@@ -8541,7 +8603,13 @@
     var out = '', link = mqSafeLink(d.link), poster = mqSafeImg(d.cover || d.poster);
     var facts = [];
     if(d.kind === 'album'){
-      if(d.found === false) return '<p class="evp-muted">Full details for this album land on release day. Nothing is announced about it in our music sources yet.</p>';
+      if(d.found === false){
+        // Not in any music catalogue yet: still show who it is by.
+        var ap = mqSafeImg(d.artistPhoto);
+        return (d.artist ? '<div class="mdp-head">' + (ap ? '<img class="mdp-cover sq" src="' + escapeHtml(ap) + '" alt="" referrerpolicy="no-referrer">' : '') +
+          '<div class="mdp-meta"><div class="mdp-artist"><b>' + escapeHtml(d.artist) + '</b></div></div></div>' : '') +
+          '<p class="evp-muted">Full details for this album land on release day. Nothing is announced about it in our music sources yet.</p>';
+      }
       if(d.releaseDate) facts.push((d.upcoming ? 'Out ' : '') + mqMediaDate(d.releaseDate));
       if(d.label) facts.push(d.label);
       if(d.tracks) facts.push(d.tracks + ' tracks');
@@ -8701,22 +8769,78 @@
           img.alt = ''; img.referrerPolicy = 'no-referrer'; ph.innerHTML = ''; ph.appendChild(img);
           var href = /^https:\/\/commons\.wikimedia\.org\//.test(d.pageUrl || '') ? d.pageUrl : 'https://commons.wikimedia.org';
           var label = who + ': ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || '');
+          // The photographer is credited in the site's Credits section (About page), not under each face.
+          // Hovering the face still shows it.
+          ph.title = 'Photo: ' + (d.author || 'Wikimedia Commons') + (d.license ? ' · ' + d.license : '');
+          mqCreditNote(who, d, href);
           var box = document.getElementById('co-cr');
           if(box && ph.closest('.co-t')){
             if(box.querySelector('[data-s="' + who.replace(/"/g, '') + '"]')) return;
             var a = document.createElement('a'); a.setAttribute('data-s', who.replace(/"/g, '')); a.target = '_blank'; a.rel = 'noopener noreferrer'; a.href = href; a.textContent = label; box.appendChild(a);
-          } else {
-            var t = ph.parentNode.querySelector('.ceo-t');
-            if(t && !t.querySelector('.kp-cr')){
-              var cr = document.createElement('a'); cr.className = 'kp-cr'; cr.target = '_blank'; cr.rel = 'noopener noreferrer'; cr.href = href;
-              cr.textContent = 'Photo: ' + (d.author || 'Wikimedia Commons') + ' · ' + (d.license || ''); t.appendChild(cr);
-            }
           }
         };
         img.src = d.photo;
       });
     });
   }
+
+  // ---- Photo credits live in one place: Credits and data sources (About page). ----
+  // Every leader photo's photographer and license is listed there. The full list comes from the player-photo
+  // function (credits=1); anything seen in this browser is merged in, so the list is never empty for a photo
+  // you just looked at, even before that function is redeployed.
+  var MQ_CR_KEY = 'mq_photo_credits_v1', MQ_CR_SERVER = null, MQ_CR_NAMES = null;
+  function mqNormKey(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function mqCreditsLoad(){ try{ return JSON.parse(localStorage.getItem(MQ_CR_KEY) || '{}') || {}; }catch(e){ return {}; } }
+  function mqCreditNote(who, d, href){
+    var o = mqCreditsLoad(), rec = { a: String(d.author || 'Wikimedia Commons').slice(0, 120), l: String(d.license || '').slice(0, 40), u: href };
+    if(o[who] && o[who].a === rec.a && o[who].l === rec.l && o[who].u === rec.u){ return; }
+    o[who] = rec;
+    try{ localStorage.setItem(MQ_CR_KEY, JSON.stringify(o)); }catch(e){}
+    mqRenderPhotoCredits();
+  }
+  // Proper display names for the server's keys ("person|lip bu tan|intel"), built from the leaders list.
+  function mqCreditNames(){
+    if(MQ_CR_NAMES) return MQ_CR_NAMES;
+    MQ_CR_NAMES = {};
+    Object.keys(MQ_LEAD).forEach(function(sym){
+      var r = MQ_LEAD[sym], names = [r[1]].concat(r[2] ? r[2].split('|') : []);
+      names.forEach(function(n){ if(n) MQ_CR_NAMES['person|' + mqNormKey(n) + '|' + mqNormKey(r[0])] = n; });
+    });
+    return MQ_CR_NAMES;
+  }
+  function mqRenderPhotoCredits(){
+    var list = document.getElementById('about-photo-credits-list'), wrap = document.getElementById('about-photo-credits');
+    if(!list || !wrap) return;
+    var rows = {}, local = mqCreditsLoad(), names = mqCreditNames();
+    Object.keys(local).forEach(function(n){ rows[n] = local[n]; });
+    (MQ_CR_SERVER || []).forEach(function(c){
+      var n = names[c.key];
+      if(n) rows[n] = { a: c.author, l: c.license, u: /^https:\/\/commons\.wikimedia\.org\//.test(c.pageUrl || '') ? c.pageUrl : 'https://commons.wikimedia.org' };
+    });
+    var who = Object.keys(rows).sort();
+    list.textContent = '';
+    who.forEach(function(n){
+      var r = rows[n], a = document.createElement('a');
+      a.target = '_blank'; a.rel = 'noopener noreferrer'; a.href = r.u || 'https://commons.wikimedia.org';
+      a.textContent = n + ': ' + (r.a || 'Wikimedia Commons') + (r.l ? ' · ' + r.l : '');
+      list.appendChild(a);
+    });
+    wrap.hidden = !who.length;
+  }
+  function mqLoadPhotoCredits(){
+    mqRenderPhotoCredits();
+    fetch(SUPABASE_URL + '/functions/v1/player-photo?credits=1').then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      .then(function(d){ if(d && Array.isArray(d.credits)){ MQ_CR_SERVER = d.credits; mqRenderPhotoCredits(); } });
+  }
+  (function(){
+    var host = document.getElementById('about-credits');
+    if(!host) return;
+    mqRenderPhotoCredits();
+    if('IntersectionObserver' in window){
+      var io = new IntersectionObserver(function(es){ if(es.some(function(e){ return e.isIntersecting; })){ io.disconnect(); mqLoadPhotoCredits(); } });
+      io.observe(host);
+    } else mqLoadPhotoCredits();
+  })();
   var MQ_RANGES = [['1d', '1D'], ['3m', '3M'], ['6m', '6M'], ['ytd', 'YTD']];
   function mqOpenStockPanel(ev){
     var sym = String(ev.league).toUpperCase();
@@ -9376,8 +9500,11 @@
     var id = cell.getAttribute('data-ev');
     var ev = mqSched.events.filter(function(x){ return String(x.id) === id; })[0] || mqSynth[id];
     if(!ev) return;
-    if(ev.category === 'finance' && MQ_MACRO[String(ev.league || '').toLowerCase()]) mqOpenMacroPanel(ev);
-    else if(ev.category === 'finance') mqOpenStockPanel(ev); else if(mqIsMedia(ev)) mqOpenMediaPanel(ev); else mqOpenGamePanel(ev);
+    if(ev.category === 'finance' && ev.league && MQ_MACRO[String(ev.league).toLowerCase()]) mqOpenMacroPanel(ev);
+    else if(ev.category === 'finance' && ev.league) mqOpenStockPanel(ev);
+    else if(mqIsMedia(ev)) mqOpenMediaPanel(ev);
+    else if(ev.category === 'sports' && mqSchedTeams(ev)) mqOpenGamePanel(ev);
+    else mqOpenEventPanel(ev); // awards, tech launches, news dates, anything added by hand
   }
   // Economic releases (the Fed, jobs, inflation) have no price chart of their own, so they get a plain explainer, not the stock panel.
   var MQ_MACRO = {
@@ -9434,7 +9561,7 @@
   // Schedule page, one day (ESPN-style): live games as score cards on top, then the rest in time slots.
   function mqSchedState(ev){
     var g = mqGameFor(ev, mqSchedTeams(ev));
-    return { g: g, st: g ? g.state : 'pre', open: (ev.category === 'finance' && ev.league) || (ev.category === 'sports' && mqSchedTeams(ev)) || mqIsMedia(ev) };
+    return { g: g, st: g ? g.state : 'pre', open: mqCanOpen(ev) };
   }
   function mqSchedClickAttrs(ev, open){
     return open ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '';
@@ -9534,14 +9661,18 @@
       status = mqSchedTime(ev);
       body = teams
         ? [teams[0], teams[1]].map(function(n){ return '<div class="gc-tm"><i class="gm-bd">' + escapeHtml(String(n).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) + '</i><b>' + escapeHtml(n) + '</b></div>'; }).join('')
-        : '<div class="gc-tm"><b>' + escapeHtml(ev.title) + '</b></div>';
+        // Awards, tech launches, news dates: a picture beside the title, filled in by mqArtFill (Wikipedia / Commons).
+        : '<div class="gc-media"><span class="gc-art sq" data-art="' + escapeHtml(String(ev.id)) + '"><i>' + escapeHtml(mqEvLetter(ev)) + '</i></span>' +
+          '<div class="gc-mt"><b>' + escapeHtml(ev.title) + '</b></div></div>';
       net = mqSub(ev);
     }
     var lgTag = showLg ? '<span class="gc-lg" style="color:' + mqLgColor(mqSchedKey(ev)) + '">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</span>' : '';
+    // Cards with a detail panel behind them and no scoreboard say so ("Details ›").
+    var more = !g && (mqIsMedia(ev) || mqIsGeneric(ev));
     return '<div class="gc ' + (st === 'in' ? 'is-live ' : st === 'post' ? 'is-done ' : '') + (x.open ? 'is-click' : '') + '" style="--lg:' + mqLgColor(mqSchedKey(ev)) + '"' + mqSchedClickAttrs(ev, x.open) + '>' +
       '<div class="gc-top"><span class="gc-st">' + (st === 'in' ? '<i class="ag-pulse"></i>' : '') + escapeHtml(status) + (st === 'pre' && mqUntil(ev) ? '<em>' + mqUntil(ev) + '</em>' : '') + '</span>' + lgTag + '</div>' +
       '<div class="gc-body">' + body + '</div>' + sit +
-      ((net && !/^</.test(net)) || ev.question_id || (!g && mqIsMedia(ev)) ? '<div class="gc-foot">' + (net ? '<small>' + escapeHtml(net) + '</small>' : (!g && mqIsMedia(ev) ? '<small class="gc-more">Details ›</small>' : '<small></small>')) + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + '</div>' : '') + '</div>';
+      ((net && !/^</.test(net)) || ev.question_id || more ? '<div class="gc-foot">' + (more ? (net ? '<small>' + escapeHtml(net) + '</small>' : '') + '<small class="gc-more">Details ›</small>' : (net ? '<small>' + escapeHtml(net) + '</small>' : '<small></small>')) + (ev.question_id ? '<button type="button" class="sched-pick">Pick this one</button>' : '') + '</div>' : '') + '</div>';
   }
   // Earnings tiles pick up each company's brand hue. Tickers we don't have a hue for get a steady one
   // derived from the ticker, so the same company always looks the same.
@@ -9619,22 +9750,29 @@
   function mqArtFill(root){
     var cache = mqArtLoad();
     [].forEach.call(root.querySelectorAll('.sstrip-art[data-art], .gc-art[data-art]'), function(span){
-      var cell = span.parentNode, id = span.getAttribute('data-art');
+      var id = span.getAttribute('data-art');
       var ev = mqSched.events.filter(function(x){ return String(x.id) === id; })[0];
-      function drop(){ if(span.parentNode){ cell.classList.remove('has-art'); if(span.classList.contains('gc-art')) span.classList.add('none'); else span.remove(); } }
+      // Nothing found (or the picture will not load): the tile stays, showing the first letter, so every card has a picture slot.
+      function fallback(){
+        if(!span.isConnected) return;
+        span.classList.add('fb', 'on');
+        if(!span.querySelector('i')) span.innerHTML = '<i>' + escapeHtml(mqEvLetter(ev)) + '</i>';
+      }
       function show(u){
         var im = new Image();
-        im.onload = function(){ if(span.isConnected){ span.innerHTML = ''; span.appendChild(im); span.classList.add('on'); } };
-        im.onerror = drop;
+        im.onload = function(){ if(span.isConnected){ span.innerHTML = ''; span.appendChild(im); span.classList.remove('fb'); span.classList.add('on'); } };
+        im.onerror = fallback;
         im.alt = ''; im.referrerPolicy = 'no-referrer'; im.decoding = 'async'; im.src = u;
       }
-      if(!ev){ drop(); return; }
-      var key = ev.external_id || ev.title, c = cache[key];
-      if(c && Date.now() < c.exp){ c.u ? show(c.u) : drop(); return; }
-      mqMediaGet(ev).then(function(d){
-        var u = d ? mqSafeImg(d.thumb || d.cover || d.poster) : '';
+      if(!ev){ fallback(); return; }
+      // Movies, shows and albums come from media-details; everything else (awards, tech, news) from event-details.
+      var generic = mqIsGeneric(ev);
+      var key = generic ? 'e:' + ev.title + '|' + (ev.league || '') : (ev.external_id || ev.title), c = cache[key];
+      if(c && Date.now() < c.exp){ c.u ? show(c.u) : fallback(); return; }
+      (generic ? mqEventGet(ev) : mqMediaGet(ev)).then(function(d){
+        var u = d ? mqSafeImg(generic ? d.image : (d.thumb || d.cover || d.poster)) : '';
         if(d){ cache = mqArtLoad(); cache[key] = { u: u, exp: Date.now() + (u ? 86400000 : 3600000) }; mqArtSave(cache); }
-        u ? show(u) : drop();
+        u ? show(u) : fallback();
       });
     });
   }

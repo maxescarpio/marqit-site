@@ -212,6 +212,19 @@ async function dbSet(row: any) {
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
   const u = new URL(req.url);
+  // ?credits=1 -> every CEO / founder photo we show, with its photographer and license, for the Credits section on the
+  // About page. Public data only (the same credit the photo's Commons page carries).
+  if (u.searchParams.get('credits')) {
+    try {
+      const r = await fetch(`${SB}/rest/v1/player_photos?found=eq.true&key=like.${encodeURIComponent('person|')}*&select=key,author,license,page_url&limit=1000`,
+        { headers: { apikey: KEY, authorization: 'Bearer ' + KEY }, signal: AbortSignal.timeout(8000) });
+      const rows = r.ok ? await r.json() : [];
+      const credits = (Array.isArray(rows) ? rows : []).map((x: any) => ({ key: String(x.key || ''), author: String(x.author || ''), license: String(x.license || ''), pageUrl: String(x.page_url || '') }));
+      return new Response(JSON.stringify({ credits }), { headers: { ...CORS, 'cache-control': 'public, max-age=3600' } });
+    } catch (_) {
+      return new Response(JSON.stringify({ credits: [] }), { headers: CORS });
+    }
+  }
   const name = (u.searchParams.get('name') || '').trim(), team = (u.searchParams.get('team') || '').trim().slice(0, 60), sport = (u.searchParams.get('sport') || '').toLowerCase();
   const isCoach = u.searchParams.get('kind') === 'coach';
   const coachLg = (u.searchParams.get('league') || '').toUpperCase(), coachId = (u.searchParams.get('id') || '').trim();
