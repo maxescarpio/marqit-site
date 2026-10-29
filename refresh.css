@@ -2216,3 +2216,24 @@ a.mq-ss-ig{text-decoration:none}
 .evd-fig{margin:12px 0 0}
 .evd-fig a{display:block}
 .evd-img{display:block;width:100%;max-height:260px;object-fit:contain;border-radius:12px;background:#1A1D22;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+
+/* ---- Earnings columns end at their last row (no empty space under short columns) ---- */
+.gx-cols{align-items:start}
+
+/* ---- Cleaner pickers: Head-to-Head, and the idea box (category pills + date) ---- */
+.h2h-bar{display:flex;align-items:center;gap:12px;max-width:560px;margin-bottom:16px;flex-wrap:wrap}
+.h2h-sel,.sg-date{-webkit-appearance:none;appearance:none;height:42px;box-sizing:border-box;padding:0 38px 0 14px;border:1px solid var(--line);border-radius:999px;
+  background-color:rgba(255,255,255,.04);color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;color-scheme:dark;cursor:pointer;
+  transition:border-color .15s,background-color .15s}
+.h2h-sel{flex:1 1 180px;min-width:0;text-overflow:ellipsis;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center}
+.h2h-sel:hover,.h2h-sel:focus-visible,.sg-date:hover,.sg-date:focus-visible{border-color:rgba(255,255,255,.35);outline:none}
+.h2h-vs{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+.sg-date{padding:0 14px;min-width:150px}
+.sg-pills{display:flex;gap:6px;flex-wrap:wrap}
+.sg-pills button{height:42px;padding:0 16px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.04);color:var(--ink-soft);
+  font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin:0;transition:background-color .15s,color .15s,border-color .15s}
+.sg-pills button:hover{border-color:rgba(255,255,255,.35)}
+.sg-pills button.on{background:var(--ink);color:var(--bg,#111);border-color:var(--ink)}
+@media (max-width:520px){.h2h-vs{flex:0 0 100%;text-align:center;margin:-4px 0}}

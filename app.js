@@ -5634,12 +5634,13 @@
       '</div>' +
       '<p class="ticket-meta">Got an idea for a future call? Tell us what, and which day.</p>' +
       '<div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; margin-bottom:8px;">' +
-      '<select id="suggestion-category" style="padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px;">' +
+      '<div class="sg-pills" id="suggestion-pills" role="group" aria-label="Category"><button type="button" class="on" data-cat="sports">Sports</button><button type="button" data-cat="pop_culture">Pop culture</button><button type="button" data-cat="news">News</button></div>' +
+      '<select id="suggestion-category" hidden>' +
         '<option value="sports">Sports</option>' +
         '<option value="pop_culture">Pop culture</option>' +
         '<option value="news">News</option>' +
       '</select>' +
-      '<input type="date" id="suggestion-date" min="' + minDateStr + '" value="' + minDateStr + '" style="padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px;">' +
+      '<input type="date" id="suggestion-date" class="sg-date" min="' + minDateStr + '" value="' + minDateStr + '">' +
       '</div>' +
       '<textarea id="suggestion-text" rows="2" maxlength="300" placeholder="What should we ask?" style="display:block; width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px; resize:none;"></textarea>' +
       '<button type="button" id="suggestion-submit-btn" style="margin-top:10px; padding:10px 22px; border:none; border-radius:10px; background:#FFFFFF; color:#17191D; font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Pitch idea</button>' +
@@ -5651,6 +5652,13 @@
 
     // If someone typed an idea, got sent off to sign up, and came back signed in
     // (same tab -- e.g. Google sign-in or email+password), put their idea back.
+    function mqSetPitchCat(cat){
+      var sel = document.getElementById('suggestion-category'); if(sel) sel.value = cat;
+      document.querySelectorAll('#suggestion-pills button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-cat') === cat); });
+    }
+    document.querySelectorAll('#suggestion-pills button').forEach(function(b){
+      b.addEventListener('click', function(){ mqSetPitchCat(b.getAttribute('data-cat')); });
+    });
     // Only applies once they actually have a session; kept until it is sent.
     if(session){
       try{
@@ -5661,6 +5669,7 @@
             document.getElementById('suggestion-text').value = draft.text.slice(0, 300);
             if(['sports', 'pop_culture', 'news'].indexOf(draft.category) !== -1){
               document.getElementById('suggestion-category').value = draft.category;
+              mqSetPitchCat(draft.category);
             }
             if(typeof draft.requestedDate === 'string' && draft.requestedDate >= minDateStr){
               document.getElementById('suggestion-date').value = draft.requestedDate;
@@ -7777,63 +7786,11 @@
     if(typeof loadTopGroupsBoard === 'function') loadTopGroupsBoard();
   }
 
-  // ---- Group vs. group: this week's head-to-head (get_group_matchups) ----
-  async function loadGroupMatchup(){
-    var el = document.getElementById('group-matchup');
-    if(!el) return;
-    try{
-      var res = await sb.rpc('get_group_matchups');
-      if(res.error || !res.data || !res.data.length){ el.hidden = true; return; }
-      var rows = res.data;
-      var myId = null;
-      try{
-        var sr = await sb.auth.getSession();
-        var ses = sr.data && sr.data.session;
-        if(ses){ var m = await sb.from('group_members').select('group_id').eq('user_id', ses.user.id).maybeSingle(); myId = m.data ? m.data.group_id : null; }
-      }catch(e){}
-      var mine = myId ? rows.filter(function(r){ return r.group_id === myId; })[0] : null;
-      var a = mine || rows[0];
-      var b = a.opponent_id ? rows.filter(function(r){ return r.group_id === a.opponent_id; })[0] : null;
-      var wk = new Date(a.week_start + 'T12:00:00'); wk.setDate(wk.getDate() + 6);
-      var endTxt = wk.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      function side(g, lead){
-        var d = document.createElement('div'); d.className = 'gvg-side' + (lead ? ' lead' : '');
-        var n = document.createElement('div'); n.className = 'gvg-name'; n.textContent = g.name;
-        var sc = document.createElement('div'); sc.className = 'gvg-score'; sc.textContent = Number(g.score).toLocaleString(undefined, { maximumFractionDigits: 1 });
-        var sm = document.createElement('div'); sm.className = 'gvg-sub'; sm.textContent = 'avg pts per member · ' + Number(g.member_count) + (Number(g.member_count) === 1 ? ' member' : ' members');
-        d.appendChild(n); d.appendChild(sc); d.appendChild(sm);
-        return d;
-      }
-      el.textContent = '';
-      var head = document.createElement('div'); head.className = 'gvg-head';
-      head.textContent = (mine ? 'Your matchup' : 'Matchup of the week') + ' · ends ' + endTxt;
-      el.appendChild(head);
-      if(!b){
-        var bye = document.createElement('div'); bye.className = 'gvg-bye'; bye.textContent = a.name + ' has a bye this week. More groups means more matchups.';
-        el.appendChild(bye);
-      }else{
-        var row = document.createElement('div'); row.className = 'gvg-row';
-        var aw = Number(a.score) >= Number(b.score);
-        var tie = Number(a.score) === Number(b.score);
-        row.appendChild(side(a, aw && !tie));
-        var vs = document.createElement('div'); vs.className = 'gvg-vs'; vs.textContent = 'VS';
-        row.appendChild(vs);
-        row.appendChild(side(b, !aw && !tie));
-        el.appendChild(row);
-      }
-      var note = document.createElement('div'); note.className = 'gvg-note';
-      note.textContent = 'Groups are paired by rank each week. Score is average points per member, so size doesn’t decide it.';
-      el.appendChild(note);
-      el.hidden = false;
-    }catch(e){ el.hidden = true; }
-  }
-
   // ---- Top Groups: cross-group leaderboard, ranked by combined points ---
   // Deliberately a raw sum (not per-member average) -- a group that
   // recruits more people racks up more total points, so growing the group
   // is itself the winning move, not just playing well individually.
   async function loadTopGroupsBoard(){
-    loadGroupMatchup();
     const el = document.getElementById('board-top-groups');
     if(!el) return;
     const { data, error } = await sb.rpc('get_top_groups', { p_limit: 25 });
@@ -7887,7 +7844,7 @@
     let groupRows = null; // cached [{group_id,name,member_count,total_points}]
 
     function fillSelects(items){
-      const opts = '<option value="">Pick one...</option>' + items.map(function(it, i){
+      const opts = '<option value="">Choose a group</option>' + items.map(function(it, i){
         return '<option value="' + i + '">' + escapeHtml(it.name) + '</option>';
       }).join('');
       selA.innerHTML = opts;
