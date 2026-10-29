@@ -311,6 +311,8 @@ Rules:
 - TIMING: it is currently about ${nowLabel} US Eastern. Every question locks at the same fixed time, ${lockHM} US Eastern on ${dateStr}. The event is allowed to have already started or even be underway, but its FINAL outcome must NOT be public or knowable before ${lockHM} US Eastern on ${dateStr}. Never pick something whose answer will already be out by then.
 - The question must have an objective, unambiguous YES or NO answer that will be knowable by the end of ${dateStr} (US Eastern) at the latest.
 - Keep the question text short, punchy, and written for a general audience (not a sports/news insider). One sentence, framed as a yes/no question.
+- NAME THE SUBJECT. The question itself must name the specific team(s), person, contestant, company, show or title it is about, so someone who sees ONLY the question knows exactly what is being asked. Good: "Will the Los Angeles Lakers beat the Boston Celtics tonight?", "Will Dancing with the Stars eliminate Jane Smith tonight?". Bad: "Will the home team win?", "Will he be eliminated?", "Will the game go to overtime?", "Will the report beat expectations?". Never use vague stand-ins like "the game", "the team", "the champ", "he/she/they", "this" or "tonight's event" in place of a name. Include the competition, date or matchup when it helps (e.g. "Will Patrick Mahomes throw for 300+ yards against the Bills on Sunday?").
+- NEVER use the word "or" in question_text. A yes/no question is ONE single proposition. Do not offer a choice between two things ("Will A or B win?", "Will it be over or under 45?"). Ask about one side instead ("Will the Chiefs beat the Bills?"). Also avoid "and" that joins two separate outcomes.
 - resolution_criteria must state exactly how and where to verify the outcome (a specific source or measurable condition), written for a non-technical person to check.
 ${CATEGORY_RULES[category] || ''}
 ${skipLine}
@@ -321,18 +323,40 @@ ${format}`;
 
 type Draft = { question_text: string; resolution_criteria: string; attempt: number };
 
+// House rules every question must pass, checked in code as well as asked for in the prompt.
+//   1. No "or": a yes/no question is one proposition, never a choice between two things.
+//   2. It must name its subject: at least one proper name (a capitalised word after the first word, or a number/stat
+//      line is not enough), so "Will the home team win?" is rejected.
+function questionProblem(q: string): string | null {
+  const t = q.replace(/\s+/g, ' ').trim();
+  if (/\bor\b/i.test(t)) return 'it contains the word "or". Ask ONE yes/no proposition, not a choice between two things.';
+  const words = t.replace(/[?.!,"'()]/g, ' ').split(' ').filter(Boolean).slice(1);
+  const names = words.filter((w) => /^[A-Z][A-Za-z0-9.\-&]*$/.test(w) && !/^(Will|Is|Are|Does|Do|Did|Has|Have|Can|Be|NFL|NBA|MLB|NHL|YES|NO)$/.test(w));
+  if (names.length < 1) return 'it does not name the specific team, person, company or show it is about.';
+  if (/\b(the (home|away|visiting) team|the game|the match|the champ(ion)?|the (star|player|team|company|show|movie|report|event|contestant))\b/i.test(t) && names.length < 2) return 'it uses a vague stand-in instead of a name.';
+  return null;
+}
+
 async function draftOneQuestion(apiKey: string, pick: Pick, dateStr: string, nowLabel: string, lockHM: string, deadline: number): Promise<Draft | null> {
   const label = CATEGORY_LABELS[pick.category] || pick.category;
-  for (const relaxed of [false, true]) {
+  let feedback = '';
+  for (const relaxed of [false, true, true]) {
     const text = await callClaude(
       apiKey,
       buildSystemPrompt(pick, dateStr, nowLabel, lockHM, relaxed),
-      `Draft the ${dateStr} ${label} question now.`,
+      `Draft the ${dateStr} ${label} question now.${feedback}`,
       deadline
     );
     if (text) {
       const parsed = extractJson(text, (o) => o.skip !== undefined || !!o.question_text);
       if (parsed && !parsed.skip && parsed.question_text && parsed.resolution_criteria) {
+        const bad = questionProblem(String(parsed.question_text));
+        if (bad) {
+          feedback = `\n\nYour previous draft ("${String(parsed.question_text).slice(0, 160)}") was rejected: ${bad} Write a different one that fixes this.`;
+          console.error(pick.category, 'rejected draft:', bad);
+          if (deadline - Date.now() < 15000) break;
+          continue;
+        }
         return {
           question_text: String(parsed.question_text),
           resolution_criteria: String(parsed.resolution_criteria),

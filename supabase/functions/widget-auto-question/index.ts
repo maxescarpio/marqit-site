@@ -85,6 +85,8 @@ From the story text, write ONE question that:
 - is about something that has NOT happened yet and will be known soon (days, not months);
 - is genuinely uncertain, not a foregone conclusion, and not already answered in the story;
 - ALWAYS exists for any normal story: if the story itself has nothing pending (a feature, interview, quote, review, recap or other fluff), ask about the next related event instead: the subject's next game, match, release, chart result, announcement or ruling that will be known within days. Never skip a normal sports, entertainment, pop culture or general news story just because it is a feature;
+- names the specific team, person, company or title it is about, right in the question, so it makes sense on its own (never "the game", "the team", "he" or "this");
+- is ONE proposition: never uses the word "or" and never offers a choice between two things (ask "Will the Chiefs beat the Bills?", not "Will the Chiefs or the Bills win?");
 - never asks readers to bet, and never states an injury, crime or accusation as fact (phrase it as a future outcome, e.g. "Will X be placed on injured reserve this week?").
 Also write "resolution_note": one plain sentence saying exactly how and where the answer will be checked (a named source or official announcement).
 SKIP (return the skip object) if the story involves any of: a death or funeral, a tragedy or disaster, crime victims, children or minors, a person accused of a crime or in a court case, sexual content, suicide or self-harm, a private person's health, war or terrorism, or partisan politics or elections. Skip ONLY for those sensitive topics. Also skip if the page is not a news story or article (a home page, category list, shop, or login page).
@@ -156,7 +158,7 @@ Deno.serve(async (req: Request) => {
     const out = extractJson((data.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n'));
     const q = out && !out.skip ? String(out.question_text || '').replace(/\s+/g, ' ').trim() : '';
     const note = out && !out.skip ? String(out.resolution_note || '').replace(/\s+/g, ' ').trim().slice(0, 300) : '';
-    const ok = q.length >= 15 && q.length <= 200 && q.endsWith('?') && !/https?:|www\.|\.com/i.test(q + ' ' + note) && !dirty(q + ' ' + note);
+    const ok = q.length >= 15 && q.length <= 200 && q.endsWith('?') && !/\bor\b/i.test(q) && !/https?:|www\.|\.com/i.test(q + ' ' + note) && !dirty(q + ' ' + note);
     if (!ok) { await finish({ source: 'skipped', question_text: '(skipped)' }); return json({ status: 'none' }); }
 
     const live = site.question_mode === 'auto';
