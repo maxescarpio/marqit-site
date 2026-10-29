@@ -101,6 +101,7 @@
   /* ---------- Rows the scripts draw ---------- */
   .qrow{border:1px solid var(--line);background:#FCFBF8;border-radius:12px;padding:14px 16px;margin-top:10px;}
   .qrow .qtext{font-weight:700;font-size:15px;}
+  .qrow .qfrom{font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;}
   .qrow .qmeta{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
   .qrow .actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
   .qrow .actions button{margin-top:0;padding:7px 14px;font-size:13px;}
@@ -1059,13 +1060,29 @@
       return;
     }
     list.innerHTML = '';
+    // Who sent each one: the profile for signed-in players, "Guest" for signed-out visitors (they only have a device id).
+    const people = {};
+    try{
+      const ids = Array.from(new Set(data.map(function(s){ return s.user_id; }).filter(Boolean)));
+      if(ids.length){
+        const { data: ps } = await sb.from('profiles').select('id, username, state, school, created_at, banned').in('id', ids);
+        (ps || []).forEach(function(p){ people[p.id] = p; });
+      }
+    }catch(e){ /* the name is a bonus; the suggestion still shows */ }
     data.forEach(function(s){
       const row = document.createElement('div');
       row.className = 'qrow';
+      const p = s.user_id ? people[s.user_id] : null;
+      var who;
+      if(!s.user_id) who = 'Guest (not signed in)' + (s.guest_device_id ? ' \u00b7 device ' + String(s.guest_device_id).slice(0, 6) : '');
+      else if(p) who = '@' + (p.username || 'player') + (p.state ? ' \u00b7 ' + p.state : '') + (p.school ? ' \u00b7 ' + p.school : '') + ' \u00b7 joined ' + new Date(p.created_at).toLocaleDateString() + (p.banned ? ' \u00b7 BANNED' : '');
+      else who = 'Unknown player (account not found)';
       row.innerHTML =
+        '<div class="qfrom"></div>' +
         '<div class="qtext"></div>' +
         '<div class="qmeta">' + (CATEGORY_LABELS[s.category] || s.category) + (s.requested_date ? ' · For ' + s.requested_date : '') + ' · Submitted ' + new Date(s.created_at).toLocaleString() + '</div>' +
         '<div class="actions"><button class="btn-edit" data-dismiss-id="' + s.id + '">Mark reviewed</button></div>';
+      row.querySelector('.qfrom').textContent = 'From ' + who;
       row.querySelector('.qtext').textContent = s.suggestion_text;
       list.appendChild(row);
     });
