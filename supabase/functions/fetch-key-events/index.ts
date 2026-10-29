@@ -190,7 +190,7 @@ async function sportsRows(dates: string[], questions: any[], _deadline: number, 
     const d = await fetchJson('https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json');
     const days: any[] = d?.leagueSchedule?.gameDates || [];
     if (Array.isArray(d?.leagueSchedule?.gameDates)) rep.complete.push('NBA');
-    const pair =(g: any) => [String(g?.homeTeam?.teamId || ''), String(g?.awayTeam?.teamId || '')].sort().join('-');
+    const pair = (g: any) => [String(g?.homeTeam?.teamId || ''), String(g?.awayTeam?.teamId || '')].sort().join('-');
     const wins = new Map<string, number>();
     for (const gd of days) for (const g of (gd.games || [])) {
       if (!String(g.gameId).startsWith('004') || Number(g.gameStatus) !== 3) continue;
@@ -324,12 +324,12 @@ async function tmdbRows(dates: string[], report: any): Promise<Row[]> {
   const topMovies = (movies?.results || []).filter((m: any) => inWindow.has(String(m.release_date || '')) && (m.popularity || 0) >= 10).slice(0, 8);
   const topShows = (shows?.results || []).filter((s: any) => inWindow.has(String(s.first_air_date || '')) && (s.popularity || 0) >= 8).slice(0, 8);
   for (const m of topMovies) rows.push({
-    category: 'pop_culture', title: String(m.title || '').slice(0, 140), subtitle: null, league: 'Movie',
+    category: 'pop_culture', title: String(m.title || '').slice(0, 140), subtitle: 'In theaters', league: 'Movie',
     starts_at: m.release_date + 'T12:00:00.000Z', all_day: true, importance: (m.popularity || 0) >= 25 ? 2 : 1, status: 'scheduled',
     url: 'https://www.themoviedb.org/movie/' + m.id, source: 'tmdb', external_id: 'movie:' + m.id, question_id: null,
   });
   for (const s of topShows) rows.push({
-    category: 'pop_culture', title: String(s.name || '').slice(0, 140), subtitle: null, league: 'TV',
+    category: 'pop_culture', title: String(s.name || '').slice(0, 140), subtitle: 'New series', league: 'TV',
     starts_at: s.first_air_date + 'T12:00:00.000Z', all_day: true, importance: (s.popularity || 0) >= 15 ? 2 : 1, status: 'scheduled',
     url: 'https://www.themoviedb.org/tv/' + s.id, source: 'tmdb', external_id: 'tv:' + s.id, question_id: null,
   });

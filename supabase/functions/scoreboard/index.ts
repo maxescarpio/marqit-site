@@ -1,12 +1,12 @@
 // Live scores, records and TV network for today's games, for the ribbon at the top of the site.
 // Public, no key. Source: ESPN public scoreboard feed (unofficial; it rejects bot-like user agents, hence the plain one below).
-// does, the ribbon simply falls back to showing time and teams). No logos are returned on purpose.
+// Each team carries ESPN's own logo URL.
 // Cached for 30 seconds so many visitors cost one request upstream.
 //
 // GET  .../functions/v1/scoreboard            -> { games: [...] }   (today)
 // GET  .../functions/v1/scoreboard?dates=20261024 -> the same for one day (Eastern date)
-// Each game: { league, home, away, state: 'pre'|'in'|'post', detail, network }
-//   home/away: { name, abbr, score, record }
+// Each game: { league, home, away, state: 'pre'|'in'|'post', detail, network, series }
+//   home/away: { name, abbr, score, record, logo }
 
 const FEEDS: [string, string][] = [
   ['NFL', 'football/nfl'], ['NBA', 'basketball/nba'], ['MLB', 'baseball/mlb'], ['NHL', 'hockey/nhl'],
@@ -90,7 +90,7 @@ async function team(key: string) {
   if (lead.length) await saveLeaders([{ key, leaders: lead }]);
   else { const old = await loadLeaders(key); if (old) lead = old; }
   const body = JSON.stringify({
-    color: hex(t.color), alt: hex(t.alternateColor), leaders: lead,
+    color: hex(t.color), alt: hex(t.alternateColor), leaders: lead, logo: String(t.logos?.[0]?.href || '').replace(/^http:/, 'https:'),
     name: String(t.displayName || ''), record: total.summary || null, standing: t.standingSummary || null,
     home: items.find((i: any) => i.type === 'home')?.summary || null, road: items.find((i: any) => i.type === 'road')?.summary || null,
     stats,
