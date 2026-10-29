@@ -8,7 +8,8 @@
 //                 network, status, poster, thumb (small, for the strip), backdrop, trailer, cast: [{ name, character, photo }],
 //                 scores: { rt, metacritic, imdb, tmdb: { avg, votes } }, money: { domesticTotal, worldwideTotal, budget },
 //                 watch: { stream[], rent[], buy[], link } | null  (US, service names only; JustWatch data via TMDB) }
-//     album:    { kind, title, artist, artistPhoto, cover, thumb (small, for the strip), releaseDate, label, tracks, genres[], link,
+//     album:    { kind, found, title, artist, artistPhoto, cover, thumb (small, for the strip; the artist's photo when the album
+//                 itself is not in any catalogue yet, found false), releaseDate, label, tracks, genres[], link,
 //                 trackList[{ n, title, lengthSec, explicit }], about { text, url } (Wikipedia, only when the page matches), upcoming (bool),
 //                 fans, chart: { position (1-100 or null = not in the top 100), of } | null  (Deezer worldwide top albums, only once released) }
 // Every block can be null when the source has nothing yet (a movie that opens today has no gross,
@@ -211,13 +212,30 @@ async function album(title: string) {
   };
 }
 
+// The artist's photo from Deezer, only when the name matches exactly (never "the closest artist") and Deezer has a real
+// picture (artists without one get a blank placeholder whose URL has an empty hash).
+async function deezerArtist(artist: string): Promise<{ xl: string | null; medium: string | null } | null> {
+  const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const s = await getJson('https://api.deezer.com/search/artist?limit=5&q=' + encodeURIComponent(artist));
+  const hit = (s?.data || []).find((a: any) => norm(String(a.name || '')) === norm(artist));
+  if (!hit) return null;
+  const real = (u: any) => (typeof u === 'string' && u.startsWith('https://') && !/\/artist\/\//.test(u) ? u : null);
+  const xl = real(hit.picture_xl) || real(hit.picture_big), medium = real(hit.picture_medium) || real(hit.picture_big);
+  return xl || medium ? { xl, medium } : null;
+}
+
 // Albums that are not on Deezer yet (pre-release) often are on Apple's catalogue, with cover, track count and date.
 async function itunesAlbum(name: string, artist: string) {
   const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const r = await getJson(`https://itunes.apple.com/search?media=music&entity=album&limit=8&country=us&term=${encodeURIComponent((artist + ' ' + name).trim())}`);
   const first = (artist || '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2)[0] || '';
   const hit = (r?.results || []).find((x: any) => norm(String(x.collectionName || '')).replace(/ (deluxe|single|ep)$/, '') === norm(name) && (!first || String(x.artistName || '').toLowerCase().includes(first))) || null;
-  if (!hit) return { kind: 'album', title: name, artist: artist || null, found: false };
+  if (!hit) {
+    // Not in any music catalogue yet (an album that is out tomorrow often is not). The artist's own photo still gives the
+    // card a picture, so it never shows a bare letter.
+    const ap = artist ? await deezerArtist(artist) : null;
+    return { kind: 'album', title: name, artist: artist || null, found: false, artistPhoto: ap?.xl || null, thumb: ap?.medium || null };
+  }
   const rel = String(hit.releaseDate || '').slice(0, 10);
   const art = String(hit.artworkUrl100 || '').replace(/\/\d+x\d+bb/, '/600x600bb');
   const about = await wikiAbout(`${name} ${artist} album`, [name.split(' ')[0]]);

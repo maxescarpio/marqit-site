@@ -2203,3 +2203,16 @@ a.mq-ss-ig{text-decoration:none}
 .mu-tl .n{width:24px}
 .mu-tiles .mdp-sc.long b{font-size:16px;line-height:1.25}
 .ar-banner{margin:10px 0 0;height:130px;border-radius:12px;overflow:hidden;background:#1A1D22;position:relative}.ar-banner img{width:100%;height:100%;object-fit:cover;object-position:50% 25%;display:block}.ar-banner::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(22,25,30,0) 40%,rgba(22,25,30,.55))}
+
+/* ==========================================================================
+   Oct 29: every schedule card has a picture and opens a panel
+   ========================================================================== */
+/* Fallback tile: when no picture is found, the tile stays and shows the first letter. */
+.gc-art.fb{background:linear-gradient(160deg,#2A2F38,#20242B)}
+.gc-art.fb i{color:#9AA0AB}
+.sched-today .sstrip-art.fb{display:flex;align-items:center;justify-content:center;animation:none;background:linear-gradient(160deg,#2A2F38,#20242B)}
+.sched-today .sstrip-art.fb i{font:700 15px 'Barlow',sans-serif;font-style:normal;color:#9AA0AB}
+/* Event panel (awards, tech launches, news dates): picture on top, then the description. */
+.evd-fig{margin:12px 0 0}
+.evd-fig a{display:block}
+.evd-img{display:block;width:100%;max-height:260px;object-fit:contain;border-radius:12px;background:#1A1D22;box-shadow:0 0 0 1px rgba(255,255,255,.08)}

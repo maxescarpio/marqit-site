@@ -1,12 +1,12 @@
 // Live scores, records and TV network for today's games, for the ribbon at the top of the site.
 // Public, no key. Source: ESPN public scoreboard feed (unofficial; it rejects bot-like user agents, hence the plain one below).
-// does, the ribbon simply falls back to showing time and teams). No logos are returned on purpose.
+// Each team carries ESPN's own logo URL.
 // Cached for 30 seconds so many visitors cost one request upstream.
 //
 // GET  .../functions/v1/scoreboard            -> { games: [...] }   (today)
 // GET  .../functions/v1/scoreboard?dates=20261024 -> the same for one day (Eastern date)
-// Each game: { league, home, away, state: 'pre'|'in'|'post', detail, network }
-//   home/away: { name, abbr, score, record }
+// Each game: { league, home, away, state: 'pre'|'in'|'post', detail, network, series }
+//   home/away: { name, abbr, score, record, logo }
 
 const FEEDS: [string, string][] = [
   ['NFL', 'football/nfl'], ['NBA', 'basketball/nba'], ['MLB', 'baseball/mlb'], ['NHL', 'hockey/nhl'],
@@ -90,7 +90,7 @@ async function team(key: string) {
   if (lead.length) await saveLeaders([{ key, leaders: lead }]);
   else { const old = await loadLeaders(key); if (old) lead = old; }
   const body = JSON.stringify({
-    color: hex(t.color), alt: hex(t.alternateColor), leaders: lead,
+    color: hex(t.color), alt: hex(t.alternateColor), leaders: lead, logo: String(t.logos?.[0]?.href || '').replace(/^http:/, 'https:'),
     name: String(t.displayName || ''), record: total.summary || null, standing: t.standingSummary || null,
     home: items.find((i: any) => i.type === 'home')?.summary || null, road: items.find((i: any) => i.type === 'road')?.summary || null,
     stats,
@@ -129,6 +129,22 @@ function side(c: any) {
   };
 }
 
+// Playoff series state, from ESPN's own series block on a playoff game: { completed, summary }. A game that has not
+// started in a series somebody already won (a "Game 6 / Game 7, if necessary") is never played, so the site uses
+// completed to hide it. Null for anything that is not a playoff series (regular season, one-off games).
+function seriesOf(comp: any, e: any) {
+  const s = comp?.series;
+  if (!s) return null;
+  const title = String(s.title || s.summary || e?.season?.slug || '');
+  const isPlayoff = String(s.type || '').toLowerCase() === 'playoff' || /world series|championship series|division series|wild card|finals|conference|semifinal|playoff/i.test(title);
+  if (!isPlayoff) return null;
+  const total = Number(s.totalCompetitions) || 0;
+  const wins = (s.competitors || []).map((c: any) => Number(c?.wins) || 0);
+  const top = wins.length ? Math.max(...wins) : 0;
+  const completed = s.completed === true || (total > 0 && top >= Math.floor(total / 2) + 1);
+  return { completed, summary: String(s.summary || '').slice(0, 80) };
+}
+
 async function load(date: string | null) {
   const games: any[] = [];
   const errors: string[] = [];
@@ -153,6 +169,7 @@ async function load(date: string | null) {
         games.push({
           league, id: String(e.id || ''), start: e.date, state: String(t.state || 'pre'), detail: String(t.shortDetail || t.detail || ''),
           network: net, home: side(home), away: side(away), sit: sit && (sit.text || sit.last) ? sit : null,
+          series: seriesOf(comp, e),
         });
       }
     } catch (e) { errors.push(league + ' ' + String(e).slice(0, 60)); }
