@@ -7943,7 +7943,7 @@
 
   // ===== Schedule: key dates across sports, finance, tech, pop culture and news =====
   // Rows live in public.key_events (filled by the fetch-key-events function, plus anything added by
-  // hand in the admin page). One fetch of this Monday-to-Sunday (Eastern) feeds both the "Today's key
+  // hand in the admin page). One fetch of the next three weeks (Eastern) feeds both the "Today's key
   // events" row on Play and the Schedule page. Static and swipeable on purpose: the headline ticker
   // above is the only thing on the site that moves by itself.
   var MQ_SCHED_CATS = [['all', 'All'], ['sports', 'Sports'], ['finance', 'Finance'], ['tech', 'Tech'], ['pop_culture', 'Pop culture'], ['news', 'News']];
@@ -7963,9 +7963,13 @@
     if(ev.all_day) return 'All day';
     return new Date(ev.starts_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
+  // The schedule runs from this Monday through the Sunday on or after two weeks from today,
+  // so it always reaches at least two weeks ahead (21 days, three Monday-to-Sunday rows).
   function mqSchedWeekDays(){
-    var monday = getWeekStart(), out = [];
-    for(var i = 0; i < 7; i++) out.push(mqSchedAddDays(monday, i));
+    var monday = getWeekStart(), today = mqSchedEtDay(new Date()), out = [];
+    var end = mqSchedAddDays(today, 14), dow = new Date(Date.parse(end + 'T12:00:00Z')).getUTCDay();
+    if(dow !== 0) end = mqSchedAddDays(end, 7 - dow);
+    for(var d = monday; d <= end && out.length < 42; d = mqSchedAddDays(d, 1)) out.push(d);
     return out;
   }
   // All-day items first (earnings, releases), then by start time; bigger events first within a tie.
@@ -7987,9 +7991,9 @@
         var res = await sb.from('key_events')
           .select('id, category, title, subtitle, league, starts_at, all_day, importance, status, url, question_id, external_id')
           .gte('starts_at', mqSchedAddDays(days[0], -1) + 'T00:00:00Z')
-          .lte('starts_at', mqSchedAddDays(days[6], 2) + 'T00:00:00Z')
+          .lte('starts_at', mqSchedAddDays(days[days.length - 1], 2) + 'T00:00:00Z')
           .order('starts_at', { ascending: true })
-          .limit(500);
+          .limit(1000);
         if(res.error) throw res.error;
         var inWeek = {};
         days.forEach(function(d){ inWeek[d] = true; });
@@ -8046,11 +8050,19 @@
     }
     return null;
   }
+  // ESPN's logo file for a pro team, from its short code. The letters stay underneath if the file is missing.
+  var MQ_LOGO_PATH = { NFL: 'nfl', MLB: 'mlb', NBA: 'nba', NHL: 'nhl' };
+  var MQ_LOGO_CODE = { MLB: { CWS: 'chw' }, NHL: { UTA: 'utah' } };
+  function mqTeamLogoUrl(league, abbr){
+    var lg = String(league || '').toUpperCase(), path = MQ_LOGO_PATH[lg];
+    if(!path || !abbr) return '';
+    var code = ((MQ_LOGO_CODE[lg] || {})[abbr] || abbr).toLowerCase().replace(/[^a-z0-9]/g, '');
+    return code ? 'https://a.espncdn.com/i/teamlogos/' + path + '/500/' + code + '.png' : '';
+  }
   function mqTeamRowHtml(league, name){
     var abbr = mqTeamAbbr(league, name);
-    return abbr
-      ? '<div class="sstrip-team" title="' + escapeHtml(name) + '"><b>' + escapeHtml(abbr) + '</b></div>'
-      : '<div class="sstrip-team long" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</div>';
+    if(abbr) return mqLiveRowHtml({ name: name, abbr: abbr, logo: mqTeamLogoUrl(league, abbr) }, null, false);
+    return '<div class="sstrip-team long" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</div>';
   }
 
   // ---- Live scores / records / TV network (Supabase function "scoreboard", ESPN public feed).
@@ -8235,13 +8247,19 @@
     var canOpen = mqCanOpen(ev);
     var bandStyle = g ? ' style="--ca:' + mqTeamColor(g.away) + ';--cb:' + mqTeamColor(g.home) + '"' : '';
     // Movies, shows, albums and every other non-game event (awards, tech launches, news dates) carry a picture.
-    var isArt = mqIsMedia(ev) || mqIsGeneric(ev), isAlbum = isArt && (!mqIsMedia(ev) || /^album$/i.test(ev.league || ''));
+    // Earnings and economic reports carry one too (the company's logo, or a drawn chart / bank).
+    var isFin = ev.category === 'finance' && !!ev.league;
+    var isArt = mqIsMedia(ev) || mqIsGeneric(ev) || isFin, isAlbum = isArt && (!mqIsMedia(ev) || /^album$/i.test(ev.league || ''));
+    // Every non-game event shows a line of information under its title.
+    var desc = '';
+    if(!g && !teams && (mqIsGeneric(ev) || mqIsMedia(ev) || isFin)) desc = mqIsEarnings(ev) ? mqEarnInfo(ev) : mqEvInfo(ev);
     return '<div data-cat="' + escapeHtml(ev.category || '') + '" class="sstrip-cell' + (ev.question_id ? ' has-q' : '') + (g && g.state === 'in' ? ' is-live' : '') + (canOpen ? ' is-click' : '') + (isArt ? ' has-art' : '') + '"' +
       (canOpen ? ' data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"' : '') + '>' +
       (isArt ? '<span class="sstrip-art' + (isAlbum ? ' sq' : '') + '" data-art="' + escapeHtml(String(ev.id)) + '"></span>' : '') +
       '<div class="sstrip-time"><span>' + escapeHtml(status) + '</span>' +
         (side ? '<span class="sstrip-sub">' + escapeHtml(side) + '</span>' : '') + '</div>' +
       body +
+      (desc ? '<div class="sstrip-desc">' + escapeHtml(desc) + '</div>' : '') +
       (tags ? '<div class="sstrip-tags">' + tags + '</div>' : '') +
     '</div>';
   }
@@ -8494,6 +8512,80 @@
     if(i > 0) t = t.slice(i + 2);
     return (t.replace(/[^A-Za-z0-9]/g, '').charAt(0) || '•').toUpperCase();
   }
+  // ---- Every event carries a picture and a line of information.
+  // Picture: a freely licensed photo when one exists (Wikipedia / Commons, via event-details); otherwise a drawn
+  // illustration from /event-art, chosen by what the event is. Information: a hand-checked line for known events,
+  // else the event's own small line, else a plain sentence built from its type.
+  function mqEvArtName(ev){
+    var t = String((ev && ev.title) || '').toLowerCase(), l = String((ev && ev.league) || '').toLowerCase(), c = (ev && ev.category) || '';
+    if(l === 'album') return 'vinyl';
+    if(l === 'movie') return 'clapper';
+    if(l === 'tv') return 'tvshow';
+    if(l === 'game') return 'controller';
+    if(c === 'sports'){
+      var k = mqLeagueKey(ev.league);
+      return ({ NFL: 'football', NCAAF: 'football', NBA: 'basketball', WNBA: 'basketball', NHL: 'hockey', MLB: 'baseball', EPL: 'soccer', UCL: 'soccer', MLS: 'soccer' })[k] || 'trophy';
+    }
+    if(c === 'finance') return l === 'fed' ? 'bank' : 'chart';
+    if(l === 'politics' || /election|ballot|primary|midterm|referendum/.test(t)) return 'ballot';
+    if(/award|nominat|grammy|oscar|academy|emmy|globe|bafta|cma\b|critics|shortlist/.test(t) || /^(awards|grammys|oscars)$/.test(l)) return 'trophy';
+    if(/homepod|speaker|sonos|echo\b/.test(t)) return 'speaker';
+    if(/apple tv|\btv\b|streaming|roku/.test(t)) return 'tv';
+    if(/iphone|phone|pixel|galaxy|watch/.test(t)) return 'phone';
+    if(c === 'tech') return 'stage';
+    if(c === 'news') return 'news';
+    return 'calendar';
+  }
+  function mqEvArtUrl(ev){ return '/event-art/' + mqEvArtName(ev) + '.svg'; }
+  var MQ_EV_INFO = {};
+  [
+    ['Daytime Emmy Awards', 'The 53rd Daytime Emmys honor the year’s best daytime TV, from talk shows to soaps and game shows.'],
+    ['HomePod mini 2 launch', 'Apple’s next small smart speaker is expected to go on sale around this date. Apple has not confirmed it.'],
+    ['iPhone Duo arrives in more countries', 'Apple’s iPhone Duo goes on sale in 28 more countries and regions.'],
+    ['Apple TV and HomeView launch', 'Apple’s Apple TV and HomeView launch is expected around this date. Apple has not confirmed it.'],
+    ['Election Day', 'US midterm elections: voters pick the whole House, about a third of the Senate and many governors.'],
+    ['Jobs report', 'Shows how many jobs the economy added last month and where unemployment stands. Out at 8:30 AM ET.'],
+    ['Inflation report (CPI)', 'Shows how much everyday prices rose compared with a year ago. Hotter numbers make rate cuts less likely. Out at 8:30 AM ET.'],
+    ['Fed interest rate decision', 'The Federal Reserve says whether it will raise, cut or hold interest rates. The statement comes at 2:00 PM ET.'],
+    ['Latin Grammy Awards', 'The 27th Latin Grammys celebrate the year’s best Spanish- and Portuguese-language music.'],
+    ['Grammy nominations announced', 'The nominees for the 69th Grammy Awards are revealed across all categories.'],
+    ['Microsoft Ignite', 'Microsoft’s big yearly conference for developers and IT teams, with new product and AI announcements. Runs Nov 17 to 20.'],
+    ['CMA Awards', 'The 60th CMA Awards honor the top artists, songs and albums in country music.'],
+    ['Grand Theft Auto VI', 'Rockstar’s open-world crime game arrives on PS5 and Xbox Series X|S.'],
+    ['Critics’ Choice nominations announced', 'The nominees for the Critics Choice Awards, picked by film and TV critics, are revealed.'],
+    ['Golden Globe nominations announced', 'The nominees for the Golden Globe Awards for film and TV are revealed.'],
+    ['Oscar shortlists announced', 'The Academy narrows the field in several categories ahead of the official nominations.'],
+    ['Critics’ Choice Awards', 'The 32nd Critics Choice Awards honor the year’s best film and TV, as voted by critics.'],
+    ['Golden Globe Awards', 'The Golden Globes honor the year’s best film and TV. Nikki Glaser hosts.'],
+    ['Oscar nominations announced', 'The Academy reveals the nominees for this year’s Academy Awards.'],
+    ['Grammy Awards', 'The 69th Grammys honor the year’s best music.'],
+    ['BAFTA Film Awards', 'The 80th BAFTA Film Awards honor the year’s best films, as chosen by the British Academy.'],
+    ['Actor Awards (SAG)', 'The 33rd Actor Awards honor the year’s best performances, voted on by fellow actors. Streams on Netflix.'],
+    ['Academy Awards', 'The 99th Oscars honor the year’s best films.']
+  ].forEach(function(p){ MQ_EV_INFO[p[0].toLowerCase().replace(/[^a-z0-9]/g, '')] = p[1]; });
+  var MQ_EV_BASE = {
+    trophy: 'An awards event honoring the year’s best work.', ballot: 'A day of voting in the US.', speaker: 'A product launch to watch.',
+    phone: 'A product launch to watch.', tv: 'A product launch to watch.', stage: 'A tech event with product and company news.',
+    bank: 'A Federal Reserve announcement that can move markets.', chart: 'An economic report that can move markets.',
+    vinyl: 'A new album out today.', clapper: 'A new movie in theaters.', tvshow: 'A new series premieres.', controller: 'A new video game release.',
+    news: 'A news event to watch.', calendar: 'An event on the calendar.'
+  };
+  function mqEvInfo(ev, noSub){
+    var key = String((ev && ev.title) || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if(MQ_EV_INFO[key]) return MQ_EV_INFO[key];
+    var art = mqEvArtName(ev), title = String((ev && ev.title) || ''), sub = mqSub(ev);
+    if(art === 'vinyl'){
+      var i = title.indexOf(': ');
+      return i > 0 ? 'New album “' + title.slice(i + 2) + '” by ' + title.slice(0, i) + ', out today.' : MQ_EV_BASE.vinyl;
+    }
+    var base = MQ_EV_BASE[art] || (ev && ev.category === 'sports' ? 'A game on the schedule.' : MQ_EV_BASE.calendar);
+    return sub && !noSub ? base + ' ' + sub.replace(/\s*$/, /[.!?]$/.test(sub) ? '' : '.') : base;
+  }
+  function mqIsEarnings(ev){ return !!ev && ev.category === 'finance' && !!ev.league && / earnings$/i.test(String(ev.title || '')); }
+  function mqEarnInfo(ev){
+    var co = String(ev.title || '').replace(/ earnings$/i, ''), sub = String(ev.subtitle || '');
+    return co + ' reports its quarterly results ' + (/before/i.test(sub) ? 'before the market opens.' : /after/i.test(sub) ? 'after the market closes.' : 'on this date. The time is not confirmed yet.');
+  }
   function mqEventWhen(ev){
     var d = new Date(ev.starts_at);
     if(ev.all_day) return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }) + ' · All day';
@@ -8514,14 +8606,20 @@
         var im = '<img class="evd-img" src="' + escapeHtml(img) + '" alt="" referrerpolicy="no-referrer">';
         // The picture links to its Commons page, which names the photographer and the license.
         out += '<figure class="evd-fig">' + (href ? '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer" title="' + escapeHtml('Photo: ' + (cr.author || 'Wikimedia Commons') + (cr.license ? ' · ' + cr.license : '')) + '">' + im + '</a>' : im) + '</figure>';
+      } else {
+        // No freely licensed photo exists for this event: show the drawn illustration instead of an empty box.
+        out += '<figure class="evd-fig evd-ill"><img class="evd-img" src="' + escapeHtml(mqEvArtUrl(ev)) + '" alt="" width="240" height="240"></figure>';
       }
+      // Our own line first (hand-checked for known events), then Wikipedia's summary when it found one.
+      var own = mqEvInfo(ev, true);
+      if(own) out += '<p class="evp-desc">' + escapeHtml(own) + '</p>';
       if(d && d.about && d.about.text){
         var wu = /^https:\/\/en\.wikipedia\.org\//.test(d.about.url || '') ? d.about.url : '';
-        out += '<p class="evp-desc">' + escapeHtml(d.about.text) + (wu ? ' <a class="mdp-src" href="' + escapeHtml(wu) + '" target="_blank" rel="noopener noreferrer">Wikipedia</a>' : '') + '</p>';
+        out += '<p class="evp-desc evp-wiki">' + escapeHtml(d.about.text) + (wu ? ' <a class="mdp-src" href="' + escapeHtml(wu) + '" target="_blank" rel="noopener noreferrer">Wikipedia</a>' : '') + '</p>';
       }
       var link = /^https:\/\/[^\s"'<>]+$/.test(ev.url || '') ? ev.url : '';
       if(link) out += '<a class="mdp-link" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer nofollow">More details ›</a>';
-      box.innerHTML = out || '<p class="evp-muted">More details show up here as the date gets closer.</p>';
+      box.innerHTML = out;
     });
   }
   // Old rows say "New album" / "In theaters" / "New series". Those labels read like a status, so they are never shown.
@@ -9617,11 +9715,16 @@
       var teams = mqSchedTeams(ev);
       status = mqSchedTime(ev);
       body = teams
-        ? [teams[0], teams[1]].map(function(n){ return '<div class="gc-tm"><i class="gm-bd">' + escapeHtml(String(n).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) + '</i><b>' + escapeHtml(n) + '</b></div>'; }).join('')
+        ? [teams[0], teams[1]].map(function(n){
+            // The team's real short code and logo when we know them; the first letters otherwise.
+            var ab = mqTeamAbbr(ev.league, n);
+            return '<div class="gc-tm"><i class="gm-bd mq-lg-host"><u>' + escapeHtml(ab || String(n).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) + '</u>' + (ab ? mqLogoImg({ logo: mqTeamLogoUrl(ev.league, ab) }) : '') + '</i><b>' + escapeHtml(n) + '</b></div>';
+          }).join('')
         // Awards, tech launches, news dates: a picture beside the title, filled in by mqArtFill (Wikipedia / Commons).
         : '<div class="gc-media"><span class="gc-art sq" data-art="' + escapeHtml(String(ev.id)) + '"><i>' + escapeHtml(mqEvLetter(ev)) + '</i></span>' +
-          '<div class="gc-mt"><b>' + escapeHtml(ev.title) + '</b></div></div>';
-      net = mqSub(ev);
+          '<div class="gc-mt"><b>' + escapeHtml(ev.title) + '</b><small class="gc-info">' + escapeHtml(mqEvInfo(ev)) + '</small></div></div>';
+      // The line of information (which already includes the small line) sits under the title, so the footer repeats nothing.
+      net = teams ? mqSub(ev) : '';
     }
     var lgTag = showLg ? '<span class="gc-lg" style="color:' + mqLgColor(mqSchedKey(ev)) + '">' + escapeHtml(mqLgName(mqSchedKey(ev))) + '</span>' : '';
     // Cards with a detail panel behind them and no scoreboard say so ("Details ›").
@@ -9634,6 +9737,24 @@
   // Earnings tiles pick up each company's brand hue. Tickers we don't have a hue for get a steady one
   // derived from the ticker, so the same company always looks the same.
   var MQ_EARN_EXTRA = { CMCSA:'#7B5BD6', CMCS:'#7B5BD6', LMT:'#3B7BD4', SPOT:'#1ED760', BA:'#1D5FBF', GE:'#3B9BD8', AXP:'#2E77BC', GS:'#6A9BD1', MS:'#2F7BC9', C:'#2E6FD0', WFC:'#E0483E', SBUX:'#1E9E6A', MCD:'#FFC72C', LUV:'#304CB2', DAL:'#E01933', UPS:'#B98A3E', FDX:'#7D4CC8' };
+  // Company websites, so each earnings report can show the company's logo (favicon service). Ticker text stays as the fallback.
+  var MQ_CO_DOMAIN = {
+    AAPL:'apple.com', MSFT:'microsoft.com', GOOGL:'google.com', AMZN:'amazon.com', META:'meta.com', NVDA:'nvidia.com', TSLA:'tesla.com', NFLX:'netflix.com',
+    AVGO:'broadcom.com', ORCL:'oracle.com', CRM:'salesforce.com', ADBE:'adobe.com', AMD:'amd.com', INTC:'intel.com', QCOM:'qualcomm.com', IBM:'ibm.com',
+    UBER:'uber.com', ABNB:'airbnb.com', PYPL:'paypal.com', SHOP:'shopify.com', SNAP:'snap.com', PINS:'pinterest.com', SPOT:'spotify.com', PLTR:'palantir.com',
+    COIN:'coinbase.com', HOOD:'robinhood.com', DASH:'doordash.com', RBLX:'roblox.com', EA:'ea.com', TTWO:'take2games.com', RIVN:'rivian.com', SOFI:'sofi.com',
+    JPM:'jpmorganchase.com', BAC:'bankofamerica.com', WFC:'wellsfargo.com', C:'citigroup.com', GS:'goldmansachs.com', MS:'morganstanley.com', V:'visa.com',
+    MA:'mastercard.com', AXP:'americanexpress.com', JNJ:'jnj.com', PFE:'pfizer.com', UNH:'unitedhealthgroup.com', LLY:'lilly.com', MRK:'merck.com',
+    ABBV:'abbvie.com', KO:'coca-colacompany.com', PEP:'pepsico.com', MCD:'mcdonalds.com', SBUX:'starbucks.com', CMG:'chipotle.com', WMT:'walmart.com',
+    TGT:'target.com', COST:'costco.com', HD:'homedepot.com', LOW:'lowes.com', NKE:'nike.com', LULU:'lululemon.com', DIS:'disney.com', CMCSA:'comcast.com',
+    T:'att.com', VZ:'verizon.com', TMUS:'t-mobile.com', WBD:'wbd.com', BA:'boeing.com', GE:'geaerospace.com', GM:'gm.com', F:'ford.com', CAT:'caterpillar.com',
+    DE:'deere.com', LMT:'lockheedmartin.com', XOM:'exxonmobil.com', CVX:'chevron.com', PG:'pg.com', DAL:'delta.com', UAL:'united.com'
+  };
+  function mqCoLogoImg(sym){
+    var d = MQ_CO_DOMAIN[String(sym || '').toUpperCase()];
+    if(!d) return '';
+    return '<img class="mq-tlg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="https://www.google.com/s2/favicons?domain=' + d + '&sz=128" onload="this.parentNode.classList.add(\'has-logo\')" onerror="this.remove()">';
+  }
   function mqEarnColor(sym){
     var s = String(sym || '').toUpperCase();
     if(MQ_CO_COLOR[s]) return MQ_CO_COLOR[s];
@@ -9648,8 +9769,14 @@
       cols[/before/i.test(sub) ? 0 : /after/i.test(sub) ? 1 : 2][1].push(ev);
     });
     var tile = function(ev){
-      return '<div class="gx-tile is-click" style="--bc:' + mqEarnColor(ev.league) + '" data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0"><i class="gm-bd tick">' + escapeHtml(String(ev.league || '').slice(0, 4)) + '</i>' +
-        '<span class="gx-n">' + escapeHtml(String(ev.title || '').replace(/ earnings$/i, '')) + '</span>' + mqQuoteHtml(ev.league) + '</div>';
+      var earn = mqIsEarnings(ev);
+      // Earnings show the company's logo (ticker letters underneath); economic reports show a drawn picture.
+      var icon = earn
+        ? '<i class="gm-bd tick mq-lg-host"><u>' + escapeHtml(String(ev.league || '').slice(0, 4)) + '</u>' + mqCoLogoImg(ev.league) + '</i>'
+        : '<i class="gm-bd tick ill"><img alt="" src="' + escapeHtml(mqEvArtUrl(ev)) + '"></i>';
+      return '<div class="gx-tile is-click" style="--bc:' + mqEarnColor(ev.league) + '" data-ev="' + escapeHtml(String(ev.id)) + '" role="button" tabindex="0">' + icon +
+        '<span class="gx-w"><span class="gx-n">' + escapeHtml(String(ev.title || '').replace(/ earnings$/i, '')) + '</span><small class="gx-info">' + escapeHtml(earn ? mqEarnInfo(ev) : mqEvInfo(ev)) + '</small></span>' +
+        mqQuoteHtml(ev.league) + '</div>';
     };
     return '<section class="gx"><h5 class="gx-h"><span>' + mqLgIcon('Earnings') + 'Earnings</span><em>' + items.length + (items.length === 1 ? ' report' : ' reports') + '</em></h5><div class="gx-cols">' +
       cols.filter(function(c){ return c[1].length; }).map(function(c){
@@ -9709,11 +9836,20 @@
     [].forEach.call(root.querySelectorAll('.sstrip-art[data-art], .gc-art[data-art]'), function(span){
       var id = span.getAttribute('data-art');
       var ev = mqSched.events.filter(function(x){ return String(x.id) === id; })[0];
-      // Nothing found (or the picture will not load): the tile stays, showing the first letter, so every card has a picture slot.
-      function fallback(){
+      // Last resort (the illustration file itself will not load): the tile keeps the first letter, so there is always a slot.
+      function letter(){
         if(!span.isConnected) return;
         span.classList.add('fb', 'on');
         if(!span.querySelector('i')) span.innerHTML = '<i>' + escapeHtml(mqEvLetter(ev)) + '</i>';
+      }
+      // No free photo found (or it will not load): show the drawn illustration for this kind of event, so every card has a picture.
+      function fallback(){
+        if(!span.isConnected) return;
+        var im = new Image();
+        span.classList.remove('co');
+        im.onload = function(){ if(span.isConnected){ span.innerHTML = ''; span.appendChild(im); span.classList.remove('fb'); span.classList.add('on', 'ill'); } };
+        im.onerror = letter;
+        im.alt = ''; im.decoding = 'async'; im.src = mqEvArtUrl(ev);
       }
       function show(u){
         var im = new Image();
@@ -9722,6 +9858,13 @@
         im.alt = ''; im.referrerPolicy = 'no-referrer'; im.decoding = 'async'; im.src = u;
       }
       if(!ev){ fallback(); return; }
+      // Earnings: the company's logo, with the chart illustration if it will not load.
+      if(ev.category === 'finance' && ev.league){
+        var dom = MQ_CO_DOMAIN[String(ev.league).toUpperCase()];
+        if(dom){ span.classList.add('co'); show('https://www.google.com/s2/favicons?domain=' + dom + '&sz=128'); }
+        else fallback();
+        return;
+      }
       // Movies, shows and albums come from media-details; everything else (awards, tech, news) from event-details.
       var generic = mqIsGeneric(ev);
       var key = generic ? 'e:' + ev.title + '|' + (ev.league || '') : (ev.external_id || ev.title), c = cache[key];
@@ -9776,11 +9919,24 @@
     days.forEach(function(d){
       byDay[d] = dayLists[d].filter(function(ev){ return filter === 'all' || mqSchedKey(ev) === filter; });
     });
-    daysEl.innerHTML = days.map(function(d){
+    // Three weeks of days scroll sideways: keep the place the visitor scrolled to, and bring a newly picked day to the middle.
+    var keepDays = daysEl.scrollLeft;
+    daysEl.innerHTML = days.map(function(d, i){
       var dt = new Date(Date.parse(d + 'T12:00:00Z')), n = dayLists[d].length;
-      return '<button type="button" class="sched-day' + (n ? ' has' : '') + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (d === sel ? ' sel' : '') + '" data-day="' + d + '" aria-pressed="' + (d === sel) + '">' +
-        '<b>' + (d === today ? 'Today' : dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })) + '</b><span>' + dt.getUTCDate() + '</span><em>' + (n ? n + (n === 1 ? ' game' : ' games') : 'Off') + '</em></button>';
+      // The first day of the row and the first of each month carry the month name, so "1" is never a mystery.
+      var showMonth = i === 0 || dt.getUTCDate() === 1;
+      var dayNum = (showMonth ? dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) + ' ' : '') + dt.getUTCDate();
+      return '<button type="button" class="sched-day' + (n ? ' has' : '') + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (d === sel ? ' sel' : '') + (dt.getUTCDay() === 1 && i > 0 ? ' wk' : '') + '" data-day="' + d + '" aria-pressed="' + (d === sel) + '">' +
+        '<b>' + (d === today ? 'Today' : dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })) + '</b><span>' + dayNum + '</span><em>' + (n ? n + (n === 1 ? ' game' : ' games') : 'Off') + '</em></button>';
     }).join('');
+    daysEl.scrollLeft = keepDays;
+    if(mqSched.centeredDay !== sel){
+      var selBtn = daysEl.querySelector('.sched-day.sel');
+      if(selBtn){
+        var br = selBtn.getBoundingClientRect(), pr = daysEl.getBoundingClientRect();
+        if(pr.width > 0){ daysEl.scrollLeft += (br.left - pr.left) - (pr.width - br.width) / 2; mqSched.centeredDay = sel; }
+      }
+    }
     var selLabel = new Date(Date.parse(sel + 'T12:00:00Z')).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
     var scroll = listEl.querySelector('.lv-row'), keep = scroll ? scroll.scrollLeft : 0;
     listEl.innerHTML =

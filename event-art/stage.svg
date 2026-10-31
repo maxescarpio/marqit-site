@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-hidden="true">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E8892B"/><stop offset="1" stop-color="#5A2208"/></linearGradient>
+<radialGradient id="h" cx=".3" cy=".2" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+<rect width="240" height="240" fill="url(#g)"/><rect width="240" height="240" fill="url(#h)"/>
+
+<path d="M120 0l70 150h-140z" fill="#fff" opacity=".13"/>
+<rect x="46" y="48" width="148" height="86" rx="8" fill="#12151B"/>
+<rect x="54" y="56" width="132" height="70" rx="4" fill="#FFB866"/>
+<rect x="66" y="98" width="16" height="20" fill="#fff" opacity=".85"/><rect x="90" y="84" width="16" height="34" fill="#fff" opacity=".85"/><rect x="114" y="70" width="16" height="48" fill="#fff" opacity=".85"/>
+<rect x="142" y="70" width="34" height="6" rx="3" fill="#fff" opacity=".8"/><rect x="142" y="84" width="26" height="6" rx="3" fill="#fff" opacity=".55"/>
+<rect x="104" y="150" width="32" height="46" rx="4" fill="#12151B"/>
+<rect x="94" y="144" width="52" height="10" rx="3" fill="#2A2F39"/>
+<rect x="30" y="196" width="180" height="12" rx="4" fill="#12151B"/>
+
+</svg>
