@@ -2237,3 +2237,31 @@ a.mq-ss-ig{text-decoration:none}
 .sg-pills button:hover{border-color:rgba(255,255,255,.35)}
 .sg-pills button.on{background:var(--ink);color:var(--bg,#111);border-color:var(--ink)}
 @media (max-width:520px){.h2h-vs{flex:0 0 100%;text-align:center;margin:-4px 0}}
+
+/* ---- Schedule: three weeks, plus a picture and a line of information on every event (Oct 31) ---- */
+/* Top strip: a line of information under the title of every non-game event. */
+.sched-today .sstrip-cell.has-art{flex-basis:214px}
+.sched-today .sstrip-desc{font-size:10.5px;line-height:1.3;color:#8B909A;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:normal}
+@media (max-width:520px){.sched-today .sstrip-cell.has-art{flex-basis:200px}}
+/* Drawn illustrations fill the picture slot; company logos sit on a light tile so dark logos stay readable. */
+.sched-today .sstrip-art.ill{background:#232730}
+.sched-today .sstrip-art.ill img{object-fit:cover}
+.sched-today .sstrip-art.co.on{background:#F2F3F5}
+.sched-today .sstrip-art.co img{object-fit:contain;padding:5px;box-sizing:border-box}
+.gc-art.ill{background:transparent}
+/* Schedule cards: the information line under the title. */
+.gc-mt small.gc-info{white-space:normal;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35;font-size:12.5px}
+/* Earnings and economic-report rows. */
+.gx-w{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.gx-w .gx-n{flex:none}
+.gx-info{font-size:12px;line-height:1.35;color:#8B909A;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gx-tile .gm-bd.tick.mq-lg-host.has-logo{background:#F2F3F5 !important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18) !important}
+.gx-tile .gm-bd.tick.ill{background:transparent !important;box-shadow:none !important;padding:0;position:relative;overflow:hidden;border-radius:10px}
+.gx-tile .gm-bd.tick.ill img{display:block;width:100%;height:100%;object-fit:cover}
+/* Detail panel: the drawn picture when there is no free photo. */
+.evd-ill{text-align:center}
+.evd-ill .evd-img{width:200px;max-width:60%;height:auto;margin:0 auto;border-radius:18px;background:none;box-shadow:none}
+/* Day strip: a thin divider before each Monday so the three weeks read as rows. */
+.sched-day.wk{border-left:1px solid #2A2E36}
+.sched-day,.sched-day span{white-space:nowrap}
+.sched-day{flex:1 0 auto;min-width:48px;padding-left:6px;padding-right:6px}

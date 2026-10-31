@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Fills public.key_events (the Schedule) for the rest of the current Monday-Sunday week, Eastern time.
+// Fills public.key_events (the Schedule) from today through the Sunday on or after two weeks from today, Eastern time.
 //   sports      -> free league feeds (MLB, NHL, NBA official; NFL and college football via ESPN; soccer/WNBA via TheSportsDB), only marquee games (see sportsImportance) or games a Marqit question is about
 //   finance     -> Finnhub earnings calendar, only the household-name companies in WATCH
 //   pop culture -> TMDB, the most popular movie releases and new TV series that week
@@ -34,12 +34,16 @@ function etHour(d: Date): number {
 function addDays(dateStr: string, n: number): string {
   return new Date(Date.parse(dateStr + 'T12:00:00Z') + n * 86400000).toISOString().slice(0, 10);
 }
-// Today through Sunday (Eastern). Earlier days of the week are already stored by earlier runs.
+// Today through the Sunday on or after two weeks from today (Eastern), so the Schedule always reaches at least two weeks
+// ahead. Earlier days are already stored by earlier runs.
 function weekDates(): string[] {
   const today = etDate(new Date());
-  const dow = new Date(today + 'T12:00:00Z').getUTCDay(); // 0 = Sunday
-  const left = dow === 0 ? 1 : 8 - dow;
-  return Array.from({ length: left }, (_, i) => addDays(today, i));
+  const end = addDays(today, 14);
+  const dow = new Date(end + 'T12:00:00Z').getUTCDay(); // 0 = Sunday
+  const last = dow === 0 ? end : addDays(end, 7 - dow);
+  const out: string[] = [];
+  for (let d = today; d <= last && out.length < 28; d = addDays(d, 1)) out.push(d);
+  return out;
 }
 
 // Never put the URL in the error: some feeds take the key in the query string.
@@ -166,7 +170,7 @@ async function sportsRows(dates: string[], questions: any[], _deadline: number, 
   await league('NHL', async () => {
     let n = 0, skippedOver = 0, weeksOk = true;
     const seen = new Set<string>();
-    for (const start of [first, addDays(first, 7)]) {
+    for (const start of [first, addDays(first, 7), addDays(first, 14), addDays(first, 21)]) {
       if (start > addDays(last, 1) && start !== first) break;
       const d = await fetchJson(`https://api-web.nhle.com/v1/schedule/${start}`);
       if (!Array.isArray(d?.gameWeek)) weeksOk = false;
@@ -321,8 +325,8 @@ async function tmdbRows(dates: string[], report: any): Promise<Row[]> {
   const rows: Row[] = [];
   const movies = await tmdbGet('discover/movie', `region=US&with_release_type=2%7C3&release_date.gte=${from}&release_date.lte=${to}&sort_by=popularity.desc&include_adult=false&with_original_language=en&page=1`);
   const shows = await tmdbGet('discover/tv', `first_air_date.gte=${from}&first_air_date.lte=${to}&sort_by=popularity.desc&include_adult=false&with_original_language=en&page=1`);
-  const topMovies = (movies?.results || []).filter((m: any) => inWindow.has(String(m.release_date || '')) && (m.popularity || 0) >= 10).slice(0, 8);
-  const topShows = (shows?.results || []).filter((s: any) => inWindow.has(String(s.first_air_date || '')) && (s.popularity || 0) >= 8).slice(0, 8);
+  const topMovies = (movies?.results || []).filter((m: any) => inWindow.has(String(m.release_date || '')) && (m.popularity || 0) >= 10).slice(0, 16);
+  const topShows = (shows?.results || []).filter((s: any) => inWindow.has(String(s.first_air_date || '')) && (s.popularity || 0) >= 8).slice(0, 16);
   for (const m of topMovies) rows.push({
     category: 'pop_culture', title: String(m.title || '').slice(0, 140), subtitle: 'In theaters', league: 'Movie',
     starts_at: m.release_date + 'T12:00:00.000Z', all_day: true, importance: (m.popularity || 0) >= 25 ? 2 : 1, status: 'scheduled',
