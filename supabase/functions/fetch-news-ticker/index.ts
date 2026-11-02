@@ -334,7 +334,7 @@ const WEAK_Q = /\b(one of the (best|worst|greatest)|cover the spread|the spread|
 const FUTURE_ASSUMPTION_Q = /\b(again|rematch|another|next (game|match|week|round|season|meeting|time)|return(s|ing|ed)?|comeback|recover(s|y|ed|ing)?|back from)\b/i;
 const INJURY_TEXT = /\b(injur\w*|surgery|surgical|hamstring|acl|mcl|meniscus|concussion|sidelined|ruled out|out for the (season|year)|knee (issue|problem|injury)|ankle|fracture\w*|broken (arm|leg|foot|wrist|collarbone|forearm)|torn|strain(ed)?|day-to-day|questionable|doubtful)\b/i;
 // A question must name its subject: "Are they a smart buy?" or "Is this a turnaround?" tell a reader nothing.
-const VAGUE_SUBJECT_Q = /\b(they|them|their|theirs|this|these|those|it|its|he|him|his|she|her|that)\b/i;
+const VAGUE_SUBJECT_Q = /\b(they|them|their|theirs|this|these|those|it|its|he|she)\b/i;
 function badQuestion(q: string, source: string): boolean {
   if (VAGUE_SUBJECT_Q.test(q)) return true;
   if (INJURY_TEXT.test(q) || INJURY_TEXT.test(source)) return true;
