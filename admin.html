@@ -191,6 +191,14 @@
       </div>
     </details>
 
+    <details class="card" data-count="#insights-list .qrow" data-tab-pip="daily">
+      <summary>Marqit+ insights <span class="pip"></span><span class="sub">5 bullets per question &middot; approve before players see them</span></summary>
+      <div class="body">
+        <p class="hint">Drafted by Claude from real web search for today's and tomorrow's questions. Check every stat before approving; edit freely. Only approved insights show on the card, as the Marqit+ dropdown for signed-in players.</p>
+        <div id="insights-list"></div>
+      </div>
+    </details>
+
     <details class="card" data-count="#suggestions-list .qrow" data-tab-pip="daily">
       <summary>Question suggestions <span class="pip"></span><span class="sub">sent in by players</span></summary>
       <div class="body">
@@ -565,6 +573,68 @@
         const { error } = await sb.rpc('admin_reject_question_draft', { p_draft_id: btn.getAttribute('data-reject-id') });
         if(error){ alert('Error: ' + error.message); btn.disabled = false; return; }
         loadQuestionDrafts();
+      });
+    });
+  }
+
+  // Marqit+ insights: 5 AI-drafted bullets per question, approved (with edits) before players see them.
+  async function loadQuestionInsights(){
+    const list = document.getElementById('insights-list');
+    list.innerHTML = 'Loading…';
+    const { data, error } = await sb.rpc('admin_list_question_insights', { p_status: 'pending' });
+    if(error){
+      list.innerHTML = '<p style="font-size:13px; color:var(--ink-soft);">Error loading insights: ' + error.message + '</p>';
+      return;
+    }
+    if(!data || data.length === 0){
+      list.innerHTML = '<p style="font-size:13px; color:var(--ink-soft);">No Marqit+ insights waiting for review right now.</p>';
+      return;
+    }
+    list.innerHTML = '';
+    data.forEach(function(d){
+      const row = document.createElement('div');
+      row.className = 'qrow';
+      row.setAttribute('data-insight-q', d.question_id);
+      const head = document.createElement('div');
+      head.className = 'qmeta';
+      head.textContent = (d.slot ? '#' + d.slot + ' · ' : '') + (CATEGORY_LABELS[d.category] || d.category) + ' · ' + d.question_date;
+      const qText = document.createElement('div');
+      qText.style.cssText = 'font-weight:600; margin:4px 0 8px;';
+      qText.textContent = d.question_text;
+      row.appendChild(head);
+      row.appendChild(qText);
+      (d.bullets || []).forEach(function(b, i){
+        const lab = document.createElement('label');
+        lab.textContent = 'Bullet ' + (i + 1);
+        const ta = document.createElement('textarea');
+        ta.rows = 2;
+        ta.className = 'insight-bullet';
+        ta.value = b;
+        row.appendChild(lab);
+        row.appendChild(ta);
+      });
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      actions.innerHTML = '<button class="btn-yes" data-insight-approve>Approve &amp; show to players</button><button class="btn-delete" data-insight-reject>Reject</button>';
+      row.appendChild(actions);
+      list.appendChild(row);
+
+      actions.querySelector('[data-insight-approve]').addEventListener('click', async function(ev){
+        const btn = ev.currentTarget;
+        const bullets = Array.prototype.map.call(row.querySelectorAll('.insight-bullet'), function(t){ return t.value.trim(); });
+        if(bullets.length !== 5 || bullets.some(function(b){ return !b; })){ alert('All 5 bullets need text before approving.'); return; }
+        btn.disabled = true;
+        const { error: aErr } = await sb.rpc('admin_approve_question_insights', { p_question_id: d.question_id, p_bullets: bullets });
+        if(aErr){ alert('Error: ' + aErr.message); btn.disabled = false; return; }
+        loadQuestionInsights();
+      });
+      actions.querySelector('[data-insight-reject]').addEventListener('click', async function(ev){
+        const btn = ev.currentTarget;
+        if(!confirm('Reject these insights? Players will not see them for this question.')) return;
+        btn.disabled = true;
+        const { error: rErr } = await sb.rpc('admin_reject_question_insights', { p_question_id: d.question_id });
+        if(rErr){ alert('Error: ' + rErr.message); btn.disabled = false; return; }
+        loadQuestionInsights();
       });
     });
   }
@@ -1474,6 +1544,7 @@
       loadUpdates();
       loadTerms();
       loadQuestionDrafts();
+      loadQuestionInsights();
       loadQuestionsForDate();
       loadSuggestions();
       loadWidgets();

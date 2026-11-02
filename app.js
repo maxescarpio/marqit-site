@@ -5301,6 +5301,9 @@
       el.style.display = 'flex';
     }catch(e){}
   }
+  // Marqit+ insights for today's cards, keyed by question id (filled in loadDailyQuestionsInner).
+  var __mqInsights = {};
+
   function buildQuestionCard(q, index, myVote, voteCounts, isLocked, trend, isMostCalled, buddyList, isMover){
     var yesCount = voteCounts.yes || 0;
     var noCount = voteCounts.no || 0;
@@ -5384,8 +5387,15 @@
       ? '<details class="resolve-details"><summary>How this resolves <svg class="resolve-chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary><p class="ticket-meta resolution-text"></p></details>'
       : '';
 
+    var plusBullets = __mqInsights[q.id];
+    var plusHtml = (plusBullets && plusBullets.length)
+      ? '<details class="mqp-details"><summary><span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">Odds &amp; history</span>' +
+        '<svg class="mqp-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
+        '<ul class="mqp-list"></ul><p class="mqp-note">Historical data and odds, for information only.</p></details>'
+      : '';
+
     div.innerHTML =
-      '<p class="ticket-meta card-head">' + (index + 1) + ' of 3 · <span class="cat-chip"><span class="cat-tile">' + iconHtml + '</span><span class="cat-label-text"></span>' + leagueHtml + '</span>' + statusHtml + '</p>' +
+      '<p class="ticket-meta card-head">' + (index + 1) + ' of 3 ·<span class="cat-chip"><span class="cat-tile">' + iconHtml + '</span><span class="cat-label-text"></span>' + leagueHtml + '</span>' + statusHtml + '</p>' +
       visualHtml +
       mostCalledBadge +
       moverBadge +
@@ -5402,6 +5412,7 @@
       buddyHtml +
       trendHtml +
       '<div class="ticket-foot"><div class="foot-left"><div class="foot-players"></div><span class="foot-count">' + total + ' voted</span></div>' + latestHtml + '</div>' +
+      plusHtml +
       '<details class="cmt" data-question-id="' + q.id + '">' +
         '<summary class="cmt-sum"><span>Comments <span class="cmt-count"></span></span>' +
           '<button type="button" class="q-heart" data-q="' + q.id + '" aria-label="Like this question" aria-pressed="false"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 20.5S3 15 3 8.8C3 6.2 5 4.3 7.4 4.3c1.8 0 3.4 1 4.6 2.8 1.2-1.8 2.8-2.8 4.6-2.8C19 4.3 21 6.2 21 8.8 21 15 12 20.5 12 20.5z"/></svg><span class="q-heart-n"></span></button>' +
@@ -5412,6 +5423,10 @@
       '<p class="form-msg" style="margin-top:8px;"></p>';
     div.querySelector('.ticket-q').textContent = q.question_text;
     if(q.resolution_criteria) div.querySelector('.resolution-text').textContent = q.resolution_criteria;
+    if(plusHtml){
+      var mqpList = div.querySelector('.mqp-list');
+      plusBullets.forEach(function(b){ var li = document.createElement('li'); li.textContent = b; mqpList.appendChild(li); });
+    }
     div.querySelector('.cat-label-text').textContent = CATEGORY_LABELS[q.category] || q.category;
     if(isFinal){
       var okOpt = div.querySelector('.opt.' + q.correct_answer);
@@ -6179,6 +6194,17 @@
       preResultBtn.addEventListener('click', function(){ mqSharePreResultCard(); });
       preResultBtn.style.cssText = 'margin:4px 0 16px; background:var(--panel); color:var(--ink); border:1px solid var(--line);';
       __mqShareBtn = preResultBtn;
+    }
+
+    // Marqit+ insights (free for every signed-in player for now). The database only
+    // returns admin-approved rows to Marqit+ members, so a card gets the dropdown
+    // only when it has insights; guests and unreviewed questions get nothing extra.
+    __mqInsights = {};
+    if(session){
+      try{
+        const insRes = await sb.from('question_insights').select('question_id, bullets').in('question_id', prepared.map(function(p){ return p.q.id; }));
+        (insRes.data || []).forEach(function(r){ if(Array.isArray(r.bullets) && r.bullets.length) __mqInsights[r.question_id] = r.bullets; });
+      }catch(e){}
     }
 
     let allLocked = true;
