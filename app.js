@@ -5304,27 +5304,34 @@
   // Marqit+ insights for today's cards, keyed by question id (filled in loadDailyQuestionsInner).
   var __mqInsights = {};
   // Marqit+ waitlist: a signed-in player can ask to be told when the paid plan opens (demand test only).
-  async function mqWireWaitlist(btn){
-    if(!btn) return;
-    var joined = false;
-    function paint(){ btn.textContent = joined ? 'On the list \u2713 (tap to undo)' : 'Notify me'; btn.classList.toggle('on', joined); }
+  var __mqWaitJoined = false, __mqWaitUid = null;
+  async function mqRefreshWaitlist(){
+    var card = document.getElementById('mqp-wait-card');
+    var btn = card && card.querySelector('.mqp-wait-btn');
+    if(!card || !btn) return;
+    function paint(){ btn.textContent = __mqWaitJoined ? 'You\u2019re on the list \u2713' : 'Notify me'; btn.classList.toggle('on', __mqWaitJoined); }
     try{
       var sr = await sb.auth.getSession();
-      var uid = sr && sr.data && sr.data.session && sr.data.session.user && sr.data.session.user.id;
-      if(!uid){ btn.parentNode.style.display = 'none'; return; }
-      var mine = await sb.from('marqit_plus_waitlist').select('user_id').eq('user_id', uid).maybeSingle();
-      joined = !!(mine && mine.data);
+      __mqWaitUid = sr && sr.data && sr.data.session && sr.data.session.user && sr.data.session.user.id;
+      if(!__mqWaitUid){ card.style.display = 'none'; return; }
+      var mine = await sb.from('marqit_plus_waitlist').select('user_id').eq('user_id', __mqWaitUid).maybeSingle();
+      __mqWaitJoined = !!(mine && mine.data);
       paint();
-      btn.addEventListener('click', async function(){
-        btn.disabled = true;
-        try{
-          if(joined){ await sb.from('marqit_plus_waitlist').delete().eq('user_id', uid); joined = false; }
-          else { var ins = await sb.from('marqit_plus_waitlist').insert({ user_id: uid }); if(!ins.error) joined = true; }
-        }catch(e){}
-        btn.disabled = false; paint();
-      });
-    }catch(e){ btn.parentNode.style.display = 'none'; }
+      card.style.display = '';
+      if(!btn.dataset.wired){
+        btn.dataset.wired = '1';
+        btn.addEventListener('click', async function(){
+          btn.disabled = true;
+          try{
+            if(__mqWaitJoined){ await sb.from('marqit_plus_waitlist').delete().eq('user_id', __mqWaitUid); __mqWaitJoined = false; }
+            else { var ins = await sb.from('marqit_plus_waitlist').insert({ user_id: __mqWaitUid }); if(!ins.error) __mqWaitJoined = true; }
+          }catch(e){}
+          btn.disabled = false; paint();
+        });
+      }
+    }catch(e){ card.style.display = 'none'; }
   }
+
 
   function buildQuestionCard(q, index, myVote, voteCounts, isLocked, trend, isMostCalled, buddyList, isMover){
     var yesCount = voteCounts.yes || 0;
@@ -5417,8 +5424,8 @@
     if(leanYes && plusRow.lean_basis){
       var leanSide = leanYes > 50 ? 'yes' : (leanYes < 50 ? 'no' : 'even');
       var leanShown = leanYes >= 50 ? leanYes : 100 - leanYes;
-      leanHtml = '<div class="mqp-lean"><div class="mqp-lean-top"><span>Marqit+ historical lean</span>' +
-        '<b class="mqp-lean-pick ' + leanSide + '">' + (leanSide === 'even' ? 'Toss-up 50%' : 'Lean ' + (leanSide === 'yes' ? 'YES' : 'NO') + ' · ' + leanShown + '%') + '</b></div>' +
+      leanHtml = '<div class="mqp-lean"><p class="mqp-lean-line">Lean <b class="mqp-lean-pick ' + leanSide + '">' +
+        (leanSide === 'even' ? 'toss-up, 50%' : (leanSide === 'yes' ? 'YES' : 'NO') + ' ' + leanShown + '%') + '</b></p>' +
         '<div class="mqp-lean-bar" role="img" aria-label="' + leanYes + ' percent chance of yes"><i style="width:' + leanYes + '%"></i></div>' +
         '<p class="mqp-lean-basis"></p></div>';
     }
@@ -5426,8 +5433,7 @@
       ? '<details class="mqp-details"><summary><span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">History &amp; lean</span>' +
         '<svg class="mqp-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
         leanHtml +
-        '<ul class="mqp-list"></ul><p class="mqp-note">Based on historical data, not betting lines. For information only, not betting or financial advice. Marqit+ is always ad-free.</p>' +
-        '<div class="mqp-wait"><span>Marqit+ is free while we launch. Want to hear first when it becomes a paid plan?</span><button type="button" class="mqp-wait-btn">Notify me</button></div></details>'
+        '<ul class="mqp-list"></ul><p class="mqp-note">Based on historical data, not betting lines. For information only, not betting or financial advice. Marqit+ is always ad-free.</p></details>'
       : '';
 
     div.innerHTML =
@@ -5462,7 +5468,6 @@
     if(plusHtml){
       var mqpList = div.querySelector('.mqp-list');
       plusBullets.forEach(function(b){ var li = document.createElement('li'); li.textContent = b; mqpList.appendChild(li); });
-      mqWireWaitlist(div.querySelector('.mqp-wait-btn'));
       var mqpBasis = div.querySelector('.mqp-lean-basis');
       if(mqpBasis) mqpBasis.textContent = plusRow.lean_basis;
     }
@@ -6245,6 +6250,7 @@
         (insRes.data || []).forEach(function(r){ if(Array.isArray(r.bullets) && r.bullets.length) __mqInsights[r.question_id] = r; });
       }catch(e){}
     }
+    mqRefreshWaitlist();
 
     let allLocked = true;
     for(let i = 0; i < prepared.length; i++){

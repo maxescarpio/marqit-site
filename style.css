@@ -177,18 +177,14 @@
   .mqp-title{flex:1;font-size:14.5px;font-weight:600;color:var(--ink);}
   .mqp-chev{color:var(--ink-soft);flex:none;transition:transform .2s ease;}
   .mqp-details[open] .mqp-chev{transform:rotate(180deg);}
-  .mqp-lean{margin:2px 0 14px;padding:12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);}
-  .mqp-lean-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;}
-  .mqp-lean-pick{font-family:'Big Shoulders Display',sans-serif;font-size:26px;line-height:1;letter-spacing:.01em;text-transform:none;color:var(--ink);}
+  .mqp-lean{margin:0 0 12px;padding:0 0 12px;border-bottom:1px solid var(--line);}
+  .mqp-lean-line{margin:0;font-size:14px;color:var(--ink-soft);}
+  .mqp-lean-pick{font-size:15px;font-weight:700;color:var(--ink);}
   .mqp-lean-pick.yes{color:var(--yes);}
   .mqp-lean-pick.no{color:var(--no);}
-  .mqp-lean-bar{height:8px;margin-top:10px;border-radius:100px;background:var(--no-bg);overflow:hidden;}
-  .mqp-lean-bar i{display:block;height:100%;background:var(--yes);border-radius:100px 0 0 100px;}
-  .mqp-lean-basis{margin-top:10px;font-size:13px;line-height:1.4;color:var(--ink-soft);}
-  .mqp-wait{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;line-height:1.35;color:var(--ink-soft);}
-  .mqp-wait-btn{flex:none;padding:8px 14px;border-radius:100px;border:1px solid #F5C451;background:transparent;color:#F5C451;font:inherit;font-weight:600;cursor:pointer;}
-  .mqp-wait-btn.on{background:#F5C451;color:#1a1a1a;}
-  .mqp-wait-btn:disabled{opacity:.6;}
+  .mqp-lean-bar{height:4px;margin-top:8px;border-radius:100px;background:var(--no-bg);overflow:hidden;}
+  .mqp-lean-bar i{display:block;height:100%;background:var(--yes);}
+  .mqp-lean-basis{margin:8px 0 0;font-size:12.5px;line-height:1.4;color:var(--ink-soft);}
   .mqp-list{margin:2px 0 0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:1.45;color:var(--ink);}
   .mqp-list li::marker{color:#F5C451;}
   .mqp-note{margin:12px 0 14px;font-size:11.5px;color:var(--ink-soft);}
@@ -1785,3 +1781,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area
 .mq-ptr{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 8px);z-index:25;transform:translate(-50%,-70px);opacity:0;pointer-events:none;padding:8px 16px;border-radius:100px;background:var(--panel);border:1px solid var(--line);color:var(--ink-soft);font-size:13px;font-weight:600;white-space:nowrap;}
 .mq-ptr.ready{color:var(--ink);border-color:var(--gold,#F2C14E);}
 .mq-ptr.busy{transform:translate(-50%,0);opacity:1;transition:transform .2s ease,opacity .2s ease;}
+
+/* Marqit+ waitlist card under the daily questions */
+.mqp-wait-card{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:480px;margin-top:28px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);}
+.mqp-wait-copy{display:flex;flex-direction:column;gap:3px;font-size:13px;line-height:1.4;color:var(--ink-soft);}
+.mqp-wait-copy b{font-size:14px;color:#F5C451;}
+.mqp-wait-btn{flex:none;padding:8px 14px;border-radius:100px;border:1px solid #F5C451;background:transparent;color:#F5C451;font:inherit;font-weight:600;cursor:pointer;}
+.mqp-wait-btn.on{background:#F5C451;color:#1a1a1a;}
+.mqp-wait-btn:disabled{opacity:.6;}
