@@ -42,8 +42,8 @@
     ['Calendar sync', 'live'],
     ['Pick history export', 'live'],
     ['Always ad-free', 'live'],
-    ['Morning brief email', 'soon'],
-    ['Weekly recap email (free and paid)', 'soon'],
+    ['Morning brief email (opt-in)', 'live'],
+    ['Weekly recap email (free and paid)', 'live'],
     ['Bigger private groups', 'soon'],
     ['Priority support', 'soon']
   ];
@@ -294,6 +294,23 @@
     return c;
   }
 
+  // ---------- Morning brief toggle ----------
+  async function briefCard(){
+    var c = section('Morning brief email', 'A short email each morning with the history behind that day\u2019s questions. Off until you turn it on. Your weekly recap email is separate and free for everyone.');
+    var say = msg(c);
+    var r = await sb.from('profiles').select('notify_morning_brief').eq('id', session.user.id).maybeSingle();
+    var on = !!(r.data && r.data.notify_morning_brief);
+    var label = h('label', 'plus-check'); var cb = h('input'); cb.type = 'checkbox'; cb.checked = on;
+    label.appendChild(cb); label.appendChild(h('span', null, 'Email me the morning brief'));
+    cb.addEventListener('change', async function(){
+      var u = await sb.from('profiles').update({ notify_morning_brief: cb.checked }).eq('id', session.user.id);
+      if(u.error){ cb.checked = !cb.checked; say('Could not save that. Try again.', true); return; }
+      say(cb.checked ? 'On. It will arrive in the morning on days that have history ready.' : 'Off.');
+    });
+    c.appendChild(label);
+    return c;
+  }
+
   // ---------- page ----------
   async function render(){
     root = document.getElementById('plus-root'); if(!root) return;
@@ -307,7 +324,7 @@
     await loadFollows();
     var parts = await Promise.all([statsCard(), headCard(), reportCard()]);
     root.appendChild(parts[0]); root.appendChild(followsCard()); root.appendChild(parts[1]); root.appendChild(parts[2]);
-    root.appendChild(archiveCard()); root.appendChild(calendarCard()); root.appendChild(exportCard());
+    root.appendChild(await briefCard()); root.appendChild(archiveCard()); root.appendChild(calendarCard()); root.appendChild(exportCard());
     highlight();
   }
   document.addEventListener('click', function(e){

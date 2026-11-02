@@ -21,3 +21,9 @@
 5. Member check replacing `auth.uid() is not null` in `is_marqit_plus()`.
 6. New terms/privacy covering the subscription (after the decisions above).
 7. Attorney review of everything above.
+
+## Perks built (Nov 2)
+- Marqit+ tab (plus.js), similar past questions, results explained, game/event leans (event_insights), report requests (2/month), My Stats Pro, archive (free = 7 days), My Teams (highlight only), head-to-head, calendar .ics, pick export.
+- Morning brief email (edge function morning-brief, cron 12:30 UTC, opt-in via profiles.notify_morning_brief). Weekly recap email already existed (free and paid).
+- Gates to change when payments exist: is_marqit_plus() in the database, and the recipient filter in morning-brief.
+- Not built yet: stats by team, bigger private groups, priority support, ad-slot member skip (no ads exist yet).
