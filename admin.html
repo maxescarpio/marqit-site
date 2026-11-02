@@ -613,6 +613,17 @@
         row.appendChild(lab);
         row.appendChild(ta);
       });
+      const leanLab = document.createElement('label');
+      leanLab.textContent = 'Historical lean: % chance YES (1-99, optional; from history or a published model, never a betting line)';
+      const leanPct = document.createElement('input');
+      leanPct.type = 'number'; leanPct.min = '1'; leanPct.max = '99'; leanPct.className = 'insight-lean-pct';
+      leanPct.value = d.lean_yes_pct == null ? '' : d.lean_yes_pct;
+      const basisLab = document.createElement('label');
+      basisLab.textContent = 'Lean basis (required with a %, max 220 chars)';
+      const leanBasis = document.createElement('input');
+      leanBasis.type = 'text'; leanBasis.maxLength = 220; leanBasis.className = 'insight-lean-basis';
+      leanBasis.value = d.lean_basis || '';
+      row.appendChild(leanLab); row.appendChild(leanPct); row.appendChild(basisLab); row.appendChild(leanBasis);
       const actions = document.createElement('div');
       actions.className = 'actions';
       actions.innerHTML = '<button class="btn-yes" data-insight-approve>Approve &amp; show to players</button><button class="btn-delete" data-insight-reject>Reject</button>';
@@ -623,8 +634,13 @@
         const btn = ev.currentTarget;
         const bullets = Array.prototype.map.call(row.querySelectorAll('.insight-bullet'), function(t){ return t.value.trim(); });
         if(bullets.length !== 5 || bullets.some(function(b){ return !b; })){ alert('All 5 bullets need text before approving.'); return; }
+        const pctRaw = leanPct.value.trim();
+        const basisVal = leanBasis.value.trim();
+        const pctVal = pctRaw === '' ? null : parseInt(pctRaw, 10);
+        if(pctVal !== null && (isNaN(pctVal) || pctVal < 1 || pctVal > 99)){ alert('Lean must be a whole number from 1 to 99.'); return; }
+        if(pctVal !== null && !basisVal){ alert('A lean percentage needs a basis line.'); return; }
         btn.disabled = true;
-        const { error: aErr } = await sb.rpc('admin_approve_question_insights', { p_question_id: d.question_id, p_bullets: bullets });
+        const { error: aErr } = await sb.rpc('admin_approve_question_insights', { p_question_id: d.question_id, p_bullets: bullets, p_lean_yes_pct: pctVal, p_lean_basis: pctVal === null ? null : basisVal });
         if(aErr){ alert('Error: ' + aErr.message); btn.disabled = false; return; }
         loadQuestionInsights();
       });

@@ -5387,11 +5387,24 @@
       ? '<details class="resolve-details"><summary>How this resolves <svg class="resolve-chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary><p class="ticket-meta resolution-text"></p></details>'
       : '';
 
-    var plusBullets = __mqInsights[q.id];
+    var plusRow = __mqInsights[q.id];
+    var plusBullets = plusRow && plusRow.bullets;
+    // Historical lean: a percentage chance of YES, always shown with the history it comes from.
+    var leanYes = plusRow && plusRow.lean_yes_pct;
+    var leanHtml = '';
+    if(leanYes && plusRow.lean_basis){
+      var leanSide = leanYes > 50 ? 'yes' : (leanYes < 50 ? 'no' : 'even');
+      var leanShown = leanYes >= 50 ? leanYes : 100 - leanYes;
+      leanHtml = '<div class="mqp-lean"><div class="mqp-lean-top"><span>Historical lean</span>' +
+        '<b class="mqp-lean-pick ' + leanSide + '">' + (leanSide === 'even' ? 'Toss-up 50%' : (leanSide === 'yes' ? 'YES ' : 'NO ') + leanShown + '%') + '</b></div>' +
+        '<div class="mqp-lean-bar" role="img" aria-label="' + leanYes + ' percent chance of yes"><i style="width:' + leanYes + '%"></i></div>' +
+        '<p class="mqp-lean-basis"></p></div>';
+    }
     var plusHtml = (plusBullets && plusBullets.length)
-      ? '<details class="mqp-details"><summary><span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">Odds &amp; history</span>' +
+      ? '<details class="mqp-details"><summary><span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">History &amp; lean</span>' +
         '<svg class="mqp-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
-        '<ul class="mqp-list"></ul><p class="mqp-note">Historical data and odds, for information only.</p></details>'
+        leanHtml +
+        '<ul class="mqp-list"></ul><p class="mqp-note">Based on historical data, not betting lines. For information only, not betting or financial advice.</p></details>'
       : '';
 
     div.innerHTML =
@@ -5426,6 +5439,8 @@
     if(plusHtml){
       var mqpList = div.querySelector('.mqp-list');
       plusBullets.forEach(function(b){ var li = document.createElement('li'); li.textContent = b; mqpList.appendChild(li); });
+      var mqpBasis = div.querySelector('.mqp-lean-basis');
+      if(mqpBasis) mqpBasis.textContent = plusRow.lean_basis;
     }
     div.querySelector('.cat-label-text').textContent = CATEGORY_LABELS[q.category] || q.category;
     if(isFinal){
@@ -6202,8 +6217,8 @@
     __mqInsights = {};
     if(session){
       try{
-        const insRes = await sb.from('question_insights').select('question_id, bullets').in('question_id', prepared.map(function(p){ return p.q.id; }));
-        (insRes.data || []).forEach(function(r){ if(Array.isArray(r.bullets) && r.bullets.length) __mqInsights[r.question_id] = r.bullets; });
+        const insRes = await sb.from('question_insights').select('question_id, bullets, lean_yes_pct, lean_basis').in('question_id', prepared.map(function(p){ return p.q.id; }));
+        (insRes.data || []).forEach(function(r){ if(Array.isArray(r.bullets) && r.bullets.length) __mqInsights[r.question_id] = r; });
       }catch(e){}
     }
 
