@@ -5395,8 +5395,8 @@
     if(leanYes && plusRow.lean_basis){
       var leanSide = leanYes > 50 ? 'yes' : (leanYes < 50 ? 'no' : 'even');
       var leanShown = leanYes >= 50 ? leanYes : 100 - leanYes;
-      leanHtml = '<div class="mqp-lean"><div class="mqp-lean-top"><span>Historical lean</span>' +
-        '<b class="mqp-lean-pick ' + leanSide + '">' + (leanSide === 'even' ? 'Toss-up 50%' : (leanSide === 'yes' ? 'YES ' : 'NO ') + leanShown + '%') + '</b></div>' +
+      leanHtml = '<div class="mqp-lean"><div class="mqp-lean-top"><span>Marqit+ historical lean</span>' +
+        '<b class="mqp-lean-pick ' + leanSide + '">' + (leanSide === 'even' ? 'Toss-up 50%' : 'Lean ' + (leanSide === 'yes' ? 'YES' : 'NO') + ' · ' + leanShown + '%') + '</b></div>' +
         '<div class="mqp-lean-bar" role="img" aria-label="' + leanYes + ' percent chance of yes"><i style="width:' + leanYes + '%"></i></div>' +
         '<p class="mqp-lean-basis"></p></div>';
     }
