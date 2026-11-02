@@ -302,13 +302,15 @@ The main focus is finance and technology: markets, earnings, stocks, IPOs, AI, c
 
 The question must be a real DEBATE built from THIS story: use the actual names, companies, teams, numbers or events in the headline, so a reader instantly knows which story it is about and has a side to pick. It has to be something fans would genuinely fight about in the comments, with a reasonable case for both Yes and No. Never write a question that could be pasted under any other story.
 
+NAME THE SUBJECT, EVERY TIME. The question must say the actual person, company, team or product by name ("Is Robinhood's Anthropic IPO access a smart buy?", "Are Squarespace's layoffs a smart reset?"). NEVER use "they", "them", "their", "this", "these", "those", "it", "its", "he", "she" or "that" to stand in for the subject, in the setup sentence or in the question. A reader who sees only the question, with no headline, must know exactly who or what it is about. If you cannot name the subject from the headline, return null.
+
 Good (specific, two-sided): "Is Nvidia's $5 trillion valuation a bubble?", "Did Apple overpay for this deal?", "Is Taylor Swift's new album her best yet?", "Is Tesla stock worth $400 after this?", "Is the Lakers' new trade a win?".
 Pick a side people can defend, not a forecast. Prefer judgment questions ("Is X a buy?", "Was X the right call?", "Is X overpaid?", "Is X the best Y?", "Did X just win the week?") over "Will X happen?" questions, which have no argument in them. Use "Will" only when fans would truly split on the outcome (a game, a title, a stock holding a level).
 Bad (generic, never write these): "Is this a big deal?", "Is this story overhyped?", "Does this change anything?", "Are people overreacting?".
 
 Rules:
-- FORMAT: one or two short sentences, max 190 characters, plain spoken. First give the specific fact from THIS story that sets up the argument (a number, a move, a quote-free claim straight from the headline or summary), then ask the Yes/No question that fact raises. Example: "Nvidia just passed $5 trillion in value on AI chip demand. Is that a fair price or a bubble?" Another: "Amazon plans to fund a new nuclear plant in Indiana for its data centers. Is nuclear the right way to power AI?" The setup must be a fact the story states, never your own background knowledge. The question after it must have a real case on both sides, so a reader is pulled to pick Yes or No and then argue it in the comments. Never make the answer obvious, never ask something that is just a fact lookup, and never lead the reader to one side. No "Do you think", no "Should fans". Start the question sentence with Is, Are, Was, Were, Did, Does, Do, Will, Can or Has, not with a name.
-- Give the question real tension: where it fits, name both sides in it ("Is that a fair price or a bubble?", "Smart bet or overpay?", "Right call or a mistake?"). Never write empty questions like "Will this live up to the hype?", "Is this what Apple needs?" or "Can they pull it off?" because nobody has a real argument to make.
+- FORMAT: one or two short sentences, max 190 characters, plain spoken. First give the specific fact from THIS story that sets up the argument (a number, a move, a quote-free claim straight from the headline or summary), then ask the Yes/No question that fact raises. Example: "Nvidia just passed $5 trillion in value on AI chip demand. Is Nvidia's valuation fair or a bubble?" Another: "Amazon plans to fund a new nuclear plant in Indiana for its data centers. Is nuclear the right way to power AI?" The setup must be a fact the story states, never your own background knowledge. The question after it must have a real case on both sides, so a reader is pulled to pick Yes or No and then argue it in the comments. Never make the answer obvious, never ask something that is just a fact lookup, and never lead the reader to one side. No "Do you think", no "Should fans". Start the question sentence with Is, Are, Was, Were, Did, Does, Do, Will, Can or Has, not with a name.
+- Give the question real tension: where it fits, name both sides in it ("Is that a fair price or a bubble?", "Smart bet or overpay?", "Right call or a mistake?"). Never write empty questions like "Will this live up to the hype?", "Is this what Apple needs?" or "Can they pull it off?" (and never any question that says this, they or it instead of the name) because nobody has a real argument to make.
 - Make it detailed but not complicated: a smart friend should get it in one read, with no jargon left unexplained (say "profit per share" not "EPS" unless the story uses the term).
 - Take a firm position: "Is X the best...", "Is X overrated?", "Will X win...", "Is X worth $Y?", "Is X a bubble?", "Is X the GOAT?".
 - NEVER write hedged or weak questions: no "one of the best", no "still", no "can ... win together", no spread, odds, "cover", over/under or betting framing, no "could" or "might".
@@ -331,7 +333,10 @@ const WEAK_Q = /\b(one of the (best|worst|greatest)|cover the spread|the spread|
 // "again", "rematch" and "another" are only allowed when the story itself uses the word.
 const FUTURE_ASSUMPTION_Q = /\b(again|rematch|another|next (game|match|week|round|season|meeting|time)|return(s|ing|ed)?|comeback|recover(s|y|ed|ing)?|back from)\b/i;
 const INJURY_TEXT = /\b(injur\w*|surgery|surgical|hamstring|acl|mcl|meniscus|concussion|sidelined|ruled out|out for the (season|year)|knee (issue|problem|injury)|ankle|fracture\w*|broken (arm|leg|foot|wrist|collarbone|forearm)|torn|strain(ed)?|day-to-day|questionable|doubtful)\b/i;
+// A question must name its subject: "Are they a smart buy?" or "Is this a turnaround?" tell a reader nothing.
+const VAGUE_SUBJECT_Q = /\b(they|them|their|theirs|this|these|those|it|its|he|him|his|she|her|that)\b/i;
 function badQuestion(q: string, source: string): boolean {
+  if (VAGUE_SUBJECT_Q.test(q)) return true;
   if (INJURY_TEXT.test(q) || INJURY_TEXT.test(source)) return true;
   const m = q.match(FUTURE_ASSUMPTION_Q);
   if (m && !new RegExp('\\b' + m[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(source)) return true;
@@ -512,7 +517,7 @@ async function generateTakes(admin: any) {
       if (q && (q.length < 8 || q.length > 200 || !q.endsWith('?') || isBlockedHeadline(q) || WEAK_Q.test(q) || badQuestion(q, storyText) || !isGrounded(q, storyText))) q = null;
       // A rewrite that fails the checks keeps the story's existing question instead of wiping it.
       const upd: any = { take_checked: true };
-      if (q || !row.take_question) upd.take_question = q;
+      if (q || !row.take_question || VAGUE_SUBJECT_Q.test(row.take_question)) upd.take_question = q;
       if (q && TAB_OF[it.lane] && (!row.lane || row.lane === 'news')) upd.lane = TAB_OF[it.lane];
       const { error: uErr } = await admin.from('news_ticker').update(upd).eq('id', row.id);
       if (!uErr) { checked++; if (q) n++; }
