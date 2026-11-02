@@ -185,6 +185,10 @@
   .mqp-lean-bar{height:8px;margin-top:10px;border-radius:100px;background:var(--no-bg);overflow:hidden;}
   .mqp-lean-bar i{display:block;height:100%;background:var(--yes);border-radius:100px 0 0 100px;}
   .mqp-lean-basis{margin-top:10px;font-size:13px;line-height:1.4;color:var(--ink-soft);}
+  .mqp-wait{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;line-height:1.35;color:var(--ink-soft);}
+  .mqp-wait-btn{flex:none;padding:8px 14px;border-radius:100px;border:1px solid #F5C451;background:transparent;color:#F5C451;font:inherit;font-weight:600;cursor:pointer;}
+  .mqp-wait-btn.on{background:#F5C451;color:#1a1a1a;}
+  .mqp-wait-btn:disabled{opacity:.6;}
   .mqp-list{margin:2px 0 0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:1.45;color:var(--ink);}
   .mqp-list li::marker{color:#F5C451;}
   .mqp-note{margin:12px 0 14px;font-size:11.5px;color:var(--ink-soft);}

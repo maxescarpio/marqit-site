@@ -195,6 +195,7 @@
       <summary>Marqit+ insights <span class="pip"></span><span class="sub">5 bullets per question &middot; approve before players see them</span></summary>
       <div class="body">
         <p class="hint">Drafted by Claude from real web search for today's and tomorrow's questions. Check every stat before approving; edit freely. Only approved insights show on the card, as the Marqit+ dropdown for signed-in players.</p>
+        <p class="hint" id="waitlist-count">Marqit+ waitlist: loading&hellip;</p>
         <div id="insights-list"></div>
       </div>
     </details>
@@ -578,6 +579,12 @@
   }
 
   // Marqit+ insights: 5 AI-drafted bullets per question, approved (with edits) before players see them.
+  async function loadWaitlistCount(){
+    const el = document.getElementById('waitlist-count');
+    if(!el) return;
+    const { data, error } = await sb.rpc('admin_marqit_plus_waitlist_count');
+    el.textContent = error ? 'Marqit+ waitlist: unavailable' : ('Marqit+ waitlist: ' + data + (data === 1 ? ' player wants' : ' players want') + ' the paid plan.');
+  }
   async function loadQuestionInsights(){
     const list = document.getElementById('insights-list');
     list.innerHTML = 'Loading…';
@@ -1561,6 +1568,7 @@
       loadTerms();
       loadQuestionDrafts();
       loadQuestionInsights();
+      loadWaitlistCount();
       loadQuestionsForDate();
       loadSuggestions();
       loadWidgets();
