@@ -114,27 +114,27 @@ async function callClaude(apiKey: string, system: string, userMsg: string, deadl
   return null;
 }
 
-const SYSTEM_PROMPT = `You write the "Marqit+" insight panel for Marqit, a free daily prediction game where players call a YES/NO question before it locks. Each question gets exactly ${BULLET_COUNT} short bullet points that help a player make a smarter call: relevant historical data and, where they exist, the odds or probabilities for the outcome.
+const SYSTEM_PROMPT = `You write the "Marqit+" insight panel for Marqit, a free daily prediction game where players call a YES/NO question before it locks. Each question gets exactly ${BULLET_COUNT} short bullet points that help a player make a smarter call: relevant historical data and base rates for the outcome (never betting lines).
 
 HARD RULES
 - Use web search. Every number, record, stat, and odds figure must come from a source you actually found. NEVER invent or estimate a statistic. If you cannot verify something, leave it out and use a different verified fact instead.
 - Be specific and quantitative: real averages, records, head-to-head history, recent form, base rates, consensus forecasts, market-implied probabilities. Name the time frame ("last 10 games", "this season", "since 2020") and the opponent or comparison where it matters.
-- When betting lines, prediction-market prices, or analyst consensus exist for this outcome, include them and say what they imply (e.g. "Sportsbooks have the over at 23.5 points, about a 52% implied chance"). Say "as of <date>" for anything that moves.
-- Cover different angles, one per bullet: (1) the headline historical stat most relevant to the question, (2) head-to-head or similar-situation history, (3) recent form or trend, (4) the odds / market view or base rate, (5) a key factor that could swing it (injury, matchup, lineup, conditions, schedule). Adapt the angles for non-sports questions (earnings expectations, past results, polling, etc.).
+- NEVER cite betting lines, sportsbook odds, spreads, over/under numbers, or prediction-market prices (Kalshi, Polymarket, etc.). Use historical data, base rates, and published statistical models or forecasts (e.g. ESPN FPI, polling-average models) instead. Say "as of <date>" for anything that moves.
+- Cover different angles, one per bullet: (1) the headline historical stat most relevant to the question, (2) head-to-head or similar-situation history, (3) recent form or trend, (4) the base rate or published model view, (5) a key factor that could swing it (injury, matchup, lineup, conditions, schedule). Adapt the angles for non-sports questions (earnings expectations, past results, polling, etc.).
 - Each bullet is one sentence, plain language, ${MAX_BULLET_CHARS} characters or fewer, no emojis, no markdown, no citations or links inside the text.
 - Be neutral. Do not tell the player which way to pick. This is information, not betting advice.
 - Do not state the final result even if it is already known; if the outcome is already public, say so in your JSON instead (see below).
 
 OUTPUT
 Reply with ONE JSON object and nothing after it:
-{"bullets": ["...", "...", "...", "...", "..."]}
-Exactly ${BULLET_COUNT} strings. If you cannot find enough verifiable facts for a question, or the outcome is already public, reply instead with {"skip": "<short reason>"}.`;
+{"bullets": ["...", "...", "...", "...", "..."], "lean_yes_pct": 62, "lean_basis": "..."}
+Exactly ${BULLET_COUNT} strings. lean_yes_pct is a whole number 1-99, your historical lean for the chance the answer is YES. It must come ONLY from historical data (a hit rate over a stated sample) or a published statistical model, never from betting lines or prediction markets. lean_basis is one plain sentence of at most 200 characters naming that history or model and its sample size (e.g. "Hit this in 14 of his last 20 games vs. NY"). If no defensible non-betting basis exists, set both lean_yes_pct and lean_basis to null. Never fake precision. If you cannot find enough verifiable facts for a question, or the outcome is already public, reply instead with {"skip": "<short reason>"}.`;
 
 async function draftInsights(
   apiKey: string,
   q: { question_text: string; category: string; question_date: string; resolution_criteria: string | null; lock_time: string | null },
   deadline: number
-): Promise<{ bullets?: string[]; skip?: string } | null> {
+): Promise<{ bullets?: string[]; lean_yes_pct?: number | null; lean_basis?: string | null; skip?: string } | null> {
   const userMsg =
     `Question: ${q.question_text}\n` +
     `Category: ${CATEGORY_LABELS[q.category] || q.category}\n` +
@@ -153,7 +153,10 @@ async function draftInsights(
       .map((b) => (typeof b === 'string' ? b.replace(/<\/?cite[^>]*>/g, '').trim() : ''))
       .filter((b) => b.length > 0);
     if (bullets.length === BULLET_COUNT && bullets.every((b) => b.length <= MAX_BULLET_CHARS + 40)) {
-      return { bullets };
+      const pct = Number(obj.lean_yes_pct);
+      const basis = typeof obj.lean_basis === 'string' ? obj.lean_basis.replace(/<\/?cite[^>]*>/g, '').trim() : '';
+      const ok = Number.isInteger(pct) && pct >= 1 && pct <= 99 && basis.length > 0 && basis.length <= 220;
+      return { bullets, lean_yes_pct: ok ? pct : null, lean_basis: ok ? basis : null };
     }
     console.error(`Attempt ${attempt}: got ${bullets.length} bullets or one was too long`);
   }
@@ -229,6 +232,8 @@ Deno.serve(async (req) => {
       const { error: insErr } = await admin.from('question_insights').insert({
         question_id: q.id,
         bullets: result.bullets,
+        lean_yes_pct: result.lean_yes_pct ?? null,
+        lean_basis: result.lean_basis ?? null,
         status: 'pending',
         source: 'claude'
       });
