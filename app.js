@@ -5404,7 +5404,7 @@
       ? '<details class="mqp-details"><summary><span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">History &amp; lean</span>' +
         '<svg class="mqp-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
         leanHtml +
-        '<ul class="mqp-list"></ul><p class="mqp-note">Based on historical data, not betting lines. For information only, not betting or financial advice.</p></details>'
+        '<ul class="mqp-list"></ul><p class="mqp-note">Based on historical data, not betting lines. For information only, not betting or financial advice. Marqit+ is always ad-free.</p></details>'
       : '';
 
     div.innerHTML =
