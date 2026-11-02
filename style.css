@@ -167,6 +167,21 @@
   .resolve-details[open] .resolve-chev{transform:rotate(180deg);}
   .resolve-details .resolution-text{margin-top:8px;font-style:italic;}
 
+  /* MARQIT+ insights dropdown on the play card */
+  .mqp-details{margin-top:14px;border:1px solid rgba(245,196,81,0.35);background:rgba(245,196,81,0.06);border-radius:12px;padding:0 14px;}
+  .mqp-details > summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:46px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;}
+  .mqp-details > summary::-webkit-details-marker{display:none;}
+  .mqp-details > summary:focus-visible{outline:2px solid #F5C451;outline-offset:3px;border-radius:8px;}
+  .mqp-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:100px;background:#F5C451;color:#1B1E24;font-size:12px;font-weight:700;letter-spacing:.02em;}
+  .mqp-badge svg{width:12px;height:12px;}
+  .mqp-title{flex:1;font-size:14.5px;font-weight:600;color:var(--ink);}
+  .mqp-chev{color:var(--ink-soft);flex:none;transition:transform .2s ease;}
+  .mqp-details[open] .mqp-chev{transform:rotate(180deg);}
+  .mqp-list{margin:2px 0 0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:1.45;color:var(--ink);}
+  .mqp-list li::marker{color:#F5C451;}
+  .mqp-note{margin:12px 0 14px;font-size:11.5px;color:var(--ink-soft);}
+  @media (prefers-reduced-motion:reduce){.mqp-chev{transition:none;}}
+
   /* HOW IT WORKS */
   .section{padding:36px 0;border-top:1px solid var(--line);}
   .section h2{font-size:clamp(30px,4vw,42px);max-width:14ch;}
