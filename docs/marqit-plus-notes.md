@@ -23,7 +23,13 @@
 7. Attorney review of everything above.
 
 ## Perks built (Nov 2)
-- Marqit+ tab (plus.js), similar past questions, results explained, game/event leans (event_insights), report requests (2/month), My Stats Pro, archive (free = 7 days), My Teams (highlight only), head-to-head, calendar .ics, pick export.
+- Marqit+ tab (plus.js), similar past questions, results explained, game/event leans (event_insights), report requests (2/week since Nov 3), My Stats Pro, archive (free = 7 days), My Teams (highlight only), head-to-head, calendar .ics, pick export.
 - Morning brief email (edge function morning-brief, cron 12:30 UTC, opt-in via profiles.notify_morning_brief). Weekly recap email already existed (free and paid).
 - Gates to change when payments exist: is_marqit_plus() in the database, and the recipient filter in morning-brief.
 - Not built yet: stats by team, bigger private groups, priority support, ad-slot member skip (no ads exist yet).
+
+## Nov 3 changes
+- Report requests limit is now 2 per week (Mon-Sun ET). Coming-soon perks (bigger private groups, priority support) removed from the Marqit+ page until they exist.
+- "Lead with" picker removed; the Play tab now leads with the player's best category by accuracy % (3+ settled picks needed), cached in localStorage and mirrored to profiles.favorite_category.
+- Waitlist switch replaced by a button; public count shows once 25+ players are on the list (marqit_plus_waitlist_public_count).
+- New stylesheet redesign.css (rankings tabs, date strip, request box, Marqit+ page, similar past questions).

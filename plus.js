@@ -23,43 +23,90 @@
   var CAT = { sports: 'Sports', pop_culture: 'Pop culture', news: 'News' };
   function catName(c){ return CAT[c] || (c ? c.replace(/_/g, ' ') : 'Other'); }
 
-  // ---------- perks: one tap-to-open row each, with a plain-English explanation and, where there is one, the tool ----------
+  // ---------- perks: one tap-to-open row each. Body = [lead sentence, [bullet points], small note]; the 4th item opens a tool ----------
   var GROUPS = [
     ['Know more before you pick', [
-      ['History & lean on daily questions', 'live', 'Tap History & lean under any daily question to see 5 bullets of history and a percentage lean, with the data behind it. It is information from past results, not betting lines and not advice.'],
-      ['History & lean on every game and event', 'live', 'Open any game, earnings report or event on the Schedule tab and you will see its history and lean too, not only the three daily questions.', 'schedule'],
-      ['Similar past questions', 'live', 'Under History & lean, tap Similar past questions to see how the closest matching questions from our history ended up.'],
-      ['Results explained', 'live', 'After a question settles, History & lean adds a short note on why it went that way.'],
-      ['Full game or event report', 'live', 'Ask for a full written report on any game or event, even one that is not a Marqit question. Up to 2 per month, ready within 48 hours, historical data only (no betting lines or odds).', 'report']
+      ['History & lean on daily questions', 'live', [
+        'Every daily question has a Marqit+ panel right under it. Open it and you get:',
+        ['Five short bullets of history: how the teams, people or companies involved have done in spots like this one.',
+         'A lean shown as a percentage, with one plain line on what it is based on.',
+         'The numbers behind each bullet, so you can judge them yourself.'],
+        'It is built from past results, not betting lines or odds, and it is information, not advice. The call is still yours.']],
+      ['History & lean on every game and event', 'live', [
+        'The Schedule tab covers far more than the three daily questions. Tap any game, earnings report or event and the same history and lean sit inside it.',
+        ['Look into the games you care about, not just the ones we pick for the day.',
+         'Works across sports, earnings and the rest of the schedule.']], 'schedule'],
+      ['Similar past questions', 'live', [
+        'Under any daily question, Marqit+ lists the closest matches from our archive and how each one settled. We match on names, so a question about a team lines up with earlier questions about that same team.',
+        ['Each match shows its date, the question and how it ended.',
+         'A short tally of those matches sits at the bottom.']]],
+      ['Results explained', 'live', [
+        'Once a question settles, its Marqit+ panel adds a short note on why it went the way it did: what happened, and which fact decided it.',
+        ['Handy for learning what to watch for the next time a similar call comes up.']]],
+      ['Full game or event report', 'live', [
+        'Want more than a few bullets? Ask for a full written report on any game or event, even one that is not a Marqit question. Try “Chiefs vs. Bills” or “Apple earnings.”',
+        ['Up to 2 requests per week.',
+         'Ready within 48 hours, and it shows up right here on this page.',
+         'Historical data only: no betting lines or odds.']], 'report']
     ]],
     ['Your game', [
-      ['My Stats Pro', 'live', 'Your accuracy by category from every settled question you picked, plus your best and toughest categories and your streaks.', 'stats'],
-      ['Head-to-head with buddies', 'live', 'Your record against a buddy on questions you both picked. No prizes, just bragging rights.', 'head'],
-      ['My Teams and topics', 'live', 'Follow teams and topics. Questions and schedule items that mention them get a gold highlight. Highlighting only: no extra alerts.', 'follows'],
-      ['Question archive', 'live', 'Search every past question and how it settled. Players without Marqit+ see the last 7 days.', 'archive']
+      ['My Stats Pro', 'live', [
+        'Your accuracy across every settled question you have picked, broken down by category.',
+        ['Overall percentage and record.',
+         'Your best and toughest categories, once you have 3 or more settled picks in them.',
+         'Your current and longest streaks.'],
+        'Marqit also uses your best category to decide what leads on your Play tab.'], 'stats'],
+      ['Head-to-head with buddies', 'live', [
+        'Your record against each buddy, counting only questions you both picked that have settled.',
+        ['A simple You vs. Buddy tally, with ties counted separately.',
+         'No prizes involved. Just who has been calling it better.']], 'head'],
+      ['My Teams and topics', 'live', [
+        'Follow teams and topics, like the Lakers or Tesla. Any question or schedule item that mentions them gets a gold highlight.',
+        ['Follow up to 30.',
+         'Highlighting only. We do not send extra alerts for follows.']], 'follows'],
+      ['Question archive', 'live', [
+        'Search every question we have ever asked and see how each one settled.',
+        ['Search by team, person or company, and filter by category.',
+         'Players without Marqit+ see the last 7 days. Marqit+ sees all of it.']], 'archive']
     ]],
     ['Take it with you', [
-      ['Morning brief email', 'live', 'A short email each morning with the history behind that day\u2019s questions. Off until you turn it on.', 'brief'],
-      ['Weekly recap email', 'live', 'Every Monday, an email with your week: picks, accuracy and streak. This one is free for everyone and can be turned off any time.'],
-      ['Calendar sync', 'live', 'Download the next 30 days of the Marqit schedule as a calendar file for your phone or computer.', 'calendar'],
-      ['Pick history export', 'live', 'Download every pick you have made as a spreadsheet.', 'export']
+      ['Morning brief email', 'live', [
+        'A short email each morning with the history behind that day’s questions, so you can read it before you pick.',
+        ['Off until you turn it on, and one switch turns it off again.',
+         'Only sent on days that have history ready.']], 'brief'],
+      ['Weekly recap email', 'live', [
+        'Every Monday, an email with your week: picks, accuracy and streak.',
+        ['Free for everyone, Marqit+ or not.',
+         'Turn it off any time.']]],
+      ['Calendar sync', 'live', [
+        'Download the next 30 days of the Marqit schedule as a calendar file (.ics) that opens in Apple Calendar, Google Calendar or Outlook.',
+        ['Option to include only your followed teams and topics.']], 'calendar'],
+      ['Pick history export', 'live', [
+        'Download every pick you have made as a spreadsheet (CSV): date, category, question, your pick, the answer and whether you got it right.',
+        ['Yours to keep, sort or chart however you like.']], 'export']
     ]],
     ['Always', [
-      ['Always ad-free', 'live', 'Marqit+ will never show you display or video ads. There are none today, and if we ever add them, Marqit+ members will not see them.']
-    ]],
-    ['Coming soon', [
-      ['Bigger private groups', 'soon', 'Larger buddy groups with their own leaderboards. No prizes attached.'],
-      ['Priority support', 'soon', 'Faster replies when you write to us.']
+      ['Always ad-free', 'live', [
+        'Marqit+ members never have to sit through ads.',
+        ['If display or video ads come to Marqit, members skip all of them.',
+         'No ad ever stands between you and your calls.']]]
     ]]
   ];
   var TOOLS = { stats: statsCard, head: headCard, follows: followsCard, archive: archiveCard, brief: briefCard, calendar: calendarCard, export: exportCard, report: reportCard };
   var NEEDS_SIGN_IN = { stats: 1, head: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
+  function perkBody(body){
+    if(typeof body === 'string'){ body = [body]; }
+    var wrap = h('div', 'plus-perk-copy');
+    if(body[0]) wrap.appendChild(h('p', 'plus-sub', body[0]));
+    if(body[1] && body[1].length){ var ul = h('ul', 'plus-points'); body[1].forEach(function(t){ ul.appendChild(h('li', null, t)); }); wrap.appendChild(ul); }
+    if(body[2]) wrap.appendChild(h('p', 'plus-fine', body[2]));
+    return wrap;
+  }
   function perkRow(p){
     var d = h('details', 'plus-perk');
     var sm = h('summary'); sm.appendChild(h('span', 'plus-perk-t', p[0]));
-    sm.appendChild(h('em', 'plus-pill ' + p[1], p[1] === 'live' ? 'Live' : 'Soon'));
     d.appendChild(sm);
-    var body = h('div', 'plus-perk-body'); body.appendChild(h('p', 'plus-sub', p[2])); d.appendChild(body);
+    var body = h('div', 'plus-perk-body'); body.appendChild(perkBody(p[2])); d.appendChild(body);
     var tool = p[3], loaded = false;
     d.addEventListener('toggle', async function(){
       if(!d.open || loaded) return;
@@ -291,10 +338,10 @@
 
   // ---------- Request a full report ----------
   async function reportCard(){
-    var c = section('Request a full game or event report', 'Pick any game or event, even one that is not a Marqit question, and we will write you a report of the historical data. Up to 2 per month, delivered within 48 hours. Historical data only: no betting lines or odds.');
+    var c = section('Request a full game or event report', 'Pick any game or event, even one that is not a Marqit question, and we will write you a report of the historical data. Up to 2 per week, delivered within 48 hours. Historical data only: no betting lines or odds.');
     var say = msg(c);
     var form = h('div', 'plus-form col');
-    var subj = h('input', 'plus-in'); subj.placeholder = 'Which game or event? (e.g. Florida State vs. Clemson, Saturday)'; subj.maxLength = 140; subj.setAttribute('aria-label', 'Game or event');
+    var subj = h('input', 'plus-in'); subj.placeholder = 'Which game or event? (e.g. Chiefs vs. Bills, Sunday)'; subj.maxLength = 140; subj.setAttribute('aria-label', 'Game or event');
     var det = h('textarea', 'plus-in'); det.placeholder = 'Anything specific you want covered? (optional)'; det.maxLength = 500; det.rows = 2; det.setAttribute('aria-label', 'Details');
     form.appendChild(subj); form.appendChild(det);
     var mine = h('div', 'plus-reqs');
@@ -336,27 +383,47 @@
     return c;
   }
 
-  // ---------- "tell me when it becomes a paid plan" ----------
+  // ---------- "tell me when paid plans open": one clear button, plus a count of players who are waiting ----------
   async function waitlistRow(){
-    if(!session) return null;
-    var mine = await sb.from('marqit_plus_waitlist').select('user_id').eq('user_id', session.user.id).maybeSingle();
-    var joined = !!(mine && mine.data);
+    var count = 0;
+    try{ var c = await sb.rpc('marqit_plus_waitlist_public_count'); if(c && typeof c.data === 'number') count = c.data; }catch(e){}
+    var joined = false;
+    if(session){
+      var mine = await sb.from('marqit_plus_waitlist').select('user_id').eq('user_id', session.user.id).maybeSingle();
+      joined = !!(mine && mine.data);
+    }
     var row = h('div', 'plus-wait');
     var copy = h('div', 'plus-wait-copy');
-    copy.appendChild(h('b', null, 'Marqit+ is free right now'));
-    var line = h('span', null); copy.appendChild(line);
-    var sw = h('button', 'plus-switch'); sw.type = 'button'; sw.setAttribute('role', 'switch');
-    sw.appendChild(h('i'));
-    function paint(){ sw.setAttribute('aria-checked', joined ? 'true' : 'false'); sw.setAttribute('aria-label', 'Notify me when Marqit+ paid plans launch'); line.textContent = joined ? 'You\u2019re on the list. We\u2019ll let you know when paid plans launch.' : 'Switch this on and we\u2019ll let you know when paid plans launch.'; }
-    sw.addEventListener('click', async function(){
-      sw.disabled = true;
-      try{
-        if(joined){ await sb.from('marqit_plus_waitlist').delete().eq('user_id', session.user.id); joined = false; }
-        else { var ins = await sb.from('marqit_plus_waitlist').insert({ user_id: session.user.id }); if(!ins.error) joined = true; }
-      }catch(e){}
-      sw.disabled = false; paint();
+    var title = h('b', null, 'Marqit+ is free for every player right now');
+    var line = h('span', 'plus-wait-line');
+    var tally = h('span', 'plus-wait-count');
+    copy.appendChild(title); copy.appendChild(line); copy.appendChild(tally);
+    var action = h('div', 'plus-wait-action');
+    var main = h('button', 'plus-wait-btn'); main.type = 'button';
+    var undo = h('button', 'plus-wait-undo', 'Remove me'); undo.type = 'button';
+    action.appendChild(main); action.appendChild(undo);
+    function paint(){
+      row.classList.toggle('joined', joined);
+      if(!session){ line.textContent = 'When paid plans open, we will tell you first. Create a free account to get on the list.'; main.textContent = 'Sign up free'; undo.hidden = true; }
+      else if(joined){ line.textContent = 'You are on the list. We will email you before paid plans open, and you will have time to decide.'; main.textContent = 'You’re on the list'; main.disabled = true; undo.hidden = false; }
+      else { line.textContent = 'Paid plans are coming later. Get on the list and we will email you before they open.'; main.textContent = 'Keep me posted'; main.disabled = false; undo.hidden = true; }
+      main.setAttribute('aria-pressed', joined ? 'true' : 'false');
+      tally.textContent = count >= 25 ? count.toLocaleString() + ' players are on the list' : '';
+      tally.hidden = !tally.textContent;
+    }
+    main.addEventListener('click', async function(){
+      if(!session){ var s = document.getElementById('cta-open-signup'); if(s) s.click(); return; }
+      if(joined) return;
+      main.disabled = true;
+      try{ var ins = await sb.from('marqit_plus_waitlist').insert({ user_id: session.user.id }); if(!ins.error){ joined = true; count++; } }catch(e){}
+      paint();
     });
-    paint(); row.appendChild(copy); row.appendChild(sw);
+    undo.addEventListener('click', async function(){
+      undo.disabled = true;
+      try{ var del = await sb.from('marqit_plus_waitlist').delete().eq('user_id', session.user.id); if(!del.error){ joined = false; count = Math.max(0, count - 1); } }catch(e){}
+      undo.disabled = false; paint();
+    });
+    paint(); row.appendChild(copy); row.appendChild(action);
     return row;
   }
 
