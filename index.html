@@ -138,6 +138,7 @@
       <div id="join-signup-fields" style="display:contents;">
         <input type="text" id="username-input" placeholder="username" autocomplete="off" required maxlength="24">
         <input type="text" id="state-input" placeholder="state" autocomplete="address-level1" maxlength="40">
+        <input type="text" id="referral-code-input" placeholder="referral code (optional)" autocomplete="off" autocapitalize="none" autocorrect="off" maxlength="20">
       </div>
       <input type="email" id="email-input" placeholder="you@email.com" autocomplete="email" required>
       <input type="password" id="password-input" placeholder="password" autocomplete="new-password" required minlength="8">
@@ -182,6 +183,7 @@
     <div style="font-family:'Big Shoulders Display',sans-serif; font-weight:700; font-size:18px; margin-bottom:6px;">Welcome to Marqit!</div>
     <p style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;">Pick a username — this is what shows on leaderboards and your buddy's feed.</p>
     <input type="text" id="username-prompt-input" maxlength="24" placeholder="username" style="width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink); margin-bottom:10px;">
+    <input type="text" id="username-prompt-ref-input" maxlength="20" placeholder="Referral code (optional)" autocomplete="off" autocapitalize="none" autocorrect="off" style="width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink); margin-bottom:10px;">
     <button type="button" id="username-prompt-save-btn" style="width:100%; padding:11px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Save username</button>
     <p class="form-msg" id="username-prompt-msg" style="margin-top:4px;"></p>
   </div>
@@ -860,7 +862,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261103b" defer></script>
+<script src="app.js?v=20261103c" defer></script>
 <script src="plus.js?v=20261103a" defer></script>
 
 
