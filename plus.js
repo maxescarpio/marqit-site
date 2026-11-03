@@ -462,12 +462,61 @@
     return box;
   }
 
+
+  // ---------- coming back from Stripe Checkout: ?plus=success or ?plus=cancelled ----------
+  var returned = null, POLL_MS = 2000;
+  try{
+    var rp = new URLSearchParams(location.search).get('plus');
+    if(rp === 'success' || rp === 'cancelled') returned = rp;
+  }catch(e){}
+  function returnBanner(){
+    if(!returned) return null;
+    var state = returned; returned = null; // show once
+    try{ var u = new URL(location.href); u.searchParams.delete('plus'); history.replaceState(null, '', u.pathname + u.search + u.hash); }catch(e){}
+    var box = h('div', 'plus-tool plus-return');
+    box.setAttribute('role', 'status');
+    var title = h('b', null);
+    var line = h('p', 'plus-msg');
+    box.appendChild(title); box.appendChild(line);
+    if(state === 'cancelled'){
+      title.textContent = 'No charge was made';
+      line.textContent = 'You left checkout before paying, so nothing was charged. You can try again any time.';
+      return box;
+    }
+    title.textContent = 'Thanks! Finishing your Marqit+ setup…';
+    line.textContent = 'Your payment went through. This usually takes a few seconds.';
+    var tries = 0;
+    (function tick(){
+      var done = Promise.resolve(null);
+      if(session){
+        done = Promise.resolve(sb.from('marqit_plus_subscriptions').select('status').eq('user_id', session.user.id).maybeSingle())
+          .then(function(r){ return r && r.data ? r.data.status : null; }, function(){ return null; });
+      }
+      done.then(function(st){
+        if(st === 'active' || st === 'trialing'){
+          title.textContent = 'Marqit+ is active';
+          line.textContent = 'Thanks for subscribing. Everything on this page is yours to use.';
+        } else if(++tries < 15){
+          setTimeout(tick, POLL_MS);
+        } else {
+          title.textContent = 'Your payment went through';
+          line.textContent = 'It is taking a little longer than usual to show up here. Refresh this page in a minute, or email help@playmarqit.com and we will sort it out.';
+        }
+      });
+    })();
+    return box;
+  }
+  if(returned){
+    setTimeout(function(){ var tab = document.querySelector('.pagenav-tab[data-page="plus"]'); if(tab) tab.click(); }, 400);
+  }
+
   // ---------- page ----------
   async function render(){
     root = document.getElementById('plus-root'); if(!root) return;
     var s = await sb.auth.getSession(); session = s.data.session;
     await loadFollows();
     root.textContent = '';
+    var rb = returnBanner(); if(rb) root.appendChild(rb);
     var tp = await testPanel(); if(tp) root.appendChild(tp);
     var wl = await waitlistRow(); if(wl) root.appendChild(wl);
     root.appendChild(perksList());
