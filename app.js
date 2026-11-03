@@ -5226,7 +5226,7 @@
   // percentages and buddy lines on the cards themselves -- a person's pick
   // on question q only appears here once the signed-in user has voted on
   // q themselves (or q is locked), so this can't be used to peek ahead.
-  // Buddy lines for one question: de-duplicated, first two shown, the rest behind a "more" toggle.
+  // Buddy lines for one question: de-duplicated, first one shown, the rest behind a "more" toggle.
   function mqBuddyBlockHtml(buddyList, qid, myVote){
     var seen = {}, lines = [];
     (buddyList || []).forEach(function(b){
@@ -5236,7 +5236,7 @@
       lines.push('<div class="ticket-meta buddy-line" data-buddy-id="' + b.id + '" style="color:var(' + (same ? '--yes' : '--no') + ');">' + mqBuddyInner(b.username, pick, same) + '</div>');
     });
     if(!lines.length) return '';
-    var head = lines.slice(0, 2).join(''), rest = lines.slice(2);
+    var head = lines.slice(0, 1).join(''), rest = lines.slice(1);
     return '<div class="buddy-wrap">' + head + (rest.length ? '<details class="buddy-more"><summary>+ ' + rest.length + ' more buddies</summary>' + rest.join('') + '</details>' : '') + '</div>';
   }
   function mqBuddyInner(name, pick, sameSide){
@@ -5655,7 +5655,7 @@
     wrap.style.cssText = 'border-top:1px solid var(--line); margin-top:24px; padding-top:24px;';
 
     const box = document.createElement('div');
-    box.style.cssText = 'max-width:480px; background:var(--paper); border:2px solid var(--yes); border-radius:16px; padding:20px 22px;';
+    box.className = 'sg-box';
 
     // Tomorrow's date in ET, used as the earliest date someone can request.
     const etParts = getETDateInfo().dateStr.split('-').map(Number);
@@ -5664,23 +5664,18 @@
     const minDateStr = tomorrowUTC.toISOString().slice(0, 10);
 
     box.innerHTML =
-      '<div style="display:flex; align-items:center; gap:8px;">' +
-        '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--yes)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a6 6 0 0 0-4 10.5c.6.5 1 1.3 1 2.1V15h6v-.4c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 2z"/></svg>' +
-        '<p class="ticket-q" style="max-width:none; margin:0;">Request a prediction</p>' +
-      '</div>' +
-      '<p class="ticket-meta">Got an idea for a future call? Tell us what, and which day.</p>' +
-      '<div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; margin-bottom:8px;">' +
+      '<p class="sg-title">Request a prediction</p>' +
+      '<p class="sg-sub">Got an idea for a future call? Pick a category and a day.</p>' +
       '<div class="sg-pills" id="suggestion-pills" role="group" aria-label="Category"><button type="button" class="on" data-cat="sports">Sports</button><button type="button" data-cat="pop_culture">Pop culture</button><button type="button" data-cat="news">News</button></div>' +
       '<select id="suggestion-category" hidden>' +
         '<option value="sports">Sports</option>' +
         '<option value="pop_culture">Pop culture</option>' +
         '<option value="news">News</option>' +
       '</select>' +
-      '<input type="date" id="suggestion-date" class="sg-date" min="' + minDateStr + '" value="' + minDateStr + '">' +
-      '</div>' +
-      '<textarea id="suggestion-text" rows="2" maxlength="300" placeholder="What should we ask?" style="display:block; width:100%; box-sizing:border-box; padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-family:inherit; font-size:14px; resize:none;"></textarea>' +
-      '<button type="button" id="suggestion-submit-btn" style="margin-top:10px; padding:10px 22px; border:none; border-radius:10px; background:#FFFFFF; color:#17191D; font-family:inherit; font-weight:600; font-size:15px; cursor:pointer;">Pitch idea</button>' +
-      '<p class="form-msg" id="suggestion-msg" style="margin-top:6px;"></p>';
+      '<label class="sg-field"><span>Day</span><input type="date" id="suggestion-date" class="sg-date" min="' + minDateStr + '" value="' + minDateStr + '"></label>' +
+      '<textarea id="suggestion-text" class="sg-text" rows="3" maxlength="300" placeholder="What should we ask?"></textarea>' +
+      '<button type="button" id="suggestion-submit-btn" class="sg-submit">Pitch idea</button>' +
+      '<p class="form-msg" id="suggestion-msg"></p>';
     wrap.appendChild(box);
     const host = document.getElementById('play-suggest') || container;
     if(host !== container) host.innerHTML = '';
@@ -5913,8 +5908,8 @@
   }
   function mqFavRowHtml(){
     var f = mqFav();
-    return '<div class="fav-row" role="group" aria-label="Lead with"><span class="fav-lab">Lead with</span>' +
-      MQ_FAV_CATS.map(function(c){ return '<button type="button" class="feed-chip fav-chip' + (f === c[0] ? ' on' : '') + '" data-fav="' + c[0] + '" aria-pressed="' + (f === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div>';
+    return '<div class="fav-row" role="group" aria-label="Lead with"><span class="fav-lab">Lead with</span><div class="seg">' +
+      MQ_FAV_CATS.map(function(c){ return '<button type="button" class="fav-chip' + (f === c[0] ? ' on' : '') + '" data-fav="' + c[0] + '" aria-pressed="' + (f === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div></div>';
   }
 
   async function loadDailyQuestionsInner(){
@@ -8058,19 +8053,29 @@
     wrap.setAttribute('data-loaded', '1'); body.hidden = false;
     body.textContent = '';
     if(!rows.length){ var none = document.createElement('p'); none.className = 'mqp-sim-none'; none.textContent = 'No close matches in our history yet.'; body.appendChild(none); return; }
-    var yes = rows.filter(function(r){ return r.correct_answer === 'yes'; }).length;
-    var sum = document.createElement('p'); sum.className = 'mqp-sim-sum';
-    sum.textContent = 'In the ' + rows.length + ' most similar past questions, YES won ' + yes + ' and NO won ' + (rows.length - yes) + '.';
-    body.appendChild(sum);
+    var shownRows = rows.slice(0, 5);
+    var yes = shownRows.filter(function(r){ return r.correct_answer === 'yes'; }).length;
+    var hasShared = shownRows.some(function(r){ return r.shared && r.shared.length; });
+    var intro = document.createElement('p'); intro.className = 'mqp-sim-sum';
+    intro.textContent = hasShared ? 'Past questions that share a team or name with this one:' : 'Closest past questions:';
+    body.appendChild(intro);
     var ul = document.createElement('ul'); ul.className = 'mqp-sim-list';
-    rows.slice(0, 4).forEach(function(r){
+    shownRows.forEach(function(r){
       var li = document.createElement('li');
       var d = new Date(r.question_date + 'T12:00:00Z').toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: 'UTC' });
       var chip = document.createElement('b'); chip.className = r.correct_answer; chip.textContent = r.correct_answer.toUpperCase();
-      var t = document.createElement('span'); t.textContent = d + ' · ' + r.question_text;
+      var t = document.createElement('span');
+      var q = document.createElement('span'); q.className = 'mqp-sim-q'; q.textContent = r.question_text;
+      var meta = document.createElement('span'); meta.className = 'mqp-sim-meta'; meta.textContent = d + (r.shared && r.shared.length ? ' \u00b7 ' + r.shared.join(', ') : '');
+      t.appendChild(q); t.appendChild(meta);
       li.appendChild(chip); li.appendChild(t); ul.appendChild(li);
     });
     body.appendChild(ul);
+    if(shownRows.length >= 3){
+      var tally = document.createElement('p'); tally.className = 'mqp-sim-tally';
+      tally.textContent = 'Result of these: YES ' + yes + ', NO ' + (shownRows.length - yes) + '.';
+      body.appendChild(tally);
+    }
   });
   // Key for a schedule item: the ET day, the league and the title with only letters and numbers.
   function mqEvKey(ev){

@@ -2380,3 +2380,41 @@ a.mq-ss-ig{text-decoration:none}
 .fav-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
 .fav-row .fav-lab{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-right:2px;}
 .fav-row .fav-chip{min-height:32px;padding:0 12px;font-size:13px;}
+
+/* ---- Cleaner controls (Nov 2): flat rectangular tabs and segmented controls instead of round pill buttons ---- */
+.feed-chip,.topic-chips .feed-chip,.feed-chips.src-chips .feed-chip,.thread-sort .feed-chip,.cat-tab,.rk-tabs button,.rk-cats button,.mqp-sim-btn{
+  border-radius:7px;border:1px solid var(--line);background:#16181C;color:#868B95;box-shadow:none;opacity:1;letter-spacing:.02em;
+  transition:color .15s,background .15s,border-color .15s}
+.feed-chip,.topic-chips .feed-chip,.feed-chips.src-chips .feed-chip,.thread-sort .feed-chip{min-height:34px;padding:0 13px;font-size:13px;font-weight:600}
+.feed-chip:hover,.cat-tab:hover,.rk-tabs button:hover,.rk-cats button:hover,.mqp-sim-btn:hover{color:#D5D8DE;border-color:#3A3E46;background:#16181C}
+.feed-chip.on,.topic-chips .feed-chip.on,.cat-tab.active,.cat-tab.on,.rk-tabs button.on,.rk-cats button.on{background:#262A32;border-color:#3A3E46;color:#fff;box-shadow:none}
+.mqp-sim-btn{padding:8px 14px;font-size:13px;font-weight:600;color:#C9CDD4}
+/* small mutually exclusive groups become one joined segmented control */
+.seg,.sg-pills,.co-per{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:10px;background:#16181C;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar,.sg-pills::-webkit-scrollbar,.co-per::-webkit-scrollbar{display:none}
+.seg button,.sg-pills button,.co-per button{flex:1 0 auto;height:auto;min-height:32px;min-width:0;padding:7px 14px;border:0;border-radius:7px;background:none;color:#868B95;box-shadow:none;
+  font:600 12px/1 'Barlow',sans-serif;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;cursor:pointer;margin:0;transition:color .15s,background .15s}
+.seg button:hover,.sg-pills button:hover,.co-per button:hover{color:#D5D8DE;border:0}
+.seg button.on,.sg-pills button.on,.co-per button.on{background:#262A32;color:#fff}
+.fav-row .fav-lab{font-size:11.5px;font-weight:600;letter-spacing:.1em}
+/* square off the round select and date inputs to match */
+.h2h-sel,.sg-date{border-radius:7px;background-color:#16181C}
+/* the request-a-prediction box */
+.sg-box{max-width:480px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:22px}
+.sg-title{margin:0;font-size:17px;font-weight:700;letter-spacing:.01em;color:var(--ink)}
+.sg-sub{margin:4px 0 16px;font-size:13.5px;color:var(--ink-soft)}
+.sg-box .sg-pills{display:flex;width:100%;box-sizing:border-box}
+.sg-field{display:flex;align-items:center;gap:12px;margin:14px 0 0}
+.sg-field span{flex:none;font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+.sg-field .sg-date{flex:1 1 auto;min-width:0;height:40px}
+.sg-text{display:block;width:100%;box-sizing:border-box;margin-top:14px;padding:11px 12px;border:1px solid var(--line);border-radius:7px;background:#111317;color:var(--ink);font:inherit;font-size:14px;line-height:1.4;resize:none}
+.sg-text:focus{outline:none;border-color:#6E737D}
+.sg-submit{display:block;width:100%;margin-top:14px;height:42px;border:0;border-radius:7px;background:#F2F3F5;color:#15171B;font:600 14px 'Barlow',sans-serif;letter-spacing:.02em;cursor:pointer;transition:background .15s}
+.sg-submit:hover{background:#fff}
+.sg-submit:disabled{opacity:.55;cursor:default}
+/* similar past questions: matchup line plus what it shares with this one */
+.mqp-sim-list li{align-items:start}
+.mqp-sim-list b{border-radius:4px;min-width:34px;text-align:center}
+.mqp-sim-q{display:block;font-size:13.5px;line-height:1.35}
+.mqp-sim-meta{display:block;margin-top:2px;font-size:12px;color:var(--ink-soft)}
+.mqp-sim-tally{margin:10px 0 0;font-size:13px;font-weight:600}
