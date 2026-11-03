@@ -1030,6 +1030,19 @@
       return { username: existing.username, needsUsername: isPlaceholder };
     }
 
+    // No profile row. Before creating one, make sure this login still exists on the server. A login for an
+    // account that was deleted (a removed test account, say) must be signed out, not asked to pick a username.
+    try{
+      const check = await sb.auth.getUser();
+      if(check.error || !check.data || !check.data.user){
+        const msg = String((check.error && check.error.message) || '');
+        if(/does not exist|not found|invalid jwt|sub claim/i.test(msg) || (!check.error && !(check.data && check.data.user))){
+          await sb.auth.signOut();
+          return 'BANNED'; // callers stop here; the sign-out resets the page
+        }
+      }
+    }catch(e){}
+
     const hadNoUsername = !(user.user_metadata && user.user_metadata.username);
     let username = (user.user_metadata && user.user_metadata.username) || ('user_' + user.id.slice(0, 8));
     const state = (user.user_metadata && user.user_metadata.state) || null;
@@ -1101,6 +1114,11 @@
       }
     }
 
+    if(insertErr && insertErr.code === '23503' && /profiles_id_fkey|auth\.users|"users"/i.test(String(insertErr.message || '') + String(insertErr.details || ''))){
+      // The login points at an account that no longer exists: sign out instead of showing the username box.
+      await sb.auth.signOut();
+      return 'BANNED';
+    }
     if(insertErr && insertErr.code !== '23505'){
       // Not a duplicate: try once more after a short wait (the session token
       // can lag a moment behind the sign-in event), then record the failure.
