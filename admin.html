@@ -154,6 +154,7 @@
     <button class="tab" data-tab="content">Content</button>
     <button class="tab" data-tab="widgets">Widgets<span class="pip" id="pip-widgets"></span></button>
     <button class="tab" data-tab="groups">Groups</button>
+    <button class="tab" data-tab="ambassadors">Ambassadors</button>
   </nav>
 </header>
 
@@ -436,6 +437,24 @@
       <div class="body">
         <p class="hint">Every group on the Top Groups, Head-to-Head and weekly matchup boards.</p>
         <div id="groups-list">Loading&hellip;</div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ===================== AMBASSADORS ===================== -->
+  <section class="panel" id="panel-ambassadors">
+    <details class="card" open>
+      <summary>Monthly ambassador report <span class="sub">signups, subscribers, what you owe</span></summary>
+      <div class="body">
+        <p class="hint">Each ambassador earns $5 once per subscriber who paid, is still subscribed at day 30 and was not refunded. &ldquo;Owed&rdquo; is what is eligible right now. Pay only when it is $25 or more, the agreement is signed and the W-9 is in. Send the money yourself, then press Mark paid.</p>
+        <div class="row" style="gap:8px; align-items:flex-end;">
+          <div style="flex:none;"><label>Month</label><input type="month" id="amb-month"></div>
+          <button id="amb-refresh" class="primary" style="flex:none;">Refresh</button>
+          <button id="amb-csv" style="flex:none;">Download CSV</button>
+        </div>
+        <div id="amb-totals" class="note" style="margin:12px 0 6px;"></div>
+        <div id="amb-table" style="overflow-x:auto;">Loading&hellip;</div>
+        <p class="msg" id="amb-msg" style="display:none; margin-top:10px; padding:10px 12px;"></p>
       </div>
     </details>
   </section>
@@ -1644,8 +1663,80 @@
     loadScheduleAdmin();
   });
 
+
+  /* ---------- Ambassadors report ---------- */
+  var ambRows = [];
+  function ambEsc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function ambUsd(c){ return '$' + (Number(c || 0) / 100).toFixed(2); }
+  function ambMsg(t, bad){ var m = document.getElementById('amb-msg'); m.textContent = t; m.style.display = t ? '' : 'none'; m.style.color = bad ? 'var(--no)' : 'var(--yes)'; }
+  function ambMonthValue(){
+    var v = document.getElementById('amb-month').value;
+    if(!v){ var d = new Date(); v = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); document.getElementById('amb-month').value = v; }
+    return v + '-01';
+  }
+  function ambReady(r){ return r.status === 'active' && r.agreement_signed && r.w9_received && r.owed_cents >= 2500; }
+  function ambBlocker(r){
+    if(r.owed_cents < 2500) return 'under $25';
+    if(r.status !== 'active') return 'not active';
+    if(!r.agreement_signed) return 'no agreement';
+    if(!r.w9_received) return 'no W-9';
+    return '';
+  }
+  async function loadAmbassadors(){
+    var box = document.getElementById('amb-table');
+    box.innerHTML = 'Loading&hellip;';
+    var res = await sb.rpc('admin_ambassador_report', { p_month: ambMonthValue() });
+    if(res.error){ box.innerHTML = '<p class="hint">Error: ' + ambEsc(res.error.message) + '</p>'; return; }
+    ambRows = res.data || [];
+    var tot = ambRows.reduce(function(t, r){ t.signups += r.signups_month; t.subs += r.subscribers_month; t.owed += r.owed_cents; t.pending += r.pending_cents; t.paid += r.paid_month_cents; return t; }, { signups: 0, subs: 0, owed: 0, pending: 0, paid: 0 });
+    document.getElementById('amb-totals').innerHTML = 'This month: <b>' + tot.signups + '</b> signups &middot; <b>' + tot.subs + '</b> paying subscribers &middot; paid out <b>' + ambUsd(tot.paid) + '</b>. Right now: owed <b>' + ambUsd(tot.owed) + '</b> &middot; pending (not yet 30 days) <b>' + ambUsd(tot.pending) + '</b>.';
+    if(!ambRows.length){ box.innerHTML = '<p class="hint">No ambassadors yet.</p>'; return; }
+    var head = ['Ambassador','Status','Signups (month / all)','Paying subs (month / all)','Pending','Owed','Paid (all time)','Void','Checks',''];
+    box.innerHTML = '<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr>' +
+      head.map(function(h){ return '<th style="text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap;">' + h + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      ambRows.map(function(r){
+        var blocker = ambBlocker(r);
+        return '<tr data-id="' + ambEsc(r.id) + '">' +
+          '<td style="padding:6px 8px;"><b>' + ambEsc(r.name) + '</b><br><span style="color:var(--ink-soft);">' + ambEsc(r.code) + ' &middot; ' + ambEsc(r.kind) + (r.school ? ' &middot; ' + ambEsc(r.school) : '') + '</span></td>' +
+          '<td style="padding:6px 8px;">' + ambEsc(r.status) + '</td>' +
+          '<td style="padding:6px 8px;">' + r.signups_month + ' / ' + r.signups_total + '</td>' +
+          '<td style="padding:6px 8px;">' + r.subscribers_month + ' / ' + r.subscribers_total + '</td>' +
+          '<td style="padding:6px 8px;">' + ambUsd(r.pending_cents) + ' (' + r.pending_count + ')</td>' +
+          '<td style="padding:6px 8px;"><b>' + ambUsd(r.owed_cents) + '</b> (' + r.eligible_count + ')</td>' +
+          '<td style="padding:6px 8px;">' + ambUsd(r.paid_cents) + '</td>' +
+          '<td style="padding:6px 8px;">' + r.void_count + '</td>' +
+          '<td style="padding:6px 8px;">' + (r.agreement_signed ? 'agreement &#10003;' : 'agreement &#10007;') + '<br>' + (r.w9_received ? 'W-9 &#10003;' : 'W-9 &#10007;') + '<br><span style="color:var(--ink-soft);">' + ambEsc((r.payout_method || 'no method') + (r.payout_handle ? ': ' + r.payout_handle : '')) + '</span></td>' +
+          '<td style="padding:6px 8px;">' + (ambReady(r) ? '<button class="primary amb-pay" style="flex:none;">Mark paid</button>' : '<span style="color:var(--ink-soft);">' + ambEsc(blocker) + '</span>') + '</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table>';
+    box.querySelectorAll('.amb-pay').forEach(function(btn){
+      btn.addEventListener('click', async function(){
+        var id = btn.closest('tr').getAttribute('data-id');
+        var r = ambRows.filter(function(x){ return x.id === id; })[0];
+        if(!r || !window.confirm('Only press OK AFTER you have sent ' + ambUsd(r.owed_cents) + ' to ' + r.name + '. Mark these payouts as paid?')) return;
+        btn.disabled = true;
+        var out = await sb.rpc('admin_mark_ambassador_paid', { p_ambassador: id });
+        if(out.error){ ambMsg('Could not mark paid: ' + out.error.message, true); btn.disabled = false; return; }
+        ambMsg('Marked ' + out.data + ' payout' + (out.data === 1 ? '' : 's') + ' as paid for ' + r.name + '.');
+        loadAmbassadors();
+      });
+    });
+  }
+  function ambCsvCell(v){ var s = String(v == null ? '' : v); if(/^[=+\-@]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; }
+  document.getElementById('amb-refresh').addEventListener('click', loadAmbassadors);
+  document.getElementById('amb-month').addEventListener('change', loadAmbassadors);
+  document.getElementById('amb-csv').addEventListener('click', function(){
+    var cols = ['code','name','email','kind','status','school','signups_month','signups_total','subscribers_month','subscribers_total','pending_cents','owed_cents','paid_cents','paid_month_cents','void_count','agreement_signed','w9_received','payout_method','payout_handle'];
+    var lines = [cols.join(',')].concat(ambRows.map(function(r){ return cols.map(function(c){ return ambCsvCell(r[c]); }).join(','); }));
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+    a.download = 'marqit-ambassadors-' + ambMonthValue().slice(0, 7) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+
   checkAccess().then(function(ok){
     if(ok){
+      loadAmbassadors();
       loadScheduleAdmin();
       loadReview();
       loadUpdates();
