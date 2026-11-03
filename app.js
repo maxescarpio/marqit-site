@@ -5892,6 +5892,31 @@
     for(var i = 0; i < n; i++) out += one;
     return out;
   }
+  // ---- "My favorite": which category the site leads with. Display only; never touches picks or points. ----
+  var MQ_FAV_CATS = [['sports', 'Sports'], ['pop_culture', 'Pop culture'], ['news', 'News']];
+  function mqFav(){
+    try{ var v = localStorage.getItem('mq_fav_cat'); return (v === 'sports' || v === 'pop_culture' || v === 'news') ? v : null; }catch(e){ return null; }
+  }
+  function mqFavLane(){ var f = mqFav(); return f === 'pop_culture' ? 'pop' : f; }
+  function mqSetFav(v, session){
+    try{ if(v) localStorage.setItem('mq_fav_cat', v); else localStorage.removeItem('mq_fav_cat'); }catch(e){}
+    if(session){ try{ sb.from('profiles').update({ favorite_category: v || null }).eq('id', session.user.id).then(function(){}, function(){}); }catch(e){} }
+  }
+  // Signed-in players keep their favorite across devices: if this device has none, take the saved one.
+  async function mqSyncFavFromProfile(session){
+    if(!session || mqFav()) return;
+    try{
+      var r = await sb.from('profiles').select('favorite_category').eq('id', session.user.id).maybeSingle();
+      var v = r && r.data && r.data.favorite_category;
+      if(v === 'sports' || v === 'pop_culture' || v === 'news'){ try{ localStorage.setItem('mq_fav_cat', v); }catch(e){} }
+    }catch(e){}
+  }
+  function mqFavRowHtml(){
+    var f = mqFav();
+    return '<div class="fav-row" role="group" aria-label="Lead with"><span class="fav-lab">Lead with</span>' +
+      MQ_FAV_CATS.map(function(c){ return '<button type="button" class="feed-chip fav-chip' + (f === c[0] ? ' on' : '') + '" data-fav="' + c[0] + '" aria-pressed="' + (f === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div>';
+  }
+
   async function loadDailyQuestionsInner(){
     clearDailyTimers();
     const container = document.getElementById('daily-questions-container');
@@ -5958,6 +5983,7 @@
 
     const { data: sessionRes } = await sb.auth.getSession();
     const session = sessionRes && sessionRes.session;
+    await mqSyncFavFromProfile(session);
 
     // Guest with saved picks: make sure the server has them (idempotent upsert),
     // so they count in the crowd even if an earlier submit didn't reach it.
@@ -6039,6 +6065,9 @@
       const isLocked = !!q.voided || new Date() >= new Date(q.lock_time);
       prepared.push({ q: q, myVote: myVote, voteData: voteData, isLocked: isLocked, total: voteData.counts.yes + voteData.counts.no });
     }
+    // The player's favorite category leads; the rest keep their usual order.
+    { var favCat = mqFav();
+      if(favCat){ prepared.sort(function(a, b){ return (b.q.category === favCat ? 1 : 0) - (a.q.category === favCat ? 1 : 0); }); } }
 
     // Only badge a strict, unique leader — a tie or an all-zero day shouldn't get one.
     let mostCalledId = null;
@@ -6079,6 +6108,15 @@
     const allLockedNow = prepared.every(function(p){ return p.isLocked; });
 
     container.innerHTML = '';
+    { var favWrap = document.createElement('div'); favWrap.innerHTML = mqFavRowHtml();
+      var favEl = favWrap.firstChild;
+      favEl.addEventListener('click', function(ev){
+        var b = ev.target.closest('[data-fav]'); if(!b) return;
+        var v = b.getAttribute('data-fav'); mqSetFav(v === mqFav() ? null : v, session);
+        mqTrack('favorite_category_set');
+        loadDailyQuestions();
+      });
+      container.appendChild(favEl); }
 
     if(mqGuestWelcome && session){
       const welcome = document.createElement('div');
@@ -7994,7 +8032,7 @@
   // events" row on Play and the Schedule page. Static and swipeable on purpose: the headline ticker
   // above is the only thing on the site that moves by itself.
   var MQ_SCHED_CATS = [['all', 'All'], ['sports', 'Sports'], ['finance', 'Finance'], ['tech', 'Tech'], ['pop_culture', 'Pop culture'], ['news', 'News']];
-  var mqSched = { events: [], loaded: false, failed: false, cat: 'all', day: '', fetchedAt: 0, loading: null };
+  var mqSched = { events: [], loaded: false, failed: false, cat: mqFav() || 'all', day: '', fetchedAt: 0, loading: null };
 
   function mqSchedEtDay(d){
     return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
@@ -10830,7 +10868,7 @@
       this.cfg = cfg;
       this.grid = document.getElementById(cfg.gridId);
       this.chips = document.getElementById(cfg.chipsId);
-      this.lane = 'all';
+      this.lane = mqFavLane() || 'all';
       this.sort = 'new';
       this.source = 'all';
       this.topic = 'all';
@@ -10865,7 +10903,7 @@
         });
       }
       if(this.chips){
-        this.chips.innerHTML = LANES.map(function(l){ return '<button type="button" class="feed-chip' + (l[0] === 'all' ? ' on' : '') + '" data-lane="' + l[0] + '">' + l[1] + '</button>'; }).join('');
+        this.chips.innerHTML = LANES.map(function(l){ return '<button type="button" class="feed-chip' + (l[0] === self.lane ? ' on' : '') + '" data-lane="' + l[0] + '">' + l[1] + '</button>'; }).join('');
         this.chips.addEventListener('click', function(ev){
           var b = ev.target.closest('.feed-chip'); if(!b) return;
           if(b.hasAttribute('data-lane')){ var lv = b.getAttribute('data-lane'); self.lane = (lv === self.lane && lv !== 'all') ? 'all' : lv; self.topic = 'all'; }

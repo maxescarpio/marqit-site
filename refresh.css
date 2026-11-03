@@ -2375,3 +2375,8 @@ a.mq-ss-ig{text-decoration:none}
 .plus-switch[aria-checked="true"]{background:#F5C451;}
 .plus-switch[aria-checked="true"] i{transform:translateX(18px);}
 .plus-switch:disabled{opacity:.6;}
+
+/* My favorite: small "Lead with" picker above today's calls */
+.fav-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
+.fav-row .fav-lab{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-right:2px;}
+.fav-row .fav-chip{min-height:32px;padding:0 12px;font-size:13px;}
