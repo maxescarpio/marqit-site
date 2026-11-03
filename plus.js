@@ -450,6 +450,20 @@
     button.disabled = false;
   }
 
+  // ---------- opening Stripe's Customer Portal, where a member updates their card or cancels ----------
+  async function openPortal(say, button){
+    button.disabled = true; say('Opening your subscription settings\u2026');
+    try{
+      var r = await sb.functions.invoke('create-portal-session', { body: {} });
+      var url = r.data && r.data.url;
+      if(url){ location.href = url; return; }
+      var m = 'Could not open subscription settings. Please try again, or email help@playmarqit.com.';
+      try{ if(r.error && r.error.context){ var j = await r.error.context.json(); if(j && j.error) m = j.error; } }catch(e){}
+      say(m, true);
+    }catch(e){ say('Could not open subscription settings. Please try again, or email help@playmarqit.com.', true); }
+    button.disabled = false;
+  }
+
   // ---------- the paid plan card: price, what it is, one Subscribe button ----------
   async function pricingCard(){
     var member = null;
@@ -467,6 +481,8 @@
       box.appendChild(h('p', 'plus-sub', member.status === 'past_due'
         ? 'You have Marqit+, but your last payment did not go through. Update your card or email help@playmarqit.com and we will help.'
         : 'You have Marqit+. Thank you!' + (member.current_period_end ? ' It renews on ' + new Date(member.current_period_end).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) + '.' : '')));
+      var manage = btn('Manage or cancel subscription', function(){ openPortal(say, manage); });
+      box.appendChild(manage);
     } else if(!session){
       var up = btn('Sign up free to subscribe', function(){ var s2 = document.getElementById('cta-open-signup'); if(s2) s2.click(); });
       box.appendChild(up);
@@ -474,7 +490,7 @@
       var go = btn('Subscribe for $9.99/month', function(){ startCheckout(say, go); });
       box.appendChild(go);
     }
-    box.appendChild(h('p', 'plus-fine', 'Billed monthly through Stripe and renews until you cancel. To cancel, email help@playmarqit.com and we will stop it right away. Marqit itself is free to play and players never wager money. Marqit+ does not change entries, points, picks or prizes.'));
+    box.appendChild(h('p', 'plus-fine', 'Billed monthly through Stripe and renews until you cancel. You can cancel any time from this page once you subscribe. Marqit itself is free to play and players never wager money. Marqit+ does not change entries, points, picks or prizes.'));
     return box;
   }
 
@@ -503,11 +519,11 @@
   }
 
 
-  // ---------- coming back from Stripe Checkout: ?plus=success or ?plus=cancelled ----------
+  // ---------- coming back from Stripe: ?plus=success, ?plus=cancelled (Checkout) or ?plus=managed (subscription settings) ----------
   var returned = null, POLL_MS = 2000;
   try{
     var rp = new URLSearchParams(location.search).get('plus');
-    if(rp === 'success' || rp === 'cancelled') returned = rp;
+    if(rp === 'success' || rp === 'cancelled' || rp === 'managed') returned = rp;
   }catch(e){}
   function returnBanner(){
     if(!returned) return null;
@@ -518,6 +534,11 @@
     var title = h('b', null);
     var line = h('p', 'plus-msg');
     box.appendChild(title); box.appendChild(line);
+    if(state === 'managed'){
+      title.textContent = 'Welcome back';
+      line.textContent = 'Any changes you made to your subscription are saved. If you cancelled, you keep Marqit+ until the end of the period you already paid for.';
+      return box;
+    }
     if(state === 'cancelled'){
       title.textContent = 'No charge was made';
       line.textContent = 'You left checkout before paying, so nothing was charged. You can try again any time.';
