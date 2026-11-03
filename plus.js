@@ -343,7 +343,7 @@
     await loadFollows();
     root.textContent = '';
     root.appendChild(perksList());
-    root.appendChild(h('p', 'plus-note', 'Marqit+ never changes entries, points, picks or prizes. Everyone plays, enters and can win exactly the same. Information only, not betting or financial advice.'));
+    root.appendChild(h('p', 'plus-note', 'Marqit+ never changes entries, points, picks or prizes. The weekly prize drawing is separate: playing earns no entries, and everyone has the same chance. Information only, not betting or financial advice.'));
   }
   document.addEventListener('click', function(e){
     var t = e.target.closest && e.target.closest('.pagenav-tab[data-page="plus"], [data-open-plus]');
