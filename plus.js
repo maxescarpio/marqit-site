@@ -369,6 +369,7 @@
     var wl = await waitlistRow(); if(wl) root.appendChild(wl);
     root.appendChild(perksList());
     root.appendChild(h('p', 'plus-note', 'Marqit+ never changes entries, points, picks or prizes. The weekly prize drawing is separate: playing earns no entries, and everyone has the same chance. Information only, not betting or financial advice.'));
+    var help = h('p', 'plus-note', 'Questions? Email '); var a = h('a', null, 'help@playmarqit.com'); a.href = 'mailto:help@playmarqit.com'; help.appendChild(a); root.appendChild(help);
   }
   document.addEventListener('click', function(e){
     var t = e.target.closest && e.target.closest('.pagenav-tab[data-page="plus"], [data-open-plus]');
