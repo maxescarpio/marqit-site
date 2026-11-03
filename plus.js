@@ -343,11 +343,11 @@
     var joined = !!(mine && mine.data);
     var row = h('div', 'plus-wait');
     var copy = h('div', 'plus-wait-copy');
-    copy.appendChild(h('b', null, 'Free while we launch'));
+    copy.appendChild(h('b', null, 'Marqit+ is free right now'));
     var line = h('span', null); copy.appendChild(line);
     var sw = h('button', 'plus-switch'); sw.type = 'button'; sw.setAttribute('role', 'switch');
     sw.appendChild(h('i'));
-    function paint(){ sw.setAttribute('aria-checked', joined ? 'true' : 'false'); sw.setAttribute('aria-label', 'Tell me before Marqit+ becomes a paid plan'); line.textContent = joined ? 'You\u2019re on the list. We\u2019ll tell you before anything is charged.' : 'Switch this on to get a heads-up before Marqit+ becomes a paid plan.'; }
+    function paint(){ sw.setAttribute('aria-checked', joined ? 'true' : 'false'); sw.setAttribute('aria-label', 'Notify me when Marqit+ paid plans launch'); line.textContent = joined ? 'You\u2019re on the list. We\u2019ll let you know when paid plans launch.' : 'Switch this on and we\u2019ll let you know when paid plans launch.'; }
     sw.addEventListener('click', async function(){
       sw.disabled = true;
       try{
