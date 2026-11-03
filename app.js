@@ -749,6 +749,50 @@
     }catch(e){ /* referral is a nice-to-have, never block page load over it */ }
   })();
 
+  // --- Ambassador / creator code capture -------------------------------
+  // An ambassador's link is https://playmarqit.com/?ref=amb~<code>. The first code a
+  // visitor arrives with is the one that counts, and it is remembered for 30 days so
+  // someone who signs up later is still credited. It is stored in localStorage (not
+  // sessionStorage) for that reason. After sign-in, mqClaimAmbassador() asks the
+  // database to credit the ambassador; the database only credits brand-new accounts.
+  // This never blocks page load or sign-in: attribution is a nice-to-have.
+  var MQ_AMB_KEY = 'marqit_amb_code';
+  var MQ_AMB_DAYS = 30;
+  function mqReadAmbCode(){
+    try{
+      var raw = localStorage.getItem(MQ_AMB_KEY);
+      if(!raw) return null;
+      var rec = JSON.parse(raw);
+      if(!rec || !/^[a-z0-9]{3,20}$/.test(rec.code || '') || !rec.at || (Date.now() - rec.at) > MQ_AMB_DAYS * 86400000){
+        localStorage.removeItem(MQ_AMB_KEY);
+        return null;
+      }
+      return rec;
+    }catch(e){ return null; }
+  }
+  (function captureAmbassadorCode(){
+    try{
+      var ref = new URLSearchParams(window.location.search).get('ref');
+      if(!ref) return;
+      var parts = ref.split('~');
+      if(parts.length !== 2 || parts[0] !== 'amb') return;
+      var code = parts[1].toLowerCase();
+      if(!/^[a-z0-9]{3,20}$/.test(code)) return;
+      if(mqReadAmbCode()) return; // first touch wins
+      localStorage.setItem(MQ_AMB_KEY, JSON.stringify({ code: code, at: Date.now() }));
+    }catch(e){ /* never block page load over attribution */ }
+  })();
+  async function mqClaimAmbassador(user){
+    try{
+      var rec = mqReadAmbCode();
+      if(!rec || !user) return;
+      var res = await sb.rpc('claim_ambassador_code', { p_code: rec.code });
+      // Any clean answer (credited, unknown code, or not a new account) ends it for this browser.
+      // On an error the code stays, so a later sign-in can try again until it expires.
+      if(!res.error) localStorage.removeItem(MQ_AMB_KEY);
+    }catch(e){ /* nice-to-have */ }
+  }
+
   // --- Group invite-link capture ---------------
   // A president DMs out https://playmarqit.com/?group=CODE. Most people who
   // click that link are NOT signed in yet, so the old code only auto-joined
@@ -934,6 +978,7 @@
         alert('This account has been suspended.');
         return 'BANNED';
       }
+      mqClaimAmbassador(user); // credit an ambassador link, if this browser arrived through one
       // A profile from before this account finished picking a username still
       // carries the old placeholder value -- treat that the same as "never
       // set one" so returning users get sent back through the picker instead
@@ -1023,6 +1068,7 @@
     }
     if(!insertErr){
       await sb.from('streaks').insert({ user_id: user.id });
+      mqClaimAmbassador(user); // credit an ambassador link, if this browser arrived through one
     }
     // If there was no username to draw from (e.g. a fresh Google sign-in --
     // OAuth has no username concept), this row only carries the placeholder
