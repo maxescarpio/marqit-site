@@ -2343,3 +2343,22 @@ a.mq-ss-ig{text-decoration:none}
 .mqp-ev-head{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
 .plus-form.col .plus-in{flex:none;}
 .plus-req .plus-pill{justify-self:start;}
+
+/* Marqit+ page, compact: one tap-to-open row per perk */
+.plus-root{gap:0;}
+.plus-groups{display:block;}
+.plus-group{margin:18px 0 6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#5b6475);}
+.plus-group:first-child{margin-top:4px;}
+.plus-perklist{border:1px solid var(--line);border-radius:14px;background:var(--paper);overflow:hidden;}
+.plus-perk{border-top:1px solid var(--line);}
+.plus-perk:first-child{border-top:0;}
+.plus-perk > summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:0 14px;cursor:pointer;font-size:14.5px;font-weight:600;-webkit-tap-highlight-color:transparent;}
+.plus-perk > summary::-webkit-details-marker{display:none;}
+.plus-perk > summary::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);opacity:.5;margin:0 2px 3px 4px;flex:none;transition:transform .15s;}
+.plus-perk[open] > summary::after{transform:rotate(225deg);margin-bottom:-2px;}
+.plus-perk-t{flex:1;min-width:0;}
+.plus-perk-body{padding:0 14px 14px;}
+.plus-perk-body .plus-sub{margin:0 0 10px;}
+.plus-tool{display:block;}
+.plus-loading{font-size:13px;color:var(--muted,#5b6475);}
+.plus-lede{margin:2px 0 4px;}
