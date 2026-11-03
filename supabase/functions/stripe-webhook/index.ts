@@ -88,7 +88,9 @@ Deno.serve(async (req: Request) => {
           stripe_customer_id: obj.customer,
           stripe_subscription_id: obj.id,
           status: event.type === 'customer.subscription.deleted' ? 'canceled' : obj.status,
-          current_period_end: iso(periodEnd)
+          current_period_end: iso(periodEnd),
+          // Cancelled in the customer portal but paid through the end of the period: the page shows "ends on <date>".
+          cancel_at_period_end: event.type !== 'customer.subscription.deleted' && (obj.cancel_at_period_end === true || obj.cancel_at != null)
         });
       }
     } else if (event.type === 'invoice.paid') {
