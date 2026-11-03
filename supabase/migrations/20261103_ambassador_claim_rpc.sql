@@ -1,4 +1,4 @@
--- NOT YET APPLIED. Applying this was blocked at approval, so it needs the owner's go-ahead.
+-- ALREADY APPLIED to the Marqit database on 2026-11-03 after the owner approved it. Kept here so the repo matches the database.
 -- Lets a signed-in player credit the ambassador whose link brought them in.
 -- Only brand-new accounts (created in the last 2 days) can claim, and each player can claim once.
 -- Pending and active ambassadors both count, so no signups are lost while an agreement is still being signed;
