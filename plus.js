@@ -469,7 +469,8 @@
     var member = null;
     if(session){
       try{
-        var r = await sb.from('marqit_plus_subscriptions').select('status,current_period_end').eq('user_id', session.user.id).maybeSingle();
+        var r = await sb.from('marqit_plus_subscriptions').select('status,current_period_end,cancel_at_period_end').eq('user_id', session.user.id).maybeSingle();
+        if(r && r.error) r = await sb.from('marqit_plus_subscriptions').select('status,current_period_end').eq('user_id', session.user.id).maybeSingle(); // column not added yet
         if(r && r.data && ['active', 'trialing', 'past_due'].indexOf(r.data.status) >= 0) member = r.data;
       }catch(e){}
     }
@@ -478,10 +479,14 @@
     box.appendChild(h('p', 'plus-sub', 'A digital software subscription with extra tools for your own picks: history and lean on every game, My Stats Pro, calendar sync, pick history export, the full question archive, the morning brief and an ad-free experience.'));
     var say = msg(box);
     if(member){
-      box.appendChild(h('p', 'plus-sub', member.status === 'past_due'
-        ? 'You have Marqit+, but your last payment did not go through. Update your card or email help@playmarqit.com and we will help.'
-        : 'You have Marqit+. Thank you!' + (member.current_period_end ? ' It renews on ' + new Date(member.current_period_end).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) + '.' : '')));
-      var manage = btn('Manage or cancel subscription', function(){ openPortal(say, manage); });
+      var endDate = member.current_period_end ? new Date(member.current_period_end).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '';
+      box.appendChild(h('p', 'plus-sub',
+        member.status === 'past_due'
+          ? 'You have Marqit+, but your last payment did not go through. Update your card or email help@playmarqit.com and we will help.'
+        : member.cancel_at_period_end
+          ? 'Your Marqit+ is cancelled and ends' + (endDate ? ' on ' + endDate : ' at the end of this billing period') + '. You keep everything until then, and you will not be charged again.'
+          : 'You have Marqit+. Thank you!' + (endDate ? ' It renews on ' + endDate + '.' : '')));
+      var manage = btn(member.cancel_at_period_end ? 'Manage subscription' : 'Manage or cancel subscription', function(){ openPortal(say, manage); });
       box.appendChild(manage);
     } else if(!session){
       var up = btn('Sign up free to subscribe', function(){ var s2 = document.getElementById('cta-open-signup'); if(s2) s2.click(); });
