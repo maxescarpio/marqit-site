@@ -12,12 +12,7 @@
     if(text != null) el.textContent = text;
     return el;
   }
-  function section(title, sub){
-    var s = h('section', 'plus-card');
-    s.appendChild(h('h3', 'plus-h', title));
-    if(sub) s.appendChild(h('p', 'plus-sub', sub));
-    return s;
-  }
+  function section(){ return h('div', 'plus-tool'); }
   function msg(parent){ var m = h('p', 'plus-msg'); parent.appendChild(m); return function(t, bad){ m.textContent = t || ''; m.className = 'plus-msg' + (bad ? ' bad' : ''); }; }
   function btn(label, fn, cls){ var b = h('button', cls || 'plus-btn', label); b.type = 'button'; b.addEventListener('click', fn); return b; }
   function download(name, mime, text){
@@ -28,35 +23,65 @@
   var CAT = { sports: 'Sports', pop_culture: 'Pop culture', news: 'News' };
   function catName(c){ return CAT[c] || (c ? c.replace(/_/g, ' ') : 'Other'); }
 
-  // ---------- perks overview ----------
-  var PERKS = [
-    ['History & lean on every daily question', 'live'],
-    ['History & lean on every game and event in the schedule', 'live'],
-    ['Similar past questions', 'live'],
-    ['Results explained', 'live'],
-    ['Request a full game or event report', 'live'],
-    ['My Stats Pro', 'live'],
-    ['Full question archive', 'live'],
-    ['My Teams and topics', 'live'],
-    ['Head-to-head with buddies', 'live'],
-    ['Calendar sync', 'live'],
-    ['Pick history export', 'live'],
-    ['Always ad-free', 'live'],
-    ['Morning brief email (opt-in)', 'live'],
-    ['Weekly recap email (free and paid)', 'live'],
-    ['Bigger private groups', 'soon'],
-    ['Priority support', 'soon']
+  // ---------- perks: one tap-to-open row each, with a plain-English explanation and, where there is one, the tool ----------
+  var GROUPS = [
+    ['Know more before you pick', [
+      ['History & lean on daily questions', 'live', 'Tap History & lean under any daily question to see 5 bullets of history and a percentage lean, with the data behind it. It is information from past results, not betting lines and not advice.'],
+      ['History & lean on every game and event', 'live', 'Open any game, earnings report or event on the Schedule tab and you will see its history and lean too, not only the three daily questions.', 'schedule'],
+      ['Similar past questions', 'live', 'Under History & lean, tap Similar past questions to see how the closest matching questions from our history ended up.'],
+      ['Results explained', 'live', 'After a question settles, History & lean adds a short note on why it went that way.'],
+      ['Full game or event report', 'live', 'Ask for a full written report on any game or event, even one that is not a Marqit question. Up to 2 per month, ready within 48 hours, historical data only (no betting lines or odds).', 'report']
+    ]],
+    ['Your game', [
+      ['My Stats Pro', 'live', 'Your accuracy by category from every settled question you picked, plus your best and toughest categories and your streaks.', 'stats'],
+      ['Head-to-head with buddies', 'live', 'Your record against a buddy on questions you both picked. No prizes, just bragging rights.', 'head'],
+      ['My Teams and topics', 'live', 'Follow teams and topics. Questions and schedule items that mention them get a gold highlight. Highlighting only: no extra alerts.', 'follows'],
+      ['Question archive', 'live', 'Search every past question and how it settled. Players without Marqit+ see the last 7 days.', 'archive']
+    ]],
+    ['Take it with you', [
+      ['Morning brief email', 'live', 'A short email each morning with the history behind that day\u2019s questions. Off until you turn it on.', 'brief'],
+      ['Weekly recap email', 'live', 'Every Monday, an email with your week: picks, accuracy and streak. This one is free for everyone and can be turned off any time.'],
+      ['Calendar sync', 'live', 'Download the next 30 days of the Marqit schedule as a calendar file for your phone or computer.', 'calendar'],
+      ['Pick history export', 'live', 'Download every pick you have made as a spreadsheet.', 'export']
+    ]],
+    ['Always', [
+      ['Always ad-free', 'live', 'Marqit+ will never show you display or video ads. There are none today, and if we ever add them, Marqit+ members will not see them.']
+    ]],
+    ['Coming soon', [
+      ['Bigger private groups', 'soon', 'Larger buddy groups with their own leaderboards. No prizes attached.'],
+      ['Priority support', 'soon', 'Faster replies when you write to us.']
+    ]]
   ];
-  function perksCard(){
-    var c = section('What\u2019s in Marqit+', 'Free for every signed-in player while we launch. Marqit+ never changes entries, points, picks or prizes. Everyone plays, enters and can win exactly the same.');
-    var ul = h('ul', 'plus-perks');
-    PERKS.forEach(function(p){
-      var li = h('li'); li.appendChild(h('span', null, p[0]));
-      li.appendChild(h('em', 'plus-pill ' + p[1], p[1] === 'live' ? 'Live' : 'Coming soon'));
-      ul.appendChild(li);
+  var TOOLS = { stats: statsCard, head: headCard, follows: followsCard, archive: archiveCard, brief: briefCard, calendar: calendarCard, export: exportCard, report: reportCard };
+  var NEEDS_SIGN_IN = { stats: 1, head: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
+  function perkRow(p){
+    var d = h('details', 'plus-perk');
+    var sm = h('summary'); sm.appendChild(h('span', 'plus-perk-t', p[0]));
+    sm.appendChild(h('em', 'plus-pill ' + p[1], p[1] === 'live' ? 'Live' : 'Soon'));
+    d.appendChild(sm);
+    var body = h('div', 'plus-perk-body'); body.appendChild(h('p', 'plus-sub', p[2])); d.appendChild(body);
+    var tool = p[3], loaded = false;
+    d.addEventListener('toggle', async function(){
+      if(!d.open || loaded) return;
+      if(tool === 'schedule'){ loaded = true; body.appendChild(btn('Open the Schedule', function(){ var t = document.querySelector('.pagenav-tab[data-page="schedule"]'); if(t) t.click(); })); return; }
+      if(!tool || !TOOLS[tool]) return;
+      if(NEEDS_SIGN_IN[tool] && !session){ loaded = true; body.appendChild(h('p', 'plus-empty', 'Sign in on the Play tab to use this. It is free.')); return; }
+      loaded = true;
+      var holder = h('div', 'plus-loading', 'Loading\u2026'); body.appendChild(holder);
+      try{ var el = await TOOLS[tool](); holder.replaceWith(el); highlight(); }
+      catch(e){ holder.textContent = 'Could not load this right now. Try again in a minute.'; loaded = false; }
     });
-    c.appendChild(ul);
-    return c;
+    return d;
+  }
+  function perksList(){
+    var wrap = h('div', 'plus-groups');
+    GROUPS.forEach(function(g){
+      wrap.appendChild(h('p', 'plus-group', g[0]));
+      var box = h('div', 'plus-perklist');
+      g[1].forEach(function(p){ box.appendChild(perkRow(p)); });
+      wrap.appendChild(box);
+    });
+    return wrap;
   }
 
   // ---------- My Stats Pro ----------
@@ -315,17 +340,10 @@
   async function render(){
     root = document.getElementById('plus-root'); if(!root) return;
     var s = await sb.auth.getSession(); session = s.data.session;
-    root.textContent = '';
-    root.appendChild(perksCard());
-    if(!session){
-      var c = section('Sign in to use Marqit+', 'Marqit+ is free for every signed-in player right now. Sign in on the Play tab, then come back here.');
-      root.appendChild(c); root.appendChild(archiveCard()); return;
-    }
     await loadFollows();
-    var parts = await Promise.all([statsCard(), headCard(), reportCard()]);
-    root.appendChild(parts[0]); root.appendChild(followsCard()); root.appendChild(parts[1]); root.appendChild(parts[2]);
-    root.appendChild(await briefCard()); root.appendChild(archiveCard()); root.appendChild(calendarCard()); root.appendChild(exportCard());
-    highlight();
+    root.textContent = '';
+    root.appendChild(perksList());
+    root.appendChild(h('p', 'plus-note', 'Marqit+ never changes entries, points, picks or prizes. Everyone plays, enters and can win exactly the same. Information only, not betting or financial advice.'));
   }
   document.addEventListener('click', function(e){
     var t = e.target.closest && e.target.closest('.pagenav-tab[data-page="plus"], [data-open-plus]');
