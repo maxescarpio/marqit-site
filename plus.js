@@ -427,12 +427,48 @@
     return row;
   }
 
+
+  // ---------- paid-plan TEST panel: only shows with ?plustest=1 in the address, and only while Stripe is in test mode ----------
+  async function testPanel(){
+    var wantsTest = false;
+    try{ wantsTest = new URLSearchParams(location.search).get('plustest') === '1'; }catch(e){}
+    if(!wantsTest || !session) return null;
+    var box = h('div', 'plus-tool');
+    box.appendChild(h('b', null, 'Paid plan test (Stripe test mode)'));
+    var status = h('p', 'plus-msg', 'Checking your subscription…');
+    var say = msg(box);
+    box.appendChild(status);
+    async function paint(){
+      try{
+        var r = await sb.from('marqit_plus_subscriptions').select('status,current_period_end').eq('user_id', session.user.id).maybeSingle();
+        status.textContent = r.data ? 'Subscription status: ' + r.data.status : 'No subscription on this account yet.';
+      }catch(e){ status.textContent = 'Could not read your subscription.'; }
+    }
+    var go = btn('Test subscribe $9.99/month', async function(){
+      go.disabled = true; say('Opening checkout…');
+      try{
+        var r = await sb.functions.invoke('create-checkout-session', { body: {} });
+        var url = r.data && r.data.url;
+        if(url){ location.href = url; return; }
+        var m = 'Could not start checkout.';
+        try{ if(r.error && r.error.context){ var j = await r.error.context.json(); if(j && j.error) m = j.error; } }catch(e){}
+        say(m, true);
+      }catch(e){ say('Could not start checkout.', true); }
+      go.disabled = false;
+    });
+    box.appendChild(go);
+    box.appendChild(btn('Refresh status', paint, 'plus-wait-undo'));
+    paint();
+    return box;
+  }
+
   // ---------- page ----------
   async function render(){
     root = document.getElementById('plus-root'); if(!root) return;
     var s = await sb.auth.getSession(); session = s.data.session;
     await loadFollows();
     root.textContent = '';
+    var tp = await testPanel(); if(tp) root.appendChild(tp);
     var wl = await waitlistRow(); if(wl) root.appendChild(wl);
     root.appendChild(perksList());
     root.appendChild(h('p', 'plus-note', 'Marqit+ never changes entries, points, picks or prizes. The weekly prize drawing is separate: playing earns no entries, and everyone has the same chance. Information only, not betting or financial advice.'));
