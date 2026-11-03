@@ -200,6 +200,22 @@
       </div>
     </details>
 
+    <details class="card" data-count="#event-insights-list .qrow" data-tab-pip="daily">
+      <summary>Game &amp; event leans <span class="pip"></span><span class="sub">Marqit+ &middot; approve before players see them</span></summary>
+      <div class="body">
+        <p class="hint">History and lean for scheduled games, reports and events that are not daily questions. Historical data only: no betting lines. Shown to signed-in players inside the event panel.</p>
+        <div id="event-insights-list"></div>
+      </div>
+    </details>
+
+    <details class="card" data-count="#report-requests-list .qrow" data-tab-pip="daily">
+      <summary>Report requests <span class="pip"></span><span class="sub">Marqit+ &middot; due within 48 hours</span></summary>
+      <div class="body">
+        <p class="hint">A player asked for a full report on a game or event. Write it from historical data only (no betting lines or odds), paste it below, and it appears on their Marqit+ page. Blank lines start a new paragraph.</p>
+        <div id="report-requests-list"></div>
+      </div>
+    </details>
+
     <details class="card" data-count="#suggestions-list .qrow" data-tab-pip="daily">
       <summary>Question suggestions <span class="pip"></span><span class="sub">sent in by players</span></summary>
       <div class="body">
@@ -658,6 +674,74 @@
         const { error: rErr } = await sb.rpc('admin_reject_question_insights', { p_question_id: d.question_id });
         if(rErr){ alert('Error: ' + rErr.message); btn.disabled = false; return; }
         loadQuestionInsights();
+      });
+    });
+  }
+
+  // Marqit+ game and event leans, and report requests.
+  async function loadEventInsights(){
+    const list = document.getElementById('event-insights-list');
+    if(!list) return;
+    list.textContent = 'Loading\u2026';
+    const { data, error } = await sb.rpc('admin_list_event_insights', { p_status: 'pending' });
+    if(error){ list.textContent = 'Error: ' + error.message; return; }
+    if(!data || !data.length){ list.textContent = 'Nothing waiting for review.'; return; }
+    list.textContent = '';
+    data.forEach(function(d){
+      const row = document.createElement('div'); row.className = 'qrow';
+      const head = document.createElement('div'); head.className = 'qmeta'; head.textContent = d.event_key; row.appendChild(head);
+      const t = document.createElement('div'); t.style.cssText = 'font-weight:600; margin:4px 0 8px;'; t.textContent = d.title + (d.lean_yes_pct ? '  \u00b7  lean ' + (d.lean_label || '') + ' ' + d.lean_yes_pct + '% \u2014 ' + d.lean_basis : ''); row.appendChild(t);
+      (d.bullets || []).forEach(function(b, i){
+        const ta = document.createElement('textarea'); ta.rows = 2; ta.className = 'ev-bullet'; ta.value = b; row.appendChild(ta);
+      });
+      const actions = document.createElement('div'); actions.className = 'actions';
+      actions.innerHTML = '<button class="btn-yes" data-a>Approve &amp; show to players</button><button class="btn-delete" data-r>Reject</button>';
+      row.appendChild(actions); list.appendChild(row);
+      actions.querySelector('[data-a]').addEventListener('click', async function(ev){
+        const bullets = Array.prototype.map.call(row.querySelectorAll('.ev-bullet'), function(x){ return x.value.trim(); });
+        if(bullets.length !== 5 || bullets.some(function(b){ return !b; })){ alert('All 5 bullets need text.'); return; }
+        ev.currentTarget.disabled = true;
+        const r = await sb.rpc('admin_review_event_insight', { p_event_key: d.event_key, p_approve: true, p_bullets: bullets });
+        if(r.error){ alert('Error: ' + r.error.message); ev.currentTarget.disabled = false; return; }
+        loadEventInsights();
+      });
+      actions.querySelector('[data-r]').addEventListener('click', async function(ev){
+        if(!confirm('Reject this one?')) return;
+        const r = await sb.rpc('admin_review_event_insight', { p_event_key: d.event_key, p_approve: false, p_bullets: null });
+        if(r.error){ alert('Error: ' + r.error.message); return; }
+        loadEventInsights();
+      });
+    });
+  }
+  async function loadReportRequests(){
+    const list = document.getElementById('report-requests-list');
+    if(!list) return;
+    list.textContent = 'Loading\u2026';
+    const { data, error } = await sb.rpc('admin_list_report_requests', { p_status: 'pending' });
+    if(error){ list.textContent = 'Error: ' + error.message; return; }
+    if(!data || !data.length){ list.textContent = 'No requests waiting.'; return; }
+    list.textContent = '';
+    data.forEach(function(d){
+      const row = document.createElement('div'); row.className = 'qrow';
+      const head = document.createElement('div'); head.className = 'qmeta'; head.textContent = (d.username || 'player') + ' \u00b7 ' + new Date(d.created_at).toLocaleString(); row.appendChild(head);
+      const t = document.createElement('div'); t.style.cssText = 'font-weight:600; margin:4px 0 4px;'; t.textContent = d.subject; row.appendChild(t);
+      if(d.details){ const x = document.createElement('div'); x.className = 'hint'; x.textContent = d.details; row.appendChild(x); }
+      const ta = document.createElement('textarea'); ta.rows = 10; ta.placeholder = 'Paste the finished report here'; row.appendChild(ta);
+      const actions = document.createElement('div'); actions.className = 'actions';
+      actions.innerHTML = '<button class="btn-yes" data-a>Deliver report</button><button class="btn-delete" data-r>Decline (does not use their monthly limit)</button>';
+      row.appendChild(actions); list.appendChild(row);
+      actions.querySelector('[data-a]').addEventListener('click', async function(ev){
+        if(ta.value.trim().length < 80){ alert('The report looks too short.'); return; }
+        ev.currentTarget.disabled = true;
+        const r = await sb.rpc('admin_deliver_report', { p_id: d.id, p_body: ta.value, p_decline: false });
+        if(r.error){ alert('Error: ' + r.error.message); ev.currentTarget.disabled = false; return; }
+        loadReportRequests();
+      });
+      actions.querySelector('[data-r]').addEventListener('click', async function(){
+        if(!confirm('Decline this request?')) return;
+        const r = await sb.rpc('admin_deliver_report', { p_id: d.id, p_body: ta.value || null, p_decline: true });
+        if(r.error){ alert('Error: ' + r.error.message); return; }
+        loadReportRequests();
       });
     });
   }
@@ -1569,6 +1653,8 @@
       loadQuestionDrafts();
       loadQuestionInsights();
       loadWaitlistCount();
+      loadEventInsights();
+      loadReportRequests();
       loadQuestionsForDate();
       loadSuggestions();
       loadWidgets();

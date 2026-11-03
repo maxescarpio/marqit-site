@@ -47,6 +47,7 @@
   var params = new URLSearchParams(window.location.search);
   var uid = params.get('uid');
   var token = params.get('token');
+  var isBrief = params.get('kind') === 'brief';
   var heading = document.getElementById('status-heading');
   var text = document.getElementById('status-text');
   var actions = document.getElementById('actions');
@@ -74,7 +75,7 @@
   yesBtn.addEventListener('click', function(){
     yesBtn.disabled = true; noBtn.disabled = true;
     yesBtn.textContent = 'Unsubscribing\u2026';
-    sb.rpc('unsubscribe_from_resolve_email', { p_user_id: uid, p_token: token }).then(function(res){
+    sb.rpc(isBrief ? 'unsubscribe_from_morning_brief' : 'unsubscribe_from_resolve_email', { p_user_id: uid, p_token: token }).then(function(res){
       actions.style.display = 'none';
       if(res.error){
         heading.textContent = 'Something went wrong';
@@ -82,7 +83,7 @@
         return;
       }
       heading.textContent = 'You\u2019re unsubscribed';
-      text.innerHTML = 'You won\u2019t get Marqit reminder emails anymore. You can turn them back on anytime from your profile at <a href="https://playmarqit.com">playmarqit.com</a>.';
+      text.innerHTML = (isBrief ? 'You won\u2019t get the Marqit+ morning brief anymore. You can turn it back on anytime on the Marqit+ page at ' : 'You won\u2019t get Marqit reminder emails anymore. You can turn them back on anytime from your profile at ') + '<a href="https://playmarqit.com">playmarqit.com</a>.';
     });
   });
 })();

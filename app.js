@@ -26,6 +26,7 @@
   var SUPABASE_URL = 'https://ivapcztkasjfetntkzxy.supabase.co';
   var SUPABASE_ANON_KEY = 'sb_publishable_S1DZQXDDpffETdJh2xJONQ_QSNjnunn';
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  window.mqSb = sb; // shared with plus.js
 
   // ---- Avatars: drawn glyphs, not emoji ----------------------------------
   // profiles.avatar_emoji is a free-text column. New picks store a short glyph
@@ -5433,7 +5434,10 @@
       ? '<details class="mqp-details"><summary><span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">History &amp; lean</span>' +
         '<svg class="mqp-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
         leanHtml +
-        '<ul class="mqp-list"></ul><p class="mqp-note">Based on historical data, not betting lines. For information only, not betting or financial advice. Marqit+ is always ad-free.</p></details>'
+        '<ul class="mqp-list"></ul>' +
+        ((q.resolved && plusRow.result_explanation) ? '<div class="mqp-why"><b>Why it went this way</b><p></p></div>' : '') +
+        '<div class="mqp-sim" data-loaded="0"><button type="button" class="mqp-sim-btn">Similar past questions</button><div class="mqp-sim-body" hidden></div></div>' +
+        '<p class="mqp-note">Based on historical data, not betting lines. For information only, not betting or financial advice. Marqit+ is always ad-free.</p></details>'
       : '';
 
     div.innerHTML =
@@ -5470,6 +5474,8 @@
       plusBullets.forEach(function(b){ var li = document.createElement('li'); li.textContent = b; mqpList.appendChild(li); });
       var mqpBasis = div.querySelector('.mqp-lean-basis');
       if(mqpBasis) mqpBasis.textContent = plusRow.lean_basis;
+      var mqpWhy = div.querySelector('.mqp-why p');
+      if(mqpWhy) mqpWhy.textContent = plusRow.result_explanation;
     }
     div.querySelector('.cat-label-text').textContent = CATEGORY_LABELS[q.category] || q.category;
     if(isFinal){
@@ -6246,7 +6252,7 @@
     __mqInsights = {};
     if(session){
       try{
-        const insRes = await sb.from('question_insights').select('question_id, bullets, lean_yes_pct, lean_basis').in('question_id', prepared.map(function(p){ return p.q.id; }));
+        const insRes = await sb.from('question_insights').select('question_id, bullets, lean_yes_pct, lean_basis, result_explanation').in('question_id', prepared.map(function(p){ return p.q.id; }));
         (insRes.data || []).forEach(function(r){ if(Array.isArray(r.bullets) && r.bullets.length) __mqInsights[r.question_id] = r; });
       }catch(e){}
     }
@@ -8027,6 +8033,70 @@
     return new Date(Date.parse(dateStr + 'T12:00:00Z') + n * 86400000).toISOString().slice(0, 10);
   }
   // The Eastern calendar day an event belongs to. All-day rows store noon UTC of their date.
+
+  // ---- Marqit+ extras: similar past questions, and the lean for any game or event ----
+  document.addEventListener('click', async function(e){
+    var btn = e.target.closest && e.target.closest('.mqp-sim-btn');
+    if(!btn) return;
+    var wrap = btn.closest('.mqp-sim'), body = wrap.querySelector('.mqp-sim-body');
+    if(wrap.getAttribute('data-loaded') === '1'){ body.hidden = !body.hidden; return; }
+    var card = btn.closest('[data-question-id]');
+    var qid = card && card.getAttribute('data-question-id');
+    if(!qid) return;
+    btn.disabled = true; btn.textContent = 'Looking…';
+    var res = await sb.rpc('mq_similar_questions', { p_question_id: qid });
+    btn.disabled = false; btn.textContent = 'Similar past questions';
+    var rows = (res && res.data) || [];
+    wrap.setAttribute('data-loaded', '1'); body.hidden = false;
+    body.textContent = '';
+    if(!rows.length){ var none = document.createElement('p'); none.className = 'mqp-sim-none'; none.textContent = 'No close matches in our history yet.'; body.appendChild(none); return; }
+    var yes = rows.filter(function(r){ return r.correct_answer === 'yes'; }).length;
+    var sum = document.createElement('p'); sum.className = 'mqp-sim-sum';
+    sum.textContent = 'In the ' + rows.length + ' most similar past questions, YES won ' + yes + ' and NO won ' + (rows.length - yes) + '.';
+    body.appendChild(sum);
+    var ul = document.createElement('ul'); ul.className = 'mqp-sim-list';
+    rows.slice(0, 4).forEach(function(r){
+      var li = document.createElement('li');
+      var d = new Date(r.question_date + 'T12:00:00Z').toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: 'UTC' });
+      var chip = document.createElement('b'); chip.className = r.correct_answer; chip.textContent = r.correct_answer.toUpperCase();
+      var t = document.createElement('span'); t.textContent = d + ' · ' + r.question_text;
+      li.appendChild(chip); li.appendChild(t); ul.appendChild(li);
+    });
+    body.appendChild(ul);
+  });
+  // Key for a schedule item: the ET day, the league and the title with only letters and numbers.
+  function mqEvKey(ev){
+    var slug = String(ev.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return mqSchedEventDay(ev) + '|' + String(ev.league || ev.category || '').toLowerCase().replace(/[^a-z0-9]/g, '') + '|' + slug;
+  }
+  async function mqAttachEventLean(ev){
+    try{
+      var sess = (await sb.auth.getSession()).data.session;
+      if(!sess) return;
+      var res = await sb.from('event_insights').select('bullets, lean_yes_pct, lean_label, lean_basis').eq('event_key', mqEvKey(ev)).maybeSingle();
+      var r = res && res.data;
+      var panel = document.querySelector('#mq-evpanel .evp');
+      if(!r || !panel || !Array.isArray(r.bullets)) return;
+      var box = document.createElement('div'); box.className = 'mqp-ev';
+      var head = document.createElement('div'); head.className = 'mqp-ev-head';
+      head.innerHTML = '<span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">History &amp; lean</span>';
+      box.appendChild(head);
+      if(r.lean_yes_pct && r.lean_basis){
+        var yes = r.lean_yes_pct, side = yes > 50 ? 'yes' : (yes < 50 ? 'no' : 'even'), shown = yes >= 50 ? yes : 100 - yes;
+        var line = document.createElement('p'); line.className = 'mqp-lean-line';
+        var pick = document.createElement('b'); pick.className = 'mqp-lean-pick ' + side;
+        pick.textContent = side === 'even' ? 'Toss-up, 50%' : (r.lean_label || (side === 'yes' ? 'YES' : 'NO')) + ' ' + shown + '%';
+        line.appendChild(document.createTextNode('Lean ')); line.appendChild(pick); box.appendChild(line);
+        var bar = document.createElement('div'); bar.className = 'mqp-lean-bar'; var fill = document.createElement('i'); fill.style.width = yes + '%'; bar.appendChild(fill); box.appendChild(bar);
+        var basis = document.createElement('p'); basis.className = 'mqp-lean-basis'; basis.textContent = r.lean_basis; box.appendChild(basis);
+      }
+      var ul = document.createElement('ul'); ul.className = 'mqp-list';
+      r.bullets.forEach(function(b){ var li = document.createElement('li'); li.textContent = b; ul.appendChild(li); });
+      box.appendChild(ul);
+      var note = document.createElement('p'); note.className = 'mqp-note'; note.textContent = 'Based on historical data, not betting lines. For information only, not betting or financial advice. Marqit+ is always ad-free.'; box.appendChild(note);
+      panel.appendChild(box);
+    }catch(e){}
+  }
   function mqSchedEventDay(ev){
     return ev.all_day ? String(ev.starts_at).slice(0, 10) : mqSchedEtDay(new Date(ev.starts_at));
   }
@@ -9631,6 +9701,7 @@
     else if(mqIsMedia(ev)) mqOpenMediaPanel(ev);
     else if(ev.category === 'sports' && mqSchedTeams(ev)) mqOpenGamePanel(ev);
     else mqOpenEventPanel(ev); // awards, tech launches, news dates, anything added by hand
+    mqAttachEventLean(ev);
   }
   // Economic releases (the Fed, jobs, inflation) have no price chart of their own, so they get a plain explainer, not the stock panel.
   var MQ_MACRO = {

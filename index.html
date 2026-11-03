@@ -47,7 +47,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261029b">
-<link rel="stylesheet" href="refresh.css?v=20261031a">
+<link rel="stylesheet" href="refresh.css?v=20261102a">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -294,6 +294,7 @@
     <button class="pagenav-tab" data-page="news">News</button>
     <button class="pagenav-tab" data-page="how">How to play</button>
     <button class="pagenav-tab" data-page="standings">Rankings</button>
+    <button class="pagenav-tab" data-page="plus">Marqit+</button>
   </div>
 </div>
 
@@ -454,6 +455,16 @@
     <div class="sched-list" id="sched-list" aria-live="polite">
       <div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>
     </div>
+  </div>
+</section>
+</div>
+
+<div id="page-plus" class="page" style="display:none;">
+<section class="section hero-lite">
+  <div class="wrap">
+    <h2>Marqit+</h2>
+    <p class="plus-lede">History and tools to go with your picks. Free for every signed-in player while we launch.</p>
+    <div id="plus-root" class="plus-root" aria-live="polite"></div>
   </div>
 </section>
 </div>
@@ -853,7 +864,8 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261031a" defer></script>
+<script src="app.js?v=20261102a" defer></script>
+<script src="plus.js?v=20261102a" defer></script>
 
 
 
