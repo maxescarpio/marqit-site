@@ -1,0 +1,143 @@
+/* Copyright (c) 2026 Grand Media Group LLC. All rights reserved. Marqit is a trademark of Grand Media Group LLC. */
+/* Nov 3 redesign: rankings tabs, date strip, request box, Marqit+ page, similar past questions.
+   Loaded after refresh.css, so these rules are the final word for the pieces below. */
+
+/* ================= Rankings: league tabs + Standings/Leaders toggle ================= */
+#rk-page .rk-tabs{
+  display:flex;align-items:stretch;gap:0;flex-wrap:nowrap;margin:18px 0 16px;padding:0;
+  border-bottom:1px solid #23262C;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+#rk-page .rk-tabs::-webkit-scrollbar{display:none}
+#rk-page .rk-tabs button{
+  position:relative;flex:none;min-height:0;height:auto;margin:0;padding:14px 16px 15px;
+  border:0 !important;border-radius:0 !important;background:none !important;box-shadow:none;
+  color:#7E838D;font:600 13px/1 'Barlow',sans-serif;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;
+  cursor:pointer;transition:color .15s}
+#rk-page .rk-tabs button:hover{color:#E4E6EA;background:none !important}
+#rk-page .rk-tabs button.on{color:#fff}
+#rk-page .rk-tabs button::after{content:"";position:absolute;left:16px;right:16px;bottom:-1px;height:2px;border-radius:2px;
+  background:#F2F3F5;transform:scaleX(0);transform-origin:left center;transition:transform .2s ease}
+#rk-page .rk-tabs button.on::after{transform:scaleX(1);background:#F2F3F5}
+#rk-page .rk-tabs button:focus-visible{outline:none;color:#fff;box-shadow:inset 0 0 0 1px #3A3E46 !important;border-radius:8px !important}
+#rk-page .rk-tabs .rk-sep{flex:none;align-self:center;width:1px;height:16px;margin:0 8px;background:#2C2F37}
+
+#rk-page .rk-sub{
+  display:inline-flex;gap:0;margin:2px 0 20px;padding:3px;max-width:100%;overflow:visible;
+  border:1px solid #2C2F37;border-radius:999px;background:#13151A}
+#rk-page .rk-sub button{
+  flex:none;min-height:0;height:auto;margin:0;padding:9px 20px;border:0;border-radius:999px;background:none;box-shadow:none;
+  color:#868B95;font:600 11.5px/1 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
+  transition:color .15s,background .15s}
+#rk-page .rk-sub button:hover{color:#E4E6EA;border:0}
+#rk-page .rk-sub button.on{background:#ECEEF2;color:#121418}
+
+/* ================= Schedule: date strip ================= */
+#sched-days{
+  display:flex;gap:6px;margin:16px 0 6px;padding:2px 22px 10px;border-bottom:0 !important;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22px,#000 calc(100% - 30px),transparent 100%);
+  mask-image:linear-gradient(90deg,transparent 0,#000 22px,#000 calc(100% - 30px),transparent 100%)}
+#sched-days::-webkit-scrollbar{display:none}
+#sched-days .sched-day{
+  flex:0 0 68px;min-width:68px;display:flex;flex-direction:column;align-items:center;gap:0;
+  margin:0 !important;padding:8px 4px 10px !important;position:relative;
+  border:1px solid transparent !important;border-radius:14px !important;background:transparent !important;
+  white-space:nowrap;transition:background .15s,border-color .15s}
+#sched-days .sched-day.wk{margin-left:14px !important}
+#sched-days .sched-day:hover{background:rgba(255,255,255,.05) !important}
+#sched-days .sched-day .sd-mo{display:block;height:11px;margin-bottom:3px;text-decoration:none;
+  font-size:9.5px;font-weight:700;line-height:11px;letter-spacing:.14em;text-transform:uppercase;color:#F6C430}
+#sched-days .sched-day b{font-size:10.5px !important;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#7E838D !important}
+#sched-days .sched-day span{font-size:27px !important;line-height:1.05;font-weight:700;color:#E4E6EA !important}
+#sched-days .sched-day em{display:block !important;margin-top:4px;font-size:10.5px !important;font-style:normal;font-weight:600;letter-spacing:.02em;color:#5C616B !important}
+#sched-days .sched-day.has em{color:#8B909A !important}
+#sched-days .sched-day.today b{color:#F6C430 !important}
+#sched-days .sched-day.past{opacity:.42}
+#sched-days .sched-day.sel{opacity:1;background:#ECEEF2 !important;border-color:#ECEEF2 !important}
+#sched-days .sched-day.sel b,#sched-days .sched-day.sel em{color:#5B6068 !important}
+#sched-days .sched-day.sel span{color:#101216 !important}
+#sched-days .sched-day.sel .sd-mo,#sched-days .sched-day.sel.today b{color:#8A6A0A !important}
+#sched-days .sched-day:focus-visible{outline:2px solid #6E737D;outline-offset:1px}
+
+/* ================= Play: request a prediction ================= */
+.play-extras #play-suggest{flex:1 1 340px;max-width:560px}
+#play-suggest > div > .sg-box{
+  max-width:none !important;padding:20px 20px 18px !important;border:1px solid #2A2E36;border-radius:16px;
+  background:linear-gradient(180deg,#171A20,#13151A);box-shadow:none}
+#play-suggest .sg-top{margin:0 0 16px}
+#play-suggest .sg-title{margin:0;font-size:16px;font-weight:700;letter-spacing:.01em;color:var(--ink)}
+#play-suggest .sg-sub{margin:4px 0 0;font-size:13px;line-height:1.4;color:#8B909A}
+#play-suggest .sg-row{display:flex;align-items:center;justify-content:space-between;gap:10px 14px;flex-wrap:wrap}
+#play-suggest .sg-pills{display:inline-flex;gap:6px;width:auto;padding:0;border:0;border-radius:0;background:none;overflow:visible}
+#play-suggest .sg-pills button{
+  flex:none;min-height:0;height:auto;padding:8px 14px;border:1px solid #2C2F37;border-radius:999px;background:transparent;
+  color:#8B909A;font:600 12.5px/1 'Barlow',sans-serif;letter-spacing:.02em;text-transform:none;cursor:pointer}
+#play-suggest .sg-pills button:hover{color:#D5D8DE;border:1px solid #3A3E46}
+#play-suggest .sg-pills button.on{background:#ECEEF2;border-color:#ECEEF2;color:#121418}
+#play-suggest .sg-field{display:flex;align-items:center;gap:8px;margin:0}
+#play-suggest .sg-field span{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#6E737D}
+#play-suggest .sg-date{flex:none;width:142px;min-width:0;height:34px;padding:0 10px;border-radius:999px;background:#0F1115;color:var(--ink);font-size:13px;color-scheme:dark}
+#play-suggest .sg-text{display:block;width:100%;box-sizing:border-box;min-height:64px;margin:12px 0 0;padding:11px 14px;
+  border:1px solid #262A31;border-radius:12px;background:#0F1115;color:var(--ink);font:inherit;font-size:14px;line-height:1.45;resize:none}
+#play-suggest .sg-text:focus{outline:none;border-color:#4A4F59}
+#play-suggest .sg-foot{display:flex;align-items:center;gap:12px;margin-top:12px}
+#play-suggest .sg-foot .form-msg{flex:1;min-width:0;margin:0;min-height:0;font-size:12.5px}
+#play-suggest .sg-submit{display:block;flex:none;width:auto;margin:0 0 0 auto;height:38px;padding:0 22px;border:0;border-radius:999px;
+  background:#ECEEF2;color:#121418;font:600 13.5px 'Barlow',sans-serif;letter-spacing:.02em;cursor:pointer}
+#play-suggest .sg-submit:hover{background:#fff}
+/* Signed-out visitors: the same box, just tighter so it does not dominate the page. */
+#play-suggest .sg-guest{padding:16px 18px 14px !important}
+#play-suggest .sg-guest .sg-top{margin-bottom:12px}
+#play-suggest .sg-guest .sg-text{min-height:0;height:46px}
+@media(max-width:520px){
+  #play-suggest .sg-row{flex-direction:column;align-items:stretch}
+  #play-suggest .sg-pills{display:flex}
+  #play-suggest .sg-pills button{flex:1 1 0}
+  #play-suggest .sg-field{justify-content:space-between}
+  #play-suggest .sg-date{flex:1;width:auto}
+}
+
+/* ================= Marqit+ page ================= */
+.plus-perk-copy .plus-sub{margin:0 0 10px;font-size:14px;line-height:1.55;color:#B3B7BF}
+.plus-points{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:8px}
+.plus-points li{position:relative;padding-left:18px;font-size:13.5px;line-height:1.5;color:#A8ABB3}
+.plus-points li::before{content:"";position:absolute;left:3px;top:.62em;width:5px;height:5px;border-radius:50%;background:#F6C430}
+.plus-fine{margin:0 0 4px;font-size:12.5px;line-height:1.5;color:#7E838D}
+.plus-perk-body{padding:0 14px 16px}
+.plus-perk-body .plus-btn{margin-top:4px}
+
+.plus-wait{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 6px;padding:18px 20px;
+  border:1px solid #2A2E36;border-radius:16px;background:linear-gradient(180deg,#171A20,#13151A)}
+.plus-wait-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+.plus-wait-copy b{font-size:15.5px;line-height:1.3;color:var(--ink)}
+.plus-wait-line{font-size:13.5px;line-height:1.5;color:#A8ABB3}
+.plus-wait-count{margin-top:2px;font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#F6C430}
+.plus-wait-count[hidden]{display:none}
+.plus-wait-action{flex:none;display:flex;flex-direction:column;align-items:center;gap:8px}
+.plus-wait-btn{height:40px;padding:0 22px;border:0;border-radius:999px;background:#ECEEF2;color:#121418;
+  font:600 14px 'Barlow',sans-serif;letter-spacing:.02em;white-space:nowrap;cursor:pointer;transition:background .15s}
+.plus-wait-btn:hover:not(:disabled){background:#fff}
+.plus-wait.joined .plus-wait-btn{background:rgba(51,209,139,.14);color:#4FD6A0;cursor:default;opacity:1}
+.plus-wait-undo{padding:0;border:0;background:none;color:#7E838D;font:inherit;font-size:12px;text-decoration:underline;cursor:pointer}
+.plus-wait-undo:hover{color:#C9CDD4}
+@media(max-width:560px){
+  .plus-wait{flex-direction:column;align-items:stretch;gap:14px}
+  .plus-wait-action{align-items:stretch}
+}
+
+/* ================= Similar past questions (inside History & lean) ================= */
+.mqp-sim{margin-top:14px;padding-top:12px;border-top:1px solid #2C2F37}
+.mqp-sim[hidden]{display:none}
+.mqp-sim .mqp-sim-h{margin:0 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8B909A}
+.mqp-sim .mqp-sim-sum{margin:0 0 7px;font-size:13.5px;font-weight:500;color:#B3B7BF}
+.mqp-sim .mqp-sim-sum b{font-size:15px;font-weight:700;color:#fff}
+.mqp-sim .mqp-sim-bar{height:4px;border-radius:99px;background:rgba(181,73,61,.55);overflow:hidden}
+.mqp-sim .mqp-sim-bar i{display:block;height:100%;background:#2E8B67;border-radius:99px}
+.mqp-sim .mqp-sim-list{list-style:none;margin:8px 0 0;padding:0;display:block}
+.mqp-sim .mqp-sim-list li{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 0;border-top:1px solid #23262C;font-size:13px;line-height:1.4}
+.mqp-sim .mqp-sim-list li:first-child{border-top:0}
+.mqp-sim .mqp-sim-t{min-width:0}
+.mqp-sim .mqp-sim-q{display:block;font-size:13.5px;line-height:1.4;color:#E4E6EA}
+.mqp-sim .mqp-sim-meta{display:block;margin-top:3px;font-size:12px;color:#7E838D}
+.mqp-sim .mqp-sim-list .mqp-sim-chip{flex:none;min-width:0;padding:3px 8px;border-radius:5px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-align:center}
+.mqp-sim .mqp-sim-list .mqp-sim-chip.yes{background:rgba(46,139,103,.2);color:#4FD6A0}
+.mqp-sim .mqp-sim-list .mqp-sim-chip.no{background:rgba(181,73,61,.2);color:#E8806F}

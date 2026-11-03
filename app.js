@@ -5407,7 +5407,7 @@
         leanHtml +
         '<ul class="mqp-list"></ul>' +
         ((q.resolved && plusRow.result_explanation) ? '<div class="mqp-why"><b>Why it went this way</b><p></p></div>' : '') +
-        '<div class="mqp-sim" data-loaded="0"><button type="button" class="mqp-sim-btn">Similar past questions</button><div class="mqp-sim-body" hidden></div></div>' +
+        '<div class="mqp-sim" data-loaded="0" hidden><p class="mqp-sim-h">Similar past questions</p><div class="mqp-sim-body"></div></div>' +
         '<p class="mqp-note">Based on historical data, not betting lines. For information only, not betting or financial advice. Marqit+ is always ad-free.</p></details>'
       : '';
 
@@ -5663,19 +5663,22 @@
     tomorrowUTC.setUTCDate(tomorrowUTC.getUTCDate() + 1);
     const minDateStr = tomorrowUTC.toISOString().slice(0, 10);
 
+    if(!session) box.classList.add('sg-guest');
     box.innerHTML =
-      '<p class="sg-title">Request a prediction</p>' +
-      '<p class="sg-sub">Got an idea for a future call? Pick a category and a day.</p>' +
-      '<div class="sg-pills" id="suggestion-pills" role="group" aria-label="Category"><button type="button" class="on" data-cat="sports">Sports</button><button type="button" data-cat="pop_culture">Pop culture</button><button type="button" data-cat="news">News</button></div>' +
+      '<div class="sg-top"><p class="sg-title">Request a prediction</p>' +
+      '<p class="sg-sub">Got an idea for a future call? Pick a topic and a day.</p></div>' +
+      '<div class="sg-row">' +
+        '<div class="sg-pills" id="suggestion-pills" role="group" aria-label="Category"><button type="button" class="on" data-cat="sports">Sports</button><button type="button" data-cat="pop_culture">Pop culture</button><button type="button" data-cat="news">News</button></div>' +
+        '<label class="sg-field"><span>Day</span><input type="date" id="suggestion-date" class="sg-date" min="' + minDateStr + '" value="' + minDateStr + '"></label>' +
+      '</div>' +
       '<select id="suggestion-category" hidden>' +
         '<option value="sports">Sports</option>' +
         '<option value="pop_culture">Pop culture</option>' +
         '<option value="news">News</option>' +
       '</select>' +
-      '<label class="sg-field"><span>Day</span><input type="date" id="suggestion-date" class="sg-date" min="' + minDateStr + '" value="' + minDateStr + '"></label>' +
-      '<textarea id="suggestion-text" class="sg-text" rows="3" maxlength="300" placeholder="What should we ask?"></textarea>' +
-      '<button type="button" id="suggestion-submit-btn" class="sg-submit">Pitch idea</button>' +
-      '<p class="form-msg" id="suggestion-msg"></p>';
+      '<textarea id="suggestion-text" class="sg-text" rows="2" maxlength="300" placeholder="What should we ask?"></textarea>' +
+      '<div class="sg-foot"><p class="form-msg" id="suggestion-msg"></p>' +
+      '<button type="button" id="suggestion-submit-btn" class="sg-submit">Pitch idea</button></div>';
     wrap.appendChild(box);
     const host = document.getElementById('play-suggest') || container;
     if(host !== container) host.innerHTML = '';
@@ -5887,29 +5890,35 @@
     for(var i = 0; i < n; i++) out += one;
     return out;
   }
-  // ---- "My favorite": which category the site leads with. Display only; never touches picks or points. ----
+  // ---- Best category: whichever category a player calls best, by accuracy percentage, leads on their Play tab and feeds. ----
+  // Display order only; it never touches picks, points or prizes. Needs 3+ settled picks in a category to count.
   var MQ_FAV_CATS = [['sports', 'Sports'], ['pop_culture', 'Pop culture'], ['news', 'News']];
   function mqFav(){
-    try{ var v = localStorage.getItem('mq_fav_cat'); return (v === 'sports' || v === 'pop_culture' || v === 'news') ? v : null; }catch(e){ return null; }
+    try{ var v = localStorage.getItem('mq_best_cat'); return (v === 'sports' || v === 'pop_culture' || v === 'news') ? v : null; }catch(e){ return null; }
   }
   function mqFavLane(){ var f = mqFav(); return f === 'pop_culture' ? 'pop' : f; }
-  function mqSetFav(v, session){
-    try{ if(v) localStorage.setItem('mq_fav_cat', v); else localStorage.removeItem('mq_fav_cat'); }catch(e){}
-    if(session){ try{ sb.from('profiles').update({ favorite_category: v || null }).eq('id', session.user.id).then(function(){}, function(){}); }catch(e){} }
-  }
-  // Signed-in players keep their favorite across devices: if this device has none, take the saved one.
   async function mqSyncFavFromProfile(session){
-    if(!session || mqFav()) return;
     try{
-      var r = await sb.from('profiles').select('favorite_category').eq('id', session.user.id).maybeSingle();
-      var v = r && r.data && r.data.favorite_category;
-      if(v === 'sports' || v === 'pop_culture' || v === 'news'){ try{ localStorage.setItem('mq_fav_cat', v); }catch(e){} }
+      if(!session){ localStorage.removeItem('mq_best_cat'); localStorage.removeItem('mq_best_cat_u'); localStorage.removeItem('mq_best_cat_at'); return; }
+      var uid = session.user.id, at = Number(localStorage.getItem('mq_best_cat_at')) || 0;
+      if(localStorage.getItem('mq_best_cat_u') === uid && Date.now() - at < 6 * 3600 * 1000) return; // fresh enough
+      var r = await sb.from('predictions').select('choice, daily_questions!inner(category, resolved, correct_answer, voided)').eq('user_id', uid).limit(1000);
+      var by = {};
+      (r.data || []).forEach(function(p){
+        var q = p.daily_questions; if(!q || !q.resolved || q.voided || (q.correct_answer !== 'yes' && q.correct_answer !== 'no')) return;
+        var k = q.category; if(k !== 'sports' && k !== 'pop_culture' && k !== 'news') return;
+        by[k] = by[k] || { n: 0, r: 0 }; by[k].n++; if(p.choice === q.correct_answer) by[k].r++;
+      });
+      var best = null, bestPct = -1;
+      Object.keys(by).forEach(function(k){
+        if(by[k].n < 3) return;
+        var pct = by[k].r / by[k].n;
+        if(pct > bestPct || (pct === bestPct && best && by[k].n > by[best].n)){ best = k; bestPct = pct; }
+      });
+      if(best) localStorage.setItem('mq_best_cat', best); else localStorage.removeItem('mq_best_cat');
+      localStorage.setItem('mq_best_cat_u', uid); localStorage.setItem('mq_best_cat_at', String(Date.now()));
+      sb.from('profiles').update({ favorite_category: best }).eq('id', uid).then(function(){}, function(){});
     }catch(e){}
-  }
-  function mqFavRowHtml(){
-    var f = mqFav();
-    return '<div class="fav-row" role="group" aria-label="Lead with"><span class="fav-lab">Lead with</span><div class="seg">' +
-      MQ_FAV_CATS.map(function(c){ return '<button type="button" class="fav-chip' + (f === c[0] ? ' on' : '') + '" data-fav="' + c[0] + '" aria-pressed="' + (f === c[0]) + '">' + c[1] + '</button>'; }).join('') + '</div></div>';
   }
 
   async function loadDailyQuestionsInner(){
@@ -6103,16 +6112,6 @@
     const allLockedNow = prepared.every(function(p){ return p.isLocked; });
 
     container.innerHTML = '';
-    { var favWrap = document.createElement('div'); favWrap.innerHTML = mqFavRowHtml();
-      var favEl = favWrap.firstChild;
-      favEl.addEventListener('click', function(ev){
-        var b = ev.target.closest('[data-fav]'); if(!b) return;
-        var v = b.getAttribute('data-fav'); mqSetFav(v === mqFav() ? null : v, session);
-        mqTrack('favorite_category_set');
-        loadDailyQuestions();
-      });
-      container.appendChild(favEl); }
-
     if(mqGuestWelcome && session){
       const welcome = document.createElement('div');
       welcome.className = 'trending-strip';
@@ -8037,46 +8036,49 @@
   }
   // The Eastern calendar day an event belongs to. All-day rows store noon UTC of their date.
 
-  // ---- Marqit+ extras: similar past questions, and the lean for any game or event ----
-  document.addEventListener('click', async function(e){
-    var btn = e.target.closest && e.target.closest('.mqp-sim-btn');
-    if(!btn) return;
-    var wrap = btn.closest('.mqp-sim'), body = wrap.querySelector('.mqp-sim-body');
-    if(wrap.getAttribute('data-loaded') === '1'){ body.hidden = !body.hidden; return; }
-    var card = btn.closest('[data-question-id]');
+  // ---- Marqit+ extras: similar past questions (loads by itself when the History & lean panel opens; hidden when there is nothing worth showing) ----
+  document.addEventListener('toggle', async function(e){
+    var det = e.target;
+    if(!det || !det.classList || !det.classList.contains('mqp-details') || !det.open) return;
+    var wrap = det.querySelector('.mqp-sim');
+    if(!wrap || wrap.getAttribute('data-loaded') === '1') return;
+    var card = det.closest('[data-question-id]');
     var qid = card && card.getAttribute('data-question-id');
     if(!qid) return;
-    btn.disabled = true; btn.textContent = 'Looking…';
-    var res = await sb.rpc('mq_similar_questions', { p_question_id: qid });
-    btn.disabled = false; btn.textContent = 'Similar past questions';
+    wrap.setAttribute('data-loaded', '1');
+    var body = wrap.querySelector('.mqp-sim-body');
+    var res = null;
+    try{ res = await sb.rpc('mq_similar_questions', { p_question_id: qid }); }catch(err){ res = null; }
     var rows = (res && res.data) || [];
-    wrap.setAttribute('data-loaded', '1'); body.hidden = false;
+    // Prefer matches that share two or more names; otherwise the closest few.
+    var strong = rows.filter(function(r){ return r.shared && r.shared.length >= 2; });
+    var shownRows = (strong.length >= 2 ? strong : rows).slice(0, 4);
+    if(!shownRows.length){ wrap.hidden = true; return; }
+    var yes = shownRows.filter(function(r){ return r.correct_answer === 'yes'; }).length, n = shownRows.length;
     body.textContent = '';
-    if(!rows.length){ var none = document.createElement('p'); none.className = 'mqp-sim-none'; none.textContent = 'No close matches in our history yet.'; body.appendChild(none); return; }
-    var shownRows = rows.slice(0, 5);
-    var yes = shownRows.filter(function(r){ return r.correct_answer === 'yes'; }).length;
-    var hasShared = shownRows.some(function(r){ return r.shared && r.shared.length; });
-    var intro = document.createElement('p'); intro.className = 'mqp-sim-sum';
-    intro.textContent = hasShared ? 'Past questions that share a team or name with this one:' : 'Closest past questions:';
-    body.appendChild(intro);
+    var sum = document.createElement('div'); sum.className = 'mqp-sim-sum';
+    var big = document.createElement('b'); big.textContent = yes + ' of ' + n;
+    var lab = document.createElement('span'); lab.textContent = ' similar questions settled YES';
+    sum.appendChild(big); sum.appendChild(lab);
+    var bar = document.createElement('div'); bar.className = 'mqp-sim-bar'; bar.setAttribute('aria-hidden', 'true');
+    var fill = document.createElement('i'); fill.style.width = Math.round(100 * yes / n) + '%'; bar.appendChild(fill);
+    body.appendChild(sum); body.appendChild(bar);
     var ul = document.createElement('ul'); ul.className = 'mqp-sim-list';
     shownRows.forEach(function(r){
       var li = document.createElement('li');
       var d = new Date(r.question_date + 'T12:00:00Z').toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: 'UTC' });
-      var chip = document.createElement('b'); chip.className = r.correct_answer; chip.textContent = r.correct_answer.toUpperCase();
-      var t = document.createElement('span');
+      var t = document.createElement('div'); t.className = 'mqp-sim-t';
       var q = document.createElement('span'); q.className = 'mqp-sim-q'; q.textContent = r.question_text;
-      var meta = document.createElement('span'); meta.className = 'mqp-sim-meta'; meta.textContent = d + (r.shared && r.shared.length ? ' \u00b7 ' + r.shared.join(', ') : '');
+      var meta = document.createElement('span'); meta.className = 'mqp-sim-meta'; meta.textContent = d + (r.shared && r.shared.length ? ' · ' + r.shared.join(', ') : '');
       t.appendChild(q); t.appendChild(meta);
-      li.appendChild(chip); li.appendChild(t); ul.appendChild(li);
+      var chip = document.createElement('b'); chip.className = 'mqp-sim-chip ' + r.correct_answer; chip.textContent = r.correct_answer.toUpperCase();
+      li.appendChild(t); li.appendChild(chip); ul.appendChild(li);
     });
     body.appendChild(ul);
-    if(shownRows.length >= 3){
-      var tally = document.createElement('p'); tally.className = 'mqp-sim-tally';
-      tally.textContent = 'Result of these: YES ' + yes + ', NO ' + (shownRows.length - yes) + '.';
-      body.appendChild(tally);
-    }
-  });
+    wrap.hidden = false;
+  }, true);
+
+  // The lean for any game or event is added below.
   // Key for a schedule item: the ET day, the league and the title with only letters and numbers.
   function mqEvKey(ev){
     var slug = String(ev.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -9617,7 +9619,7 @@
     var root = document.getElementById('rk-page'); if(!root) return;
     if(!mqRkReady){
       mqRkReady = true;
-      root.querySelector('.rk-tabs').innerHTML = MQ_RK_TABS.map(function(t){ return '<button type="button" role="tab" data-k="' + t[0] + '">' + t[1] + '</button>'; }).join('');
+      root.querySelector('.rk-tabs').innerHTML = MQ_RK_TABS.map(function(t){ return (t[0] === 'songs' ? '<i class="rk-sep" aria-hidden="true"></i>' : '') + '<button type="button" role="tab" data-k="' + t[0] + '">' + t[1] + '</button>'; }).join('');
       root.querySelector('.rk-tabs').addEventListener('click', function(e){ var b = e.target.closest('button[data-k]'); if(b) mqRkShow(b.getAttribute('data-k')); });
       root.querySelector('#rk-body').addEventListener('click', function(e){
         var sb = e.target.closest('button[data-sub]');
@@ -10080,9 +10082,9 @@
       var dt = new Date(Date.parse(d + 'T12:00:00Z')), n = dayLists[d].length;
       // The first day of the row and the first of each month carry the month name, so "1" is never a mystery.
       var showMonth = i === 0 || dt.getUTCDate() === 1;
-      var dayNum = (showMonth ? dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) + ' ' : '') + dt.getUTCDate();
+      var monthTxt = showMonth ? dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) : '';
       return '<button type="button" class="sched-day' + (n ? ' has' : '') + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (d === sel ? ' sel' : '') + (dt.getUTCDay() === 1 && i > 0 ? ' wk' : '') + '" data-day="' + d + '" aria-pressed="' + (d === sel) + '">' +
-        '<b>' + (d === today ? 'Today' : dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })) + '</b><span>' + dayNum + '</span><em>' + (n ? n + (n === 1 ? ' game' : ' games') : 'Off') + '</em></button>';
+        '<u class="sd-mo">' + monthTxt + '</u><b>' + (d === today ? 'Today' : dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })) + '</b><span>' + dt.getUTCDate() + '</span><em>' + (n ? n + (n === 1 ? ' game' : ' games') : 'Off') + '</em></button>';
     }).join('');
     daysEl.scrollLeft = keepDays;
     if(mqSched.centeredDay !== sel){
