@@ -27,3 +27,6 @@
 - Morning brief email (edge function morning-brief, cron 12:30 UTC, opt-in via profiles.notify_morning_brief). Weekly recap email already existed (free and paid).
 - Gates to change when payments exist: is_marqit_plus() in the database, and the recipient filter in morning-brief.
 - Not built yet: stats by team, bigger private groups, priority support, ad-slot member skip (no ads exist yet).
+
+## Subscription numbers locked (Nov 2, 2026)
+$96/yr; 30 days notice before charging; monthly no refund, yearly 7-day refund; 7-day failed-payment retry; U.S. only; support help@playmarqit.com, 2 business days. Weekly prize stays $50 (mail-in only). Official Rules blanks deferred by Max.
