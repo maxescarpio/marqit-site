@@ -1005,7 +1005,15 @@
   }
 
   async function ensureProfileInner(user){
-    const { data: existing } = await sb.from('profiles').select('id, state, username, banned').eq('id', user.id).maybeSingle();
+    let lookup = await sb.from('profiles').select('id, state, username, banned').eq('id', user.id).maybeSingle();
+    if(lookup.error){
+      // The session token can lag a moment behind sign-in. Try once more, and if the lookup still fails
+      // do NOT treat the person as brand new (that wrongly asks an existing member to pick a username).
+      await new Promise(function(r){ setTimeout(r, 800); });
+      lookup = await sb.from('profiles').select('id, state, username, banned').eq('id', user.id).maybeSingle();
+      if(lookup.error) return { username: '', needsUsername: false };
+    }
+    const existing = lookup.data;
     if(existing){
       try{ sessionStorage.removeItem('marqit_pending_signup_source'); }catch(e){}
       if(existing.banned){
@@ -1079,7 +1087,7 @@
       if(raceCheck){
         // It was us racing ourselves -- a profile now exists for this id, with the
         // real username. Use that instead of inventing a suffixed one.
-        return raceCheck.username;
+        return { username: raceCheck.username, needsUsername: raceCheck.username === ('user_' + user.id.slice(0, 8)) };
       }
       // Genuine username collision with a different user -- fall back to a
       // guaranteed-unique variant rather than leaving the account half-broken.
@@ -1089,7 +1097,7 @@
       if(insertErr){
         // Still failing -- most likely a parallel call finished in between. Check once more.
         const { data: finalCheck } = await sb.from('profiles').select('username').eq('id', user.id).maybeSingle();
-        if(finalCheck) return finalCheck.username;
+        if(finalCheck) return { username: finalCheck.username, needsUsername: finalCheck.username === ('user_' + user.id.slice(0, 8)) };
       }
     }
 
