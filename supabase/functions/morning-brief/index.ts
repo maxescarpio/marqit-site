@@ -3,8 +3,8 @@
 // Secrets: RESEND_API_KEY. Opt-in only (profiles.notify_morning_brief). Sends nothing when
 // today has no admin-approved insights. Optional body: { "test_email": "you@example.com" } sends only to that address.
 //
-// Marqit+ is free for every signed-in player for now. When payments exist, filter the recipient
-// list here to paying members (the same rule as is_marqit_plus() in the database).
+// Marqit+ is free for every signed-in player until the secret MARQIT_PLUS_PAID is set to 'true' (launch day).
+// Once it is, only paying members (the same rule as is_marqit_plus() in the database) receive the brief.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -59,8 +59,18 @@ Deno.serve(async (req: Request) => {
     }).join('');
 
     let query = admin.from('profiles').select('id, username').eq('notify_morning_brief', true);
-    const { data: profiles, error: pErr } = await query;
+    const { data: allProfiles, error: pErr } = await query;
     if (pErr) return new Response(JSON.stringify({ error: pErr.message }), { status: 500 });
+
+    // Launch day: only paying members get the brief (same rule as is_marqit_plus()). Off until MARQIT_PLUS_PAID = 'true'.
+    let profiles = allProfiles;
+    if (Deno.env.get('MARQIT_PLUS_PAID') === 'true') {
+      const { data: members, error: mErr } = await admin.from('marqit_plus_subscriptions')
+        .select('user_id').in('status', ['active', 'trialing', 'past_due']);
+      if (mErr) return new Response(JSON.stringify({ error: mErr.message }), { status: 500 });
+      const ok = new Set((members || []).map((m: any) => m.user_id));
+      profiles = (allProfiles || []).filter((p: any) => ok.has(p.id));
+    }
 
     let sent = 0, failed = 0;
     for (const p of profiles || []) {
