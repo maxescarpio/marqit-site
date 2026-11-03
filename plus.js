@@ -6,7 +6,7 @@
   if(!sb) return;
   // LAUNCH SWITCH. false = the public page stays "free while we launch" with the waitlist (no checkout is shown).
   // true = the page shows the $9.99/month plan and a Subscribe button. Add ?plustest=1 to the address to preview the paid page any time.
-  // Before flipping this to true: Stripe must be live, and is_marqit_plus() / morning-brief must be limited to paying members.
+  // Before flipping this to true: Stripe must be live, run supabase/launch/20261103_marqit_plus_members_only_LAUNCH_DAY.sql, and set the MARQIT_PLUS_PAID secret to 'true' for morning-brief.
   var PAID_LIVE = false;
   function paidMode(){
     if(PAID_LIVE) return true;
@@ -101,6 +101,8 @@
     ]]
   ];
   var TOOLS = { stats: statsCard, head: headCard, follows: followsCard, archive: archiveCard, brief: briefCard, calendar: calendarCard, export: exportCard, report: reportCard };
+  // Tools that are for paying members once the paid page is on. (The archive stays open: everyone sees the last 7 days.)
+  var MEMBER_ONLY = { stats: 1, head: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
   var NEEDS_SIGN_IN = { stats: 1, head: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
   function perkBody(body){
     if(typeof body === 'string'){ body = [body]; }
@@ -121,6 +123,12 @@
       if(tool === 'schedule'){ loaded = true; body.appendChild(btn('Open the Schedule', function(){ var t = document.querySelector('.pagenav-tab[data-page="schedule"]'); if(t) t.click(); })); return; }
       if(!tool || !TOOLS[tool]) return;
       if(NEEDS_SIGN_IN[tool] && !session){ loaded = true; body.appendChild(h('p', 'plus-empty', 'Sign in on the Play tab to use this. It is free.')); return; }
+      if(paidMode() && MEMBER_ONLY[tool] && !memberRow){
+        loaded = true;
+        body.appendChild(h('p', 'plus-empty', 'This is part of Marqit+ ($9.99 per month).'));
+        body.appendChild(btn('See the plan', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); }));
+        return;
+      }
       loaded = true;
       var holder = h('div', 'plus-loading', 'Loading\u2026'); body.appendChild(holder);
       try{ var el = await TOOLS[tool](); holder.replaceWith(el); highlight(); }
@@ -464,16 +472,22 @@
     button.disabled = false;
   }
 
+  // ---------- is this player a paying member? (own row only; the database lets a player read just their own) ----------
+  var memberRow = null;
+  async function loadMember(){
+    memberRow = null;
+    if(!session) return null;
+    try{
+      var r = await sb.from('marqit_plus_subscriptions').select('status,current_period_end,cancel_at_period_end').eq('user_id', session.user.id).maybeSingle();
+      if(r && r.error) r = await sb.from('marqit_plus_subscriptions').select('status,current_period_end').eq('user_id', session.user.id).maybeSingle(); // column not added yet
+      if(r && r.data && ['active', 'trialing', 'past_due'].indexOf(r.data.status) >= 0) memberRow = r.data;
+    }catch(e){}
+    return memberRow;
+  }
+
   // ---------- the paid plan card: price, what it is, one Subscribe button ----------
   async function pricingCard(){
-    var member = null;
-    if(session){
-      try{
-        var r = await sb.from('marqit_plus_subscriptions').select('status,current_period_end,cancel_at_period_end').eq('user_id', session.user.id).maybeSingle();
-        if(r && r.error) r = await sb.from('marqit_plus_subscriptions').select('status,current_period_end').eq('user_id', session.user.id).maybeSingle(); // column not added yet
-        if(r && r.data && ['active', 'trialing', 'past_due'].indexOf(r.data.status) >= 0) member = r.data;
-      }catch(e){}
-    }
+    var member = await loadMember();
     var box = h('div', 'plus-tool plus-price');
     box.appendChild(h('b', null, 'Marqit+ · $9.99 per month'));
     box.appendChild(h('p', 'plus-sub', 'A digital software subscription with extra tools for your own picks: history and lean on every game, My Stats Pro, calendar sync, pick history export, the full question archive, the morning brief and an ad-free experience.'));
@@ -585,6 +599,7 @@
     var rb = returnBanner(); if(rb) root.appendChild(rb);
     var tp = await testPanel(); if(tp) root.appendChild(tp);
     var paid = paidMode();
+    await loadMember();
     var lede = document.querySelector('#page-plus .plus-lede');
     if(lede) lede.textContent = paid ? 'History and tools to go with your picks. $9.99 per month.' : 'History and tools to go with your picks. Free for every signed-in player while we launch.';
     var wl = paid ? await pricingCard() : await waitlistRow(); if(wl) root.appendChild(wl);
