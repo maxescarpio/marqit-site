@@ -304,13 +304,15 @@ The question must be a real DEBATE built from THIS story: use the actual names, 
 
 NAME THE SUBJECT, EVERY TIME. The question must say the actual person, company, team or product by name ("Is Robinhood's Anthropic IPO access a smart buy?", "Are Squarespace's layoffs a smart reset?"). NEVER use "they", "them", "their", "this", "these", "those", "it", "its", "he", "she" or "that" to stand in for the subject, in the setup sentence or in the question. A reader who sees only the question, with no headline, must know exactly who or what it is about. If you cannot name the subject from the headline, return null.
 
-Good (specific, two-sided): "Is Nvidia's $5 trillion valuation a bubble?", "Did Apple overpay for Shazam?", "Is Taylor Swift's new album her best yet?", "Is Tesla stock worth $400 after its earnings?", "Is the Lakers' new trade a win?".
-Pick a side people can defend, not a forecast. Prefer judgment questions ("Is X a buy?", "Was X the right call?", "Is X overpaid?", "Is X the best Y?", "Did X just win the week?") over "Will X happen?" questions, which have no argument in them. Use "Will" only when fans would truly split on the outcome (a game, a title, a stock holding a level).
+CARRY THE DETAIL. The question sentence itself must hold the specific stake from the story: the number, the amount, the deal, the move, the date or the quote-free claim. A reader should be able to argue Yes or No from the question alone, without reading anything else.
+Weak (never write): "Is Disney's layoff plan a smart reset or a desperation move?", "Is Oracle's share sale a savvy play or a sign of weakness?", "Is Apple stock a buy right now?". These are empty: no number, no stake, and the same shape as every other story.
+Strong (write like this): "Is Oracle's plan to sell $10 billion of shares at an 11% discount too steep a price to raise cash?", "Will Disney's plan to cut 20% of annual costs through thousands of layoffs hurt its movies and parks?", "Is a 148% jump in Palantir's commercial revenue enough to justify its stock price?", "Did the Blue Jays make a mistake by declining Myles Straw's $8 million option for 2027?".
+Pick a side people can defend. Ask a judgment about the specific move ("Is X too steep?", "Was X a mistake?", "Is X enough to justify Y?", "Will X hurt Y?"). Vary the shape from story to story: do NOT end every question with "smart ... or ..." or "hit or a miss". Never ask a plain "buy or sell" question. Never use "right now". A question is only good if it could not be pasted under any other story.
 Bad (generic, never write these): "Is this a big deal?", "Is this story overhyped?", "Does this change anything?", "Are people overreacting?".
 
 Rules:
-- FORMAT: one or two short sentences, max 190 characters, plain spoken. First give the specific fact from THIS story that sets up the argument (a number, a move, a quote-free claim straight from the headline or summary), then ask the Yes/No question that fact raises. Example: "Nvidia just passed $5 trillion in value on AI chip demand. Is Nvidia's valuation fair or a bubble?" Another: "Amazon plans to fund a new nuclear plant in Indiana for its data centers. Is nuclear the right way to power AI?" The setup must be a fact the story states, never your own background knowledge. The question after it must have a real case on both sides, so a reader is pulled to pick Yes or No and then argue it in the comments. Never make the answer obvious, never ask something that is just a fact lookup, and never lead the reader to one side. No "Do you think", no "Should fans". Start the question sentence with Is, Are, Was, Were, Did, Does, Do, Will, Can or Has, not with a name.
-- Give the question real tension: where it fits, name both sides in it ("Is Nvidia's price fair or a bubble?", "Smart bet or overpay?", "Right call or a mistake?"). Never write empty questions like "Will this live up to the hype?", "Is this what Apple needs?" or "Can they pull it off?" (and never any question that says this, they or it instead of the name) because nobody has a real argument to make.
+- FORMAT: one or two short sentences, max 260 characters in total, plain spoken. First give the specific fact from THIS story that sets up the argument (a number, a move, a quote-free claim straight from the headline or summary), then ask the Yes/No question that fact raises. Example: "Nvidia just passed $5 trillion in value on AI chip demand. Is Nvidia's valuation fair or a bubble?" Another: "Amazon plans to fund a new nuclear plant in Indiana for its data centers. Is nuclear the right way to power AI?" The setup must be a fact the story states, never your own background knowledge. The question after it must have a real case on both sides, so a reader is pulled to pick Yes or No and then argue it in the comments. Never make the answer obvious, never ask something that is just a fact lookup, and never lead the reader to one side. No "Do you think", no "Should fans". Start the question sentence with Is, Are, Was, Were, Did, Does, Do, Will, Can or Has, not with a name. The setup sentence must contain the most specific number or fact in the story. Write companies in their short name (Oracle, Disney, Apple, Carlyle) and never use abbreviations that end in a period (no Inc., Corp., Co., Ltd., U.S., Jr.): write US or United States, and leave Inc and Corp off.
+- Give the question real tension from the specific fact, not from a stock phrase. Never write empty questions like "Will this live up to the hype?", "Is this what Apple needs?" or "Can they pull it off?" (and never any question that says this, they or it instead of the name) because nobody has a real argument to make.
 - Make it detailed but not complicated: a smart friend should get it in one read, with no jargon left unexplained (say "profit per share" not "EPS" unless the story uses the term).
 - Take a firm position: "Is X the best...", "Is X overrated?", "Will X win...", "Is X worth $Y?", "Is X a bubble?", "Is X the GOAT?".
 - NEVER write hedged or weak questions: no "one of the best", no "still", no "can ... win together", no spread, odds, "cover", over/under or betting framing, no "could" or "might".
@@ -327,16 +329,20 @@ Reply with JSON only: {"items":[{"i":0,"q":"question or null","lane":"markets"}]
 
 // ---- question safety net -----------------------------------------------------
 const TAB_OF: Record<string, Tab> = { markets: 'news', tech: 'news', news: 'news', sports: 'sports', pop: 'pop', music: 'pop' };
-const WEAK_Q = /\b(one of the (best|worst|greatest)|cover the spread|the spread|over\/under|odds|do you think|should fans|could|might|still|hype|live up|pull off|needs?)\b/i;
+const WEAK_Q = /\b(one of the (best|worst|greatest)|cover the spread|the spread|over\/under|odds|do you think|should fans|could|might|still|hype|live up|pull off|needs?|right now|a hit or a miss|or a trap|or overkill|desperation|buy or (a )?sell|smart (bet|move|play|reset|investment|way)s? or)\b/i;
 // Questions that assume a future game, a rematch or an injury comeback. The writer has
 // no schedule or injury feed, so these tend to be wrong ("beat the Seahawks again").
 // "again", "rematch" and "another" are only allowed when the story itself uses the word.
 const FUTURE_ASSUMPTION_Q = /\b(again|rematch|another|next (game|match|week|round|season|meeting|time)|return(s|ing|ed)?|comeback|recover(s|y|ed|ing)?|back from)\b/i;
 const INJURY_TEXT = /\b(injur\w*|surgery|surgical|hamstring|acl|mcl|meniscus|concussion|sidelined|ruled out|out for the (season|year)|knee (issue|problem|injury)|ankle|fracture\w*|broken (arm|leg|foot|wrist|collarbone|forearm)|torn|strain(ed)?|day-to-day|questionable|doubtful)\b/i;
 // A question must name its subject: "Are they a smart buy?" or "Is this a turnaround?" tell a reader nothing.
+const ABBREV_Q = /\b(Inc|Corp|Co|Ltd|Jr|Sr)\.|\b(?:[A-Z]\.){2,}/;
 const VAGUE_SUBJECT_Q = /\b(they|them|their|theirs|this|these|those|it|its|he|she)\b/i;
 function badQuestion(q: string, source: string): boolean {
   if (VAGUE_SUBJECT_Q.test(q)) return true;
+  if (ABBREV_Q.test(q)) return true;
+  const lastQ = q.split(/(?<=[.!])\s+/).pop() || q;
+  if (lastQ.split(/\s+/).length < 7) return true; // the question sentence itself must carry detail
   if (INJURY_TEXT.test(q) || INJURY_TEXT.test(source)) return true;
   const m = q.match(FUTURE_ASSUMPTION_Q);
   if (m && !new RegExp('\\b' + m[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(source)) return true;
@@ -514,7 +520,7 @@ async function generateTakes(admin: any) {
       if (!row) continue;
       let q = typeof it.q === 'string' ? it.q.trim() : null;
       const storyText = `${row.headline} ${row.summary || ''}`;
-      if (q && (q.length < 8 || q.length > 200 || !q.endsWith('?') || isBlockedHeadline(q) || WEAK_Q.test(q) || badQuestion(q, storyText) || !isGrounded(q, storyText))) q = null;
+      if (q && (q.length < 8 || q.length > 260 || !q.endsWith('?') || isBlockedHeadline(q) || WEAK_Q.test(q) || badQuestion(q, storyText) || !isGrounded(q, storyText))) q = null;
       // A rewrite that fails the checks keeps the story's existing question instead of wiping it.
       const upd: any = { take_checked: true };
       if (q || !row.take_question || VAGUE_SUBJECT_Q.test(row.take_question)) upd.take_question = q;

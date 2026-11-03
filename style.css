@@ -1783,9 +1783,3 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area
 .mq-ptr.busy{transform:translate(-50%,0);opacity:1;transition:transform .2s ease,opacity .2s ease;}
 
 /* Marqit+ waitlist card under the daily questions */
-.mqp-wait-card{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:480px;margin-top:28px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);}
-.mqp-wait-copy{display:flex;flex-direction:column;gap:3px;font-size:13px;line-height:1.4;color:var(--ink-soft);}
-.mqp-wait-copy b{font-size:14px;color:#F5C451;}
-.mqp-wait-btn{flex:none;padding:8px 14px;border-radius:100px;border:1px solid #F5C451;background:transparent;color:#F5C451;font:inherit;font-weight:600;cursor:pointer;}
-.mqp-wait-btn.on{background:#F5C451;color:#1a1a1a;}
-.mqp-wait-btn:disabled{opacity:.6;}

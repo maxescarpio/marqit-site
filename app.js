@@ -5305,35 +5305,6 @@
   // Marqit+ insights for today's cards, keyed by question id (filled in loadDailyQuestionsInner).
   var __mqInsights = {};
   // Marqit+ waitlist: a signed-in player can ask to be told when the paid plan opens (demand test only).
-  var __mqWaitJoined = false, __mqWaitUid = null;
-  async function mqRefreshWaitlist(){
-    var card = document.getElementById('mqp-wait-card');
-    var btn = card && card.querySelector('.mqp-wait-btn');
-    if(!card || !btn) return;
-    function paint(){ btn.textContent = __mqWaitJoined ? 'You\u2019re on the list \u2713' : 'Notify me'; btn.classList.toggle('on', __mqWaitJoined); }
-    try{
-      var sr = await sb.auth.getSession();
-      __mqWaitUid = sr && sr.data && sr.data.session && sr.data.session.user && sr.data.session.user.id;
-      if(!__mqWaitUid){ card.style.display = 'none'; return; }
-      var mine = await sb.from('marqit_plus_waitlist').select('user_id').eq('user_id', __mqWaitUid).maybeSingle();
-      __mqWaitJoined = !!(mine && mine.data);
-      paint();
-      card.style.display = '';
-      if(!btn.dataset.wired){
-        btn.dataset.wired = '1';
-        btn.addEventListener('click', async function(){
-          btn.disabled = true;
-          try{
-            if(__mqWaitJoined){ await sb.from('marqit_plus_waitlist').delete().eq('user_id', __mqWaitUid); __mqWaitJoined = false; }
-            else { var ins = await sb.from('marqit_plus_waitlist').insert({ user_id: __mqWaitUid }); if(!ins.error) __mqWaitJoined = true; }
-          }catch(e){}
-          btn.disabled = false; paint();
-        });
-      }
-    }catch(e){ card.style.display = 'none'; }
-  }
-
-
   function buildQuestionCard(q, index, myVote, voteCounts, isLocked, trend, isMostCalled, buddyList, isMover){
     var yesCount = voteCounts.yes || 0;
     var noCount = voteCounts.no || 0;
@@ -6256,7 +6227,6 @@
         (insRes.data || []).forEach(function(r){ if(Array.isArray(r.bullets) && r.bullets.length) __mqInsights[r.question_id] = r; });
       }catch(e){}
     }
-    mqRefreshWaitlist();
 
     let allLocked = true;
     for(let i = 0; i < prepared.length; i++){
@@ -10692,17 +10662,23 @@
       return '';
     }
     // The stored question often restates the headline before asking. Cards show only the closing question.
-    function shortQ(q){
+    // Splits "setup fact. Question?" into its two parts. Periods in Inc., Corp., Co., U.S. and the like are not sentence ends.
+    function splitQ(q){
       q = String(q || '').replace(/\s+/g, ' ').trim();
-      var parts = q.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [q];
-      parts = parts.map(function(x){ return x.trim(); }).filter(Boolean);
-      for(var i = parts.length - 1; i >= 0; i--){ if(/\?$/.test(parts[i])) return parts[i]; }
-      return q;
+      var safe = q.replace(/\b(Inc|Corp|Co|Ltd|Jr|Sr|St|Mr|Mrs|Ms|Dr|vs|No|Mt|Gov|Sen|Rep)\./g, '$1\u0001').replace(/\b(?:[A-Z]\.){2,}/g, function(m){ return m.replace(/\./g, '\u0001'); });
+      var parts = safe.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [safe];
+      parts = parts.map(function(x){ return x.replace(/\u0001/g, '.').trim(); }).filter(Boolean);
+      var qi = -1;
+      for(var i = parts.length - 1; i >= 0; i--){ if(/\?$/.test(parts[i])){ qi = i; break; } }
+      if(qi < 0) return { setup: '', question: q };
+      return { setup: parts.slice(0, qi).join(' '), question: parts[qi] };
     }
     function takeHtml(r){
       if(!r.take_question) return '';
+      var sq = splitQ(mqDecodeEntities(r.take_question));
       return '<div class="news-take" data-take-id="' + escapeHtml(r.id) + '">' +
-        '<div class="take-q">' + escapeHtml(shortQ(mqDecodeEntities(r.take_question))) + '</div>' +
+        (sq.setup ? '<div class="take-setup">' + escapeHtml(sq.setup) + '</div>' : '') +
+        '<div class="take-q">' + escapeHtml(sq.question) + '</div>' +
         '<div class="take-btns"><button type="button" class="take-btn take-yes" data-choice="yes">Yes</button><button type="button" class="take-btn take-no" data-choice="no">No</button></div>' +
         '<div class="take-result" hidden></div>' +
         '<div class="take-note">No points. Just the debate.</div></div>';
