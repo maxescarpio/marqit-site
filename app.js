@@ -1162,6 +1162,9 @@
       return;
     }
     document.getElementById('username-prompt-backdrop').style.display = 'none';
+    // Update what ensureProfile() remembers. Otherwise a later SIGNED_IN event (switching tabs and coming back
+    // re-announces the sign-in) would read the old "still needs a username" answer and show this box again.
+    ensureProfilePromise = Promise.resolve({ username: newUsername, needsUsername: false });
     const navUsername = document.getElementById('nav-username');
     if(navUsername) navUsername.textContent = newUsername;
     // The Play page starts with the timer, so there is no "signed in as" line here any more.
