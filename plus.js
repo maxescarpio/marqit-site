@@ -336,12 +336,37 @@
     return c;
   }
 
+  // ---------- "tell me when it becomes a paid plan" ----------
+  async function waitlistRow(){
+    if(!session) return null;
+    var mine = await sb.from('marqit_plus_waitlist').select('user_id').eq('user_id', session.user.id).maybeSingle();
+    var joined = !!(mine && mine.data);
+    var row = h('div', 'plus-wait');
+    var copy = h('div', 'plus-wait-copy');
+    copy.appendChild(h('b', null, 'Free while we launch'));
+    var line = h('span', null); copy.appendChild(line);
+    var sw = h('button', 'plus-switch'); sw.type = 'button'; sw.setAttribute('role', 'switch');
+    sw.appendChild(h('i'));
+    function paint(){ sw.setAttribute('aria-checked', joined ? 'true' : 'false'); sw.setAttribute('aria-label', 'Tell me before Marqit+ becomes a paid plan'); line.textContent = joined ? 'You\u2019re on the list. We\u2019ll tell you before anything is charged.' : 'Switch this on to get a heads-up before Marqit+ becomes a paid plan.'; }
+    sw.addEventListener('click', async function(){
+      sw.disabled = true;
+      try{
+        if(joined){ await sb.from('marqit_plus_waitlist').delete().eq('user_id', session.user.id); joined = false; }
+        else { var ins = await sb.from('marqit_plus_waitlist').insert({ user_id: session.user.id }); if(!ins.error) joined = true; }
+      }catch(e){}
+      sw.disabled = false; paint();
+    });
+    paint(); row.appendChild(copy); row.appendChild(sw);
+    return row;
+  }
+
   // ---------- page ----------
   async function render(){
     root = document.getElementById('plus-root'); if(!root) return;
     var s = await sb.auth.getSession(); session = s.data.session;
     await loadFollows();
     root.textContent = '';
+    var wl = await waitlistRow(); if(wl) root.appendChild(wl);
     root.appendChild(perksList());
     root.appendChild(h('p', 'plus-note', 'Marqit+ never changes entries, points, picks or prizes. The weekly prize drawing is separate: playing earns no entries, and everyone has the same chance. Information only, not betting or financial advice.'));
   }

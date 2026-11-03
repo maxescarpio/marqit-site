@@ -2362,3 +2362,16 @@ a.mq-ss-ig{text-decoration:none}
 .plus-tool{display:block;}
 .plus-loading{font-size:13px;color:var(--muted,#5b6475);}
 .plus-lede{margin:2px 0 4px;}
+
+/* News cards: the story's key fact above the question */
+.news-take .take-setup{font-size:13.5px;line-height:1.4;color:var(--ink-soft);margin:0 0 6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+
+/* Marqit+ tab: quiet notify switch */
+.plus-wait{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 4px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--paper);}
+.plus-wait-copy{display:flex;flex-direction:column;gap:2px;font-size:13px;line-height:1.4;color:var(--muted,#5b6475);}
+.plus-wait-copy b{font-size:14px;color:var(--ink);}
+.plus-switch{flex:none;position:relative;width:46px;height:28px;border-radius:99px;border:0;background:rgba(120,130,150,.35);cursor:pointer;transition:background .15s;padding:0;}
+.plus-switch i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .15s;}
+.plus-switch[aria-checked="true"]{background:#F5C451;}
+.plus-switch[aria-checked="true"] i{transform:translateX(18px);}
+.plus-switch:disabled{opacity:.6;}
