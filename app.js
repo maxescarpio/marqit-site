@@ -329,6 +329,17 @@
       return;
     }
 
+    if(isSignup){
+      // Optional referral code. Blank is fine; a typo stops here so it is not silently lost.
+      const refEl = document.getElementById('referral-code-input');
+      const typedRef = refEl ? refEl.value.trim() : '';
+      if(typedRef && !mqStoreTypedAmbCode(typedRef)){
+        msgEl.classList.add('err');
+        msgEl.textContent = 'That referral code doesn\'t look right. Use 3 to 20 letters or numbers, or leave it blank.';
+        return;
+      }
+    }
+
     btn.disabled = true;
     const originalText = btn.textContent;
 
@@ -793,6 +804,30 @@
     }catch(e){ /* nice-to-have */ }
   }
 
+  // A referral code can also be typed by hand (signup form, or the username prompt for
+  // Google and email-code signups). Same codes as the links, so people can just say it out loud.
+  function mqNormalizeAmbCode(raw){
+    var c = String(raw || '').trim().toLowerCase();
+    return /^[a-z0-9]{3,20}$/.test(c) ? c : null;
+  }
+  // Typed on purpose, so it replaces any code remembered from an earlier link.
+  function mqStoreTypedAmbCode(raw){
+    var c = mqNormalizeAmbCode(raw);
+    if(!c) return null;
+    try{ localStorage.setItem(MQ_AMB_KEY, JSON.stringify({ code: c, at: Date.now() })); }catch(e){}
+    return c;
+  }
+  // Asks the database right away (the account exists by now). True only if credited.
+  async function mqClaimTypedAmbCode(raw){
+    var c = mqNormalizeAmbCode(raw);
+    if(!c) return false;
+    try{
+      var res = await sb.rpc('claim_ambassador_code', { p_code: c });
+      if(!res.error && res.data === true){ localStorage.removeItem(MQ_AMB_KEY); return true; }
+    }catch(e){}
+    return false;
+  }
+
   // --- Group invite-link capture ---------------
   // A president DMs out https://playmarqit.com/?group=CODE. Most people who
   // click that link are NOT signed in yet, so the old code only auto-joined
@@ -1099,6 +1134,13 @@
       msg.textContent = 'Enter a username.';
       return;
     }
+    const refInputEl = document.getElementById('username-prompt-ref-input');
+    const typedRefCode = refInputEl ? refInputEl.value.trim() : '';
+    if(typedRefCode && !mqNormalizeAmbCode(typedRefCode)){
+      msg.className = 'form-msg err';
+      msg.textContent = 'That referral code doesn\'t look right. Use 3 to 20 letters or numbers, or leave it blank.';
+      return;
+    }
     const { data: sessionRes } = await sb.auth.getSession();
     const session = sessionRes && sessionRes.session;
     if(!session) return;
@@ -1125,6 +1167,13 @@
     // The Play page starts with the timer, so there is no "signed in as" line here any more.
     const heroMsg = document.getElementById('hero-status-msg');
     if(heroMsg){ heroMsg.className = 'form-msg'; heroMsg.textContent = ''; }
+    if(typedRefCode){
+      const credited = await mqClaimTypedAmbCode(typedRefCode);
+      if(!credited && heroMsg){
+        heroMsg.className = 'form-msg err';
+        heroMsg.textContent = 'Your account is set up, but we could not find that referral code.';
+      }
+    }
     mqMaybeAskPassword(session.user, false);
   });
 
