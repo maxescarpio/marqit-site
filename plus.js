@@ -1,9 +1,17 @@
 /* Copyright (c) 2026 Grand Media Group LLC. All rights reserved. Marqit is a trademark of Grand Media Group LLC. */
-/* Marqit+ page: perks that run on the player's own data. Free for every signed-in player for now.
+/* Marqit+ page: perks that run on the player's own data. Free for every signed-in player until PAID_LIVE is switched on.
    Nothing here touches entries, points, picks or prizes. */
 (function(){
   var sb = window.mqSb;
   if(!sb) return;
+  // LAUNCH SWITCH. false = the public page stays "free while we launch" with the waitlist (no checkout is shown).
+  // true = the page shows the $9.99/month plan and a Subscribe button. Add ?plustest=1 to the address to preview the paid page any time.
+  // Before flipping this to true: Stripe must be live, and is_marqit_plus() / morning-brief must be limited to paying members.
+  var PAID_LIVE = false;
+  function paidMode(){
+    if(PAID_LIVE) return true;
+    try{ return new URLSearchParams(location.search).get('plustest') === '1'; }catch(e){ return false; }
+  }
   var root = null, follows = [], session = null;
 
   function h(tag, cls, text){
@@ -428,6 +436,49 @@
   }
 
 
+  // ---------- starting a Stripe Checkout (the price is fixed on the server, never taken from the browser) ----------
+  async function startCheckout(say, button){
+    button.disabled = true; say('Opening checkout…');
+    try{
+      var r = await sb.functions.invoke('create-checkout-session', { body: {} });
+      var url = r.data && r.data.url;
+      if(url){ location.href = url; return; }
+      var m = 'Could not start checkout. Please try again.';
+      try{ if(r.error && r.error.context){ var j = await r.error.context.json(); if(j && j.error) m = j.error; } }catch(e){}
+      say(m, true);
+    }catch(e){ say('Could not start checkout. Please try again.', true); }
+    button.disabled = false;
+  }
+
+  // ---------- the paid plan card: price, what it is, one Subscribe button ----------
+  async function pricingCard(){
+    var member = null;
+    if(session){
+      try{
+        var r = await sb.from('marqit_plus_subscriptions').select('status,current_period_end').eq('user_id', session.user.id).maybeSingle();
+        if(r && r.data && ['active', 'trialing', 'past_due'].indexOf(r.data.status) >= 0) member = r.data;
+      }catch(e){}
+    }
+    var box = h('div', 'plus-tool plus-price');
+    box.appendChild(h('b', null, 'Marqit+ · $9.99 per month'));
+    box.appendChild(h('p', 'plus-sub', 'A digital software subscription with extra tools for your own picks: history and lean on every game, My Stats Pro, calendar sync, pick history export, the full question archive, the morning brief and an ad-free experience.'));
+    var say = msg(box);
+    if(member){
+      box.appendChild(h('p', 'plus-sub', member.status === 'past_due'
+        ? 'You have Marqit+, but your last payment did not go through. Update your card or email help@playmarqit.com and we will help.'
+        : 'You have Marqit+. Thank you!' + (member.current_period_end ? ' It renews on ' + new Date(member.current_period_end).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) + '.' : '')));
+    } else if(!session){
+      var up = btn('Sign up free to subscribe', function(){ var s2 = document.getElementById('cta-open-signup'); if(s2) s2.click(); });
+      box.appendChild(up);
+    } else {
+      var go = btn('Subscribe for $9.99/month', function(){ startCheckout(say, go); });
+      box.appendChild(go);
+    }
+    box.appendChild(h('p', 'plus-fine', 'Billed monthly through Stripe and renews until you cancel. To cancel, email help@playmarqit.com and we will stop it right away. Marqit itself is free to play and players never wager money. Marqit+ does not change entries, points, picks or prizes.'));
+    return box;
+  }
+
+
   // ---------- paid-plan TEST panel: only shows with ?plustest=1 in the address, and only while Stripe is in test mode ----------
   async function testPanel(){
     var wantsTest = false;
@@ -444,18 +495,7 @@
         status.textContent = r.data ? 'Subscription status: ' + r.data.status : 'No subscription on this account yet.';
       }catch(e){ status.textContent = 'Could not read your subscription.'; }
     }
-    var go = btn('Test subscribe $9.99/month', async function(){
-      go.disabled = true; say('Opening checkout…');
-      try{
-        var r = await sb.functions.invoke('create-checkout-session', { body: {} });
-        var url = r.data && r.data.url;
-        if(url){ location.href = url; return; }
-        var m = 'Could not start checkout.';
-        try{ if(r.error && r.error.context){ var j = await r.error.context.json(); if(j && j.error) m = j.error; } }catch(e){}
-        say(m, true);
-      }catch(e){ say('Could not start checkout.', true); }
-      go.disabled = false;
-    });
+    var go = btn('Test subscribe $9.99/month', function(){ startCheckout(say, go); });
     box.appendChild(go);
     box.appendChild(btn('Refresh status', paint, 'plus-wait-undo'));
     paint();
@@ -518,7 +558,10 @@
     root.textContent = '';
     var rb = returnBanner(); if(rb) root.appendChild(rb);
     var tp = await testPanel(); if(tp) root.appendChild(tp);
-    var wl = await waitlistRow(); if(wl) root.appendChild(wl);
+    var paid = paidMode();
+    var lede = document.querySelector('#page-plus .plus-lede');
+    if(lede) lede.textContent = paid ? 'History and tools to go with your picks. $9.99 per month.' : 'History and tools to go with your picks. Free for every signed-in player while we launch.';
+    var wl = paid ? await pricingCard() : await waitlistRow(); if(wl) root.appendChild(wl);
     root.appendChild(perksList());
     root.appendChild(h('p', 'plus-note', 'Marqit+ never changes entries, points, picks or prizes. The weekly prize drawing is separate: playing earns no entries, and everyone has the same chance. Information only, not betting or financial advice.'));
     var help = h('p', 'plus-note', 'Questions? Email '); var a = h('a', null, 'help@playmarqit.com'); a.href = 'mailto:help@playmarqit.com'; help.appendChild(a); root.appendChild(help);
