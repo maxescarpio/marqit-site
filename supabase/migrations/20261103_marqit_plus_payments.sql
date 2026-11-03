@@ -1,4 +1,4 @@
--- NOT YET APPLIED. Marqit+ paid subscriptions (Stripe) and the ambassador $5 payout rules.
+-- ALREADY APPLIED to the Marqit database on 2026-11-03 (run by the owner in the Supabase SQL editor). Marqit+ paid subscriptions (Stripe) and the ambassador $5 payout rules.
 -- Everything here is locked to the server: RLS on, and only the player's own subscription row is readable.
 -- Payout rule: a credited ambassador earns $5 once per Qualifying Subscriber =
 --   first paid payment cleared + still subscribed at day 30 + no refund or chargeback.
