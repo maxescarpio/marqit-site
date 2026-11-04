@@ -7,7 +7,7 @@
   // LAUNCH SWITCH. false = the public page stays "free while we launch" with the waitlist (no checkout is shown).
   // true = the page shows the $9.99/month plan and a Subscribe button. Add ?plustest=1 to the address to preview the paid page any time.
   // Before flipping this to true: Stripe must be live, run supabase/launch/20261103_marqit_plus_members_only_LAUNCH_DAY.sql, and set the MARQIT_PLUS_PAID secret to 'true' for morning-brief.
-  var PAID_LIVE = false;
+  var PAID_LIVE = true;
   function paidMode(){
     if(PAID_LIVE) return true;
     try{ return new URLSearchParams(location.search).get('plustest') === '1'; }catch(e){ return false; }
