@@ -8353,7 +8353,7 @@
   function mqLogoImg(side){
     var u = String((side && side.logo) || '');
     if(!/^https:\/\/a\.espncdn\.com\/i\/teamlogos\/[a-z0-9\/_\-.]+\.png$/i.test(u)) return '';
-    return '<img class="mq-tlg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + escapeHtml(u) + '" onload="this.parentNode.classList.add(\'has-logo\')" onerror="this.remove()">';
+    return '<img class="mq-tlg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + escapeHtml(u) + '" onload="this.parentNode&&this.parentNode.classList.add(\'has-logo\')" onerror="this.remove()">';
   }
   function mqBadgeStyle(side){
     var c = mqTeamColor(side);
@@ -9993,7 +9993,7 @@
   function mqCoLogoImg(sym){
     var d = MQ_CO_DOMAIN[String(sym || '').toUpperCase()];
     if(!d) return '';
-    return '<img class="mq-tlg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="https://www.google.com/s2/favicons?domain=' + d + '&sz=128" onload="this.parentNode.classList.add(\'has-logo\')" onerror="this.remove()">';
+    return '<img class="mq-tlg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="https://www.google.com/s2/favicons?domain=' + d + '&sz=128" onload="this.parentNode&&this.parentNode.classList.add(\'has-logo\')" onerror="this.remove()">';
   }
   function mqEarnColor(sym){
     var s = String(sym || '').toUpperCase();
@@ -10832,7 +10832,7 @@
       var isPost = r.kind === 'post', isTrend = r.kind === 'trend', yt = isYt(r);
       var lane = LANE_NAME[laneOf(r)] || '', when = ago(r.published_at || r.fetched_at), ks = keyStat(r);
       var photo = (!isPost && !yt && r.image_url && /^https:\/\//i.test(r.image_url))
-        ? '<div class="tsc-ph"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add(\'ph-none\');this.remove()"></div>' : '';
+        ? '<div class="tsc-ph"><img src="' + escapeHtml(r.image_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode&&this.parentNode.classList.add(\'ph-none\');this.remove()"></div>' : '';
       if(!photo && !isPost && !yt) photo = '<div class="tsc-ph ph-none"></div>';
       var rank = isTrend && r.trend_rank ? '<span class="tsc-tr">#' + Number(r.trend_rank) + ' ' + mvHtml(r) + '</span>' : (isTrend ? '<span class="tsc-tr">Trending</span>' : '');
       var by = r.source_name ? '<span class="tcd-by">' + escapeHtml(r.source_name) + '</span>' : '';
