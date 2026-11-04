@@ -155,6 +155,7 @@
     <button class="tab" data-tab="widgets">Widgets<span class="pip" id="pip-widgets"></span></button>
     <button class="tab" data-tab="groups">Groups</button>
     <button class="tab" data-tab="ambassadors">Ambassadors</button>
+    <button class="tab" data-tab="giveaway">Giveaway</button>
   </nav>
 </header>
 
@@ -457,6 +458,44 @@
         <p class="msg" id="amb-msg" style="display:none; margin-top:10px; padding:10px 12px;"></p>
       </div>
     </details>
+  </section>
+
+  <!-- ===================== GIVEAWAY (free mail-in entries) ===================== -->
+  <section class="panel" id="panel-giveaway">
+    <details class="card" open>
+      <summary>Free mail-in entries <span class="sub">log each card when it arrives</span></summary>
+      <div class="body">
+        <p class="hint">Each weekly drawing has a mail-by date and a receive-by date. Type in every handwritten card that arrives. One entry per person per drawing. Entrants must be 18+, and late cards are refused. Run supabase/launch/20261104_amoe_mail_in_entries_LAUNCH.sql first.</p>
+        <div id="gw-setup" class="note" style="display:none; margin-bottom:10px;"></div>
+        <div class="row" style="gap:8px; align-items:flex-end;">
+          <div style="flex:2;"><label>Drawing</label><select id="gw-drawing"></select></div>
+          <button id="gw-refresh" class="primary" style="flex:none;">Refresh</button>
+          <button id="gw-csv" style="flex:none;">Download CSV</button>
+        </div>
+        <div id="gw-totals" class="note" style="margin:12px 0 6px;"></div>
+        <div id="gw-table" style="overflow-x:auto;">Loading&hellip;</div>
+      </div>
+    </details>
+    <details class="card">
+      <summary>Log an entry <span class="sub">from a card in the mail</span></summary>
+      <div class="body">
+        <div class="row"><div><label>Full name</label><input id="gw-name"></div><div><label>Email</label><input id="gw-email" type="email"></div></div>
+        <div class="row"><div><label>Phone (optional)</label><input id="gw-phone"></div><div><label>Date of birth</label><input id="gw-dob" type="date"></div></div>
+        <div class="row"><div><label>Home address</label><input id="gw-address"></div></div>
+        <div class="row"><div><label>Received on</label><input id="gw-received" type="date"></div><div><label>Postmarked on (optional)</label><input id="gw-postmarked" type="date"></div></div>
+        <div class="row"><div><label>Notes (optional)</label><input id="gw-notes"></div></div>
+        <button id="gw-log" class="primary">Log entry</button>
+      </div>
+    </details>
+    <details class="card">
+      <summary>New drawing <span class="sub">dates and prize</span></summary>
+      <div class="body">
+        <div class="row"><div style="flex:2;"><label>Name</label><input id="gw-new-name" placeholder="Week of Nov 9"></div><div><label>Prize ($)</label><input id="gw-new-prize" type="number" min="1" value="50"></div></div>
+        <div class="row"><div><label>Mail by</label><input id="gw-new-mailby" type="date"></div><div><label>Receive by</label><input id="gw-new-recvby" type="date"></div><div><label>Draw on</label><input id="gw-new-drawon" type="date"></div></div>
+        <button id="gw-create" class="primary">Create drawing</button>
+      </div>
+    </details>
+    <p class="msg" id="gw-msg" style="display:none; margin-top:10px; padding:10px 12px;"></p>
   </section>
 
 </div>
@@ -1734,8 +1773,88 @@
     document.body.appendChild(a); a.click(); a.remove();
   });
 
+
+  // ---------- Giveaway: free mail-in entries ----------
+  var gwDrawings = [], gwRows = [];
+  function gwEsc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function gwMsg(t, bad){ var m = document.getElementById('gw-msg'); m.style.display = t ? '' : 'none'; m.textContent = t || ''; m.style.color = bad ? 'var(--no)' : 'var(--yes)'; }
+  function gwVal(id){ return document.getElementById(id).value.trim(); }
+  function gwCurrent(){ return document.getElementById('gw-drawing').value; }
+  async function loadDrawings(keep){
+    var sel = document.getElementById('gw-drawing');
+    var setup = document.getElementById('gw-setup');
+    var res = await sb.rpc('admin_list_drawings');
+    if(res.error){
+      setup.style.display = ''; setup.textContent = 'The giveaway tables are not set up yet (' + res.error.message + '). Run the launch SQL for mail-in entries when the rules are approved.';
+      sel.innerHTML = ''; document.getElementById('gw-table').innerHTML = ''; return;
+    }
+    setup.style.display = 'none';
+    gwDrawings = res.data || [];
+    sel.innerHTML = gwDrawings.length ? gwDrawings.map(function(d){ return '<option value="' + gwEsc(d.id) + '">' + gwEsc(d.name) + ' &middot; draws ' + gwEsc(d.draw_on) + ' &middot; ' + d.valid_entries + ' entries</option>'; }).join('') : '<option value="">No drawings yet</option>';
+    if(keep) sel.value = keep;
+    loadEntries();
+  }
+  async function loadEntries(){
+    var box = document.getElementById('gw-table');
+    var id = gwCurrent();
+    if(!id){ box.innerHTML = '<p class="hint">Create a drawing first.</p>'; document.getElementById('gw-totals').textContent = ''; gwRows = []; return; }
+    var d = gwDrawings.filter(function(x){ return x.id === id; })[0];
+    var res = await sb.rpc('admin_list_amoe_entries', { p_drawing: id });
+    if(res.error){ box.innerHTML = '<p class="hint">Error: ' + gwEsc(res.error.message) + '</p>'; return; }
+    gwRows = res.data || [];
+    document.getElementById('gw-totals').innerHTML = d ? ('Prize <b>$' + (d.prize_cents / 100) + '</b> &middot; mail by <b>' + gwEsc(d.mail_by) + '</b> &middot; must arrive by <b>' + gwEsc(d.receive_by) + '</b> &middot; <b>' + d.valid_entries + '</b> valid, ' + d.void_entries + ' void') : '';
+    if(!gwRows.length){ box.innerHTML = '<p class="hint">No entries logged yet.</p>'; return; }
+    var head = ['Name','Email','Address','Born','Received','Status',''];
+    box.innerHTML = '<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr>' + head.map(function(h){ return '<th style="text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap;">' + h + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      gwRows.map(function(r){
+        return '<tr data-id="' + gwEsc(r.id) + '"><td style="padding:6px 8px;"><b>' + gwEsc(r.full_name) + '</b></td><td style="padding:6px 8px;">' + gwEsc(r.email) + '</td><td style="padding:6px 8px;">' + gwEsc(r.address) + '</td><td style="padding:6px 8px;">' + gwEsc(r.dob) + '</td><td style="padding:6px 8px;">' + gwEsc(r.received_on) + (r.postmarked_on ? '<br><span style="color:var(--ink-soft);">postmarked ' + gwEsc(r.postmarked_on) + '</span>' : '') + '</td><td style="padding:6px 8px;">' + gwEsc(r.status) + (r.void_reason ? '<br><span style="color:var(--ink-soft);">' + gwEsc(r.void_reason) + '</span>' : '') + '</td><td style="padding:6px 8px;">' + (r.status === 'valid' ? '<button class="gw-void" style="flex:none;">Void</button>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    box.querySelectorAll('.gw-void').forEach(function(btn){
+      btn.addEventListener('click', async function(){
+        var reason = window.prompt('Why is this entry void? (required)');
+        if(!reason) return;
+        btn.disabled = true;
+        var out = await sb.rpc('admin_void_amoe_entry', { p_entry: btn.closest('tr').getAttribute('data-id'), p_reason: reason });
+        if(out.error){ gwMsg('Could not void: ' + out.error.message, true); btn.disabled = false; return; }
+        gwMsg('Entry voided.'); loadDrawings(gwCurrent());
+      });
+    });
+  }
+  document.getElementById('gw-refresh').addEventListener('click', function(){ loadDrawings(gwCurrent()); });
+  document.getElementById('gw-drawing').addEventListener('change', loadEntries);
+  document.getElementById('gw-log').addEventListener('click', async function(){
+    var id = gwCurrent();
+    if(!id){ gwMsg('Create a drawing first.', true); return; }
+    var btn = this; btn.disabled = true;
+    var out = await sb.rpc('admin_log_amoe_entry', {
+      p_drawing: id, p_full_name: gwVal('gw-name'), p_email: gwVal('gw-email'), p_phone: gwVal('gw-phone'), p_address: gwVal('gw-address'),
+      p_dob: gwVal('gw-dob') || null, p_received_on: gwVal('gw-received') || null, p_postmarked_on: gwVal('gw-postmarked') || null, p_notes: gwVal('gw-notes')
+    });
+    btn.disabled = false;
+    if(out.error){ gwMsg('Not logged: ' + out.error.message, true); return; }
+    ['gw-name','gw-email','gw-phone','gw-address','gw-dob','gw-postmarked','gw-notes'].forEach(function(f){ document.getElementById(f).value = ''; });
+    gwMsg('Entry logged.'); loadDrawings(id);
+  });
+  document.getElementById('gw-create').addEventListener('click', async function(){
+    var prize = Math.round(parseFloat(document.getElementById('gw-new-prize').value || '0') * 100);
+    var btn = this; btn.disabled = true;
+    var out = await sb.rpc('admin_create_drawing', { p_name: gwVal('gw-new-name'), p_mail_by: gwVal('gw-new-mailby') || null, p_receive_by: gwVal('gw-new-recvby') || null, p_draw_on: gwVal('gw-new-drawon') || null, p_prize_cents: prize });
+    btn.disabled = false;
+    if(out.error){ gwMsg('Could not create: ' + out.error.message, true); return; }
+    gwMsg('Drawing created.'); loadDrawings(out.data);
+  });
+  document.getElementById('gw-csv').addEventListener('click', function(){
+    var cols = ['full_name','email','phone','address','dob','received_on','postmarked_on','status','void_reason','notes'];
+    var lines = [cols.join(',')].concat(gwRows.map(function(r){ return cols.map(function(c){ return ambCsvCell(r[c]); }).join(','); }));
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+    a.download = 'marqit-mail-in-entries.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+
   checkAccess().then(function(ok){
     if(ok){
+      loadDrawings();
       loadAmbassadors();
       loadScheduleAdmin();
       loadReview();
