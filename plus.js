@@ -44,10 +44,6 @@
         'The Schedule tab covers far more than the three daily questions. Tap any game, earnings report or event and the same history and lean sit inside it.',
         ['Look into the games you care about, not just the ones we pick for the day.',
          'Works across sports, earnings and the rest of the schedule.']], 'schedule'],
-      ['Similar past questions', 'live', [
-        'Under any daily question, Marqit+ lists the closest matches from our archive and how each one settled. We match on names, so a question about a team lines up with earlier questions about that same team.',
-        ['Each match shows its date, the question and how it ended.',
-         'A short tally of those matches sits at the bottom.']]],
       ['Results explained', 'live', [
         'Once a question settles, its Marqit+ panel adds a short note on why it went the way it did: what happened, and which fact decided it.',
         ['Handy for learning what to watch for the next time a similar call comes up.']]],
