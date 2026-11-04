@@ -1,5 +1,5 @@
 /* Copyright (c) 2026 Grand Media Group LLC. All rights reserved. Marqit is a trademark of Grand Media Group LLC. */
-/* Nov 3 redesign: rankings tabs, date strip, request box, Marqit+ page, similar past questions.
+/* Nov 3 redesign: rankings tabs, date strip, request box, Marqit+ page, news filters.
    Loaded after refresh.css, so these rules are the final word for the pieces below. */
 
 /* ================= Rankings: league tabs + Standings/Leaders toggle ================= */
@@ -124,20 +124,127 @@
   .plus-wait-action{align-items:stretch}
 }
 
-/* ================= Similar past questions (inside History & lean) ================= */
-.mqp-sim{margin-top:14px;padding-top:12px;border-top:1px solid #2C2F37}
-.mqp-sim[hidden]{display:none}
-.mqp-sim .mqp-sim-h{margin:0 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8B909A}
-.mqp-sim .mqp-sim-sum{margin:0 0 7px;font-size:13.5px;font-weight:500;color:#B3B7BF}
-.mqp-sim .mqp-sim-sum b{font-size:15px;font-weight:700;color:#fff}
-.mqp-sim .mqp-sim-bar{height:4px;border-radius:99px;background:rgba(181,73,61,.55);overflow:hidden}
-.mqp-sim .mqp-sim-bar i{display:block;height:100%;background:#2E8B67;border-radius:99px}
-.mqp-sim .mqp-sim-list{list-style:none;margin:8px 0 0;padding:0;display:block}
-.mqp-sim .mqp-sim-list li{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 0;border-top:1px solid #23262C;font-size:13px;line-height:1.4}
-.mqp-sim .mqp-sim-list li:first-child{border-top:0}
-.mqp-sim .mqp-sim-t{min-width:0}
-.mqp-sim .mqp-sim-q{display:block;font-size:13.5px;line-height:1.4;color:#E4E6EA}
-.mqp-sim .mqp-sim-meta{display:block;margin-top:3px;font-size:12px;color:#7E838D}
-.mqp-sim .mqp-sim-list .mqp-sim-chip{flex:none;min-width:0;padding:3px 8px;border-radius:5px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-align:center}
-.mqp-sim .mqp-sim-list .mqp-sim-chip.yes{background:rgba(46,139,103,.2);color:#4FD6A0}
-.mqp-sim .mqp-sim-list .mqp-sim-chip.no{background:rgba(181,73,61,.2);color:#E8806F}
+/* =====================================================================
+   Nov 4 cleanup: quieter, flatter controls. One neutral palette, gold only as a tiny accent.
+   These come last on purpose; they win over the rules above.
+   ===================================================================== */
+
+/* ---------- Request a prediction ---------- */
+#play-suggest > div > .sg-box{
+  padding:24px 24px 20px !important;border:1px solid #23262C;border-radius:14px;background:#14161B}
+#play-suggest .sg-top{margin:0 0 18px}
+#play-suggest .sg-title{font-size:17px;font-weight:700;letter-spacing:0}
+#play-suggest .sg-sub{margin:5px 0 0;font-size:13.5px;color:#868B95}
+#play-suggest .sg-row{display:block}
+/* topic: one joined segmented control */
+#play-suggest .sg-pills{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;width:100%;box-sizing:border-box;
+  padding:3px;border:1px solid #262A31;border-radius:11px;background:#0F1115}
+#play-suggest .sg-pills button{
+  min-height:0;height:36px;padding:0 8px;border:0;border-radius:8px;background:none;
+  color:#7E838D;font:600 13px/1 'Barlow',sans-serif;letter-spacing:.02em;transition:color .15s,background .15s}
+#play-suggest .sg-pills button:hover{color:#D5D8DE;border:0}
+#play-suggest .sg-pills button.on{background:#252930;border:0;color:#fff;box-shadow:inset 0 0 0 1px #343842}
+#play-suggest .sg-text{min-height:84px;margin:12px 0 0;padding:13px 14px;border-radius:11px;border-color:#262A31;font-size:14.5px}
+#play-suggest .sg-text::placeholder{color:#5F646E}
+#play-suggest .sg-text:focus{border-color:#4A4F59}
+/* bottom row: day on the left, submit on the right */
+#play-suggest .sg-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+#play-suggest .sg-field{position:relative;display:flex;align-items:center;gap:0;margin:0;height:42px;padding:0 6px 0 14px;
+  border:1px solid #262A31;border-radius:10px;background:#0F1115;cursor:pointer;transition:border-color .15s}
+#play-suggest .sg-field:hover,#play-suggest .sg-field:focus-within{border-color:#4A4F59}
+#play-suggest .sg-field span{margin-right:10px;padding-right:10px;border-right:1px solid #262A31;
+  font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6E737D}
+#play-suggest .sg-date{width:auto;min-width:0;height:100%;padding:0;border:0;border-radius:0;background:transparent;
+  color:#E4E6EA;font:600 14px 'Barlow',sans-serif;letter-spacing:.01em;color-scheme:dark;cursor:pointer}
+#play-suggest .sg-date:focus{outline:none}
+#play-suggest .sg-date::-webkit-calendar-picker-indicator{margin-left:8px;padding:4px;border-radius:6px;opacity:.55;cursor:pointer;transition:opacity .15s}
+#play-suggest .sg-date::-webkit-calendar-picker-indicator:hover{opacity:1}
+#play-suggest .sg-submit{height:42px;margin:0;padding:0 24px;border-radius:10px;background:#ECEEF2;color:#121418;
+  font:700 14px 'Barlow',sans-serif;letter-spacing:.02em;transition:background .15s,transform .1s}
+#play-suggest .sg-submit:hover{background:#fff}
+#play-suggest .sg-submit:active{transform:translateY(1px)}
+#play-suggest .sg-msg{margin:10px 0 0;min-height:0;font-size:12.5px}
+#play-suggest .sg-msg:empty{display:none}
+#play-suggest .sg-guest{padding:20px 20px 16px !important}
+#play-suggest .sg-guest .sg-text{min-height:0;height:56px}
+@media(max-width:520px){
+  #play-suggest .sg-foot{flex-direction:column;align-items:stretch}
+  #play-suggest .sg-field{justify-content:space-between}
+  #play-suggest .sg-date{flex:1;text-align:right}
+  #play-suggest .sg-submit{width:100%}
+}
+
+/* ---------- Marqit+ tab in the top nav: a small gold mark so it reads as the premium tab ---------- */
+.pagenav-tab[data-page="plus"]::before{content:"";display:inline-block;width:6px;height:6px;margin:0 8px 2px 0;
+  background:#B9973A;transform:rotate(45deg);opacity:.75;transition:opacity .15s}
+.pagenav-tab[data-page="plus"]:hover::before,.pagenav-tab[data-page="plus"].active::before{opacity:1;background:#F6C430}
+
+/* ---------- Marqit+ page ---------- */
+#page-plus .plus-lede{margin:6px 0 26px;max-width:560px;font-size:16px;line-height:1.5;color:#979CA6}
+.plus-root{max-width:760px}
+/* sign-up / plan card */
+.plus-wait,.plus-price{margin:0 0 10px;padding:24px 26px;border:1px solid #262A31;border-radius:14px;background:#14161B}
+.plus-wait{gap:28px}
+.plus-wait-copy{gap:6px}
+.plus-wait-copy b{font-size:17px;font-weight:700;letter-spacing:0;color:#F2F3F5}
+.plus-wait-line{font-size:14px;line-height:1.55;color:#979CA6}
+.plus-wait-count{margin-top:4px;font-size:11px;letter-spacing:.14em;color:#B9973A}
+.plus-wait-btn{display:inline-flex;align-items:center;gap:10px;height:46px;padding:0 26px;border:0;border-radius:10px;
+  background:#F2F3F5;color:#101216;font:700 14.5px 'Barlow',sans-serif;letter-spacing:.02em;
+  box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 6px 18px -8px rgba(0,0,0,.6);transition:background .15s,transform .1s}
+.plus-wait-btn::after{content:"\2192";font-size:16px;line-height:1;transition:transform .15s}
+.plus-wait-btn:hover:not(:disabled){background:#fff}
+.plus-wait-btn:hover:not(:disabled)::after{transform:translateX(3px)}
+.plus-wait-btn:active:not(:disabled){transform:translateY(1px)}
+.plus-wait.joined .plus-wait-btn{background:#1B1E24;color:#8FD9B8;box-shadow:inset 0 0 0 1px #2A3A33}
+.plus-wait.joined .plus-wait-btn::after{content:"\2713";transform:none}
+.plus-btn{padding:11px 20px;border-radius:10px;background:#F2F3F5;color:#101216;font-weight:700;letter-spacing:.02em;transition:background .15s}
+.plus-btn:hover:not(:disabled){background:#fff}
+.plus-btn.ghost{background:transparent;color:#E4E6EA;border:1px solid #2E323A}
+/* perk list: quiet rows, no boxes inside boxes */
+.plus-group{margin:34px 0 10px;padding:0 2px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#6E737D}
+.plus-group:first-child{margin-top:12px}
+.plus-perklist{border:1px solid #23262C;border-radius:14px;background:#14161B}
+.plus-perk{border-top:1px solid #1F2227}
+.plus-perk > summary{min-height:60px;padding:0 20px;font-size:15px;font-weight:600;letter-spacing:0;color:#E4E6EA;transition:background .15s,color .15s}
+.plus-perk > summary:hover{background:rgba(255,255,255,.025);color:#fff}
+.plus-perk > summary::after{width:7px;height:7px;border-width:1.5px;opacity:.4}
+.plus-perk[open] > summary{color:#fff}
+.plus-perk[open] > summary::after{opacity:.7}
+.plus-perk-body{padding:2px 20px 22px}
+.plus-perk-copy .plus-sub{margin:0 0 12px;font-size:14.5px;line-height:1.6;color:#A3A8B1}
+.plus-points{gap:9px;margin:0 0 14px}
+.plus-points li{padding-left:16px;font-size:14px;line-height:1.55;color:#9AA0AA}
+.plus-points li::before{left:2px;top:.68em;width:4px;height:4px;background:#5F646E}
+.plus-fine{font-size:12.5px;color:#737882}
+.plus-note{max-width:640px;margin:22px 2px 0;font-size:12.5px;line-height:1.55;color:#6E737D}
+.plus-note a{color:#A3A8B1}
+
+/* ---------- News / Trending filters: underline tabs on top, plain text topics underneath ---------- */
+#news-chips,#trending-chips{
+  display:flex;flex-wrap:nowrap;gap:0;margin:20px 0 0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+  border-bottom:1px solid #23262C}
+#news-chips::-webkit-scrollbar,#trending-chips::-webkit-scrollbar{display:none}
+#news-chips .feed-chip,#trending-chips .feed-chip{
+  position:relative;flex:none;min-height:0;height:auto;margin:0;padding:13px 18px 14px;
+  border:0;border-radius:0;background:none;box-shadow:none;
+  color:#7E838D;font:600 13px/1 'Barlow',sans-serif;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;
+  transition:color .15s}
+#news-chips .feed-chip:hover,#trending-chips .feed-chip:hover{color:#E4E6EA;background:none;border:0}
+#news-chips .feed-chip.on,#trending-chips .feed-chip.on{background:none;border:0;color:#fff;box-shadow:none}
+#news-chips .feed-chip::after,#trending-chips .feed-chip::after{content:"";position:absolute;left:18px;right:18px;bottom:-1px;height:2px;
+  border-radius:2px;background:#F2F3F5;transform:scaleX(0);transform-origin:left center;transition:transform .2s ease}
+#news-chips .feed-chip.on::after,#trending-chips .feed-chip.on::after{transform:scaleX(1)}
+#news-chips .feed-chip:first-child,#trending-chips .feed-chip:first-child{padding-left:2px}
+#news-chips .feed-chip:first-child::after,#trending-chips .feed-chip:first-child::after{left:2px}
+
+.page .feed-chips.topic-chips,.page .feed-chips.src-chips{
+  display:flex;flex-wrap:wrap;gap:4px 6px;margin:14px 0 0;padding:0;border:0}
+.page .feed-chips.topic-chips .feed-chip,.page .feed-chips.src-chips .feed-chip{
+  min-height:0;height:auto;padding:7px 12px;border:0;border-radius:8px;background:none;box-shadow:none;
+  color:#7E838D;font:600 13px/1 'Barlow',sans-serif;letter-spacing:.01em;text-transform:none;opacity:1;
+  transition:color .15s,background .15s}
+.page .feed-chips.topic-chips .feed-chip:first-child,.page .feed-chips.src-chips .feed-chip:first-child{margin-left:-12px}
+.page .feed-chips.topic-chips .feed-chip:hover,.page .feed-chips.src-chips .feed-chip:hover{color:#E4E6EA;background:rgba(255,255,255,.04);border:0}
+.page .feed-chips.topic-chips .feed-chip.on,.page .feed-chips.src-chips .feed-chip.on{background:rgba(255,255,255,.08);border:0;color:#fff;box-shadow:none}
+.page .feed-updated{margin:14px 0 4px;font-size:12px;letter-spacing:.02em;color:#6E737D}

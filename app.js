@@ -5531,7 +5531,6 @@
         leanHtml +
         '<ul class="mqp-list"></ul>' +
         ((q.resolved && plusRow.result_explanation) ? '<div class="mqp-why"><b>Why it went this way</b><p></p></div>' : '') +
-        '<div class="mqp-sim" data-loaded="0" hidden><p class="mqp-sim-h">Similar past questions</p><div class="mqp-sim-body"></div></div>' +
         '<p class="mqp-note">Based on historical data, not betting lines. For information only, not betting or financial advice. Marqit+ is always ad-free.</p></details>'
       : '';
 
@@ -5793,7 +5792,6 @@
       '<p class="sg-sub">Got an idea for a future call? Pick a topic and a day.</p></div>' +
       '<div class="sg-row">' +
         '<div class="sg-pills" id="suggestion-pills" role="group" aria-label="Category"><button type="button" class="on" data-cat="sports">Sports</button><button type="button" data-cat="pop_culture">Pop culture</button><button type="button" data-cat="news">News</button></div>' +
-        '<label class="sg-field"><span>Day</span><input type="date" id="suggestion-date" class="sg-date" min="' + minDateStr + '" value="' + minDateStr + '"></label>' +
       '</div>' +
       '<select id="suggestion-category" hidden>' +
         '<option value="sports">Sports</option>' +
@@ -5801,8 +5799,11 @@
         '<option value="news">News</option>' +
       '</select>' +
       '<textarea id="suggestion-text" class="sg-text" rows="2" maxlength="300" placeholder="What should we ask?"></textarea>' +
-      '<div class="sg-foot"><p class="form-msg" id="suggestion-msg"></p>' +
-      '<button type="button" id="suggestion-submit-btn" class="sg-submit">Pitch idea</button></div>';
+      '<div class="sg-foot">' +
+        '<label class="sg-field"><span>Day</span><input type="date" id="suggestion-date" class="sg-date" min="' + minDateStr + '" value="' + minDateStr + '"></label>' +
+        '<button type="button" id="suggestion-submit-btn" class="sg-submit">Pitch idea</button>' +
+      '</div>' +
+      '<p class="form-msg sg-msg" id="suggestion-msg"></p>';
     wrap.appendChild(box);
     const host = document.getElementById('play-suggest') || container;
     if(host !== container) host.innerHTML = '';
@@ -8159,48 +8160,6 @@
     return new Date(Date.parse(dateStr + 'T12:00:00Z') + n * 86400000).toISOString().slice(0, 10);
   }
   // The Eastern calendar day an event belongs to. All-day rows store noon UTC of their date.
-
-  // ---- Marqit+ extras: similar past questions (loads by itself when the History & lean panel opens; hidden when there is nothing worth showing) ----
-  document.addEventListener('toggle', async function(e){
-    var det = e.target;
-    if(!det || !det.classList || !det.classList.contains('mqp-details') || !det.open) return;
-    var wrap = det.querySelector('.mqp-sim');
-    if(!wrap || wrap.getAttribute('data-loaded') === '1') return;
-    var card = det.closest('[data-question-id]');
-    var qid = card && card.getAttribute('data-question-id');
-    if(!qid) return;
-    wrap.setAttribute('data-loaded', '1');
-    var body = wrap.querySelector('.mqp-sim-body');
-    var res = null;
-    try{ res = await sb.rpc('mq_similar_questions', { p_question_id: qid }); }catch(err){ res = null; }
-    var rows = (res && res.data) || [];
-    // Prefer matches that share two or more names; otherwise the closest few.
-    var strong = rows.filter(function(r){ return r.shared && r.shared.length >= 2; });
-    var shownRows = (strong.length >= 2 ? strong : rows).slice(0, 4);
-    if(!shownRows.length){ wrap.hidden = true; return; }
-    var yes = shownRows.filter(function(r){ return r.correct_answer === 'yes'; }).length, n = shownRows.length;
-    body.textContent = '';
-    var sum = document.createElement('div'); sum.className = 'mqp-sim-sum';
-    var big = document.createElement('b'); big.textContent = yes + ' of ' + n;
-    var lab = document.createElement('span'); lab.textContent = ' similar questions settled YES';
-    sum.appendChild(big); sum.appendChild(lab);
-    var bar = document.createElement('div'); bar.className = 'mqp-sim-bar'; bar.setAttribute('aria-hidden', 'true');
-    var fill = document.createElement('i'); fill.style.width = Math.round(100 * yes / n) + '%'; bar.appendChild(fill);
-    body.appendChild(sum); body.appendChild(bar);
-    var ul = document.createElement('ul'); ul.className = 'mqp-sim-list';
-    shownRows.forEach(function(r){
-      var li = document.createElement('li');
-      var d = new Date(r.question_date + 'T12:00:00Z').toLocaleDateString([], { month: 'short', day: 'numeric', timeZone: 'UTC' });
-      var t = document.createElement('div'); t.className = 'mqp-sim-t';
-      var q = document.createElement('span'); q.className = 'mqp-sim-q'; q.textContent = r.question_text;
-      var meta = document.createElement('span'); meta.className = 'mqp-sim-meta'; meta.textContent = d + (r.shared && r.shared.length ? ' · ' + r.shared.join(', ') : '');
-      t.appendChild(q); t.appendChild(meta);
-      var chip = document.createElement('b'); chip.className = 'mqp-sim-chip ' + r.correct_answer; chip.textContent = r.correct_answer.toUpperCase();
-      li.appendChild(t); li.appendChild(chip); ul.appendChild(li);
-    });
-    body.appendChild(ul);
-    wrap.hidden = false;
-  }, true);
 
   // The lean for any game or event is added below.
   // Key for a schedule item: the ET day, the league and the title with only letters and numbers.
