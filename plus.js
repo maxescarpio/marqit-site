@@ -505,7 +505,7 @@
       var go = btn('Subscribe for $9.99/month', function(){ startCheckout(say, go); });
       box.appendChild(go);
     }
-    box.appendChild(h('p', 'plus-fine', 'Billed monthly through Stripe and renews until you cancel. You can cancel any time from this page once you subscribe. Marqit itself is free to play and players never wager money. Marqit+ does not change entries, points, picks or prizes.'));
+    box.appendChild(h('p', 'plus-fine', 'Billed monthly through Stripe and renews until you cancel. You can cancel any time from this page once you subscribe. Marqit itself is free to play and players never wager money.'));
     return box;
   }
 
@@ -600,7 +600,7 @@
     if(lede) lede.textContent = paid ? 'History and tools to go with your picks. $9.99 per month.' : 'History and tools to go with your picks. Free for every signed-in player while we launch.';
     var wl = paid ? await pricingCard() : await waitlistRow(); if(wl) root.appendChild(wl);
     root.appendChild(perksList());
-    root.appendChild(h('p', 'plus-note', 'Marqit+ never changes entries, points, picks or prizes. The weekly prize drawing is separate: playing earns no entries, and everyone has the same chance. Information only, not betting or financial advice.'));
+    root.appendChild(h('p', 'plus-note', 'Marqit+ is a software subscription. Information only, not betting or financial advice.'));
     var help = h('p', 'plus-note', 'Questions? Email '); var a = h('a', null, 'help@playmarqit.com'); a.href = 'mailto:help@playmarqit.com'; help.appendChild(a); root.appendChild(help);
   }
   document.addEventListener('click', function(e){
