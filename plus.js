@@ -505,7 +505,7 @@
       var go = btn('Subscribe for $9.99/month', function(){ startCheckout(say, go); });
       box.appendChild(go);
     }
-    box.appendChild(h('p', 'plus-fine', 'Billed monthly through Stripe and renews until you cancel. You can cancel any time from this page once you subscribe. Marqit itself is free to play and players never wager money.'));
+    box.appendChild(h('p', 'plus-fine', '$9.99 per month, billed through Stripe. Renews automatically every month until you cancel. Cancel any time from this page and keep access through the end of the period you paid for. Refunds and details are in the Terms of Service. Marqit itself is free to play and players never wager money.'));
     return box;
   }
 
