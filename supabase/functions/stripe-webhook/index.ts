@@ -62,10 +62,16 @@ Deno.serve(async (req: Request) => {
     return data?.user_id ?? null;
   }
   async function saveSubscription(userId: string, patch: Record<string, unknown>) {
-    const { error } = await admin
-      .from('marqit_plus_subscriptions')
-      .upsert({ user_id: userId, updated_at: new Date().toISOString(), ...patch }, { onConflict: 'user_id' });
-    if (error) throw new Error('subscription save failed: ' + error.message);
+    // checkout.session.completed and customer.subscription.created arrive together and can race to create the same row.
+    // The loser gets a unique-violation (23505); retrying turns it into a plain update, so no 500 and no Stripe retry.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { error } = await admin
+        .from('marqit_plus_subscriptions')
+        .upsert({ user_id: userId, updated_at: new Date().toISOString(), ...patch }, { onConflict: 'user_id' });
+      if (!error) return;
+      if (error.code !== '23505' || attempt === 2) throw new Error('subscription save failed: ' + error.message);
+      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+    }
   }
 
   try {
