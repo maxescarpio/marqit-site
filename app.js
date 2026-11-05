@@ -9606,9 +9606,9 @@
     return '<li class="rk-go" data-act="player" data-pid="' + escapeHtml(l.id) + '" data-pn="' + escapeHtml(l.name) + '" data-pm="' + escapeHtml([l.pos, l.team].filter(Boolean).join(' · ')) + '" data-ph="' + escapeHtml(l.hs || '') + '" tabindex="0">' +
       '<span class="n">' + l.rank + '</span>' + mqLeadPh(l, 'sm') + '<span class="m"><b>' + escapeHtml(l.name) + '</b><em>' + escapeHtml([l.pos, l.abbr].filter(Boolean).join(' · ')) + '</em></span><span class="rk-val' + (first ? ' top' : '') + '">' + escapeHtml(l.value) + '</span></li>';
   }
-  function mqLeadCard(c){
+  function mqLeadCard(c, grp){
     var rows = c.leaders.map(function(l, i){ return mqLeadRow(l, i === 0); });
-    return '<div class="rk-card"><div class="rk-card-h">' + escapeHtml(c.label) + '</div><ol class="rk-mini">' + rows.slice(0, 5).join('') + '</ol>' +
+    return '<div class="rk-card"><div class="rk-card-h">' + (grp ? '<span class="rk-card-g">' + escapeHtml(grp) + '</span>' : '') + escapeHtml(c.label) + '</div><ol class="rk-mini">' + rows.slice(0, 5).join('') + '</ol>' +
       (rows.length > 5 ? '<details class="rk-more"><summary><span class="rk-more-open">Show top 10</span><span class="rk-more-close">Show less</span>' + mqIcon('chevronDown') + '</summary><ol class="rk-mini">' + rows.slice(5).join('') + '</ol></details>' : '') + '</div>';
   }
   // Click any leader: season stats plus status and injury report.
@@ -9640,9 +9640,11 @@
     if(!d || !d.categories || !d.categories.length) return '<p class="evp-muted">Season leaders aren’t available right now.</p>';
     var defs = MQ_LEAD_GROUPS[k] || [['Leaders', /./]], groups = defs.map(function(g){ return { name: g[0], re: g[1], cats: [] }; });
     d.categories.forEach(function(c){ for(var i = 0; i < groups.length; i++){ if(groups[i].re.test(c.label)){ groups[i].cats.push(c); return; } } });
-    return groups.filter(function(g){ return g.cats.length; }).map(function(g){
-      return '<section class="rk-grp"><h4 class="rk-grp-h">' + escapeHtml(g.name) + '</h4><div class="rk-cards">' + g.cats.map(mqLeadCard).join('') + '</div></section>';
-    }).join('');
+    // One continuous grid across all groups so every row is full and aligned (no 1 / 2 / 3 stagger);
+    // each card carries its group name as a small label instead of a separate section heading.
+    var filled = groups.filter(function(g){ return g.cats.length; }), cards = [];
+    filled.forEach(function(g){ g.cats.forEach(function(c){ cards.push(mqLeadCard(c, filled.length > 1 ? g.name : '')); }); });
+    return '<div class="rk-cards">' + cards.join('') + '</div>';
   }
   // Standings & charts lives on its own page (the last nav tab). Team, song and artist details still open as a panel on top.
   var mqRkReady = false, mqRkCur = null;
