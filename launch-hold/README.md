@@ -18,3 +18,6 @@ Your lawyer writes the rules; the page only summarizes them.
 
 ## Official rules page (hidden)
 `launch-hold/official-rules.html` is the draft rules as a page. Counsel edits the wording, then: fill the yellow `[placeholders]`, `git mv` it to the site root, remove the `noindex` meta tag, and link it from the footer and from `free-entry.html` ("official rules link" placeholder).
+
+## Privacy Policy at go-live
+Add to `privacy.html` when the drawing launches: mailed-in entries collect full name, date of birth, home address, email and signature, used only to run and verify the drawing and contact winners, kept [period] then destroyed; winners also provide identity/age confirmation and tax details (Form W-9 where required). Cards are not shared except as the law requires. Counsel to confirm wording.
