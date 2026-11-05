@@ -15,3 +15,6 @@ Your lawyer writes the rules; the page only summarizes them.
    "no cash prizes" (index.html about section, terms.html) and "playing earns no entries" (plus.js).
 6. In the admin, open the Giveaway tab, create the drawing, and log each card as it arrives. The pool shown there is valid mail-in cards plus Marqit+ members subscribed at that moment, one entry each.
 7. Before launch: update what Stripe was told (support thread of Nov 2). It says Marqit+ gives no entry; this structure enters members automatically.
+
+## Official rules page (hidden)
+`launch-hold/official-rules.html` is the draft rules as a page. Counsel edits the wording, then: fill the yellow `[placeholders]`, `git mv` it to the site root, remove the `noindex` meta tag, and link it from the footer and from `free-entry.html` ("official rules link" placeholder).
