@@ -8,7 +8,7 @@
 - Do NOT write new privacy policy or terms yet; the subscription is not launching.
 
 ## Prize / free-entry model (leaning)
-- Random drawing among all eligible players, $50 weekly, 18+.
+- Random drawing among all eligible players, $100 weekly, 18+.
 - 1 entry per day for submitting all three picks (participation only, never accuracy, because Marqit+ helps accuracy).
 - Free entry route (AMOE) modeled on shopgfp.com/pages/amoe: online form, handwritten 3x5 card (date, giveaway name, name, DOB, address, signature), one claim per day, hard deadline. NO driver's license photo; verify ID only at the winner stage.
 - Open for attorney: Rhode Island ($500 threshold), NY/FL registration if totals grow, tax forms if prizes grow, final eligible states.

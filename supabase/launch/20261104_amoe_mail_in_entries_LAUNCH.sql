@@ -9,7 +9,7 @@ create table if not exists public.giveaway_drawings (
   mail_by date not null,          -- last day an entry may be postmarked
   receive_by date not null,       -- last day an entry may arrive
   draw_on date not null,
-  prize_cents integer not null default 5000 check (prize_cents > 0),
+  prize_cents integer not null default 10000 check (prize_cents > 0),
   status text not null default 'open' check (status in ('open', 'closed', 'drawn')),
   created_at timestamptz not null default now(),
   check (receive_by >= mail_by and draw_on >= receive_by)
@@ -40,7 +40,7 @@ alter table public.amoe_entries enable row level security;
 revoke all on public.giveaway_drawings from public, anon, authenticated;
 revoke all on public.amoe_entries from public, anon, authenticated;
 
-create or replace function public.admin_create_drawing(p_name text, p_mail_by date, p_receive_by date, p_draw_on date, p_prize_cents integer default 5000)
+create or replace function public.admin_create_drawing(p_name text, p_mail_by date, p_receive_by date, p_draw_on date, p_prize_cents integer default 10000)
  returns uuid language plpgsql security definer set search_path to 'public' as $function$
 declare v_id uuid;
 begin
