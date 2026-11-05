@@ -6543,7 +6543,11 @@
       const editableQuestions = prepared.filter(function(p){ return !p.isLocked; });
       const allAlreadyAnswered = editableQuestions.length > 0 && editableQuestions.every(function(p){ return !!p.myVote; });
 
-      const EDIT_LIMIT = 3;
+      // Free players get 3 edits a day. Marqit+ members edit as often as they like until lock (the server enforces the same rule).
+      let isPlusMember = false;
+      try{ const pr = await sb.rpc('is_marqit_plus'); isPlusMember = pr && pr.data === true; }catch(e){}
+      const EDIT_LIMIT = isPlusMember ? Infinity : 3;
+      const EDIT_LIMIT_TEXT = 'You’ve used all 3 edits for today’s predictions. Marqit+ members can edit as often as they like until lock.';
       let editsUsed = 0;
       const { data: editCountRow } = await sb.from('prediction_edit_counts').select('edit_count').eq('user_id', session.user.id).eq('question_date', today).maybeSingle();
       if(editCountRow){ editsUsed = editCountRow.edit_count; }
@@ -6561,7 +6565,7 @@
         '<div class="pick-dock"><div class="pick-progress" id="pick-progress" style="display:' + (allAlreadyAnswered ? 'none' : 'flex') + ';"><span class="pp-dots">' + editableQuestions.map(function(p){ var v = mqDetectVisual(p.q); return '<i class="pp-slot">' + (v.icon || CATEGORY_ICONS[p.q.category] || '') + '</i>'; }).join('') + '</span><span class="pp-text">0 of ' + editableQuestions.length + ' picked</span><span class="pp-bonus">All right = +100 bonus</span></div>' +
         '<button type="button" id="submit-all-btn" disabled style="width:100%; padding:14px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; opacity:0.4; display:' + (allAlreadyAnswered ? 'none' : 'block') + ';">Pick all three first</button></div>' +
         '<button type="button" id="edit-predictions-btn" style="width:100%; padding:14px 22px; border:1.5px solid var(--line); border-radius:10px; background:none; color:var(--ink); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; display:' + (allAlreadyAnswered && editsRemaining > 0 ? 'block' : 'none') + ';">Edit predictions</button>' +
-        '<p id="edit-limit-msg" style="font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:4px; display:' + (allAlreadyAnswered && editsRemaining === 0 ? 'block' : 'none') + ';">You\u2019ve used all 3 edits for today\u2019s predictions.</p>' +
+        '<p id="edit-limit-msg" style="font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:4px; display:' + (allAlreadyAnswered && editsRemaining === 0 ? 'block' : 'none') + ';">' + EDIT_LIMIT_TEXT + '</p>' +
         '<p class="form-msg" id="submit-all-msg" style="margin-top:6px;"></p>' +
         '<div id="play-social-prompt" style="display:' + (allAlreadyAnswered ? 'block' : 'none') + '; margin-top:14px; padding:14px 16px; background:var(--panel); border-radius:10px;">' +
           '<div style="font-size:13px; font-weight:600; margin-bottom:8px;">Add some stakes</div>' +
@@ -6685,7 +6689,7 @@
           const lockHit = saveError.message && saveError.message.indexOf('already locked') !== -1;
           submitMsg.className = 'form-msg err';
           submitMsg.textContent = limitHit
-            ? 'You\u2019ve used all 3 edits for today\u2019s predictions.'
+            ? EDIT_LIMIT_TEXT
             : lockHit
               ? 'That question just locked \u2014 refresh and check before trying again.'
               : 'Something didn\u2019t save \u2014 refresh and check before trying again.';
