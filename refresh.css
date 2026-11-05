@@ -1583,6 +1583,10 @@ button.rc:hover:not(:disabled){outline:2px solid rgba(255,255,255,.45);outline-o
 .rk-mini .rk-val.top{color:#F6C430;font-weight:700}
 .rk-more summary{padding:6px 0;font-size:11.5px;color:#8B909A}
 .rk-more[open] summary{display:none}
+/* Leaders: one continuous grid across all groups, wider so more cards sit side by side (less scrolling) */
+#rk-page .rk-body:has(.rk-cards){max-width:1280px}
+.rk-cards{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.rk-card-g{display:block;margin-bottom:2px;font:700 10px 'Barlow',sans-serif;letter-spacing:.14em;color:#F6C430}
 
 /* ===== Player panel: status, injuries, season stats ===== */
 .pl-status{display:flex;align-items:center;gap:10px;margin:12px 0 6px;font:600 13px 'Barlow',sans-serif}
@@ -2418,3 +2422,7 @@ a.mq-ss-ig{text-decoration:none}
 .mqp-sim-q{display:block;font-size:13.5px;line-height:1.35}
 .mqp-sim-meta{display:block;margin-top:2px;font-size:12px;color:var(--ink-soft)}
 .mqp-sim-tally{margin:10px 0 0;font-size:13px;font-weight:600}
+
+/* News trending strip: rank shown as a compact round badge instead of the big condensed numeral. #1 is gold. */
+#news-grid .news-top3:not(.chart) .top-row .tr-n:not(.up){display:inline-flex;align-items:center;justify-content:center;flex:none;width:30px;height:30px;min-width:30px;padding:0;margin:0;border-radius:50%;background:#262A32;border:1px solid #3A3F48;font:800 15px/1 'Barlow',sans-serif;font-variant-numeric:tabular-nums;letter-spacing:0;text-align:center;color:#F2F3F5 !important}
+#news-grid .news-top3:not(.chart) .top-row:nth-child(2) .tr-n:not(.up){background:#F6C430;border-color:#F6C430;color:#15171B !important}
