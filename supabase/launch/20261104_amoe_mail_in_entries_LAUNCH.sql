@@ -117,7 +117,22 @@ grant execute on function public.admin_log_amoe_entry(uuid, text, text, text, te
 grant execute on function public.admin_list_amoe_entries(uuid) to authenticated;
 grant execute on function public.admin_void_amoe_entry(uuid, text) to authenticated;
 
+-- Size of the pool for a drawing: valid mail-in cards + members who are subscribed right now (one entry each).
+create or replace function public.admin_drawing_pool(p_drawing uuid)
+ returns table (mail_in_entries bigint, member_entries bigint, total_entries bigint)
+ language plpgsql security definer set search_path to 'public' as $function$
+declare v_mail bigint; v_mem bigint;
+begin
+  if not is_marqit_admin() then raise exception 'Not authorized'; end if;
+  select count(*) into v_mail from amoe_entries where drawing_id = p_drawing and status = 'valid';
+  select count(*) into v_mem from marqit_plus_subscriptions where status in ('active', 'trialing');
+  return query select v_mail, v_mem, v_mail + v_mem;
+end $function$;
+revoke all on function public.admin_drawing_pool(uuid) from public, anon;
+grant execute on function public.admin_drawing_pool(uuid) to authenticated;
+
 -- ROLLBACK:
+-- drop function if exists public.admin_drawing_pool(uuid);
 -- drop function if exists public.admin_void_amoe_entry(uuid, text), public.admin_list_amoe_entries(uuid),
 --   public.admin_log_amoe_entry(uuid, text, text, text, text, date, date, date, text), public.admin_list_drawings(),
 --   public.admin_create_drawing(text, date, date, date, integer);

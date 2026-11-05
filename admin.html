@@ -1802,7 +1802,9 @@
     var res = await sb.rpc('admin_list_amoe_entries', { p_drawing: id });
     if(res.error){ box.innerHTML = '<p class="hint">Error: ' + gwEsc(res.error.message) + '</p>'; return; }
     gwRows = res.data || [];
-    document.getElementById('gw-totals').innerHTML = d ? ('Prize <b>$' + (d.prize_cents / 100) + '</b> &middot; mail by <b>' + gwEsc(d.mail_by) + '</b> &middot; must arrive by <b>' + gwEsc(d.receive_by) + '</b> &middot; <b>' + d.valid_entries + '</b> valid, ' + d.void_entries + ' void') : '';
+    var pool = await sb.rpc('admin_drawing_pool', { p_drawing: id });
+    var pr = (pool.data && pool.data[0]) || null;
+    document.getElementById('gw-totals').innerHTML = d ? ((pr ? 'Pool: <b>' + pr.total_entries + '</b> entries (' + pr.mail_in_entries + ' mail-in + ' + pr.member_entries + ' Marqit+ members right now) &middot; ' : '') + ('Prize <b>$' + (d.prize_cents / 100) + '</b> &middot; mail by <b>' + gwEsc(d.mail_by) + '</b> &middot; must arrive by <b>' + gwEsc(d.receive_by) + '</b> &middot; <b>' + d.valid_entries + '</b> valid, ' + d.void_entries + ' void') ) : '';
     if(!gwRows.length){ box.innerHTML = '<p class="hint">No entries logged yet.</p>'; return; }
     var head = ['Name','Email','Address','Born','Received','Status',''];
     box.innerHTML = '<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr>' + head.map(function(h){ return '<th style="text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap;">' + h + '</th>'; }).join('') + '</tr></thead><tbody>' +

@@ -13,4 +13,5 @@ Your lawyer writes the rules; the page only summarizes them.
 4. Move the page to the site root: `git mv launch-hold/free-entry.html free-entry.html`, and remove `<meta name="robots" content="noindex">`.
 5. Add a link to it (footer in `index.html`, next to Terms), and update the site lines that say
    "no cash prizes" (index.html about section, terms.html) and "playing earns no entries" (plus.js).
-6. In the admin, open the Giveaway tab, create the drawing, and log each card as it arrives.
+6. In the admin, open the Giveaway tab, create the drawing, and log each card as it arrives. The pool shown there is valid mail-in cards plus Marqit+ members subscribed at that moment, one entry each.
+7. Before launch: update what Stripe was told (support thread of Nov 2). It says Marqit+ gives no entry; this structure enters members automatically.
