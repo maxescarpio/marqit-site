@@ -1,13 +1,21 @@
 // Teams tab data (ESPN public feed, unofficial). Cached. Public, read-only, no keys.
 //   GET .../functions/v1/team-hub?action=teams&league=nba            -> { teams: [{ id, name, abbr, logo }] }
 //   GET .../functions/v1/team-hub?action=roster&league=nba&id=13     -> { players: [{ id, name, pos, jersey, hs }] }
-//   GET .../functions/v1/team-hub?action=team&league=nba&id=13       -> record, results, upcoming, last season, injuries, headlines
+//   GET .../functions/v1/team-hub?action=team&league=nba&id=13       -> record, results, upcoming, last season, injuries, headlines,
+//                                                                       top players with stats (leaders), home/road record, season numbers
 const UA = 'curl/8.5.0';
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'content-type': 'application/json' };
 const SPORTS: Record<string, string> = {
-  nba: 'basketball/nba', nfl: 'football/nfl', mlb: 'baseball/mlb', nhl: 'hockey/nhl',
-  wnba: 'basketball/wnba', mls: 'soccer/usa.1', epl: 'soccer/eng.1',
+  nfl: 'football/nfl', nba: 'basketball/nba', mlb: 'baseball/mlb', nhl: 'hockey/nhl',
+  mls: 'soccer/usa.1', epl: 'soccer/eng.1', laliga: 'soccer/esp.1', bundesliga: 'soccer/ger.1',
+  seriea: 'soccer/ita.1', ligue1: 'soccer/fra.1', nwsl: 'soccer/usa.nwsl',
+  ncaaf: 'football/college-football', ncaam: 'basketball/mens-college-basketball', ncaaw: 'basketball/womens-college-basketball',
+  wnba: 'basketball/wnba',
 };
+// College feeds list far more schools than a person follows; these ESPN groups keep the list to the top division.
+const TEAM_GROUPS: Record<string, string> = { ncaaf: '&groups=80', ncaam: '&groups=50', ncaaw: '&groups=50' };
+// Leagues the scoreboard function can give top players (season leaders) for, and the key it uses.
+const SB_KEY: Record<string, string> = { nfl: 'NFL', nba: 'NBA', mlb: 'MLB', nhl: 'NHL', wnba: 'WNBA', mls: 'MLS', epl: 'EPL', ncaaf: 'NCAAF' };
 const SITE = 'https://site.api.espn.com/apis/site/v2/sports/';
 const cache = new Map<string, { at: number; body: unknown }>();
 
@@ -40,7 +48,7 @@ function scoreOf(c: any): string {
 
 async function teamsList(lg: string) {
   return cached('teams:' + lg, 86400000, async () => {
-    const d = await j(`${SITE}${SPORTS[lg]}/teams?limit=200`);
+    const d = await j(`${SITE}${SPORTS[lg]}/teams?limit=500${TEAM_GROUPS[lg] || ''}`);
     return (d?.sports?.[0]?.leagues?.[0]?.teams || [])
       .map((x: any) => x?.team).filter((t: any) => t?.id)
       .map((t: any) => ({ id: s(t.id), name: s(t.displayName), abbr: s(t.abbreviation), logo: logoOf(t) }))
@@ -106,11 +114,14 @@ function parseSchedule(d: any, id: string) {
 
 async function teamSummary(lg: string, id: string) {
   return cached(`team:${lg}:${id}`, 600000, async () => {
-    const [t, sc, inj, news] = await Promise.allSettled([
+    const [t, sc, inj, news, hub] = await Promise.allSettled([
       j(`${SITE}${SPORTS[lg]}/teams/${id}`),
       j(`${SITE}${SPORTS[lg]}/teams/${id}/schedule`),
       leagueInjuries(lg),
       j(`${SITE}${SPORTS[lg]}/news?team=${id}&limit=8`),
+      SB_KEY[lg]
+        ? fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/scoreboard?team=${SB_KEY[lg]}:${id}`, { signal: AbortSignal.timeout(12000) }).then((r) => r.json())
+        : Promise.resolve(null),
     ]);
     const team = t.status === 'fulfilled' ? (t.value?.team || {}) : {};
     if (!team.id && !team.displayName) throw new Error('not found');
@@ -137,7 +148,15 @@ async function teamSummary(lg: string, id: string) {
         headline: s(a?.headline).slice(0, 160), date: s(a?.published).slice(0, 10), url: espnLink(s(a?.links?.web?.href)),
       })).filter((a: any) => a.headline && a.url).slice(0, 6)
       : [];
+    // Top players with their season numbers, home/road record and season stats (same source as the ribbon's team panel).
+    const sbd: any = hub.status === 'fulfilled' && hub.value && !hub.value.error ? hub.value : {};
+    const leaders = (Array.isArray(sbd.leaders) ? sbd.leaders : []).slice(0, 3).map((l: any) => ({
+      id: '', name: s(l?.full || l?.name), pos: s(l?.pos), label: s(l?.label), line: s(l?.line), num: s(l?.num),
+      hs: /^https:\/\/a\.espncdn\.com\//.test(s(l?.hs)) ? s(l.hs) : '',
+    })).filter((l: any) => l.name);
     return {
+      leaders, home: s(sbd.home), road: s(sbd.road),
+      seasonStats: (Array.isArray(sbd.stats) ? sbd.stats : []).slice(0, 6).map((x: any) => ({ label: s(x?.label), value: s(x?.value) })),
       id, league: lg, name: s(team.displayName), abbr: s(team.abbreviation), logo: logoOf(team), color: /^[0-9a-f]{6}$/i.test(s(team.color)) ? '#' + team.color : '',
       record: s(team?.record?.items?.[0]?.summary), standing: s(team?.standingSummary),
       live, upcoming, results, lastSeason, injuries, headlines,

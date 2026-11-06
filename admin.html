@@ -1891,7 +1891,6 @@
     tabs.forEach(function(t){ var on = t.getAttribute('data-tab') === name; t.classList.toggle('active', on); if(on) found = true; });
     if(!found) return;
     panels.forEach(function(p){ p.classList.toggle('active', p.id === 'panel-' + name); });
-    try{ localStorage.setItem(KEY, name); }catch(e){}
   }
   tabs.forEach(function(t){
     t.addEventListener('click', function(){ show(t.getAttribute('data-tab')); window.scrollTo(0, 0); });
@@ -1914,9 +1913,10 @@
     if(a && a.getAttribute('href') === location.hash) setTimeout(goHash, 0);
   });
 
-  var saved = null;
-  try{ saved = localStorage.getItem(KEY); }catch(e){}
-  show(saved || 'daily');
+  // Always open on Daily. It no longer remembers the last tab; another tab opens only when clicked
+  // (or when a #link such as the yellow alert bar points at it).
+  try{ localStorage.removeItem(KEY); }catch(e){}
+  show('daily');
   if(location.hash) goHash();
 
   // Count badges: a card with data-count shows how many rows are waiting in it, and

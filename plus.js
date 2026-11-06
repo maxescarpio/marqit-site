@@ -607,23 +607,27 @@
     box.appendChild(top);
 
     // Middle: everything included, as a clean checklist instead of one long sentence.
-    box.appendChild(h('p', 'plus-price-h', 'What you get'));
+    box.appendChild(h('p', 'plus-price-h', 'What is Marqit+?'));
+    box.appendChild(h('p', 'plus-price-what', 'Marqit is free to play. Marqit+ adds history and tools around your own picks. It never adds entries, points or prizes, and players never wager money.'));
+    box.appendChild(h('p', 'plus-price-h plus-price-h2', 'What you get'));
     var list = h('ul', 'plus-price-list');
     [
-      ['History and lean on every game', 'Open to everyone for now'],
-      ['Unlimited pick edits'],
-      ['My Stats Pro'],
-      ['Contrarian score'],
-      ['Calendar sync'],
-      ['Pick history export'],
-      ['Full question archive'],
-      ['The morning brief'],
-      ['Ad-free experience']
+      ['History and lean on every question and game', 'Five bullets of history and a percentage lean under every daily question and every game. Open to everyone for now.'],
+      ['Unlimited pick edits', 'Change your mind as often as you like until a question locks. Free players get 3 edits a day.'],
+      ['My Stats Pro', 'Your accuracy by category, best and toughest categories, and your streaks.'],
+      ['Contrarian score', 'How often you pick against the crowd and how it turns out.'],
+      ['Calendar sync', 'Add games and lock times to your own calendar.'],
+      ['Pick history export', 'Download every pick you have made as a spreadsheet.'],
+      ['Full question archive', 'Search every question we have ever asked. Free players see the last 7 days.'],
+      ['Morning brief', 'A short email each morning with the history behind that day\u2019s questions.'],
+      ['Ad-free', 'Members never see ads.']
     ].forEach(function(f){
       var li = h('li');
-      li.appendChild(h('span', 'plus-price-ck', '✓'));
-      li.appendChild(h('span', 'plus-price-ft', f[0]));
-      if(f[1]) li.appendChild(h('em', 'plus-price-note', f[1]));
+      li.appendChild(h('span', 'plus-price-ck', '\u2713'));
+      var t = h('span', 'plus-price-t');
+      t.appendChild(h('b', 'plus-price-ft', f[0]));
+      t.appendChild(h('span', 'plus-price-d', f[1]));
+      li.appendChild(t);
       list.appendChild(li);
     });
     box.appendChild(list);
@@ -644,7 +648,7 @@
           : 'You have Marqit+. Thank you!' + (endDate ? ' It renews on ' + endDate + '.' : '')));
       var manage = btn(member.cancel_at_period_end ? 'Manage subscription' : 'Manage or cancel subscription', function(){ openPortal(say, manage); }, 'plus-btn ghost');
       status.appendChild(manage);
-      box.insertBefore(status, say);
+      box.insertBefore(status, box.querySelector('.plus-msg'));
     } else if(!session){
       cta.appendChild(btn('Sign up free to subscribe', function(){ var s2 = document.getElementById('cta-open-signup'); if(s2) s2.click(); }, 'plus-btn plus-price-go'));
     } else {

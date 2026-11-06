@@ -1,7 +1,10 @@
 /* Copyright (c) 2026 Grand Media Group LLC. All rights reserved. Marqit is a trademark of Grand Media Group LLC. */
-/* Teams tab: pick favorite teams and players, rename the tab, make it the tab that opens first.
-   Per team: record, live game or next games, recent results, last season, injuries, headlines.
-   Per player: status, injuries and season numbers. Data is ESPN's public feed (unofficial) through the team-hub and athlete functions.
+/* Teams tab: follow favorite teams and players.
+   Home: logo squares for everything you follow (teams, then players).
+   Tap a team: Overview (live/next game, top players with stats, season numbers), Games, Injuries, News.
+   Tap a player: status, injuries and season numbers.
+   Add: pick a league, tap a team's logo, follow it or browse its players.
+   Data is ESPN's public feed (unofficial) through the team-hub and athlete functions.
    Open to every signed-in player for now. To make it Marqit+ only: set TEAMS_PLUS_ONLY = true here and run the one line in
    supabase/migrations/20261105_teams_tab.sql. */
 (function(){
@@ -11,10 +14,22 @@
   var root = document.getElementById('teams-root');
   if(!root) return;
   var BASE = (sb.supabaseUrl || window.SUPABASE_URL || '').replace(/\/$/, '') + '/functions/v1/';
-  var LEAGUES = [['nba', 'NBA'], ['nfl', 'NFL'], ['mlb', 'MLB'], ['nhl', 'NHL'], ['wnba', 'WNBA'], ['mls', 'MLS'], ['epl', 'Premier League']];
+  // Pro sports first, then soccer, then college and the rest.
+  var LEAGUES = [
+    ['nfl', 'NFL'], ['nba', 'NBA'], ['mlb', 'MLB'], ['nhl', 'NHL'],
+    ['mls', 'MLS'], ['epl', 'Premier League'], ['laliga', 'La Liga'], ['bundesliga', 'Bundesliga'], ['seriea', 'Serie A'], ['ligue1', 'Ligue 1'], ['nwsl', 'NWSL'],
+    ['ncaaf', 'College football'], ['ncaam', 'College basketball (men)'], ['ncaaw', 'College basketball (women)'], ['wnba', 'WNBA']
+  ];
+  var LG_NAME = {}; LEAGUES.forEach(function(l){ LG_NAME[l[0]] = l[1]; });
   var STATS_LEAGUES = { nba: 1, nfl: 1, mlb: 1, nhl: 1 }; // the athlete function covers these four
+  // ESPN headshot folders, so a followed player shows a face without an extra request.
+  var HS_PATH = { nfl: 'nfl', nba: 'nba', mlb: 'mlb', nhl: 'nhl', wnba: 'wnba', ncaaf: 'college-football', ncaam: 'mens-college-basketball', ncaaw: 'womens-college-basketball' };
   var session = null, isPlus = false, prefs = { tab_name: 'Teams', make_default: false }, picks = [];
-  var openId = null, panel = '', firstRun = true;
+  var view = 'home';      // 'home' | 'add' | 'set' | 'detail'
+  var openId = null;      // the followed team/player being viewed
+  var sub = 'overview';   // team detail section
+  var firstRun = true;
+  var teamCache = {};     // 'nba:13' -> promise of the team summary
 
   function h(tag, cls, text){ var el = document.createElement(tag); if(cls) el.className = cls; if(text != null) el.textContent = text; return el; }
   function btn(label, fn, cls){ var b = h('button', cls || 'tm-btn', label); b.type = 'button'; b.addEventListener('click', fn); return b; }
@@ -38,9 +53,41 @@
     var d = new Date(iso); if(isNaN(d)) return '';
     return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   }
-  function img(src, cls){
-    if(!/^https:\/\/a\.espncdn\.com\//.test(src || '')) return null;
-    var i = h('img', cls); i.src = src; i.alt = ''; i.loading = 'lazy'; i.referrerPolicy = 'no-referrer'; return i;
+  function initials(name){
+    var p = String(name || '').replace(/[^A-Za-z0-9 ]/g, '').trim().split(/\s+/).filter(Boolean);
+    if(!p.length) return '?';
+    return (p.length === 1 ? p[0].slice(0, 2) : p[0].charAt(0) + p[p.length - 1].charAt(0)).toUpperCase();
+  }
+  // A square or round picture slot. Shows the image when it loads, otherwise the initials, so a tile is never empty.
+  function art(src, name, cls){
+    var box = h('span', 'tm2-art ' + (cls || ''));
+    var fb = h('i', null, initials(name)); box.appendChild(fb);
+    if(/^https:\/\/a\.espncdn\.com\//.test(src || '')){
+      var im = h('img'); im.alt = ''; im.loading = 'lazy'; im.referrerPolicy = 'no-referrer';
+      im.onload = function(){ fb.style.display = 'none'; };
+      im.onerror = function(){ im.remove(); };
+      im.src = src; box.appendChild(im);
+    }
+    return box;
+  }
+  function setArt(box, src){
+    if(!box || !/^https:\/\/a\.espncdn\.com\//.test(src || '')) return;
+    var fb = box.querySelector('i'), im = h('img'); im.alt = ''; im.referrerPolicy = 'no-referrer';
+    im.onload = function(){ if(fb) fb.style.display = 'none'; };
+    im.onerror = function(){ im.remove(); };
+    im.src = src; box.appendChild(im);
+  }
+  function playerHs(p){
+    var folder = HS_PATH[p.league];
+    return folder && /^\d{1,10}$/.test(p.espn_id || '') ? 'https://a.espncdn.com/i/headshots/' + folder + '/players/full/' + p.espn_id + '.png' : '';
+  }
+  function getTeam(p){
+    var k = p.league + ':' + p.espn_id;
+    if(!teamCache[k]) teamCache[k] = fetchJson('team-hub?action=team&league=' + p.league + '&id=' + p.espn_id).then(function(d){
+      if(!d || d.error){ delete teamCache[k]; return null; }
+      return d;
+    });
+    return teamCache[k];
   }
 
   // ---- tab name and landing tab ----
@@ -78,7 +125,7 @@
     if(!session){
       var out = h('div', 'empty-state empty-inline');
       out.appendChild(h('div', 'es-title', 'Follow your teams and players'));
-      out.appendChild(h('p', 'es-sub', 'Pick your favorites and see their record, results, schedule, injuries and headlines in one place. Rename this tab and open it first if you like.'));
+      out.appendChild(h('p', 'es-sub', 'Pick your favorites and see their record, top players, schedule, injuries and headlines in one place.'));
       var b = h('button', 'es-btn', 'Sign up free'); b.type = 'button'; b.setAttribute('data-open-signup', 'teams'); out.appendChild(b);
       root.appendChild(out);
       return;
@@ -92,163 +139,342 @@
       up.appendChild(ub); root.appendChild(up);
       return;
     }
-    // Top bar: add and settings
-    var bar = h('div', 'tm-bar');
-    bar.appendChild(btn(panel === 'add' ? 'Close' : 'Add teams or players', function(){ panel = panel === 'add' ? '' : 'add'; render(); }));
-    bar.appendChild(btn(panel === 'set' ? 'Close settings' : 'Tab settings', function(){ panel = panel === 'set' ? '' : 'set'; render(); }, 'tm-btn ghost'));
+    if(view === 'detail'){
+      var pk = picks.filter(function(x){ return x.id === openId; })[0];
+      if(pk){ renderDetail(pk); return; }
+      view = 'home';
+    }
+    if(view === 'add'){ renderAdd(); return; }
+    if(view === 'set'){ renderSettings(); return; }
+    renderHome();
+  }
+  function go(v){ view = v; render(); window.scrollTo({ top: 0 }); }
+
+  // ================= HOME: logo squares =================
+  function renderHome(){
+    var bar = h('div', 'tm2-bar');
+    bar.appendChild(btn('+ Add teams or players', function(){ go('add'); }, 'tm-btn'));
+    bar.appendChild(btn('Settings', function(){ go('set'); }, 'tm2-link'));
     root.appendChild(bar);
-    if(panel === 'set') root.appendChild(settingsPanel());
-    if(panel === 'add') root.appendChild(addPanel());
-    var list = h('div', 'tm-list'); root.appendChild(list);
-    drawList(list);
+
+    if(!picks.length){
+      var e = h('div', 'tm2-empty');
+      e.appendChild(h('b', null, 'You are not following anyone yet'));
+      e.appendChild(h('p', null, 'Add your favorite teams and players. Each one gets a square here with its logo, record and quick status. Tap a square for top players, schedule, injuries and news.'));
+      e.appendChild(btn('Add your first team', function(){ go('add'); }, 'tm-btn'));
+      root.appendChild(e);
+    } else {
+      var teams = picks.filter(function(p){ return p.kind === 'team'; }), players = picks.filter(function(p){ return p.kind !== 'team'; });
+      if(teams.length) root.appendChild(tileSection('Teams', teams));
+      if(players.length) root.appendChild(tileSection('Players', players));
+    }
     root.appendChild(h('p', 'tm-foot', 'Source: ESPN public feed. Unofficial and may lag. Injury news is for information only.'));
   }
-
-  function drawList(list){
-    list.textContent = '';
-    if(!picks.length){
-      list.appendChild(h('p', 'tm-empty', 'Nothing here yet. Tap “Add teams or players” to pick your favorites.'));
+  function tileSection(title, list){
+    var sec = h('section', 'tm2-sec');
+    var hd = h('div', 'tm2-sh'); hd.appendChild(h('span', null, title)); hd.appendChild(h('em', null, String(list.length))); sec.appendChild(hd);
+    var grid = h('div', 'tm2-grid');
+    list.forEach(function(p){ grid.appendChild(tile(p)); });
+    sec.appendChild(grid);
+    return sec;
+  }
+  function tile(p){
+    var t = h('button', 'tm2-tile ' + (p.kind === 'team' ? 'is-team' : 'is-player')); t.type = 'button';
+    var a = art(p.kind === 'team' ? '' : playerHs(p), p.name, p.kind === 'team' ? 'sq' : 'rd'); t.appendChild(a);
+    t.appendChild(h('b', 'tm2-name', p.name));
+    var meta = h('span', 'tm2-meta', p.meta || LG_NAME[p.league] || ''); t.appendChild(meta);
+    var badge = h('span', 'tm2-badge'); badge.hidden = true; t.appendChild(badge);
+    t.addEventListener('click', function(){ openId = p.id; sub = 'overview'; go('detail'); });
+    if(p.kind === 'team'){
+      getTeam(p).then(function(d){
+        if(!d || !t.isConnected) return;
+        setArt(a, d.logo);
+        meta.textContent = [d.record, LG_NAME[p.league]].filter(Boolean).join(' · ');
+        var n = (d.injuries || []).length;
+        if(n){ badge.hidden = false; badge.textContent = n + ' injur' + (n === 1 ? 'y' : 'ies'); }
+        if(d.live){ badge.hidden = false; badge.textContent = 'Live'; badge.className = 'tm2-badge live'; }
+      });
     }
-    picks.forEach(function(p){
-      var card = h('div', 'tm-card');
-      var head = h('button', 'tm-head'); head.type = 'button';
-      head.appendChild(h('b', null, p.name));
-      head.appendChild(h('span', 'tm-meta', (p.kind === 'team' ? 'Team' : 'Player') + (p.meta ? ' · ' + p.meta : '')));
-      head.addEventListener('click', function(){ openId = openId === p.id ? null : p.id; render(); });
-      card.appendChild(head);
-      if(openId === p.id){
-        var body = h('div', 'tm-body'); card.appendChild(body);
-        if(p.kind === 'team') loadTeam(body, p); else loadPlayer(body, p);
-        var rm = h('div', 'tm-row');
-        rm.appendChild(sure('Remove', async function(){
-          var r = await sb.from('user_team_picks').delete().eq('id', p.id).eq('user_id', session.user.id);
-          if(r.error) return;
-          picks = picks.filter(function(x){ return x.id !== p.id; }); openId = null; render();
-        }, 'tm-btn small danger'));
-        card.appendChild(rm);
-      }
-      list.appendChild(card);
-    });
+    return t;
   }
 
-  // ---- settings: rename the tab, open it first ----
-  function settingsPanel(){
-    var box = h('div', 'tm-panel'), m = h('p', 'tm-msg');
-    box.appendChild(h('b', null, 'Tab settings'));
-    var row = h('div', 'tm-row');
-    var inp = h('input', 'tm-in'); inp.type = 'text'; inp.maxLength = 20; inp.value = prefs.tab_name || 'Teams'; inp.setAttribute('aria-label', 'Tab name');
-    row.appendChild(inp); box.appendChild(row);
-    var lab = h('label', 'tm-check'); var cb = h('input'); cb.type = 'checkbox'; cb.checked = !!prefs.make_default;
-    lab.appendChild(cb); lab.appendChild(document.createTextNode(' Open this tab first when I visit')); box.appendChild(lab);
-    box.appendChild(btn('Save', async function(){
+  // ================= SETTINGS =================
+  function renderSettings(){
+    root.appendChild(backBar('Settings'));
+    var box = h('div', 'tm2-card'), m = h('p', 'tm-msg');
+    var f1 = h('div', 'tm2-field');
+    var l1 = h('label', 'tm2-lab', 'Tab name'); l1.setAttribute('for', 'tm2-name-in'); f1.appendChild(l1);
+    f1.appendChild(h('p', 'tm2-help', 'This is what the tab at the top of the site is called. For example: My Teams, Fantasy, Lakers.'));
+    var inp = h('input', 'tm-in'); inp.id = 'tm2-name-in'; inp.type = 'text'; inp.maxLength = 20; inp.value = prefs.tab_name || 'Teams'; f1.appendChild(inp);
+    box.appendChild(f1);
+    var f2 = h('div', 'tm2-field');
+    var lab = h('label', 'tm2-switch'); var cb = h('input'); cb.type = 'checkbox'; cb.checked = !!prefs.make_default;
+    lab.appendChild(cb);
+    var tx = h('span'); tx.appendChild(h('b', null, 'Open this tab first')); tx.appendChild(h('small', null, 'When you visit Marqit, start here instead of on Play.')); lab.appendChild(tx);
+    f2.appendChild(lab); box.appendChild(f2);
+    var act = h('div', 'tm2-actions');
+    act.appendChild(btn('Save', async function(){
       var name = inp.value.replace(/[<>]/g, '').trim();
       if(!name){ say(m, 'Give the tab a name (up to 20 characters).', true); return; }
       var r = await sb.from('user_teams_prefs').upsert({ user_id: session.user.id, tab_name: name, make_default: cb.checked, updated_at: new Date().toISOString() });
       if(r.error){ say(m, friendly(r.error), true); return; }
       prefs = { tab_name: name, make_default: cb.checked }; applyName(); say(m, 'Saved.');
     }));
-    box.appendChild(m);
-    return box;
+    box.appendChild(act); box.appendChild(m);
+    root.appendChild(box);
+  }
+  function backBar(title, extra){
+    var bar = h('div', 'tm2-back');
+    bar.appendChild(btn('← My teams', function(){ go('home'); }, 'tm2-link'));
+    if(title) bar.appendChild(h('b', null, title));
+    if(extra) bar.appendChild(extra);
+    return bar;
   }
 
-  // ---- add: pick a team or browse a roster for players ----
-  function addPanel(){
-    var box = h('div', 'tm-panel'), m = h('p', 'tm-msg');
-    box.appendChild(h('b', null, 'Add a team or player'));
-    var row = h('div', 'tm-row');
-    var lg = h('select', 'tm-in'); lg.setAttribute('aria-label', 'League');
-    LEAGUES.forEach(function(l){ var o = h('option', null, l[1]); o.value = l[0]; lg.appendChild(o); });
-    var tm = h('select', 'tm-in'); tm.setAttribute('aria-label', 'Team'); tm.disabled = true;
-    row.appendChild(lg); row.appendChild(tm); box.appendChild(row);
-    var teams = [], rosterBox = h('div', 'tm-roster');
-    function pickedTeam(){ return teams.filter(function(t){ return t.id === tm.value; })[0]; }
-    function loadTeams(){
-      tm.disabled = true; tm.textContent = ''; var o = h('option', null, 'Loading teams…'); o.value = ''; tm.appendChild(o); rosterBox.textContent = '';
-      fetchJson('team-hub?action=teams&league=' + lg.value).then(function(d){
-        tm.textContent = '';
-        teams = (d && d.teams) || [];
-        if(!teams.length){ var e = h('option', null, 'Could not load teams'); e.value = ''; tm.appendChild(e); return; }
-        teams.forEach(function(t){ var op = h('option', null, t.name); op.value = t.id; tm.appendChild(op); });
-        tm.disabled = false;
+  // ================= ADD: league chips, then logo squares =================
+  var addLg = '', addTeams = [], addPicked = null, addFilter = '';
+  function renderAdd(){
+    root.appendChild(backBar('Add a team or player'));
+    var box = h('div', 'tm2-card'), m = h('p', 'tm-msg');
+
+    box.appendChild(h('div', 'tm2-step', '1. Choose a league'));
+    var chips = h('div', 'tm2-chips');
+    LEAGUES.forEach(function(l){
+      var c = btn(l[1], function(){ addLg = l[0]; addPicked = null; addFilter = ''; loadAddTeams(); chips.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x === c); }); }, 'tm2-chip' + (addLg === l[0] ? ' on' : ''));
+      chips.appendChild(c);
+    });
+    box.appendChild(chips);
+
+    var teamsBox = h('div', 'tm2-addteams'); box.appendChild(teamsBox);
+    var actBox = h('div', 'tm2-addact'); box.appendChild(actBox);
+    var rosterBox = h('div', 'tm2-roster'); box.appendChild(rosterBox);
+    box.appendChild(m);
+    root.appendChild(box);
+
+    function drawTeams(){
+      teamsBox.textContent = '';
+      if(!addLg) return;
+      teamsBox.appendChild(h('div', 'tm2-step', '2. Tap a team'));
+      if(addTeams.length > 14){
+        var s = h('input', 'tm-in tm2-search'); s.type = 'search'; s.placeholder = 'Search teams'; s.value = addFilter; s.setAttribute('aria-label', 'Search teams');
+        s.addEventListener('input', function(){ addFilter = s.value; drawGrid(); });
+        teamsBox.appendChild(s);
+      }
+      var grid = h('div', 'tm2-grid tm2-pick'); teamsBox.appendChild(grid);
+      function drawGrid(){
+        grid.textContent = '';
+        var q = addFilter.trim().toLowerCase();
+        var list = addTeams.filter(function(t){ return !q || t.name.toLowerCase().indexOf(q) >= 0 || (t.abbr || '').toLowerCase() === q; });
+        if(!list.length){ grid.appendChild(h('p', 'tm-note', addTeams.length ? 'No teams match that search.' : 'Loading teams…')); return; }
+        list.forEach(function(t){
+          var followed = picks.some(function(p){ return p.kind === 'team' && p.league === addLg && p.espn_id === t.id; });
+          var tl = h('button', 'tm2-tile is-team' + (addPicked && addPicked.id === t.id ? ' sel' : '')); tl.type = 'button';
+          tl.appendChild(art(t.logo, t.name, 'sq'));
+          tl.appendChild(h('b', 'tm2-name', t.name));
+          if(followed) tl.appendChild(h('span', 'tm2-badge ok', 'Following'));
+          tl.addEventListener('click', function(){ addPicked = t; rosterBox.textContent = ''; drawGrid(); drawActions(); });
+          grid.appendChild(tl);
+        });
+      }
+      drawGrid();
+    }
+    function drawActions(){
+      actBox.textContent = '';
+      if(!addPicked) return;
+      var t = addPicked, lgName = LG_NAME[addLg];
+      actBox.appendChild(h('div', 'tm2-step', '3. ' + t.name));
+      var row = h('div', 'tm2-actions');
+      row.appendChild(btn('Follow this team', async function(){
+        await addPick({ kind: 'team', league: addLg, espn_id: t.id, name: t.name, meta: lgName }, m);
+        drawTeams();
+      }));
+      row.appendChild(btn('Browse its players', async function(){
+        rosterBox.textContent = ''; rosterBox.appendChild(h('p', 'tm-note', 'Loading players…'));
+        var d = await fetchJson('team-hub?action=roster&league=' + addLg + '&id=' + t.id);
+        rosterBox.textContent = '';
+        var ps = (d && d.players) || [];
+        if(!ps.length){ rosterBox.appendChild(h('p', 'tm-note', 'No players found right now.')); return; }
+        rosterBox.appendChild(h('div', 'tm2-step', 'Players · tap one to follow'));
+        var grid = h('div', 'tm2-grid tm2-pick');
+        ps.forEach(function(p){
+          var tl = h('button', 'tm2-tile is-player'); tl.type = 'button';
+          tl.appendChild(art(p.hs, p.name, 'rd'));
+          tl.appendChild(h('b', 'tm2-name', p.name));
+          tl.appendChild(h('span', 'tm2-meta', [p.pos, p.jersey ? '#' + p.jersey : ''].filter(Boolean).join(' · ')));
+          tl.addEventListener('click', async function(){
+            await addPick({ kind: 'player', league: addLg, espn_id: p.id, name: p.name, meta: [p.pos, t.abbr || t.name].filter(Boolean).join(' · ') }, m);
+          });
+          grid.appendChild(tl);
+        });
+        rosterBox.appendChild(grid);
+      }, 'tm-btn ghost'));
+      actBox.appendChild(row);
+    }
+    function loadAddTeams(){
+      addTeams = []; teamsBox.textContent = ''; actBox.textContent = ''; rosterBox.textContent = '';
+      teamsBox.appendChild(h('p', 'tm-note', 'Loading teams…'));
+      var lg = addLg;
+      fetchJson('team-hub?action=teams&league=' + lg).then(function(d){
+        if(lg !== addLg) return;
+        addTeams = (d && d.teams) || [];
+        if(!addTeams.length){ teamsBox.textContent = ''; teamsBox.appendChild(h('p', 'tm-note', 'Could not load teams right now. Try again in a minute.')); return; }
+        drawTeams();
       });
     }
-    lg.addEventListener('change', loadTeams);
-    var act = h('div', 'tm-row');
-    act.appendChild(btn('Follow this team', async function(){
-      var t = pickedTeam(); if(!t){ say(m, 'Pick a team first.', true); return; }
-      await addPick({ kind: 'team', league: lg.value, espn_id: t.id, name: t.name, meta: lg.options[lg.selectedIndex].text }, m);
-    }));
-    act.appendChild(btn('Browse its players', async function(){
-      var t = pickedTeam(); if(!t){ say(m, 'Pick a team first.', true); return; }
-      rosterBox.textContent = ''; rosterBox.appendChild(h('p', 'tm-note', 'Loading players…'));
-      var d = await fetchJson('team-hub?action=roster&league=' + lg.value + '&id=' + t.id);
-      rosterBox.textContent = '';
-      var ps = (d && d.players) || [];
-      if(!ps.length){ rosterBox.appendChild(h('p', 'tm-note', 'No players found right now.')); return; }
-      ps.forEach(function(p){
-        var line = h('div', 'tm-line');
-        var im = img(p.hs, 'tm-hs'); if(im) line.appendChild(im);
-        line.appendChild(h('span', 'tm-pname', p.name + (p.jersey ? ' #' + p.jersey : '')));
-        line.appendChild(h('span', 'tm-meta', p.pos));
-        line.appendChild(btn('Follow', function(){ addPick({ kind: 'player', league: lg.value, espn_id: p.id, name: p.name, meta: [p.pos, t.abbr || t.name].filter(Boolean).join(' · ') }, m); }, 'tm-btn small'));
-        rosterBox.appendChild(line);
-      });
-    }, 'tm-btn ghost'));
-    box.appendChild(act); box.appendChild(m); box.appendChild(rosterBox);
-    loadTeams();
-    return box;
+    if(addLg) loadAddTeams();
   }
   async function addPick(row, m){
     if(picks.some(function(p){ return p.kind === row.kind && p.league === row.league && p.espn_id === row.espn_id; })){ say(m, 'You already follow that.', true); return; }
     row.user_id = session.user.id;
     var r = await sb.from('user_team_picks').insert(row).select('id, kind, league, espn_id, name, meta').single();
     if(r.error){ say(m, friendly(r.error), true); return; }
-    picks.push(r.data); say(m, row.name + ' added.');
-    // Redraw the list below without closing the add panel.
-    var list = root.querySelector('.tm-list'); if(list) drawList(list);
+    picks.push(r.data); say(m, row.name + ' added. Find it under My teams.');
   }
 
-  // ---- team card ----
-  async function loadTeam(body, p){
-    body.appendChild(h('p', 'tm-note', 'Loading…'));
-    var d = await fetchJson('team-hub?action=team&league=' + p.league + '&id=' + p.espn_id);
-    body.textContent = '';
-    if(!d || d.error){ body.appendChild(h('p', 'tm-note', 'Team details are not available right now.')); return; }
-    var top = h('div', 'tm-top');
-    var lo = img(d.logo, 'tm-logo'); if(lo) top.appendChild(lo);
-    var t = h('div'); t.appendChild(h('b', null, [d.record, d.standing].filter(Boolean).join(' · ') || d.name));
-    if(d.lastSeason) t.appendChild(h('div', 'tm-note', 'Last season (' + d.lastSeason.year + '): ' + d.lastSeason.record));
-    top.appendChild(t); body.appendChild(top);
-
-    if(d.live) body.appendChild(sect('Live now', [gameLine(d.live, true)]));
-    if(d.upcoming && d.upcoming.length) body.appendChild(sect('Next up', d.upcoming.map(function(g){ return gameLine(g); })));
-    if(d.results && d.results.length) body.appendChild(sect('Recent results', d.results.map(function(g){ return gameLine(g); })));
-    var inj = d.injuries || [];
-    body.appendChild(sect('Injury report', inj.length ? inj.map(function(i){
-      var l = h('div', 'tm-inj'); l.appendChild(h('b', null, i.name + (i.pos ? ' (' + i.pos + ')' : '') + ' · ' + (i.status || 'Listed')));
-      var more = [i.detail, i.date ? 'Updated ' + fmtDate(i.date) : ''].filter(Boolean).join(' · ');
-      if(more) l.appendChild(h('div', 'tm-note', more));
-      if(i.comment && i.comment !== i.detail) l.appendChild(h('div', 'tm-note', i.comment));
-      return l;
-    }) : [h('p', 'tm-note', 'No injuries reported.')]));
-    if(d.headlines && d.headlines.length) body.appendChild(sect('Latest headlines', d.headlines.map(function(a){
-      var l = h('a', 'tm-news', a.headline); l.href = a.url; l.target = '_blank'; l.rel = 'noopener noreferrer'; return l;
-    })));
+  // ================= DETAIL =================
+  function removeBtn(p){
+    return sure('Stop following', async function(){
+      var r = await sb.from('user_team_picks').delete().eq('id', p.id).eq('user_id', session.user.id);
+      if(r.error) return;
+      picks = picks.filter(function(x){ return x.id !== p.id; }); openId = null; go('home');
+    }, 'tm-btn small danger');
   }
+  function renderDetail(p){
+    root.appendChild(backBar('', removeBtn(p)));
+    var wrap = h('div', 'tm2-detail'); root.appendChild(wrap);
+    if(p.kind === 'team') loadTeam(wrap, p); else loadPlayer(wrap, p);
+  }
+
   function sect(title, nodes){
     var s = h('div', 'tm-sect'); s.appendChild(h('div', 'tm-sh', title));
     nodes.forEach(function(n){ s.appendChild(n); }); return s;
   }
   function gameLine(g, live){
     var l = h('div', 'tm-game');
-    if(g.done){ l.appendChild(h('span', 'tm-res ' + (g.result === 'W' ? 'w' : g.result === 'L' ? 'l' : ''), g.result || '–')); }
+    if(g.done){ l.appendChild(h('span', 'tm-res ' + (g.result === 'W' ? 'w' : g.result === 'L' ? 'l' : ''), g.result || '–')); } else l.appendChild(h('span'));
     l.appendChild(h('span', 'tm-gname', (g.home ? 'vs ' : '@ ') + g.opp));
     l.appendChild(h('span', 'tm-gwhen', g.done ? (g.us + '–' + g.them + ' · ' + fmtDate(g.date)) : live ? ((g.us && g.them) ? g.us + '–' + g.them : 'In progress') : fmtWhen(g.date)));
     return l;
   }
+  function statGrid(cells){
+    var grid = h('div', 'tm-grid');
+    cells.filter(function(c){ return c[1]; }).forEach(function(c){ var cell = h('div'); cell.appendChild(h('span', null, c[0])); cell.appendChild(h('b', null, String(c[1]))); grid.appendChild(cell); });
+    return grid;
+  }
+  // Injuries: the most serious first, a handful shown, the rest behind one button, details tucked under each name.
+  function injuryList(inj){
+    var wrap = h('div', 'tm2-inj');
+    if(!inj.length){ wrap.appendChild(h('p', 'tm-note', 'No injuries reported.')); return wrap; }
+    var rank = function(s){ s = String(s || '').toLowerCase(); return /out|injured reserve|ir\b/.test(s) ? 0 : /doubtful/.test(s) ? 1 : /questionable|day-to-day/.test(s) ? 2 : 3; };
+    var list = inj.slice().sort(function(a, b){ return rank(a.status) - rank(b.status); });
+    function row(i){
+      var d = h('details', 'tm2-injrow');
+      var sm = h('summary');
+      sm.appendChild(h('b', null, i.name + (i.pos ? ' (' + i.pos + ')' : '')));
+      sm.appendChild(h('span', 'tm2-st st' + rank(i.status), i.status || 'Listed'));
+      d.appendChild(sm);
+      var body = h('div', 'tm2-injbody');
+      var more = [i.detail, i.date ? 'Updated ' + fmtDate(i.date) : ''].filter(Boolean).join(' · ');
+      if(more) body.appendChild(h('div', 'tm-note', more));
+      if(i.comment && i.comment !== i.detail) body.appendChild(h('div', 'tm-note', i.comment));
+      if(!body.childNodes.length) body.appendChild(h('div', 'tm-note', 'No more detail from the team.'));
+      d.appendChild(body);
+      return d;
+    }
+    var SHOW = 6;
+    list.slice(0, SHOW).forEach(function(i){ wrap.appendChild(row(i)); });
+    if(list.length > SHOW){
+      var rest = h('div', 'tm2-injrest'); rest.hidden = true;
+      list.slice(SHOW).forEach(function(i){ rest.appendChild(row(i)); });
+      wrap.appendChild(rest);
+      var more = btn('Show all ' + list.length, function(){ rest.hidden = !rest.hidden; more.textContent = rest.hidden ? 'Show all ' + list.length : 'Show fewer'; }, 'tm-btn ghost small');
+      wrap.appendChild(more);
+    }
+    return wrap;
+  }
 
-  // ---- player card ----
-  async function loadPlayer(body, p){
+  async function loadTeam(wrap, p){
+    wrap.appendChild(h('p', 'tm-note', 'Loading…'));
+    var d = await getTeam(p);
+    wrap.textContent = '';
+    if(!d){ wrap.appendChild(h('p', 'tm-note', 'Team details are not available right now.')); return; }
+
+    var head = h('div', 'tm2-dhead');
+    head.appendChild(art(d.logo, d.name || p.name, 'sq lg'));
+    var ht = h('div', 'tm2-dtext');
+    ht.appendChild(h('h3', null, d.name || p.name));
+    ht.appendChild(h('div', 'tm2-dsub', [d.record, d.standing].filter(Boolean).join(' · ') || LG_NAME[p.league] || ''));
+    if(d.lastSeason) ht.appendChild(h('div', 'tm-note', 'Last season (' + d.lastSeason.year + '): ' + d.lastSeason.record));
+    head.appendChild(ht); wrap.appendChild(head);
+
+    var injN = (d.injuries || []).length, newsN = (d.headlines || []).length;
+    var tabs = [['overview', 'Overview'], ['games', 'Games'], ['injuries', 'Injuries' + (injN ? ' (' + injN + ')' : '')], ['news', 'News' + (newsN ? ' (' + newsN + ')' : '')]];
+    var bar = h('div', 'tm2-tabs'); wrap.appendChild(bar);
+    var body = h('div', 'tm2-dbody'); wrap.appendChild(body);
+    function draw(){
+      bar.textContent = '';
+      tabs.forEach(function(t){ bar.appendChild(btn(t[1], function(){ sub = t[0]; draw(); }, 'tm2-tab' + (sub === t[0] ? ' on' : ''))); });
+      body.textContent = '';
+      if(sub === 'overview') overview(body, d, p);
+      else if(sub === 'games') games(body, d);
+      else if(sub === 'injuries') body.appendChild(injuryList(d.injuries || []));
+      else news(body, d);
+    }
+    draw();
+  }
+  function overview(body, d, p){
+    var game = d.live ? sect('Live now', [gameLine(d.live, true)]) : (d.upcoming && d.upcoming.length ? sect('Next game', [gameLine(d.upcoming[0])]) : null);
+    if(game) body.appendChild(game);
+
+    var ld = d.leaders || [];
+    if(ld.length){
+      var s = h('div', 'tm-sect'); s.appendChild(h('div', 'tm-sh', 'Top players'));
+      var grid = h('div', 'tm2-grid tm2-lead');
+      ld.forEach(function(l){
+        var c = h('div', 'tm2-pl');
+        c.appendChild(art(l.hs, l.name, 'rd'));
+        c.appendChild(h('b', 'tm2-name', l.name));
+        c.appendChild(h('span', 'tm2-meta', [l.pos, l.num ? '#' + l.num : ''].filter(Boolean).join(' · ')));
+        c.appendChild(h('span', 'tm2-lstat', l.line));
+        c.appendChild(h('span', 'tm2-llab', l.label));
+        grid.appendChild(c);
+      });
+      s.appendChild(grid); body.appendChild(s);
+    } else if(!STATS_LEAGUES[p.league] && p.league !== 'wnba' && p.league !== 'ncaaf'){
+      body.appendChild(sect('Top players', [h('p', 'tm-note', 'Top players are not available for this league yet. Tap Browse its players under Add to follow individual players.')]));
+    }
+
+    var cells = [['Record', d.record], ['Standing', d.standing], ['Home', d.home], ['Road', d.road]];
+    (d.seasonStats || []).forEach(function(x){ cells.push([x.label, x.value]); });
+    var shown = cells.filter(function(c){ return c[1]; });
+    if(shown.length) body.appendChild(sect('Season', [statGrid(shown)]));
+
+    if(d.results && d.results.length) body.appendChild(sect('Last 3 results', d.results.slice(0, 3).map(function(g){ return gameLine(g); })));
+  }
+  function games(body, d){
+    var any = false;
+    if(d.live){ body.appendChild(sect('Live now', [gameLine(d.live, true)])); any = true; }
+    if(d.upcoming && d.upcoming.length){ body.appendChild(sect('Next up', d.upcoming.map(function(g){ return gameLine(g); }))); any = true; }
+    if(d.results && d.results.length){ body.appendChild(sect('Recent results', d.results.map(function(g){ return gameLine(g); }))); any = true; }
+    if(!any) body.appendChild(h('p', 'tm-note', 'No games to show right now.'));
+  }
+  function news(body, d){
+    if(!d.headlines || !d.headlines.length){ body.appendChild(h('p', 'tm-note', 'No headlines right now.')); return; }
+    d.headlines.forEach(function(a){
+      var l = h('a', 'tm-news'); l.href = a.url; l.target = '_blank'; l.rel = 'noopener noreferrer';
+      l.appendChild(h('span', null, a.headline));
+      if(a.date) l.appendChild(h('em', 'tm-note', fmtDate(a.date)));
+      body.appendChild(l);
+    });
+  }
+
+  // ---- player detail ----
+  async function loadPlayer(wrap, p){
+    var head = h('div', 'tm2-dhead');
+    head.appendChild(art(playerHs(p), p.name, 'rd lg'));
+    var ht = h('div', 'tm2-dtext'); ht.appendChild(h('h3', null, p.name)); ht.appendChild(h('div', 'tm2-dsub', p.meta || LG_NAME[p.league] || '')); head.appendChild(ht);
+    wrap.appendChild(head);
+    var body = h('div', 'tm2-dbody'); wrap.appendChild(body);
     if(!STATS_LEAGUES[p.league]){ body.appendChild(h('p', 'tm-note', 'Detailed player stats are not available for this league yet.')); return; }
     body.appendChild(h('p', 'tm-note', 'Loading…'));
     var d = await fetchJson('athlete?league=' + p.league + '&id=' + p.espn_id);
@@ -269,9 +495,7 @@
     if(bio) body.appendChild(h('p', 'tm-note', bio));
     if(d.stats && d.stats.length){
       body.appendChild(h('div', 'tm-sh', d.split || 'Season'));
-      var grid = h('div', 'tm-grid');
-      d.stats.forEach(function(c){ var cell = h('div'); cell.appendChild(h('span', null, c.label)); cell.appendChild(h('b', null, c.value)); grid.appendChild(cell); });
-      body.appendChild(grid);
+      body.appendChild(statGrid(d.stats.map(function(c){ return [c.label, c.value]; })));
     } else body.appendChild(h('p', 'tm-note', 'Season stats are not available yet.'));
   }
 
