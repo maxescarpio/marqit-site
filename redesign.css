@@ -610,3 +610,78 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 .tm2-nsrc{background:transparent;border:1px solid #3A3F48;color:#B3B7BF;padding:2px 7px;font-size:10px;letter-spacing:.1em}
 .tm2-card:hover .tm2-narrow{color:#B3B7BF}
 .tm2-dbody a.tm-news.tm2-card::before{display:none}
+
+/* =====================================================================
+   ONE DESIGN SYSTEM (Nov 6)
+   Buttons: primary (quiet solid), secondary (outline), danger (outline red).
+   Selected pills/tabs: soft grey fill. Tab underline: thin gold. Checkboxes and switches: soft light fill.
+   Corners: controls 8px, small status tags 6px, cards untouched.
+   ===================================================================== */
+:root{--ui-fill:#22262D;--ui-fill-hover:#2A2F37;--ui-line:#3A3F48;--ui-line-hover:#5A606B;--ui-ink:#F2F3F5;--ui-soft:#D9DCE2;--ui-accent:#F6C430}
+
+/* primary */
+.signup button,.cta-band .signup button,.nav-signup-btn,.empty-state-signup-btn,.cta-open-signup,.sg-submit,#play-suggest .sg-submit,.cb-btn,.milestone-close,
+.share-btn-primary,.play-extras #share-section .share-btn-primary,.welcome-go,#results-sheet .welcome-go,.cmt-post,.mq-follow-btn:not(.on),.mq-invite,.es-btn,
+.plus-btn:not(.ghost),.tm-btn:not(.ghost):not(.danger),.lg-btn:not(.danger),.mq-mention-view,.mq-ss-ig.dl,.gp-side .lb-share-btn,.gp-side #copy-invite-btn,
+.buddy-sheet-done,.av-photo-btn,.mq-crop-ok,.hw-cta,.plus-wait-btn,#share-picks-btn,#play-add-buddy-btn,#submit-all-btn,.plus-price-go{
+  background:var(--ui-fill) !important;color:var(--ui-ink) !important;border:1px solid var(--ui-line) !important;border-radius:8px !important;
+  font-family:'Barlow',sans-serif !important;font-weight:600 !important;letter-spacing:.01em !important;text-transform:none !important;
+  box-shadow:none !important;filter:none !important;transition:background .15s,border-color .15s}
+.signup button:hover,.cta-band .signup button:hover,.nav-signup-btn:hover,.empty-state-signup-btn:hover,.cta-open-signup:hover,.sg-submit:hover,.cb-btn:hover,.milestone-close:hover,
+.share-btn-primary:hover,.welcome-go:hover,.cmt-post:hover,.mq-follow-btn:not(.on):hover,.mq-invite:hover,.es-btn:hover,.plus-btn:not(.ghost):hover:not(:disabled),
+.tm-btn:not(.ghost):not(.danger):hover,.lg-btn:not(.danger):hover,.mq-mention-view:hover,.mq-ss-ig.dl:hover,.gp-side .lb-share-btn:hover,.gp-side #copy-invite-btn:hover,
+.buddy-sheet-done:hover,.av-photo-btn:hover,.mq-crop-ok:hover,.hw-cta:hover,.plus-wait-btn:hover,#share-picks-btn:hover,#play-add-buddy-btn:hover,#submit-all-btn:hover{
+  background:var(--ui-fill-hover) !important;border-color:var(--ui-line-hover) !important}
+.signup button:disabled,.sg-submit:disabled,#submit-all-btn:disabled,.plus-btn:disabled,.tm-btn:disabled{opacity:.5 !important}
+
+/* secondary */
+.share-btn-secondary,.cmt-signin-btn,.sched-rk-btn,.mqp-sim-btn,.plus-btn.ghost,.tm-btn.ghost,.mq-follow-btn.on,.lb-share-btn{
+  background:transparent !important;color:#C9CDD5 !important;border:1px solid #2E323A !important;border-radius:8px !important;font-weight:600 !important;letter-spacing:.01em !important;text-transform:none !important;box-shadow:none !important}
+.share-btn-secondary:hover,.cmt-signin-btn:hover,.sched-rk-btn:hover,.mqp-sim-btn:hover,.plus-btn.ghost:hover,.tm-btn.ghost:hover,.mq-follow-btn.on:hover,.lb-share-btn:hover{
+  border-color:var(--ui-line-hover) !important;color:var(--ui-ink) !important;background:transparent !important}
+.gp-side .lb-share-btn{background:var(--ui-fill) !important;color:var(--ui-ink) !important;border-color:var(--ui-line) !important}
+
+/* danger */
+.lg-btn.danger,.tm-btn.danger{background:transparent !important;color:#E08A7D !important;border:1px solid rgba(224,138,125,.45) !important;border-radius:8px !important;box-shadow:none !important;text-transform:none !important}
+.lg-btn.danger:hover,.tm-btn.danger:hover{border-color:#E08A7D !important}
+
+/* selected pills / chips / tabs: soft grey, same radius */
+.cat-tab,.feed-chip,.lg-tab,.sg-pills button,.rk-sub button,.co-sec button,.evp-ranges button,.mu-play,.tm2-chip.on,.sched-day{border-radius:8px}
+.tier-chip{border-radius:10px}
+.cat-tab.active,.tier-chip.active,.tier-chip.active[data-tier],.feed-chip.on,.lg-tab.on,.sg-pills button.on,.sched-day.sel,.rk-sub button.on,.co-sec button.on,
+.evp-ranges button.on,.mu-play.on,.tm2-chip.on,.rk-tabs button.on,#play-suggest .sg-pills button.on,#rk-page .rk-sub button.on,#sched-days .sched-day.sel{
+  background:rgba(255,255,255,.09) !important;color:var(--ui-ink) !important;border-color:#4A4F59 !important}
+.sched-today .sstrip-art.co.on{background:rgba(255,255,255,.1) !important}
+
+/* small status tags: same shape everywhere */
+.rs-pill,.plus-chip,.plus-pill,.boost-chip,.buddy-chip,.lock-chip,.pts-chip,.status-pill,.mqp-badge,.hot-badge,.tm2-badge{border-radius:6px !important}
+.boost-chip,.mqp-badge{background:rgba(246,196,48,.14) !important;color:#E3BC4C !important}
+
+/* tab underline: one thin gold line */
+.pagenav-tab.active,.scope-tab.active{color:#FFFFFF;border-bottom-color:var(--ui-accent) !important}
+
+/* toggles */
+.plus-switch[aria-checked="true"]{background:var(--ui-soft)}
+.plus-switch[aria-checked="true"] i{background:#15171B}
+.plus-switch:not([aria-checked="true"]){background:rgba(255,255,255,.14)}
+
+/* toast and coach tips: dark like everything else */
+.mq-toast{background:#262B33 !important;color:var(--ui-ink) !important;border:1px solid var(--ui-line)}
+.coach{background:#1F2329 !important;color:var(--ui-ink) !important;border:1px solid var(--ui-line)}
+.coach::after{background:#1F2329 !important}
+
+/* inline-styled and id-only buttons join the same system */
+#nav-signup-btn,#cta-open-signup,#empty-state-signup-btn,button[style*="background:var(--ink)"],button[style*="background: var(--ink)"]{
+  background:var(--ui-fill) !important;color:var(--ui-ink) !important;border:1px solid var(--ui-line) !important;border-radius:8px !important;
+  font-weight:600 !important;letter-spacing:.01em !important;box-shadow:none !important}
+#nav-signup-btn:hover,#cta-open-signup:hover,#empty-state-signup-btn:hover,button[style*="background:var(--ink)"]:hover,button[style*="background: var(--ink)"]:hover{
+  background:var(--ui-fill-hover) !important;border-color:var(--ui-line-hover) !important}
+#nav-login-btn{background:transparent !important;color:#C9CDD5 !important;border:1px solid #2E323A !important;border-radius:8px !important;font-weight:600 !important}
+#nav-login-btn:hover{border-color:var(--ui-line-hover) !important;color:var(--ui-ink) !important}
+.hw-step.on{background:rgba(255,255,255,.06) !important;border-color:#3A3F48 !important}
+
+/* last accents: calm */
+.mq-fold[open]>summary .sec-ico{background:rgba(255,255,255,.12) !important;border-color:#4A4F59 !important;color:var(--ui-ink) !important}
+#rk-page .rk-tabs button.on::after,.rk-tabs button.on::after,.co-sec button.on::after,.rk-pills button.on::after,#news-chips .feed-chip::after,#trending-chips .feed-chip::after{background:var(--ui-accent)}
+#rk-page .rk-tabs button.on{color:#fff}
+.leaderboard-title,#page-leaderboard h2{font-size:30px}
