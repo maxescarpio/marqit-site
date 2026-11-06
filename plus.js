@@ -64,6 +64,10 @@
          'Your best and toughest categories, once you have 3 or more settled picks in them.',
          'Your current and longest streaks.'],
         'Marqit also uses your best category to decide what leads on your Play tab.'], 'stats'],
+      ['Your Marqit recap', 'live', [
+        'A summary card of your year on Marqit: calls made, accuracy, best category, longest streak and how you did against the crowd. Save it as an image to share.',
+        ['Built from your settled picks only, and it updates as the year goes on.',
+         'The saved image shows your numbers only, with no username or email on it.']], 'recap'],
       ['Contrarian score', 'live', [
         'How often you pick against the crowd, and how those picks turn out compared with going along with it.',
         ['The crowd side is whichever answer most players picked on a settled question.',
@@ -105,10 +109,10 @@
          'No ad ever stands between you and your calls.']]]
     ]]
   ];
-  var TOOLS = { stats: statsCard, head: headCard, contrarian: contrarianCard, follows: followsCard, archive: archiveCard, brief: briefCard, calendar: calendarCard, export: exportCard, report: reportCard };
+  var TOOLS = { stats: statsCard, head: headCard, contrarian: contrarianCard, recap: recapCard, follows: followsCard, archive: archiveCard, brief: briefCard, calendar: calendarCard, export: exportCard, report: reportCard };
   // Tools that are for paying members once the paid page is on. (The archive stays open: everyone sees the last 7 days.)
-  var MEMBER_ONLY = { stats: 1, head: 1, contrarian: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
-  var NEEDS_SIGN_IN = { stats: 1, head: 1, contrarian: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
+  var MEMBER_ONLY = { stats: 1, head: 1, contrarian: 1, recap: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
+  var NEEDS_SIGN_IN = { stats: 1, head: 1, contrarian: 1, recap: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
   function perkBody(body){
     if(typeof body === 'string'){ body = [body]; }
     var wrap = h('div', 'plus-perk-copy');
@@ -324,6 +328,68 @@
     ['daily-questions-container', 'sched-list', 'sched-today-cards'].forEach(function(id){
       var el = document.getElementById(id); if(el) obs.observe(el, { childList: true, subtree: true });
     });
+  }
+
+  // ---------- Your Marqit recap (own numbers only; the image carries no name or email) ----------
+  function recapImage(d){
+    var W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    var x = cv.getContext('2d');
+    x.fillStyle = '#121F45'; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#ffffff'; x.textAlign = 'left';
+    x.font = '700 88px Georgia, "Times New Roman", serif'; x.fillText('Marqit', 80, 150);
+    x.fillStyle = '#B8C4E8'; x.font = '400 36px Arial, Helvetica, sans-serif'; x.fillText('My year in calls', 80, 210);
+    function stat(label, value, y){
+      x.fillStyle = '#B8C4E8'; x.font = '400 34px Arial, Helvetica, sans-serif'; x.fillText(label, 80, y);
+      x.fillStyle = '#ffffff'; x.font = '700 72px Arial, Helvetica, sans-serif'; x.fillText(value, 80, y + 88);
+    }
+    stat('Calls made', String(d.total), 330);
+    stat('Accuracy', d.settled ? d.pct + '%  \u00b7  ' + d.right + '/' + d.settled : 'n/a', 520);
+    stat('Best category', d.best || 'n/a', 710);
+    stat('Longest streak', d.longest + (d.longest === 1 ? ' day' : ' days'), 900);
+    stat('Against the crowd', d.against ? d.againstRight + '/' + d.against + ' right' : 'n/a', 1090);
+    x.fillStyle = '#B8C4E8'; x.font = '400 32px Arial, Helvetica, sans-serif'; x.fillText('Free to play at playmarqit.com', 80, 1280);
+    return cv;
+  }
+  async function recapCard(){
+    var c = section(); var say = msg(c);
+    var rows = await myPicks();
+    var settled = rows.filter(function(p){ return p.resolved && !p.voided && (p.answer === 'yes' || p.answer === 'no'); });
+    if(!rows.length){ c.appendChild(h('p', 'plus-empty', 'Make a few calls and your recap will build here.')); return c; }
+    var right = settled.filter(function(p){ return p.choice === p.answer; }).length;
+    var by = {};
+    settled.forEach(function(p){ var k = p.cat || 'other'; by[k] = by[k] || { n: 0, r: 0 }; by[k].n++; if(p.choice === p.answer) by[k].r++; });
+    var ranked = Object.keys(by).filter(function(k){ return by[k].n >= 3; }).sort(function(a, b){ return by[b].r / by[b].n - by[a].r / by[a].n; });
+    var st = await sb.from('streaks').select('longest_streak').eq('user_id', session.user.id).maybeSingle();
+    var cr = await sb.rpc('mq_my_contrarian'); var cd = (cr && cr.data && cr.data[0]) || {};
+    var d = {
+      total: rows.length, settled: settled.length, right: right,
+      pct: settled.length ? Math.round(100 * right / settled.length) : 0,
+      best: ranked.length ? catName(ranked[0]) : '',
+      longest: (st.data && st.data.longest_streak) || 0,
+      against: cd.against_crowd || 0, againstRight: cd.against_crowd_right || 0
+    };
+    var card = h('div', 'plus-recap');
+    card.appendChild(h('b', 'plus-recap-title', 'My year on Marqit'));
+    [['Calls made', String(d.total)],
+     ['Accuracy', d.settled ? d.pct + '% (' + d.right + ' of ' + d.settled + ' settled)' : 'Waiting on settled questions'],
+     ['Best category', d.best || 'Needs 3 or more settled picks in a category'],
+     ['Longest streak', d.longest + (d.longest === 1 ? ' day' : ' days')],
+     ['Against the crowd', d.against ? d.againstRight + ' of ' + d.against + ' right' : 'Not enough settled questions yet']
+    ].forEach(function(r){ var row = h('div', 'plus-recap-row'); row.appendChild(h('span', null, r[0])); row.appendChild(h('b', null, r[1])); card.appendChild(row); });
+    c.appendChild(card);
+    c.appendChild(btn('Save as image', function(){
+      try{
+        recapImage(d).toBlob(function(blob){
+          if(!blob){ say('Could not make the image on this device.', true); return; }
+          var url = URL.createObjectURL(blob), a = document.createElement('a');
+          a.href = url; a.download = 'my-marqit-recap.png'; document.body.appendChild(a); a.click();
+          setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 500);
+          say('Saved.');
+        }, 'image/png');
+      }catch(e){ say('Could not make the image on this device.', true); }
+    }));
+    c.appendChild(h('p', 'plus-note', 'Your username and email are not on the saved image.'));
+    return c;
   }
 
   // ---------- Contrarian score (own numbers only; the database function checks membership) ----------
