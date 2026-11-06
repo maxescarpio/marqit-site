@@ -585,27 +585,67 @@
   async function pricingCard(){
     var member = await loadMember();
     var box = h('div', 'plus-tool plus-price');
-    box.appendChild(h('b', null, 'Marqit+ · $9.99 per month'));
-    box.appendChild(h('p', 'plus-sub', 'A digital software subscription with extra tools for your own picks: history and lean on every game, unlimited pick edits, My Stats Pro, contrarian score, calendar sync, pick history export, the full question archive, the morning brief and an ad-free experience.'));
+
+    // Top: what the plan is and costs on the left, the one action (or the member's status) on the right.
+    var top = h('div', 'plus-price-top');
+    var id = h('div', 'plus-price-id');
+    id.appendChild(h('span', 'plus-price-kicker', 'Marqit+'));
+    var amt = h('div', 'plus-price-amt');
+    amt.appendChild(h('b', null, '$9.99'));
+    amt.appendChild(h('span', null, 'per month'));
+    id.appendChild(amt);
+    id.appendChild(h('p', 'plus-price-tag', 'A digital software subscription with extra tools for your own picks.'));
+    top.appendChild(id);
+    var cta = h('div', 'plus-price-cta');
+    top.appendChild(cta);
+    box.appendChild(top);
+
+    // Middle: everything included, as a clean checklist instead of one long sentence.
+    box.appendChild(h('p', 'plus-price-h', 'What you get'));
+    var list = h('ul', 'plus-price-list');
+    [
+      ['History and lean on every game', 'Open to everyone for now'],
+      ['Unlimited pick edits'],
+      ['My Stats Pro'],
+      ['Contrarian score'],
+      ['Calendar sync'],
+      ['Pick history export'],
+      ['Full question archive'],
+      ['The morning brief'],
+      ['Ad-free experience']
+    ].forEach(function(f){
+      var li = h('li');
+      li.appendChild(h('span', 'plus-price-ck', '✓'));
+      li.appendChild(h('span', 'plus-price-ft', f[0]));
+      if(f[1]) li.appendChild(h('em', 'plus-price-note', f[1]));
+      list.appendChild(li);
+    });
+    box.appendChild(list);
+
+    // Bottom: your status and the manage button (members), or the sign-up / subscribe button.
     var say = msg(box);
     if(member){
       var endDate = member.current_period_end ? new Date(member.current_period_end).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '';
-      box.appendChild(h('p', 'plus-sub',
+      var pill = h('span', 'plus-price-pill ' + (member.status === 'past_due' ? 'warn' : member.cancel_at_period_end ? 'ending' : 'on'),
+        member.status === 'past_due' ? 'Payment issue' : member.cancel_at_period_end ? 'Ending soon' : 'Active');
+      cta.appendChild(pill);
+      var status = h('div', 'plus-price-status');
+      status.appendChild(h('p', null,
         member.status === 'past_due'
           ? 'You have Marqit+, but your last payment did not go through. Update your card or email help@playmarqit.com and we will help.'
         : member.cancel_at_period_end
           ? 'Your Marqit+ is cancelled and ends' + (endDate ? ' on ' + endDate : ' at the end of this billing period') + '. You keep everything until then, and you will not be charged again.'
           : 'You have Marqit+. Thank you!' + (endDate ? ' It renews on ' + endDate + '.' : '')));
-      var manage = btn(member.cancel_at_period_end ? 'Manage subscription' : 'Manage or cancel subscription', function(){ openPortal(say, manage); });
-      box.appendChild(manage);
+      var manage = btn(member.cancel_at_period_end ? 'Manage subscription' : 'Manage or cancel subscription', function(){ openPortal(say, manage); }, 'plus-btn ghost');
+      status.appendChild(manage);
+      box.insertBefore(status, say);
     } else if(!session){
-      var up = btn('Sign up free to subscribe', function(){ var s2 = document.getElementById('cta-open-signup'); if(s2) s2.click(); });
-      box.appendChild(up);
+      cta.appendChild(btn('Sign up free to subscribe', function(){ var s2 = document.getElementById('cta-open-signup'); if(s2) s2.click(); }, 'plus-btn plus-price-go'));
     } else {
-      var go = btn('Subscribe for $9.99/month', function(){ startCheckout(say, go); });
-      box.appendChild(go);
+      var go = btn('Subscribe for $9.99/month', function(){ startCheckout(say, go); }, 'plus-btn plus-price-go');
+      cta.appendChild(go);
     }
-    box.appendChild(h('p', 'plus-fine', '$9.99 per month, billed through Stripe. Renews automatically every month until you cancel. Cancel any time from this page and keep access through the end of the period you paid for. Refunds and details are in the Terms of Service. Marqit itself is free to play and players never wager money.'));
+    box.appendChild(h('p', 'plus-fine plus-price-fine', '$9.99 per month, billed through Stripe. Renews automatically every month until you cancel. Cancel any time from this page and keep access through the end of the period you paid for. Refunds and details are in the Terms of Service. Marqit itself is free to play and players never wager money.'));
     return box;
   }
 

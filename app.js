@@ -7,6 +7,20 @@
     return /^[a-zA-Z0-9_]{3,24}$/.test(v);
   }
 
+  // Usernames never contain spaces: they are removed as the person types (signup and the "pick a username" box).
+  ['username-input', 'username-prompt-input'].forEach(function(id){
+    document.addEventListener('input', function(e){
+      var t = e.target;
+      if(!t || t.id !== id) return;
+      var clean = t.value.replace(/\s+/g, '');
+      if(clean !== t.value){
+        var pos = Math.max(0, (t.selectionStart || clean.length) - (t.value.length - clean.length));
+        t.value = clean;
+        try{ t.setSelectionRange(pos, pos); }catch(err){}
+      }
+    });
+  });
+
   // Simple clean-language check. Not perfect (no filter is), but stops the obvious.
   // Stems that are safe to catch anywhere inside a username or comment word (checked inside each word, not across spaces):
   var MQ_BAD_STEMS = ['fuck','shit','bitch','nigg','fagg','whore','slut','asshole','pussy','bastard','motherf'];
@@ -291,14 +305,14 @@
     const email = emailInput.value.trim();
     const password = document.getElementById('password-input').value;
     const isSignup = mode !== 'login';
-    const username = isSignup ? usernameInput.value.trim() : '';
+    const username = isSignup ? usernameInput.value.replace(/\s+/g, '') : '';
     const state = isSignup && stateInput && stateInput.value.trim() ? toTitleCase(stateInput.value) : '';
     msgEl.className = 'form-msg';
     msgEl.textContent = '';
 
     if(isSignup && !isValidUsername(username)){
       msgEl.classList.add('err');
-      msgEl.textContent = 'Username: 3-24 characters, letters/numbers/underscores only.';
+      msgEl.textContent = 'Username: 3-24 characters, letters/numbers/underscores only, no spaces.';
       return;
     }
     if(isSignup && mqHasProfanity(username)){
@@ -1152,12 +1166,23 @@
   document.getElementById('username-prompt-save-btn').addEventListener('click', async function(){
     const input = document.getElementById('username-prompt-input');
     const msg = document.getElementById('username-prompt-msg');
-    const newUsername = input.value.trim();
+    const newUsername = input.value.replace(/\s+/g, '');
+    input.value = newUsername;
     msg.className = 'form-msg';
     msg.textContent = '';
     if(!newUsername){
       msg.className = 'form-msg err';
       msg.textContent = 'Enter a username.';
+      return;
+    }
+    if(!isValidUsername(newUsername)){
+      msg.className = 'form-msg err';
+      msg.textContent = 'Username: 3-24 characters, letters/numbers/underscores only, no spaces.';
+      return;
+    }
+    if(mqHasProfanity(newUsername)){
+      msg.className = 'form-msg err';
+      msg.textContent = 'That username is not allowed. Please keep it clean and pick another.';
       return;
     }
     const refInputEl = document.getElementById('username-prompt-ref-input');
@@ -5367,7 +5392,7 @@
     var who = escapeHtml(name);
     return sameSide
       ? (mqIcon('link') + '<span>' + who + ' also picked ' + pick.toUpperCase() + ' \u2014 Buddy Bonus</span>')
-      : (mqIcon('swap') + '<span>' + who + ' picked ' + pick.toUpperCase() + ' \u2014 opposite call, no Buddy Bonus this time</span>');
+      : (mqIcon('swap') + '<span>' + who + ' picked ' + pick.toUpperCase() + ' \u2014 opposite call, no Buddy Bonus</span>');
   }
 
   // Subject photos and face-offs: loaded after the cards are drawn, so a missing
@@ -6377,13 +6402,12 @@
     // Marqit+ insights (free for every signed-in player for now). The database only
     // returns admin-approved rows to Marqit+ members, so a card gets the dropdown
     // only when it has insights; guests and unreviewed questions get nothing extra.
+    // History & lean is open to everyone for now (signed in or not, subscribed or not) until the owner says otherwise.
     __mqInsights = {};
-    if(session){
-      try{
-        const insRes = await sb.from('question_insights').select('question_id, bullets, lean_yes_pct, lean_basis, result_explanation').in('question_id', prepared.map(function(p){ return p.q.id; }));
-        (insRes.data || []).forEach(function(r){ if(Array.isArray(r.bullets) && r.bullets.length) __mqInsights[r.question_id] = r; });
-      }catch(e){}
-    }
+    try{
+      const insRes = await sb.from('question_insights').select('question_id, bullets, lean_yes_pct, lean_basis, result_explanation').in('question_id', prepared.map(function(p){ return p.q.id; }));
+      (insRes.data || []).forEach(function(r){ if(Array.isArray(r.bullets) && r.bullets.length) __mqInsights[r.question_id] = r; });
+    }catch(e){}
 
     let allLocked = true;
     for(let i = 0; i < prepared.length; i++){
@@ -8173,8 +8197,6 @@
   }
   async function mqAttachEventLean(ev){
     try{
-      var sess = (await sb.auth.getSession()).data.session;
-      if(!sess) return;
       var res = await sb.from('event_insights').select('bullets, lean_yes_pct, lean_label, lean_basis').eq('event_key', mqEvKey(ev)).maybeSingle();
       var r = res && res.data;
       var panel = document.querySelector('#mq-evpanel .evp');
@@ -9644,6 +9666,14 @@
     if(!d || !d.categories || !d.categories.length) return '<p class="evp-muted">Season leaders aren’t available right now.</p>';
     var defs = MQ_LEAD_GROUPS[k] || [['Leaders', /./]], groups = defs.map(function(g){ return { name: g[0], re: g[1], cats: [] }; });
     d.categories.forEach(function(c){ for(var i = 0; i < groups.length; i++){ if(groups[i].re.test(c.label)){ groups[i].cats.push(c); return; } } });
+    if(k === 'nba'){
+      // NBA has only a handful of stats, so separate groups gave rows of one, then two, then three cards.
+      // One continuous grid keeps every card lined up in rows of three, like MLB.
+      var nbaOrder = [/point/i, /rebound/i, /assist/i, /steal/i, /block/i, /turnover/i, /foul/i];
+      function nbaRank(c){ for(var i = 0; i < nbaOrder.length; i++){ if(nbaOrder[i].test(c.label)) return i; } return nbaOrder.length; }
+      var all = d.categories.slice().sort(function(a, b){ return nbaRank(a) - nbaRank(b); });
+      return '<section class="rk-grp"><h4 class="rk-grp-h">Season leaders</h4><div class="rk-cards">' + all.map(mqLeadCard).join('') + '</div></section>';
+    }
     return groups.filter(function(g){ return g.cats.length; }).map(function(g){
       return '<section class="rk-grp"><h4 class="rk-grp-h">' + escapeHtml(g.name) + '</h4><div class="rk-cards">' + g.cats.map(mqLeadCard).join('') + '</div></section>';
     }).join('');
@@ -9834,15 +9864,28 @@
 
   function mqSchedStripHtml(list, clickable, lead){
     var groups = [], byKey = {};
-    // Anything live right now goes first, so its league comes first in the strip.
+    // Live games go first inside their own league. The leagues themselves always run in a fixed
+    // order: NFL, NBA, MLB, NHL, soccer, every other sport, and only then earnings and the rest.
     function isLive(ev){ var g = mqGameFor(ev, mqSchedTeams(ev)); return !!g && g.state === 'in'; }
     var sorted = mqSchedSort(list), live = sorted.filter(isLive);
     sorted = live.concat(sorted.filter(function(ev){ return live.indexOf(ev) < 0; }));
     sorted.forEach(function(ev){
       var key = ev.category === 'finance' ? 'Earnings' : ev.league || (MQ_SCHED_CATS.filter(function(c){ return c[0] === ev.category; })[0] || [0, 'Events'])[1];
-      if(!byKey[key]){ byKey[key] = { name: key, events: [] }; groups.push(byKey[key]); }
+      if(!byKey[key]){ byKey[key] = { name: key, cat: ev.category, events: [] }; groups.push(byKey[key]); }
       byKey[key].events.push(ev);
     });
+    var MQ_STRIP_TOP = ['NFL', 'NBA', 'MLB', 'NHL'];
+    var MQ_STRIP_SOCCER = /^(soccer|mls|epl|ucl|uel|premier league|champions league|la ?liga|bundesliga|serie a|ligue 1|world cup|fifa|nwsl|uefa.*|liga mx)$/i;
+    function groupRank(g){
+      var up = String(g.name).toUpperCase(), i = MQ_STRIP_TOP.indexOf(up);
+      if(i >= 0) return i;
+      if(MQ_STRIP_SOCCER.test(g.name)) return 4;
+      if(g.cat === 'sports') return 5; // any other sport (college football, WNBA, tennis, golf, F1...)
+      return 6;
+    }
+    groups = groups.map(function(g, i){ return { g: g, i: i, r: groupRank(g) }; })
+      .sort(function(a, b){ return a.r - b.r || a.i - b.i; })
+      .map(function(x){ return x.g; });
     var cells = groups.map(function(g){
       return '<div class="sstrip-league' + (g.name === 'Earnings' ? ' is-earn' : '') + '"><span>' + escapeHtml(g.name) + '</span></div>' +
         g.events.map(function(ev){ return mqSchedCellHtml(ev, clickable); }).join('');
