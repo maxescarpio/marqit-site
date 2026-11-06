@@ -2301,6 +2301,12 @@ a.mq-ss-ig{text-decoration:none}
 .plus-big{display:flex;align-items:baseline;gap:10px;margin:4px 0 10px;}
 .plus-big b{font-size:34px;line-height:1;}
 .plus-big span{font-size:13.5px;color:var(--muted,#5b6475);}
+.plus-recap{border:1px solid var(--line,#e4e3dd);border-radius:12px;padding:14px 16px;margin:6px 0 12px;background:var(--paper,#fff);}
+.plus-recap-title{display:block;font-size:17px;margin:0 0 8px;}
+.plus-recap-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line,#e4e3dd);font-size:14px;}
+.plus-recap-row:first-of-type{border-top:0;}
+.plus-recap-row span{color:var(--muted,#5b6475);}
+.plus-recap-row b{text-align:right;}
 .plus-bar-row{display:grid;grid-template-columns:92px 1fr auto;gap:10px;align-items:center;margin:6px 0;font-size:13px;}
 .plus-bar{height:7px;border-radius:99px;background:rgba(120,130,150,.18);overflow:hidden;}
 .plus-bar i{display:block;height:100%;background:#F5C451;border-radius:99px;}
