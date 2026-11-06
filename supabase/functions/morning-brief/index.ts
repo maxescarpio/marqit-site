@@ -3,8 +3,9 @@
 // Secrets: RESEND_API_KEY. Opt-in only (profiles.notify_morning_brief). Sends nothing when
 // today has no admin-approved insights. Optional body: { "test_email": "you@example.com" } sends only to that address.
 //
-// Marqit+ is free for every signed-in player until the secret MARQIT_PLUS_PAID is set to 'true' (launch day).
-// Once it is, only paying members (the same rule as is_marqit_plus() in the database) receive the brief.
+// Sent only to paying members (the same statuses as is_marqit_plus() in the database). Payments are live.
+// Personalised: questions that mention a team or topic the member follows (user_follows) come first with a
+// "Your team" tag; then their favourite category (profiles.favorite_category); then the usual order.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -43,7 +44,7 @@ Deno.serve(async (req: Request) => {
     const items = (qs || []).filter((q: any) => byQ[q.id]);
     if (!items.length) return new Response(JSON.stringify({ sent: 0, reason: 'no approved insights today' }), { status: 200 });
 
-    const blocks = items.map((q: any, i: number) => {
+    const renderBlock = (q: any, i: number, total: number, tag: string | null) => {
       const r = byQ[q.id];
       let lean = '';
       if (r.lean_yes_pct && r.lean_basis) {
@@ -52,25 +53,26 @@ Deno.serve(async (req: Request) => {
         lean = `<p style="margin:8px 0 0;font-size:13px;"><b>Lean: ${esc(side)}</b> <span style="color:#4B4E55;">${esc(r.lean_basis)}</span></p>`;
       }
       const lis = (r.bullets || []).map((b: string) => `<li style="margin:4px 0;">${esc(b)}</li>`).join('');
+      const tagHtml = tag ? ` <span style="background:#F5E7B0;color:#5A4500;border-radius:6px;padding:1px 6px;font-weight:700;">Your team: ${esc(tag)}</span>` : '';
       return `<div style="border:1px solid #E4E3DD;border-radius:12px;padding:14px 16px;margin:14px 0;background:#fff;">
-        <div style="font-size:12px;color:#8B8D93;">${i + 1} of ${items.length} · ${esc(LABELS[q.category] || q.category)}</div>
+        <div style="font-size:12px;color:#8B8D93;">${i + 1} of ${total} · ${esc(LABELS[q.category] || q.category)}${tagHtml}</div>
         <div style="font-weight:700;font-size:16px;margin:4px 0 8px;color:#17191D;">${esc(q.question_text)}</div>
         <ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.45;color:#17191D;">${lis}</ul>${lean}</div>`;
-    }).join('');
+    };
 
-    let query = admin.from('profiles').select('id, username').eq('notify_morning_brief', true);
-    const { data: allProfiles, error: pErr } = await query;
+    const { data: allOptIn, error: pErr } = await admin.from('profiles').select('id, username, favorite_category').eq('notify_morning_brief', true);
     if (pErr) return new Response(JSON.stringify({ error: pErr.message }), { status: 500 });
-
-    // Launch day: only paying members get the brief (same rule as is_marqit_plus()). Off until MARQIT_PLUS_PAID = 'true'.
-    let profiles = allProfiles;
-    if (Deno.env.get('MARQIT_PLUS_PAID') === 'true') {
-      const { data: members, error: mErr } = await admin.from('marqit_plus_subscriptions')
-        .select('user_id').in('status', ['active', 'trialing', 'past_due']);
-      if (mErr) return new Response(JSON.stringify({ error: mErr.message }), { status: 500 });
-      const ok = new Set((members || []).map((m: any) => m.user_id));
-      profiles = (allProfiles || []).filter((p: any) => ok.has(p.id));
+    const optInIds = (allOptIn || []).map((p: any) => p.id);
+    const payingIds = new Set<string>();
+    const followsBy: Record<string, string[]> = {};
+    if (optInIds.length) {
+      const { data: subs, error: sErr } = await admin.from('marqit_plus_subscriptions').select('user_id').in('user_id', optInIds).in('status', ['active', 'trialing', 'past_due']);
+      if (sErr) return new Response(JSON.stringify({ error: sErr.message }), { status: 500 });
+      (subs || []).forEach((r: any) => payingIds.add(r.user_id));
+      const { data: fol } = await admin.from('user_follows').select('user_id, name').in('user_id', optInIds);
+      (fol || []).forEach((r: any) => { (followsBy[r.user_id] = followsBy[r.user_id] || []).push(String(r.name)); });
     }
+    const profiles = (allOptIn || []).filter((p: any) => payingIds.has(p.id));
 
     let sent = 0, failed = 0;
     for (const p of profiles || []) {
@@ -80,15 +82,26 @@ Deno.serve(async (req: Request) => {
       if (testEmail && email.toLowerCase() !== testEmail) continue;
       const { data: tok } = await admin.rpc('generate_unsubscribe_token', { p_user_id: p.id });
       const unsub = `https://playmarqit.com/unsubscribe.html?uid=${p.id}&token=${tok || ''}&kind=brief`;
+      // Personalise: followed teams/topics first, then the favourite category, then the usual order.
+      const myFollows = followsBy[p.id] || [];
+      const scored = items.map((q: any, idx: number) => {
+        const text = String(q.question_text || '').toLowerCase();
+        const hit = myFollows.find((f) => f && text.indexOf(f.toLowerCase()) !== -1) || null;
+        return { q, idx, hit, fav: p.favorite_category && q.category === p.favorite_category ? 1 : 0 };
+      }).sort((x: any, y: any) => (y.hit ? 1 : 0) - (x.hit ? 1 : 0) || y.fav - x.fav || x.idx - y.idx);
+      const blocks = scored.map((x: any, i: number) => renderBlock(x.q, i, scored.length, x.hit)).join('');
+      const nHits = scored.filter((x: any) => x.hit).length;
+      const subject = nHits ? 'Your Marqit morning brief: ' + String(scored[0].hit).replace(/[\r\n]+/g, ' ').slice(0, 40) + (nHits > 1 ? ' and more' : '') : 'Your Marqit morning brief';
+      const intro = nHits ? 'Calls that mention your teams and topics are first.' : 'Here is the history behind today&rsquo;s calls.';
       const html = `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#17191D;">
-        <p>Good morning${p.username ? ' ' + esc(p.username) : ''}. Here is the history behind today&rsquo;s calls.</p>${blocks}
+        <p>Good morning${p.username ? ' ' + esc(p.username) : ''}. ${intro}</p>${blocks}
         <p><a href="https://playmarqit.com">Make today&rsquo;s calls</a></p>
         <p style="font-size:12px;color:#8B8D93;">Based on historical data, not betting lines. For information only, not betting or financial advice. Marqit+ is always ad-free.</p>
         <p style="margin-top:20px;font-size:12px;color:#8B8D93;"><a href="${unsub}" style="color:#8B8D93;">Unsubscribe from the morning brief</a></p></div>`;
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: FROM_ADDRESS, to: email, subject: 'Your Marqit morning brief', html })
+        body: JSON.stringify({ from: FROM_ADDRESS, to: email, subject, html })
       });
       if (r.ok) sent++; else failed++;
     }
