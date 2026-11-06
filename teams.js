@@ -437,6 +437,11 @@
     (d && d.results ? d.results.slice(0, 5).reverse() : []).forEach(function(g){ f.appendChild(h('i', 'tm2-dot ' + (g.result === 'W' ? 'w' : g.result === 'L' ? 'l' : ''), g.result || '–')); });
     return f;
   }
+  function shareOf(a, b, better){
+    var x = better === 'low' ? -a : a, y = better === 'low' ? -b : b;
+    var s = Math.abs(x) + Math.abs(y); if(!s) return 0.5;
+    return Math.max(0.12, Math.min(0.88, 0.5 + 0.9 * (x - y) / s));
+  }
   async function openMatchup(p, d, g){
     openSheet(async function(inner){
       var wrap = h('div', 'tm2-detail'); inner.appendChild(wrap);
@@ -446,61 +451,72 @@
       var od = opp ? await getTeam({ league: p.league, espn_id: opp.id }) : null;
       wrap.textContent = '';
 
-      var top = h('div', 'tm2-vs');
-      function side(dd, name, logo){
-        var s = h('div', 'tm2-vs-side');
-        s.appendChild(art(logo, name, 'sq lg'));
-        s.appendChild(h('b', 'tm2-name', name));
-        if(dd && dd.record) s.appendChild(h('span', 'tm2-meta', dd.record));
-        return s;
+      var top = h('div', 'tm2-vs2');
+      function block(dd, name, logo, cls){
+        var bx = h('div', 'tm2-vsb ' + cls);
+        if(dd && dd.color) bx.style.setProperty('--tc', dd.color);
+        bx.appendChild(art(logo, name, 'sq'));
+        bx.appendChild(h('b', 'tm2-vsn', name));
+        if(dd && dd.record) bx.appendChild(h('span', 'tm2-vsrec', dd.record));
+        return bx;
       }
-      top.appendChild(side(d, d.name || p.name, d.logo));
-      var mid = h('div', 'tm2-vs-mid');
-      mid.appendChild(h('span', 'tm2-vs-v', g.home ? 'HOME' : 'AWAY'));
-      mid.appendChild(h('b', null, fmtWhen(g.date)));
-      top.appendChild(mid);
-      top.appendChild(side(od, g.opp, od ? od.logo : (opp ? opp.logo : '')));
+      top.appendChild(block(d, d.name || p.name, d.logo, 'l'));
+      top.appendChild(block(od, g.opp, od ? od.logo : (opp ? opp.logo : ''), 'r'));
+      top.appendChild(h('span', 'tm2-vsbadge', 'VS'));
       wrap.appendChild(top);
+      var when = h('div', 'tm2-vswhen');
+      when.appendChild(h('span', null, g.home ? 'Home game' : 'Away game'));
+      when.appendChild(h('b', null, fmtWhen(g.date)));
+      wrap.appendChild(when);
 
       if(!od){ wrap.appendChild(h('p', 'tm-note', 'A full comparison is not available for ' + g.opp + ' right now.')); return; }
 
-      var a = seasonStats(d), b = seasonStats(od);
-      var rows = [['Record', d.record || '', od.record || '', null, null]];
+      var A = seasonStats(d), B = seasonStats(od);
+      function srow(label, at, bt, ar, br, better){
+        var r = h('div', 'tm2-sr');
+        r.appendChild(h('span', 'tm2-sr-l', label));
+        var line = h('div', 'tm2-sr-line');
+        var av = h('b', 'tm2-sr-v', at || '–'), bv = h('b', 'tm2-sr-v', bt || '–');
+        line.appendChild(av);
+        if(better && ar != null && br != null){
+          var fa = shareOf(ar, br, better), tie = ar === br;
+          var bar = h('span', 'tm2-sr-bar'), l = h('i'), rr = h('i');
+          l.style.width = (fa * 100) + '%'; rr.style.width = ((1 - fa) * 100) + '%';
+          if(!tie){ (fa > 0.5 ? l : rr).classList.add('lead'); (fa > 0.5 ? av : bv).classList.add('win'); }
+          bar.appendChild(l); bar.appendChild(rr); line.appendChild(bar);
+        } else line.appendChild(h('span', 'tm2-sr-gap'));
+        line.appendChild(bv);
+        r.appendChild(line);
+        return r;
+      }
+      var box = h('div', 'tm2-srs');
+      box.appendChild(srow('Record', d.record, od.record));
       Object.keys(KEEP).map(function(k){ return KEEP[k]; }).sort(function(x, y){ return x[1] - y[1]; }).forEach(function(k){
-        var x = a[k[3]], y = b[k[3]];
-        if(x || y) rows.push([k[0], x ? x.text : '', y ? y.text : '', x ? x.raw : null, y ? y.raw : null, k[4]]);
+        var x = A[k[3]], y = B[k[3]];
+        if(x || y) box.appendChild(srow(k[0], x ? x.text : '', y ? y.text : '', x ? x.raw : null, y ? y.raw : null, k[4]));
       });
       var mineHere = g.home ? d.home : d.road, theirsHere = g.home ? od.road : od.home;
-      if(mineHere || theirsHere) rows.push([g.home ? 'At home · On the road' : 'On the road · At home', mineHere || '', theirsHere || '', null, null]);
-      if(d.lastSeason || od.lastSeason) rows.push(['Last season', d.lastSeason ? d.lastSeason.record : '', od.lastSeason ? od.lastSeason.record : '', null, null]);
-      var tbl = h('div', 'tm2-cmp');
-      rows.forEach(function(r){
-        var line = h('div', 'tm2-cmp-row');
-        var l = h('b', 'tm2-cmp-v', r[1] || '–'), rr = h('b', 'tm2-cmp-v', r[2] || '–');
-        if(r[5] && r[3] != null && r[4] != null && r[3] !== r[4]){
-          var leftWins = r[5] === 'high' ? r[3] > r[4] : r[3] < r[4];
-          (leftWins ? l : rr).classList.add('win');
-        }
-        line.appendChild(l); line.appendChild(h('span', 'tm2-cmp-l', r[0])); line.appendChild(rr);
-        tbl.appendChild(line);
-      });
-      wrap.appendChild(tbl);
-
-      var form = h('div', 'tm2-cmp-row tm2-cmp-form');
-      form.appendChild(formDots(d)); form.appendChild(h('span', 'tm2-cmp-l', 'Last 5')); form.appendChild(formDots(od));
-      wrap.appendChild(form);
+      if(mineHere || theirsHere) box.appendChild(srow(g.home ? 'At home vs on the road' : 'On the road vs at home', mineHere, theirsHere));
+      if(d.lastSeason || od.lastSeason) box.appendChild(srow('Last season', d.lastSeason ? d.lastSeason.record : '', od.lastSeason ? od.lastSeason.record : ''));
+      var fr = h('div', 'tm2-sr');
+      fr.appendChild(h('span', 'tm2-sr-l', 'Last 5'));
+      var fl = h('div', 'tm2-sr-line tm2-sr-form'); fl.appendChild(formDots(d)); fl.appendChild(formDots(od)); fr.appendChild(fl);
+      box.appendChild(fr);
+      wrap.appendChild(box);
 
       var pl = h('div', 'tm2-vs-pl');
       [d, od].forEach(function(dd){
         var col = h('div', 'tm2-vs-col');
-        col.appendChild(h('div', 'tm-sh', (dd.name || 'Team') + ' \u00b7 top players'));
+        col.appendChild(h('div', 'tm-sh', (dd.abbr || dd.name || 'Team') + ' top players'));
         var ml = mergeLeaders(dd.leaders);
         if(!ml.length) col.appendChild(h('p', 'tm-note', 'Not listed yet.'));
         ml.forEach(function(m){
           var r = h('div', 'tm2-vs-p');
-          r.appendChild(h('b', null, m.name));
-          r.appendChild(h('span', 'tm-note', m.stats.map(function(s){ return s.line + ' ' + s.label; }).join(' · ')));
-          col.appendChild(r);
+          r.appendChild(art(m.hs, m.name, 'rd'));
+          var tx = h('span', 'tm2-vs-ptx');
+          tx.appendChild(h('b', null, m.name));
+          tx.appendChild(h('span', 'tm-note', m.stats.map(function(s){ return s.line + ' ' + s.label; }).join(' · ')));
+          r.appendChild(tx); col.appendChild(r);
         });
         pl.appendChild(col);
       });
@@ -642,14 +658,14 @@
   function news(body, d){
     if(!d.headlines || !d.headlines.length){ body.appendChild(h('p', 'tm-note', 'No headlines right now.')); return; }
     d.headlines.forEach(function(a){
-      var l = h('a', 'tm-news'); l.href = a.url; l.target = '_blank'; l.rel = 'noopener noreferrer';
+      var l = h('a', 'tm-news tm2-card'); l.href = a.url; l.target = '_blank'; l.rel = 'noopener noreferrer';
       var src = newsSource(a.url);
-      var badge = h('span', 'tm2-src', src.short); badge.style.background = src.color; badge.title = src.name;
-      l.appendChild(badge);
-      var tx = h('span', 'tm2-ntext');
-      tx.appendChild(h('span', 'tm2-nh', a.headline));
-      tx.appendChild(h('em', 'tm2-nm', src.name + (a.date ? ' \u00b7 ' + fmtDate(a.date) : '')));
-      l.appendChild(tx);
+      var meta = h('span', 'tm2-nmeta');
+      var chip = h('span', 'tm2-nsrc', src.name); chip.style.setProperty('--sc', src.color); meta.appendChild(chip);
+      if(a.date) meta.appendChild(h('span', 'tm2-nwhen', fmtDate(a.date)));
+      meta.appendChild(h('span', 'tm2-narrow', '\u2197'));
+      l.appendChild(meta);
+      l.appendChild(h('span', 'tm2-nh', a.headline));
       body.appendChild(l);
     });
   }
@@ -684,6 +700,12 @@
       body.appendChild(statGrid(d.stats.map(function(c){ return [c.label, c.value]; })));
     } else body.appendChild(h('p', 'tm-note', 'Season stats are not available yet.'));
   }
+
+  // Tapping the Teams tab while inside a team or player goes back to the page with all your teams.
+  (function(){
+    var tab = document.getElementById('teams-tab');
+    if(tab) tab.addEventListener('click', function(){ if(view !== 'home'){ view = 'home'; render(); } });
+  })();
 
   sb.auth.onAuthStateChange(function(){ init(); });
   init();
