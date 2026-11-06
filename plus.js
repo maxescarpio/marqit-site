@@ -64,6 +64,12 @@
          'Your best and toughest categories, once you have 3 or more settled picks in them.',
          'Your current and longest streaks.'],
         'Marqit also uses your best category to decide what leads on your Play tab.'], 'stats'],
+      ['League commissioner tools', 'live', [
+        'Anyone can create or join leagues for free on the Leaderboard tab. Marqit+ gives the person who runs a league extra tools, and gives any member weekly and monthly standings.',
+        ['Rename the league, remove a player, reset the invite code.',
+         'Close a season: the leader is saved as that season\u2019s winner and the standings start over.',
+         'Weekly (last 7 days) and monthly standings for every league you are in.',
+         'Score is correct calls on settled questions. No prizes.']]],
       ['Your Marqit recap', 'live', [
         'A summary card of your year on Marqit: calls made, accuracy, best category, longest streak and how you did against the crowd. Save it as an image to share.',
         ['Built from your settled picks only, and it updates as the year goes on.',
