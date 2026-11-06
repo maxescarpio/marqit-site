@@ -261,8 +261,8 @@
 .plus-price-id{min-width:0}
 .plus-price-kicker{display:inline-block;margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#F6C430}
 .plus-price-amt{display:flex;align-items:baseline;gap:10px}
-.plus-price-amt b{font:700 44px/1 'Big Shoulders Display','Barlow',sans-serif;letter-spacing:.01em;color:#F2F3F5}
-.plus-price-amt span{font-size:15px;color:#8B909A}
+.plus-price-amt b{font:700 26px/1 'Barlow',sans-serif;letter-spacing:0;color:#F2F3F5}
+.plus-price-amt span{font-size:14px;color:#8B909A}
 .plus-price-tag{margin:12px 0 0;max-width:420px;font-size:14.5px;line-height:1.55;color:#A3A8B1}
 .plus-price-cta{flex:none;padding-top:4px}
 .plus-price .plus-price-go{height:46px;padding:0 26px;font-size:14.5px;white-space:nowrap}
@@ -401,3 +401,16 @@
 .tm2-dbody .tm-grid div b{line-height:1.25}
 .tm2-tile .tm2-badge{position:static;display:inline-block;margin-top:2px}
 .tm2-badge[hidden]{display:none}
+
+/* Teams news cards, source badge */
+.tm2-dbody a.tm-news{display:flex;align-items:center;gap:14px;padding:14px 16px;margin:0 0 10px;border:1px solid #262A31;border-radius:14px;background:#14161B;text-decoration:none}
+.tm2-dbody a.tm-news:hover{border-color:#3A3F48;background:#171A20;text-decoration:none}
+.tm2-src{flex:none;width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font:800 11px/1 'Barlow',sans-serif;letter-spacing:.02em;color:#fff;background:#D00A22}
+.tm2-ntext{display:flex;flex-direction:column;gap:5px;min-width:0}
+.tm2-ntext .tm2-nh{font:600 15.5px/1.35 'Barlow',sans-serif;color:#F2F3F5}
+.tm2-ntext .tm2-nm{font:500 12.5px 'Barlow',sans-serif;color:#8B909A;font-style:normal}
+/* No visible scrollbars anywhere on touch devices */
+@media (hover:none),(max-width:820px){
+  *{scrollbar-width:none;-ms-overflow-style:none}
+  *::-webkit-scrollbar{display:none;width:0;height:0}
+}

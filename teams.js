@@ -445,7 +445,9 @@
     }
 
     var cells = [['Record', d.record], ['Standing', d.standing], ['Home', d.home], ['Road', d.road]];
-    (d.seasonStats || []).forEach(function(x){ cells.push([x.label, x.value]); });
+    var KEEP = { 'avgpointsfor': ['Points per game', 1], 'avgpointsagainst': ['Allowed per game', 2], 'differential': ['Point differential', 3], 'winpercent': ['Win %', 0], 'streak': ['Streak', 4] };
+    (d.seasonStats || []).map(function(x){ var k = KEEP[String(x.label || '').toLowerCase().replace(/[^a-z]/g, '')]; return k ? [k[0], x.value, k[1]] : null; })
+      .filter(Boolean).sort(function(a, b){ return a[2] - b[2]; }).forEach(function(x){ cells.push([x[0], x[1]]); });
     var shown = cells.filter(function(c){ return c[1]; });
     if(shown.length) body.appendChild(sect('Season', [statGrid(shown)]));
 
@@ -458,12 +460,23 @@
     if(d.results && d.results.length){ body.appendChild(sect('Recent results', d.results.map(function(g){ return gameLine(g); }))); any = true; }
     if(!any) body.appendChild(h('p', 'tm-note', 'No games to show right now.'));
   }
+  function newsSource(url){
+    var host = ''; try{ host = new URL(url).hostname.replace(/^www\./, ''); }catch(e){}
+    if(/espn\./.test(host)) return { name: 'ESPN', short: 'ESPN', color: '#D00A22' };
+    var base = host.split('.').slice(-2, -1)[0] || 'News';
+    return { name: base.charAt(0).toUpperCase() + base.slice(1), short: base.slice(0, 3).toUpperCase(), color: '#3A3F48' };
+  }
   function news(body, d){
     if(!d.headlines || !d.headlines.length){ body.appendChild(h('p', 'tm-note', 'No headlines right now.')); return; }
     d.headlines.forEach(function(a){
       var l = h('a', 'tm-news'); l.href = a.url; l.target = '_blank'; l.rel = 'noopener noreferrer';
-      l.appendChild(h('span', null, a.headline));
-      if(a.date) l.appendChild(h('em', 'tm-note', fmtDate(a.date)));
+      var src = newsSource(a.url);
+      var badge = h('span', 'tm2-src', src.short); badge.style.background = src.color; badge.title = src.name;
+      l.appendChild(badge);
+      var tx = h('span', 'tm2-ntext');
+      tx.appendChild(h('span', 'tm2-nh', a.headline));
+      tx.appendChild(h('em', 'tm2-nm', src.name + (a.date ? ' \u00b7 ' + fmtDate(a.date) : '')));
+      l.appendChild(tx);
       body.appendChild(l);
     });
   }
