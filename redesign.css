@@ -554,3 +554,59 @@ input[type=checkbox]:focus-visible{outline:2px solid #F6C430;outline-offset:2px}
 .tm2-sheet-x{z-index:5}
 .tm2-sheet{padding-top:50px}
 .tm2-sr-line.tm2-sr-form{display:flex;justify-content:space-around;gap:0}
+
+/* =====================================================================
+   Calmer pass: quiet buttons, muted W/L chips, subtle team colour, no loud gold
+   ===================================================================== */
+.signup button,.cta-band .signup button,.cb-btn,.milestone-close,.share-btn-primary,.welcome-go,.cmt-post,.mq-follow-btn,.mq-invite,
+.es-btn,.plus-btn:not(.ghost),.tm-btn:not(.ghost):not(.danger),.mq-mention-view,.mq-ss-ig.dl,.gp-side .lb-share-btn{
+  background:#1F2329 !important;color:#F2F3F5 !important;border:1px solid #3A3F48 !important;border-radius:8px !important;
+  font-family:'Barlow',sans-serif !important;font-weight:600 !important;letter-spacing:.01em !important;text-transform:none !important;
+  font-size:14px !important;box-shadow:none !important;filter:none !important;transition:background .15s,border-color .15s}
+.signup button:hover,.cb-btn:hover,.milestone-close:hover,.share-btn-primary:hover,.welcome-go:hover,.cmt-post:hover,.mq-follow-btn:hover,.mq-invite:hover,
+.es-btn:hover,.plus-btn:not(.ghost):hover:not(:disabled),.tm-btn:not(.ghost):not(.danger):hover,.mq-mention-view:hover,.mq-ss-ig.dl:hover{
+  background:#272C34 !important;border-color:#5A606B !important;filter:none !important}
+.signup button:active,.cb-btn:active,.milestone-close:active,.share-btn-primary:active,.welcome-go:active,.cmt-post:active,.mq-follow-btn:active,.mq-invite:active,
+.es-btn:active,.plus-btn:not(.ghost):active,.tm-btn:not(.ghost):not(.danger):active,.mq-mention-view:active,.mq-ss-ig.dl:active{transform:none;box-shadow:none !important;background:#2C313A !important}
+.plus-btn.ghost,.tm-btn.ghost{border:1px solid #2E323A !important;color:#C9CDD5 !important;font-weight:600;letter-spacing:.01em;text-transform:none;font-size:13.5px}
+.plus-btn.ghost:hover,.tm-btn.ghost:hover{border-color:#5A606B !important;color:#F2F3F5 !important}
+.navcta:hover{border-color:#5A606B !important;color:#F2F3F5 !important}
+.tm-btn.small{font-size:12.5px !important}
+
+/* selected pills: quiet */
+.rk-tabs button.on,.feed-chip.on,.cat-tab.active,.tier-chip.active,.tier-chip.active[data-tier],.evp-ranges button.on,.sg-pills button.on,.mu-play.on{
+  background:rgba(255,255,255,.09) !important;color:#F2F3F5 !important;border-color:#4A4F59 !important}
+
+/* checkboxes: white tick on a soft light fill */
+input[type=checkbox]:checked{background:#D9DCE2;border-color:#D9DCE2}
+
+/* W / L chips: small, flat, muted */
+.tm2-dot,.tm-res{min-width:22px;height:22px;border:0 !important;border-radius:5px !important;font:700 11.5px 'Barlow',sans-serif !important;letter-spacing:.02em;background:rgba(255,255,255,.07) !important;color:#9DA3AE !important}
+.tm2-dot.w,.tm-res.w{background:rgba(95,191,148,.16) !important;color:#74C9A3 !important}
+.tm2-dot.l,.tm-res.l{background:rgba(217,118,106,.16) !important;color:#E08A7D !important}
+.tm2-form{gap:4px}
+
+/* team colour: a whisper, not a stripe */
+.tm2-tile.is-team{border:1px solid #23262C;border-top:1px solid #23262C;background:linear-gradient(180deg,color-mix(in srgb,var(--tc,#23262C) 9%,#14161B),#14161B 70%)}
+.tm2-hero{background:linear-gradient(135deg,color-mix(in srgb,var(--tc,#3A3F48) 18%,#14161B),#14161B 80%);border-color:#23262C}
+.tm2-vsb.l{background:linear-gradient(160deg,color-mix(in srgb,var(--tc,#3A3F48) 24%,#14161B),#14161B 85%)}
+.tm2-vsb.r{background:linear-gradient(200deg,color-mix(in srgb,var(--tc,#3A3F48) 24%,#14161B),#14161B 85%)}
+.tm2-vs2{border-color:#23262C}
+.tm2-vsn{font-weight:700;font-size:18px}
+.tm2-vsbadge{background:#1F2329;color:#B3B7BF;border:1px solid #3A3F48;font:700 12px 'Barlow',sans-serif;letter-spacing:.08em;width:36px;height:36px}
+.tm2-vswhen b{color:#E4E6EA}
+
+/* stats and bars: neutral */
+.tm2-lstat{font:600 15px 'Barlow',sans-serif;letter-spacing:0;color:#E4E6EA}
+.tm2-llab{font-size:11.5px;letter-spacing:.08em}
+.tm2-sr-v{font-weight:600;color:#9DA3AE}
+.tm2-sr-v.win{color:#F2F3F5}
+.tm2-sr-bar i{background:#272B33}
+.tm2-sr-bar i.lead{background:#8E95A3}
+.tm2-go{color:#9DA3AE;font-weight:600;letter-spacing:.02em}
+button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
+
+/* news tag */
+.tm2-nsrc{background:transparent;border:1px solid #3A3F48;color:#B3B7BF;padding:2px 7px;font-size:10px;letter-spacing:.1em}
+.tm2-card:hover .tm2-narrow{color:#B3B7BF}
+.tm2-dbody a.tm-news.tm2-card::before{display:none}
