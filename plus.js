@@ -107,8 +107,8 @@
   ];
   var TOOLS = { stats: statsCard, head: headCard, contrarian: contrarianCard, follows: followsCard, archive: archiveCard, brief: briefCard, calendar: calendarCard, export: exportCard, report: reportCard };
   // Tools that are for paying members once the paid page is on. (The archive stays open: everyone sees the last 7 days.)
-  var MEMBER_ONLY = { stats: 1, head: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
-  var NEEDS_SIGN_IN = { stats: 1, head: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
+  var MEMBER_ONLY = { stats: 1, head: 1, contrarian: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
+  var NEEDS_SIGN_IN = { stats: 1, head: 1, contrarian: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
   function perkBody(body){
     if(typeof body === 'string'){ body = [body]; }
     var wrap = h('div', 'plus-perk-copy');
