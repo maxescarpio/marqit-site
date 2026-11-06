@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Become a Marqit Ambassador</title>
+<meta name="description" content="Share Marqit with your friends and earn $5 every time someone you bring becomes a paying subscriber. Apply in 30 seconds.">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Big+Shoulders+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#0F1114; --card:#16191F; --line:#262A31; --ink:#F2F3F5; --soft:#A3A8B1; --gold:#F2B93B; --navy:#0F2A5C; --bad:#F26B5B; --ok:#4FD6A0; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:'Barlow',sans-serif;line-height:1.5;}
+  .wrap{max-width:560px;margin:0 auto;padding:28px 20px 56px;}
+  .word{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:28px;letter-spacing:.04em;}
+  h1{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:52px;line-height:1;text-transform:uppercase;margin-top:22px;}
+  h1 span{color:var(--gold);}
+  .lead{margin-top:14px;font-size:18px;color:#DCE5F5;}
+  .lead b{color:#fff;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;}
+  .chip{padding:7px 12px;border-radius:999px;background:#1E2230;border:1px solid var(--line);font-size:13.5px;font-weight:600;color:#DCE5F5;}
+  form{margin-top:26px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;}
+  form h2{font-size:20px;font-weight:700;margin-bottom:4px;}
+  .sub{font-size:14px;color:var(--soft);margin-bottom:16px;}
+  label{display:block;margin-top:14px;font-size:14px;font-weight:600;}
+  label small{font-weight:400;color:var(--soft);}
+  input[type=text],input[type=email],textarea{width:100%;margin-top:6px;padding:13px 14px;border-radius:12px;border:1px solid #333843;background:#0F1114;color:var(--ink);font:inherit;font-size:16px;}
+  textarea{min-height:84px;resize:vertical;}
+  input:focus,textarea:focus{outline:2px solid var(--gold);outline-offset:1px;}
+  .check{display:flex;gap:12px;align-items:flex-start;margin-top:18px;font-weight:500;color:#DCE5F5;}
+  .check input{width:22px;height:22px;margin-top:1px;flex:none;accent-color:var(--gold);}
+  button{width:100%;margin-top:20px;padding:15px 18px;border-radius:12px;border:0;background:var(--gold);color:#0F1114;font:700 17px 'Barlow',sans-serif;cursor:pointer;}
+  button:disabled{opacity:.6;cursor:default;}
+  .msg{margin-top:14px;font-size:15px;min-height:22px;}
+  .msg.bad{color:var(--bad);} .msg.ok{color:var(--ok);}
+  .hp{position:absolute;left:-9999px;height:0;overflow:hidden;}
+  .fine{margin-top:18px;font-size:13px;color:var(--soft);}
+  .fine a{color:var(--ink);}
+  .steps{margin-top:26px;display:grid;gap:10px;}
+  .step{display:flex;gap:12px;align-items:center;font-size:16px;font-weight:600;}
+  .step i{flex:none;width:28px;height:28px;border-radius:50%;background:var(--navy);border:1px solid #2F4A85;font:700 14px 'Barlow',sans-serif;font-style:normal;display:flex;align-items:center;justify-content:center;}
+  .done{display:none;margin-top:26px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px;text-align:center;}
+  .done h2{font-family:'Big Shoulders Display',sans-serif;font-size:34px;text-transform:uppercase;color:var(--gold);}
+  .done p{margin-top:8px;color:#DCE5F5;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="word">MARQIT</div>
+  <h1><span>Get paid</span> to share Marqit.</h1>
+  <p class="lead">Your group chat already argues about this stuff. Share Marqit and earn <b>$5</b> every time a friend you bring becomes a paying subscriber. No cap.</p>
+  <div class="chips"><span class="chip">$5 per paying subscriber</span><span class="chip">No cap</span><span class="chip">No paperwork to start</span><span class="chip">18+</span></div>
+
+  <div class="steps">
+    <div class="step"><i>1</i>Apply below. It takes 30 seconds.</div>
+    <div class="step"><i>2</i>Get your personal link or code.</div>
+    <div class="step"><i>3</i>Share it. Earn $5 for each friend who subscribes.</div>
+  </div>
+
+  <form id="f" novalidate>
+    <h2>Apply to be an ambassador</h2>
+    <p class="sub">We'll email you your link or code.</p>
+    <label for="name">Your name<input id="name" type="text" autocomplete="name" maxlength="80" required></label>
+    <label for="email">Email<input id="email" type="email" autocomplete="email" inputmode="email" maxlength="120" required></label>
+    <label for="handle">Where would you share Marqit? <small>(Instagram, TikTok, a group chat, a club…)</small><input id="handle" type="text" maxlength="120"></label>
+    <label for="aud">Anything else? <small>(optional)</small><textarea id="aud" maxlength="400"></textarea></label>
+    <div class="hp" aria-hidden="true"><label>Leave this empty<input id="website" type="text" tabindex="-1" autocomplete="off"></label></div>
+    <label class="check" for="over18"><input id="over18" type="checkbox"><span>I'm 18 or older.</span></label>
+    <button id="go" type="submit">Apply now</button>
+    <div id="msg" class="msg" role="status" aria-live="polite"></div>
+    <p class="fine">Marqit is a free daily game, with no wagering and nothing to buy to play. Earnings start when paid plans (Marqit+) launch. No paperwork to start: the short ambassador agreement and a W-9 come only when your first payout is due, at $25. A subscriber counts when their first payment has cleared, they're still subscribed 30 days later, and they have no refund or chargeback. See our <a href="/privacy">privacy policy</a>.</p>
+  </form>
+
+  <div id="done" class="done"><h2>You're in the queue.</h2><p>Thanks! We'll email you soon with your personal link or code.</p></div>
+</div>
+<script>
+(function(){
+  var sb = window.supabase.createClient('https://ivapcztkasjfetntkzxy.supabase.co', 'sb_publishable_S1DZQXDDpffETdJh2xJONQ_QSNjnunn');
+  var f = document.getElementById('f'), msg = document.getElementById('msg'), go = document.getElementById('go');
+  function say(t, bad){ msg.textContent = t || ''; msg.className = 'msg' + (bad ? ' bad' : t ? ' ok' : ''); }
+  f.addEventListener('submit', async function(e){
+    e.preventDefault();
+    var name = document.getElementById('name').value.trim(), email = document.getElementById('email').value.trim();
+    if(document.getElementById('website').value) return;
+    if(!name){ say('Please add your name.', true); return; }
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ say('Please check your email address.', true); return; }
+    if(!document.getElementById('over18').checked){ say('Ambassadors must be 18 or older.', true); return; }
+    go.disabled = true; say('Sending…');
+    try{
+      var r = await sb.rpc('submit_ambassador_application', { p_name: name, p_email: email, p_handle: document.getElementById('handle').value, p_audience: document.getElementById('aud').value, p_over18: true });
+      if(r.error) throw r.error;
+      if(r.data === 'ok'){ f.style.display = 'none'; document.getElementById('done').style.display = 'block'; window.scrollTo({ top: 0 }); return; }
+      say(r.data === 'busy' ? 'We are getting a lot of applications right now. Please try again in a bit.' : 'Please check your details and try again.', true);
+    }catch(err){ say('Something went wrong. Please try again, or email max@playmarqit.com.', true); }
+    go.disabled = false;
+  });
+})();
+</script>
+</body>
+</html>
