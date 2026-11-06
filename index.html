@@ -47,7 +47,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261102h">
-<link rel="stylesheet" href="refresh.css?v=20261105b">
+<link rel="stylesheet" href="refresh.css?v=20261105c">
 <link rel="stylesheet" href="redesign.css?v=20261105a">
 <script type="application/ld+json">
 {
@@ -297,6 +297,7 @@
     <button class="pagenav-tab" data-page="news">News</button>
     <button class="pagenav-tab" data-page="how">How to play</button>
     <button class="pagenav-tab" data-page="standings">Rankings</button>
+    <button class="pagenav-tab" data-page="teams" id="teams-tab">Teams</button>
     <button class="pagenav-tab" data-page="plus">Marqit+</button>
   </div>
 </div>
@@ -463,6 +464,16 @@
     <h2>Marqit+</h2>
     <p class="plus-lede">History and tools to go with your picks. Free for every signed-in player while we launch.</p>
     <div id="plus-root" class="plus-root" aria-live="polite"></div>
+  </div>
+</section>
+</div>
+
+<div id="page-teams" class="page" style="display:none;">
+<section class="section hero-lite">
+  <div class="wrap">
+    <h2 id="teams-h">Teams</h2>
+    <p class="plus-lede">Your teams and players in one place: record, results, schedule, injuries and headlines.</p>
+    <div id="teams-root" aria-live="polite"></div>
   </div>
 </section>
 </div>
@@ -873,6 +884,7 @@
 <script src="app.js?v=20261105c" defer></script>
 <script src="plus.js?v=20261105g" defer></script>
 <script src="leagues.js?v=20261105a" defer></script>
+<script src="teams.js?v=20261105a" defer></script>
 
 
 
