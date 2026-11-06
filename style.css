@@ -132,7 +132,7 @@
   @keyframes livePulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
   .trend-dot{animation:trendPulse 1.8s ease-in-out infinite; transform-origin:center;}
   @keyframes trendPulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
-  #hamburger-about-btn:hover{background:var(--panel);}
+  #hamburger-about-btn:hover,#hamburger-plus-btn:hover{background:var(--panel);}
   #notify-push-btn:hover{border-color:var(--ink);}
   .ticket:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(23,25,29,0.1);}
   .cat-tabs{display:flex;gap:8px;margin:24px 0 20px;flex-wrap:wrap;}

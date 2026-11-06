@@ -10331,6 +10331,10 @@
     var el = document.getElementById(p[0]);
     if(el) el.addEventListener('click', function(){ hamburgerMenu.style.display = 'none'; mqOpenHiddenTab(p[1]); });
   });
+  (function(){
+    var pb = document.getElementById('hamburger-plus-btn');
+    if(pb) pb.addEventListener('click', function(){ hamburgerMenu.style.display = 'none'; mqOpenHiddenTab('plus'); });
+  })();
   document.getElementById('hamburger-about-btn').addEventListener('click', function(){
     document.querySelectorAll('.pagenav-tab').forEach(function(t){ t.classList.remove('active'); });
     document.querySelectorAll('.page').forEach(function(p){ p.style.display = 'none'; });
