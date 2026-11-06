@@ -54,6 +54,10 @@
          'Historical data only: no betting lines or odds.']], 'report']
     ]],
     ['Your game', [
+      ['Unlimited pick edits', 'live', [
+        'Change your mind as often as you like until a question locks. Players without Marqit+ can edit 3 times a day.',
+        ['Works on all three daily calls.',
+         'Nothing changes after lock: a locked pick is final for everyone.']]],
       ['My Stats Pro', 'live', [
         'Your accuracy across every settled question you have picked, broken down by category.',
         ['Overall percentage and record.',
@@ -486,7 +490,7 @@
     var member = await loadMember();
     var box = h('div', 'plus-tool plus-price');
     box.appendChild(h('b', null, 'Marqit+ · $9.99 per month'));
-    box.appendChild(h('p', 'plus-sub', 'A digital software subscription with extra tools for your own picks: history and lean on every game, My Stats Pro, calendar sync, pick history export, the full question archive, the morning brief and an ad-free experience.'));
+    box.appendChild(h('p', 'plus-sub', 'A digital software subscription with extra tools for your own picks: history and lean on every game, unlimited pick edits, My Stats Pro, calendar sync, pick history export, the full question archive, the morning brief and an ad-free experience.'));
     var say = msg(box);
     if(member){
       var endDate = member.current_period_end ? new Date(member.current_period_end).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '';
