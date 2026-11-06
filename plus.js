@@ -64,8 +64,13 @@
          'Your best and toughest categories, once you have 3 or more settled picks in them.',
          'Your current and longest streaks.'],
         'Marqit also uses your best category to decide what leads on your Play tab.'], 'stats'],
-      ['Head-to-head with buddies', 'live', [
-        'Your record against each buddy, counting only questions you both picked that have settled.',
+      ['Contrarian score', 'live', [
+        'How often you pick against the crowd, and how those picks turn out compared with going along with it.',
+        ['The crowd side is whichever answer most players picked on a settled question.',
+         'Questions with fewer than 5 pickers, ties and voided questions are left out.',
+         'Only you can see your own score.']], 'contrarian'],
+      ['Head-to-head with buddies and rivals', 'live', [
+        'Your record against each buddy and each rival, counting only questions you both picked that have settled.',
         ['A simple You vs. Buddy tally, with ties counted separately.',
          'No prizes involved. Just who has been calling it better.']], 'head'],
       ['My Teams and topics', 'live', [
@@ -100,7 +105,7 @@
          'No ad ever stands between you and your calls.']]]
     ]]
   ];
-  var TOOLS = { stats: statsCard, head: headCard, follows: followsCard, archive: archiveCard, brief: briefCard, calendar: calendarCard, export: exportCard, report: reportCard };
+  var TOOLS = { stats: statsCard, head: headCard, contrarian: contrarianCard, follows: followsCard, archive: archiveCard, brief: briefCard, calendar: calendarCard, export: exportCard, report: reportCard };
   // Tools that are for paying members once the paid page is on. (The archive stays open: everyone sees the last 7 days.)
   var MEMBER_ONLY = { stats: 1, head: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
   var NEEDS_SIGN_IN = { stats: 1, head: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
@@ -321,16 +326,41 @@
     });
   }
 
-  // ---------- Head-to-head with buddies ----------
+  // ---------- Contrarian score (own numbers only; the database function checks membership) ----------
+  async function contrarianCard(){
+    var c = section('Contrarian score', 'How often you pick against the crowd, and how those picks do. Based on settled questions that had at least 5 pickers.');
+    var r = await sb.rpc('mq_my_contrarian');
+    var d = r && r.data && r.data[0];
+    if(!d || !d.settled_picks){ c.appendChild(h('p', 'plus-empty', 'Play a few more settled questions and your score will show up here.')); return c; }
+    var pct = function(n, t){ return t ? Math.round(100 * n / t) + '%' : 'n/a'; };
+    var top = h('div', 'plus-big');
+    top.appendChild(h('b', null, pct(d.against_crowd, d.settled_picks)));
+    top.appendChild(h('span', null, 'of your picks went against the crowd (' + d.against_crowd + ' of ' + d.settled_picks + ')'));
+    c.appendChild(top);
+    [['Against the crowd', d.against_crowd_right, d.against_crowd], ['With the crowd', d.with_crowd_right, d.with_crowd]].forEach(function(x){
+      var row = h('div', 'plus-bar-row'), p = x[2] ? Math.round(100 * x[1] / x[2]) : 0;
+      row.appendChild(h('span', 'plus-bar-label', x[0]));
+      var bar = h('div', 'plus-bar'); var f = h('i'); f.style.width = p + '%'; bar.appendChild(f); row.appendChild(bar);
+      row.appendChild(h('span', 'plus-bar-val', pct(x[1], x[2]) + ' right · ' + x[1] + '/' + x[2]));
+      c.appendChild(row);
+    });
+    c.appendChild(h('p', 'plus-note', 'The crowd side is the answer most players picked. Ties and voided questions are not counted.'));
+    return c;
+  }
+
+  // ---------- Head-to-head with buddies and rivals ----------
   async function headCard(){
-    var c = section('Head-to-head with buddies', 'Your record against a buddy on every question you both picked and that has settled. No prizes.');
+    var c = section('Head-to-head with buddies and rivals', 'Your record against a buddy or rival on every question you both picked and that has settled. No prizes.');
     var r = await sb.from('buddies').select('buddy_id, profiles!buddies_buddy_id_fkey(username)').eq('user_id', session.user.id);
-    var list = r.data || [];
-    if(!list.length){ c.appendChild(h('p', 'plus-empty', 'Add a buddy from your profile and your record against them will show up here.')); return c; }
+    var rv = await sb.from('rivals').select('rival_id, profiles!rivals_rival_id_fkey(username)').eq('user_id', session.user.id);
+    var list = (r.data || []).map(function(x){ return { buddy_id: x.buddy_id, profiles: x.profiles, tag: 'buddy' }; });
+    var seen = {}; list.forEach(function(x){ seen[x.buddy_id] = 1; });
+    (rv.data || []).forEach(function(x){ if(!seen[x.rival_id]) list.push({ buddy_id: x.rival_id, profiles: x.profiles, tag: 'rival' }); else list.forEach(function(y){ if(y.buddy_id === x.rival_id) y.tag = 'buddy and rival'; }); });
+    if(!list.length){ c.appendChild(h('p', 'plus-empty', 'Add a buddy or rival from their profile and your record against them will show up here.')); return c; }
     var out = h('div', 'plus-h2h');
     list.forEach(function(b){
-      var name = (b.profiles && b.profiles.username) || 'Buddy';
-      var row = h('div', 'plus-h2h-row'); row.appendChild(h('b', null, name));
+      var name = (b.profiles && b.profiles.username) || 'Player';
+      var row = h('div', 'plus-h2h-row'); row.appendChild(h('b', null, name + (b.tag === 'rival' || b.tag === 'buddy and rival' ? ' (' + b.tag + ')' : '')));
       var res = h('span', 'plus-h2h-res', 'Loading…'); row.appendChild(res); out.appendChild(row);
       (async function(){
         var sel = 'question_id, choice, daily_questions!inner(resolved, correct_answer, voided)';
@@ -490,7 +520,7 @@
     var member = await loadMember();
     var box = h('div', 'plus-tool plus-price');
     box.appendChild(h('b', null, 'Marqit+ · $9.99 per month'));
-    box.appendChild(h('p', 'plus-sub', 'A digital software subscription with extra tools for your own picks: history and lean on every game, unlimited pick edits, My Stats Pro, calendar sync, pick history export, the full question archive, the morning brief and an ad-free experience.'));
+    box.appendChild(h('p', 'plus-sub', 'A digital software subscription with extra tools for your own picks: history and lean on every game, unlimited pick edits, My Stats Pro, contrarian score, calendar sync, pick history export, the full question archive, the morning brief and an ad-free experience.'));
     var say = msg(box);
     if(member){
       var endDate = member.current_period_end ? new Date(member.current_period_end).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '';
