@@ -120,7 +120,7 @@ async function teamSummary(lg: string, id: string) {
       leagueInjuries(lg),
       j(`${SITE}${SPORTS[lg]}/news?team=${id}&limit=8`),
       SB_KEY[lg]
-        ? fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/scoreboard?team=${SB_KEY[lg]}:${id}`, { signal: AbortSignal.timeout(12000) }).then((r) => r.json())
+        ? fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/scoreboard?team=${SB_KEY[lg]}:${id}`, { signal: AbortSignal.timeout(7000) }).then((r) => r.json())
         : Promise.resolve(null),
     ]);
     const team = t.status === 'fulfilled' ? (t.value?.team || {}) : {};
