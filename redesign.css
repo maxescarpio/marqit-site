@@ -175,7 +175,7 @@
 }
 
 /* ---------- Marqit+ tab in the top nav: a small gold mark so it reads as the premium tab ---------- */
-.pagenav-tab[data-page="plus"]::before{content:"";display:inline-block;width:6px;height:6px;margin:0 8px 2px 0;
+.pagenav-tab[data-page="plus"]::before{content:none !important;display:none !important;width:6px;height:6px;margin:0 8px 2px 0;
   background:#B9973A;transform:rotate(45deg);opacity:.75;transition:opacity .15s}
 .pagenav-tab[data-page="plus"]:hover::before,.pagenav-tab[data-page="plus"].active::before{opacity:1;background:#F6C430}
 
@@ -465,3 +465,92 @@ body.tm2-lock{overflow:hidden}
 .tm2-vs-p{display:flex;flex-direction:column;gap:2px;padding:8px 0;border-top:1px solid #23262C}
 .tm2-vs-p b{font:600 14.5px 'Barlow',sans-serif;color:#F2F3F5}
 @media (max-width:560px){.tm2-hero{padding:16px}.tm2-roster{grid-template-columns:minmax(0,1fr)}.tm2-vs-side .tm2-art{width:56px;height:56px}.tm2-cmp-row{padding:11px 10px}}
+
+
+/* =====================================================================
+   Design pass (Nov 6): one button look, custom checkboxes, selected pills,
+   W/L chips, news cards, head-to-head
+   ===================================================================== */
+/* Buttons: solid gold, square-ish corners, uppercase, a little "arcade" press */
+.signup button,.cta-band .signup button,.cb-btn,.milestone-close,.share-btn-primary,.welcome-go,.cmt-post,.mq-follow-btn,.mq-invite,
+.es-btn,.plus-btn:not(.ghost),.tm-btn:not(.ghost):not(.danger),.mq-mention-view,.mq-ss-ig.dl,.gp-side .lb-share-btn{
+  background:#F6C430 !important;color:#15171B !important;border:0 !important;border-radius:8px !important;
+  font-family:'Barlow',sans-serif !important;font-weight:800 !important;letter-spacing:.07em !important;text-transform:uppercase !important;
+  font-size:13px !important;box-shadow:0 3px 0 #A57F0E !important;transition:transform .08s,box-shadow .08s,filter .12s;
+}
+.signup button:hover,.cb-btn:hover,.milestone-close:hover,.share-btn-primary:hover,.welcome-go:hover,.cmt-post:hover,.mq-follow-btn:hover,.mq-invite:hover,
+.es-btn:hover,.plus-btn:not(.ghost):hover:not(:disabled),.tm-btn:not(.ghost):not(.danger):hover,.mq-mention-view:hover,.mq-ss-ig.dl:hover{filter:brightness(1.07)}
+.signup button:active,.cb-btn:active,.milestone-close:active,.share-btn-primary:active,.welcome-go:active,.cmt-post:active,.mq-follow-btn:active,.mq-invite:active,
+.es-btn:active,.plus-btn:not(.ghost):active,.tm-btn:not(.ghost):not(.danger):active,.mq-mention-view:active,.mq-ss-ig.dl:active{transform:translateY(2px);box-shadow:0 1px 0 #A57F0E !important}
+.plus-btn,.tm-btn,.es-btn{min-height:42px}
+.tm-btn.small{min-height:0 !important;font-size:12px !important}
+.plus-btn.ghost,.tm-btn.ghost{background:transparent !important;border:1.5px solid #3A3F48 !important;color:#E4E6EA !important;border-radius:8px !important;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:12.5px}
+.plus-btn.ghost:hover,.tm-btn.ghost:hover{border-color:#F6C430 !important;color:#F6C430 !important}
+.navcta{border-radius:8px !important;border-color:#3A3F48 !important}
+.navcta:hover{background:transparent !important;border-color:#F6C430 !important;color:#F6C430 !important}
+
+/* Selected pills and tabs: gold outline instead of a white fill */
+.rk-tabs button.on,.feed-chip.on,.cat-tab.active,.tier-chip.active,.tier-chip.active[data-tier],.evp-ranges button.on,.sg-pills button.on,.mu-play.on{
+  background:rgba(246,196,48,.14) !important;color:#F6C430 !important;border-color:#F6C430 !important}
+
+/* Checkboxes */
+input[type=checkbox]{-webkit-appearance:none;appearance:none;flex:none;width:22px !important;height:22px !important;margin:0;
+  border:2px solid #4A4F59;border-radius:6px;background:transparent;display:inline-grid;place-content:center;cursor:pointer;vertical-align:middle;
+  transition:background .12s,border-color .12s}
+input[type=checkbox]:hover{border-color:#8B909A}
+input[type=checkbox]::after{content:"";width:6px;height:11px;border:solid #15171B;border-width:0 3px 3px 0;transform:rotate(45deg) translate(-1px,-1px);opacity:0}
+input[type=checkbox]:checked{background:#F6C430;border-color:#F6C430}
+input[type=checkbox]:checked::after{opacity:1}
+input[type=checkbox]:focus-visible{outline:2px solid #F6C430;outline-offset:2px}
+
+/* W / L chips (last results and last-5 form) */
+.tm2-dot,.tm-res{display:inline-flex !important;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 4px !important;border-radius:4px !important;
+  border:1.5px solid #4A4F59;background:transparent !important;color:#B3B7BF !important;font:800 14px 'Big Shoulders Display','Barlow',sans-serif !important;letter-spacing:.04em;font-style:normal}
+.tm2-dot.w,.tm-res.w{color:#3DDC97 !important;border-color:#3DDC97;background:rgba(61,220,151,.12) !important}
+.tm2-dot.l,.tm-res.l{color:#FF6B5B !important;border-color:#FF6B5B;background:rgba(255,107,91,.12) !important}
+.tm2-form{gap:5px}
+.tm2-dot{min-width:22px;height:22px;font-size:12.5px !important}
+
+/* News cards */
+.tm2-dbody a.tm-news.tm2-card{display:flex;flex-direction:column;align-items:stretch;gap:9px;padding:15px 18px;margin:0 0 10px;border:1px solid #262A31;border-radius:12px;background:#14161B;text-decoration:none;position:relative}
+.tm2-dbody a.tm-news.tm2-card::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:#F6C430;opacity:.0;transition:opacity .15s}
+.tm2-dbody a.tm-news.tm2-card:hover{border-color:#3A3F48;background:#181B21}
+.tm2-dbody a.tm-news.tm2-card:hover::before{opacity:1}
+.tm2-nmeta{display:flex;align-items:center;gap:10px}
+.tm2-nsrc{display:inline-block;padding:3px 8px;border-radius:4px;background:var(--sc,#D00A22);color:#fff;font:800 10.5px 'Barlow',sans-serif;letter-spacing:.12em;text-transform:uppercase}
+.tm2-nwhen{font:500 12.5px 'Barlow',sans-serif;color:#8B909A}
+.tm2-narrow{margin-left:auto;font:600 16px 'Barlow',sans-serif;color:#6E737D}
+.tm2-card:hover .tm2-narrow{color:#F6C430}
+.tm2-nh{font:600 16.5px/1.35 'Barlow',sans-serif;color:#F2F3F5}
+
+/* Head to head */
+.tm2-vs2{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:0;border-radius:16px;overflow:hidden;margin:6px 0 0;border:1px solid #262A31}
+.tm2-vsb{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:20px 10px 18px;min-width:0}
+.tm2-vsb.l{background:linear-gradient(160deg,color-mix(in srgb,var(--tc,#3A3F48) 55%,#14161B),#14161B 85%)}
+.tm2-vsb.r{background:linear-gradient(200deg,color-mix(in srgb,var(--tc,#3A3F48) 55%,#14161B),#14161B 85%)}
+.tm2-vsb .tm2-art{width:68px;height:68px}
+.tm2-vsn{font:800 20px/1.1 'Big Shoulders Display','Barlow',sans-serif;letter-spacing:.02em;text-transform:uppercase;color:#fff}
+.tm2-vsrec{font:600 13.5px 'Barlow',sans-serif;color:#DCE1EA}
+.tm2-vsbadge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:#F6C430;color:#15171B;display:flex;align-items:center;justify-content:center;font:800 15px 'Big Shoulders Display','Barlow',sans-serif;letter-spacing:.04em;box-shadow:0 0 0 4px #101216}
+.tm2-vswhen{display:flex;justify-content:center;align-items:center;gap:12px;margin:12px 0 18px;font:600 13.5px 'Barlow',sans-serif;color:#B3B7BF;text-transform:uppercase;letter-spacing:.08em}
+.tm2-vswhen b{color:#F2F3F5;font-weight:700}
+.tm2-srs{display:flex;flex-direction:column;gap:2px}
+.tm2-sr{padding:11px 0;border-top:1px solid #20232A}
+.tm2-sr:first-child{border-top:0}
+.tm2-sr-l{display:block;text-align:center;margin-bottom:7px;font:700 11.5px 'Barlow',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#8B909A}
+.tm2-sr-line{display:grid;grid-template-columns:64px 1fr 64px;align-items:center;gap:12px}
+.tm2-sr-v{font:700 17px 'Barlow',sans-serif;color:#C9CDD5;text-align:center}
+.tm2-sr-v.win{color:#F6C430}
+.tm2-sr-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:3px;background:transparent}
+.tm2-sr-bar i{display:block;height:100%;background:#2D323B;border-radius:4px}
+.tm2-sr-bar i.lead{background:#F6C430}
+.tm2-sr-gap{display:block}
+.tm2-sr-form{grid-template-columns:1fr 1fr;justify-items:center}
+.tm2-vs-p{flex-direction:row !important;align-items:center;gap:10px !important}
+.tm2-vs-p .tm2-art{width:38px;height:38px;flex:none}
+.tm2-vs-ptx{display:flex;flex-direction:column;min-width:0}
+@media (max-width:560px){.tm2-sr-line{grid-template-columns:52px 1fr 52px;gap:8px}.tm2-vsn{font-size:17px}.tm2-vsb .tm2-art{width:54px;height:54px}.tm2-vs-pl{grid-template-columns:1fr}}
+.gp-side label input[type=checkbox],.gp-side #group-card-owner-settings input[type=checkbox]{width:22px !important;height:22px !important;accent-color:auto}
+.tm2-sheet-x{z-index:5}
+.tm2-sheet{padding-top:50px}
+.tm2-sr-line.tm2-sr-form{display:flex;justify-content:space-around;gap:0}
