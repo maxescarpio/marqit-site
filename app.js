@@ -8532,7 +8532,7 @@
 
   // ---- Click a ribbon cell: sports -> score, records, season numbers; earnings -> price chart.
   var MQ_STAT_LABELS = { avgPointsFor: 'Points per game', avgPointsAgainst: 'Allowed per game', differential: 'Point differential',
-    winPercent: 'Win %', pointsFor: 'Points for', pointsAgainst: 'Points against' };
+    winPercent: 'Win %' };
   function mqPanelClose(){ if(typeof mqStopAudio === 'function') mqStopAudio(); var m = document.getElementById('mq-evpanel'); if(m) m.remove(); document.body.classList.remove('mq-evopen'); }
   function mqPanelOpen(inner){
     mqPanelClose();

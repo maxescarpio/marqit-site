@@ -598,9 +598,9 @@
     id.appendChild(h('span', 'plus-price-kicker', 'Marqit+'));
     var amt = h('div', 'plus-price-amt');
     amt.appendChild(h('b', null, '$9.99'));
-    amt.appendChild(h('span', null, 'per month'));
+    amt.appendChild(h('span', null, '/ month'));
     id.appendChild(amt);
-    id.appendChild(h('p', 'plus-price-tag', 'A digital software subscription with extra tools for your own picks.'));
+    id.appendChild(h('p', 'plus-price-tag', 'Know more before you pick. History on every question, your own stats, and a Teams tab built around the squads you follow.'));
     top.appendChild(id);
     var cta = h('div', 'plus-price-cta');
     top.appendChild(cta);
@@ -612,6 +612,7 @@
     box.appendChild(h('p', 'plus-price-h plus-price-h2', 'What you get'));
     var list = h('ul', 'plus-price-list');
     [
+      ['Your Teams tab', 'Follow your teams and players: records, top players, schedules, injuries and news in one place. A Marqit+ feature, open to everyone during early access.'],
       ['History and lean on every question and game', 'Five bullets of history and a percentage lean under every daily question and every game. Open to everyone for now.'],
       ['Unlimited pick edits', 'Change your mind as often as you like until a question locks. Free players get 3 edits a day.'],
       ['My Stats Pro', 'Your accuracy by category, best and toughest categories, and your streaks.'],
