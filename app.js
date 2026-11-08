@@ -8400,7 +8400,7 @@
       if(!d || !d.games) return;
       mqScore.games = d.games;
       try{ renderSchedToday(); }catch(e){}
-      try{ var pg = document.getElementById('page-schedule'); if(pg && pg.offsetParent) renderSchedPage(); }catch(e){}
+      try{ var pg = document.getElementById('page-schedule'); if(pg && pg.offsetParent) mqSchedQueue(); }catch(e){}
     }).catch(function(){ mqScore.busy = false; mqScore.at = Date.now(); });
   }
   setInterval(function(){ if(!document.hidden && mqSched.loaded) mqLoadScores(); }, 30000);
@@ -8418,7 +8418,7 @@
       fetch(SUPABASE_URL + '/functions/v1/scoreboard?dates=' + k).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
         .then(function(d2){
           mqScore.byDay[k] = { busy: false, at: Date.now(), games: d2 && d2.games ? d2.games : (c ? c.games : []) };
-          try{ renderSchedPage(); }catch(e){}
+          mqSchedQueue(); // ~21 of these land one after another; they share one repaint instead of one each
         });
     });
   }
@@ -8473,7 +8473,7 @@
         .then(function(d){
           mqQuotes[sym] = { busy: false, at: Date.now(), d: d && d.points ? { last: d.last, prev: d.prevClose } : prev };
           try{ renderSchedToday(true); }catch(e){}
-          try{ var pg = document.getElementById('page-schedule'); if(pg && pg.offsetParent) renderSchedPage(); }catch(e){}
+          try{ var pg = document.getElementById('page-schedule'); if(pg && pg.offsetParent) mqSchedQueue(); }catch(e){}
         });
     });
   }
@@ -10115,7 +10115,7 @@
   // comes from the media-details function (the same one the click panel uses) and is remembered in this
   // browser for a day, so the strip's 5-minute refresh and repeat visits make no extra requests. No picture
   // found: the thumbnail slot disappears and the cell looks like it did before.
-  var MQ_ART_KEY = 'mq_art_v1';
+  var MQ_ART_KEY = 'mq_art_v1', mqArtOk = {};
   function mqArtLoad(){ try{ return JSON.parse(localStorage.getItem(MQ_ART_KEY) || '{}') || {}; }catch(e){ return {}; } }
   function mqArtSave(o){ try{ localStorage.setItem(MQ_ART_KEY, JSON.stringify(o)); }catch(e){} }
   function mqArtFill(root){
@@ -10130,19 +10130,25 @@
         if(!span.querySelector('i')) span.innerHTML = '<i>' + escapeHtml(mqEvLetter(ev)) + '</i>';
       }
       // No free photo found (or it will not load): show the drawn illustration for this kind of event, so every card has a picture.
+      // An image the page has already loaded goes in straight away instead of waiting for onload, so a card that is
+      // repainted never flashes back to its letter.
       function fallback(){
         if(!span.isConnected) return;
-        var im = new Image();
+        var im = new Image(), done = false;
         span.classList.remove('co');
-        im.onload = function(){ if(span.isConnected){ span.innerHTML = ''; span.appendChild(im); span.classList.remove('fb'); span.classList.add('on', 'ill'); } };
+        function ok(){ if(done) return; done = true; mqArtOk[im.src] = 1; if(span.isConnected){ span.innerHTML = ''; span.appendChild(im); span.classList.remove('fb'); span.classList.add('on', 'ill'); } }
+        im.onload = ok;
         im.onerror = letter;
         im.alt = ''; im.decoding = 'async'; im.src = mqEvArtUrl(ev);
+        if(mqArtOk[im.src] && im.complete && im.naturalWidth) ok();
       }
       function show(u){
-        var im = new Image();
-        im.onload = function(){ if(span.isConnected){ span.innerHTML = ''; span.appendChild(im); span.classList.remove('fb'); span.classList.add('on'); } };
+        var im = new Image(), done = false;
+        function ok(){ if(done) return; done = true; mqArtOk[im.src] = 1; if(span.isConnected){ span.innerHTML = ''; span.appendChild(im); span.classList.remove('fb'); span.classList.add('on'); } }
+        im.onload = ok;
         im.onerror = fallback;
         im.alt = ''; im.referrerPolicy = 'no-referrer'; im.decoding = 'async'; im.src = u;
+        if(mqArtOk[im.src] && im.complete && im.naturalWidth) ok();
       }
       if(!ev){ fallback(); return; }
       // Earnings: the company's logo, with the chart illustration if it will not load.
@@ -10169,10 +10175,21 @@
     if(ev.league) return ev.league;
     return (MQ_SCHED_CATS.filter(function(c){ return c[0] === ev.category; })[0] || [0, 'Events'])[1];
   }
+  // The Schedule page repaints when data arrives: the schedule itself, then one scoreboard per day for three weeks,
+  // then live scores and quotes. Painting on every one of those made the page flash (movie posters went back to
+  // their letter and reloaded each time) and shoved the list around under a thumb. So background updates wait a
+  // moment and share one paint, and a paint that would produce the very same markup leaves the page alone.
+  var mqSchedLast = { chips: null, days: null, list: null }, mqSchedTimer = 0;
+  function mqSchedQueue(){
+    if(mqSchedTimer) return;
+    mqSchedTimer = setTimeout(function(){ mqSchedTimer = 0; try{ renderSchedPage(); }catch(e){} }, 200);
+  }
   function renderSchedPage(){
     var chips = document.getElementById('sched-chips'), daysEl = document.getElementById('sched-days'), listEl = document.getElementById('sched-list');
     if(!chips || !daysEl || !listEl) return;
+    if(mqSchedTimer){ clearTimeout(mqSchedTimer); mqSchedTimer = 0; }
     if(mqSched.failed){
+      mqSchedLast = { chips: null, days: null, list: null };
       chips.innerHTML = ''; daysEl.innerHTML = '';
       listEl.innerHTML = '<p class="sched-empty">Couldn’t load the schedule right now. Try again in a minute.</p>';
       return;
@@ -10194,7 +10211,7 @@
     var liveAll = order.reduce(function(a, k){ return a + liveN[k]; }, 0);
     var filter = mqSched.cat && counts[mqSched.cat] ? mqSched.cat : 'all';
     chips.style.display = order.length > 1 ? '' : 'none';
-    chips.innerHTML = [['all', 'All']].concat(order.map(function(k){ return [k, k]; })).map(function(c){
+    var chipsHtml = [['all', 'All']].concat(order.map(function(k){ return [k, k]; })).map(function(c){
       var isAll = c[0] === 'all', n = isAll ? dayLists[sel].length : counts[c[0]], live = isAll ? liveAll : liveN[c[0]];
       // Plain text tabs: the league name and a quiet count; a small red dot marks a league with a live game.
       return '<button type="button" class="scope-tab' + (filter === c[0] ? ' active' : '') + (live ? ' has-live' : '') + '" style="--lg:' + (isAll ? '#EEF0F4' : mqLgColor(c[0])) + '" data-cat="' + escapeHtml(c[0]) + '">' +
@@ -10202,13 +10219,14 @@
         '<span class="sc-ct"' + (live ? ' title="' + live + ' live now"' : '') + '>' + n + '</span>' +
       '</button>';
     }).join('');
+    if(mqSchedLast.chips !== chipsHtml){ chips.innerHTML = chipsHtml; mqSchedLast.chips = chipsHtml; }
     var byDay = {};
     days.forEach(function(d){
       byDay[d] = dayLists[d].filter(function(ev){ return filter === 'all' || mqSchedKey(ev) === filter; });
     });
     // Three weeks of days scroll sideways: keep the place the visitor scrolled to, and bring a newly picked day to the middle.
     var keepDays = daysEl.scrollLeft;
-    daysEl.innerHTML = days.map(function(d, i){
+    var daysHtml = days.map(function(d, i){
       var dt = new Date(Date.parse(d + 'T12:00:00Z')), n = dayLists[d].length;
       // The first day of the row and the first of each month carry the month name, so "1" is never a mystery.
       var showMonth = i === 0 || dt.getUTCDate() === 1;
@@ -10216,6 +10234,7 @@
       return '<button type="button" class="sched-day' + (n ? ' has' : '') + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (d === sel ? ' sel' : '') + (dt.getUTCDay() === 1 && i > 0 ? ' wk' : '') + '" data-day="' + d + '" aria-pressed="' + (d === sel) + '">' +
         '<u class="sd-mo">' + monthTxt + '</u><b>' + (d === today ? 'Today' : dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })) + '</b><span>' + dt.getUTCDate() + '</span><em>' + (n ? n + (n === 1 ? ' game' : ' games') : 'Off') + '</em></button>';
     }).join('');
+    if(mqSchedLast.days !== daysHtml){ daysEl.innerHTML = daysHtml; mqSchedLast.days = daysHtml; }
     daysEl.scrollLeft = keepDays;
     if(mqSched.centeredDay !== sel){
       var selBtn = daysEl.querySelector('.sched-day.sel');
@@ -10225,12 +10244,15 @@
       }
     }
     var selLabel = new Date(Date.parse(sel + 'T12:00:00Z')).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
-    var scroll = listEl.querySelector('.lv-row'), keep = scroll ? scroll.scrollLeft : 0;
-    listEl.innerHTML =
-      (byDay[sel].length ? mqSchedAgendaHtml(byDay[sel]) : '<p class="sched-none">Nothing scheduled</p>');
-    var ns = listEl.querySelector('.lv-row'); if(ns && keep) ns.scrollLeft = keep;
+    var listHtml = byDay[sel].length ? mqSchedAgendaHtml(byDay[sel]) : '<p class="sched-none">Nothing scheduled</p>';
+    if(mqSchedLast.list !== listHtml){
+      var scroll = listEl.querySelector('.lv-row'), keep = scroll ? scroll.scrollLeft : 0;
+      listEl.innerHTML = listHtml;
+      mqSchedLast.list = listHtml;
+      var ns = listEl.querySelector('.lv-row'); if(ns && keep) ns.scrollLeft = keep;
+      mqArtFill(listEl);
+    }
     mqLoadQuotes(byDay[sel]);
-    mqArtFill(listEl);
   }
 
   (function(){

@@ -31,32 +31,37 @@
 #rk-page .rk-sub button.on{background:#ECEEF2;color:#121418}
 
 /* ================= Schedule: date strip ================= */
-#sched-days{
-  display:flex;gap:6px;margin:16px 0 6px;padding:2px 22px 10px;border-bottom:0 !important;
-  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
-  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22px,#000 calc(100% - 30px),transparent 100%);
-  mask-image:linear-gradient(90deg,transparent 0,#000 22px,#000 calc(100% - 30px),transparent 100%)}
-#sched-days::-webkit-scrollbar{display:none}
-#sched-days .sched-day{
-  flex:0 0 68px;min-width:68px;display:flex;flex-direction:column;align-items:center;gap:0;
-  margin:0 !important;padding:8px 4px 10px !important;position:relative;
-  border:1px solid transparent !important;border-radius:14px !important;background:transparent !important;
-  white-space:nowrap;transition:background .15s,border-color .15s}
-#sched-days .sched-day.wk{margin-left:14px !important}
-#sched-days .sched-day:hover{background:rgba(255,255,255,.05) !important}
-#sched-days .sched-day .sd-mo{display:block;height:11px;margin-bottom:3px;text-decoration:none;
-  font-size:9.5px;font-weight:700;line-height:11px;letter-spacing:.14em;text-transform:uppercase;color:#F6C430}
-#sched-days .sched-day b{font-size:10.5px !important;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#7E838D !important}
-#sched-days .sched-day span{font-size:27px !important;line-height:1.05;font-weight:700;color:#E4E6EA !important}
-#sched-days .sched-day em{display:block !important;margin-top:4px;font-size:10.5px !important;font-style:normal;font-weight:600;letter-spacing:.02em;color:#5C616B !important}
-#sched-days .sched-day.has em{color:#8B909A !important}
-#sched-days .sched-day.today b{color:#F6C430 !important}
-#sched-days .sched-day.past{opacity:.42}
-#sched-days .sched-day.sel{opacity:1;background:#ECEEF2 !important;border-color:#ECEEF2 !important}
-#sched-days .sched-day.sel b,#sched-days .sched-day.sel em{color:#5B6068 !important}
-#sched-days .sched-day.sel span{color:#101216 !important}
-#sched-days .sched-day.sel .sd-mo,#sched-days .sched-day.sel.today b{color:#8A6A0A !important}
-#sched-days .sched-day:focus-visible{outline:2px solid #6E737D;outline-offset:1px}
+/* Plain text days on the same hairline as the league tabs under them: weekday over date, with the picked day
+   underlined. No cards, no fills, no gold. Days with nothing on are dimmer; past days fade back. */
+#page-schedule #sched-days{
+  display:flex;gap:0;margin:8px 0 4px;padding:0;border-bottom:1px solid #2A2E36 !important;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);
+  mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%)}
+#page-schedule #sched-days::-webkit-scrollbar{display:none}
+#page-schedule #sched-days .sched-day{
+  flex:0 0 auto;min-width:62px;display:flex;flex-direction:column;align-items:center;gap:0;
+  margin:0 0 -1px !important;padding:8px 9px 11px !important;position:relative;
+  border:0 !important;border-bottom:2px solid transparent !important;border-radius:0 !important;background:none !important;
+  box-shadow:none !important;opacity:1;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:border-color .15s}
+#page-schedule #sched-days .sched-day.wk{margin-left:0 !important;box-shadow:inset 1px 0 0 #23262C !important}
+#page-schedule #sched-days .sched-day:hover{background:none !important}
+#page-schedule #sched-days .sched-day .sd-mo{display:block;height:11px;margin-bottom:2px;text-decoration:none;
+  font-size:9.5px;font-weight:600;line-height:11px;letter-spacing:.12em;text-transform:uppercase;color:#6E737D}
+#page-schedule #sched-days .sched-day b{font-size:11px !important;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#7E838D !important;transition:color .15s}
+#page-schedule #sched-days .sched-day span{font-size:20px !important;line-height:1.15;font-weight:600;color:#B4B8C0 !important;margin-top:1px;transition:color .15s}
+#page-schedule #sched-days .sched-day em{display:block !important;margin-top:3px;font-size:10.5px !important;font-style:normal;font-weight:500;letter-spacing:0;color:#4F545D !important;font-variant-numeric:tabular-nums}
+#page-schedule #sched-days .sched-day.has em{color:#7E838D !important}
+#page-schedule #sched-days .sched-day:not(.has) span{color:#6A6F79 !important}
+#page-schedule #sched-days .sched-day.past{opacity:.55}
+#page-schedule #sched-days .sched-day.today b{color:#C9CDD4 !important}
+#page-schedule #sched-days .sched-day:hover b,#page-schedule #sched-days .sched-day:hover span{color:#E4E6EA !important}
+#page-schedule #sched-days .sched-day.sel{opacity:1;background:none !important;border-bottom-color:#F2F3F5 !important}
+#page-schedule #sched-days .sched-day.sel b,#page-schedule #sched-days .sched-day.sel span{color:#fff !important}
+#page-schedule #sched-days .sched-day.sel em{color:#9AA0AB !important}
+#page-schedule #sched-days .sched-day.sel .sd-mo,#page-schedule #sched-days .sched-day.sel.today b{color:#9AA0AB !important}
+#page-schedule #sched-days .sched-day:focus-visible{outline:2px solid #6E737D;outline-offset:-3px}
 
 /* ================= Play: request a prediction ================= */
 .play-extras #play-suggest{flex:1 1 340px;max-width:560px}
@@ -685,3 +690,7 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 #rk-page .rk-tabs button.on::after,.rk-tabs button.on::after,.co-sec button.on::after,.rk-pills button.on::after,#news-chips .feed-chip::after,#trending-chips .feed-chip::after{background:var(--ui-accent)}
 #rk-page .rk-tabs button.on{color:#fff}
 .leaderboard-title,#page-leaderboard h2{font-size:30px}
+
+/* Underline tabs (News, Trending, Rankings): the underline says which one is picked, so no grey box around it. */
+#news-chips .feed-chip.on,#trending-chips .feed-chip.on,#rk-page .rk-tabs button.on{
+  background:none !important;border-color:transparent !important;box-shadow:none !important}
