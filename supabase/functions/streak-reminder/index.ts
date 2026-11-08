@@ -1,4 +1,5 @@
 // streak-reminder: emails anyone whose streak is on the line tonight: a real streak and today's calls not all made.
+// Also sends a free push notification to anyone with notifications on.
 // People who still have a Streak Freeze get the email too (worded so they know the Freeze would be spent).
 // Triggered by Supabase Cron ("Streak reminder", 22:30 UTC = 5:30 PM ET, about 90 minutes before the 7 PM lock).
 // Secrets: RESEND_API_KEY. Auth: the cron job sends the service role key.
@@ -69,14 +70,16 @@ Deno.serve(async (req: Request) => {
     let failed = 0;
     let wouldSend = 0;
     let wouldSendWithFreeze = 0;
+    let pushSent = 0;
+    let wouldPush = 0;
 
     for (const streakRow of atRiskStreaks) {
       const { data: profile } = await admin
         .from('profiles')
-        .select('username, notify_on_resolve')
+        .select('username, notify_on_resolve, notify_push')
         .eq('id', streakRow.user_id)
         .maybeSingle();
-      if (!profile || !profile.notify_on_resolve) continue;
+      if (!profile || (!profile.notify_on_resolve && !profile.notify_push)) continue;
 
       const { data: myPreds } = await admin
         .from('predictions')
@@ -90,10 +93,33 @@ Deno.serve(async (req: Request) => {
       const hasFreeze = streakRow.freeze_available === true;
 
       if (dryRun) {
-        wouldSend++;
+        if (profile.notify_on_resolve) wouldSend++;
+        if (profile.notify_push) wouldPush++;
         if (hasFreeze) wouldSendWithFreeze++;
         continue;
       }
+
+      const n = streakRow.current_streak;
+
+      // Push (free): anyone with notifications turned on, independent of the email setting.
+      if (profile.notify_push && !testEmail) {
+        const pushRes = await fetch(supabaseUrl + '/functions/v1/send-push', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + serviceRoleKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: streakRow.user_id,
+            title: hasFreeze ? `Your ${n}-day streak is on the line` : `Your ${n}-day streak ends tonight`,
+            body: hasFreeze
+              ? "Make today's call before it locks, or your Streak Freeze gets used."
+              : "Make today's call before it locks to keep it alive.",
+            url: 'https://playmarqit.com/',
+            tag: 'streak-reminder'
+          })
+        }).catch(() => null);
+        if (pushRes && pushRes.ok) pushSent++;
+      }
+
+      if (!profile.notify_on_resolve) continue;
 
       const { data: userRes } = await admin.auth.admin.getUserById(streakRow.user_id);
       const email = userRes?.user?.email;
@@ -102,8 +128,6 @@ Deno.serve(async (req: Request) => {
 
       const unsubscribeUrl = await buildUnsubscribeUrl(admin, streakRow.user_id);
       const name = profile.username ? ' ' + esc(profile.username) : '';
-      const n = streakRow.current_streak;
-
       const subject = hasFreeze
         ? `Your ${n}-day streak is on the line tonight`
         : `Your ${n}-day streak ends tonight`;
@@ -129,9 +153,9 @@ Deno.serve(async (req: Request) => {
     }
 
     if (dryRun) {
-      return new Response(JSON.stringify({ dry_run: true, would_send: wouldSend, of_those_with_freeze: wouldSendWithFreeze }), { status: 200 });
+      return new Response(JSON.stringify({ dry_run: true, would_send: wouldSend, would_push: wouldPush, of_those_with_freeze: wouldSendWithFreeze }), { status: 200 });
     }
-    return new Response(JSON.stringify({ sent, failed }), { status: 200 });
+    return new Response(JSON.stringify({ sent, failed, push_sent: pushSent }), { status: 200 });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
   }
