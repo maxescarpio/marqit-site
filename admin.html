@@ -804,14 +804,14 @@
     });
   }
 
-  // Resolved stamps: one chip per day (last 14 and next 21) and a banner for the day being viewed.
+  // Resolved stamps: one chip per day (last 14 and next 35) and a banner for the day being viewed.
   // Done = every question marked and the day scored. Wait = every question marked but scoring not run yet.
   async function loadDayStatus(){
     const strip = document.getElementById('day-strip'), stamp = document.getElementById('day-stamp');
     if(!strip || !stamp) return;
     const sel = document.getElementById('view-date').value;
     const days = [];
-    for(let i = -14; i <= 21; i++){ const d = new Date(todayStr() + 'T12:00:00'); d.setDate(d.getDate() + i); days.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')); }
+    for(let i = -14; i <= 35; i++){ const d = new Date(todayStr() + 'T12:00:00'); d.setDate(d.getDate() + i); days.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')); }
     const [qr, sr] = await Promise.all([
       sb.from('daily_questions').select('question_date, resolved, voided').gte('question_date', days[0]).lte('question_date', days[days.length - 1]),
       sb.rpc('admin_scored_days', { p_from: days[0], p_to: days[days.length - 1] }),
