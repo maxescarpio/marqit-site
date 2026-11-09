@@ -698,3 +698,7 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 /* Request a prediction: the little white light bulb next to the title */
 #play-suggest .sg-title{display:flex;align-items:center;gap:8px}
 #play-suggest .sg-title .sg-bulb{flex:none;color:#F2F3F5}
+
+/* "Menu" word beside the hamburger icon (icon-only menus are missed more often). Hidden on very narrow phones to keep the header from wrapping. */
+.hamburger-label{font-size:13px;font-weight:600;line-height:1}
+@media (max-width:360px){.hamburger-label{display:none}}

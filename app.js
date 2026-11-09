@@ -11410,7 +11410,6 @@
     document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape' && !view.hidden) closeThread(); });
 
     new Feed({ page: 'news', gridId: 'news-grid', chipsId: 'news-chips', kind: 'news', defaultSort: 'new' });
-    new Feed({ page: 'trending', gridId: 'trending-grid', chipsId: 'trending-chips', kind: 'trending', defaultSort: 'hot' });
 
     // ---- Freshness: "Updated X ago" ticks along, and a small dot on the News / Trending tab when there is something new since you last opened it ----
     setInterval(function(){
@@ -11422,7 +11421,6 @@
     (function(){
       var TABS = [
         { page: 'news', key: 'mq_seen_news', q: function(){ return sb.from('news_ticker').select('fetched_at').eq('kind', 'news').not('take_question', 'is', null).not('image_url', 'is', null).order('fetched_at', { ascending: false }).limit(1); } },
-        { page: 'trending', key: 'mq_seen_trending', q: function(){ return sb.from('news_ticker').select('fetched_at').in('kind', ['trend', 'post']).not('take_question', 'is', null).order('fetched_at', { ascending: false }).limit(1); } }
       ];
       function getSeen(k){ try{ return Number(localStorage.getItem(k)) || 0; }catch(e){ return 0; } }
       function setSeen(k, v){ try{ localStorage.setItem(k, String(v)); }catch(e){} }
