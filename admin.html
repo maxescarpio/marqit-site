@@ -196,7 +196,7 @@
     <details class="card" data-count="#insights-list .qrow" data-tab-pip="daily">
       <summary>Marqit+ insights <span class="pip"></span><span class="sub">5 bullets per question &middot; approve before players see them</span></summary>
       <div class="body">
-        <p class="hint">Drafted by Claude from real web search for today's and tomorrow's questions. Check every stat before approving; edit freely. Only approved insights show on the card, as the Marqit+ dropdown for signed-in players.</p>
+        <p class="hint">Drafted by Claude from real web search for the next 3 days of questions. A red LOPSIDED banner (lean 90%+ or 10% or less) means the question has nothing left to predict: change it before it goes live. Check every stat before approving; edit freely. Only approved insights show on the card, as the Marqit+ dropdown for signed-in players.</p>
         <p class="hint" id="waitlist-count">Marqit+ waitlist: loading&hellip;</p>
         <div id="insights-list"></div>
       </div>
@@ -684,6 +684,14 @@
       qText.textContent = d.question_text;
       row.appendChild(head);
       row.appendChild(qText);
+      // House rule: a lean of 90%+ or 10% or less means there is nothing left to predict. Change the question before it goes live.
+      const isLopsided = d.lean_yes_pct != null && (d.lean_yes_pct >= 90 || d.lean_yes_pct <= 10);
+      if(isLopsided){
+        const warn = document.createElement('div');
+        warn.style.cssText = 'margin:0 0 10px; padding:10px 12px; border-radius:8px; background:rgba(220,60,60,.14); border:1px solid rgba(220,60,60,.55); font-size:13px; font-weight:600;';
+        warn.textContent = 'LOPSIDED: ' + (d.lean_yes_pct >= 50 ? d.lean_yes_pct + '% YES' : (100 - d.lean_yes_pct) + '% NO') + '. Nothing left to predict. Change this question (move the line or reword it) before it goes live.';
+        row.appendChild(warn);
+      }
       (d.bullets || []).forEach(function(b, i){
         const lab = document.createElement('label');
         lab.textContent = 'Bullet ' + (i + 1);
@@ -713,6 +721,7 @@
 
       actions.querySelector('[data-insight-approve]').addEventListener('click', async function(ev){
         const btn = ev.currentTarget;
+        if(isLopsided && !confirm('This question is lopsided (lean ' + d.lean_yes_pct + '% YES). Approve anyway? The better fix is to change the question first.')) return;
         const bullets = Array.prototype.map.call(row.querySelectorAll('.insight-bullet'), function(t){ return t.value.trim(); });
         if(bullets.length !== 5 || bullets.some(function(b){ return !b; })){ alert('All 5 bullets need text before approving.'); return; }
         const pctRaw = leanPct.value.trim();

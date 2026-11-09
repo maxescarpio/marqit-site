@@ -6,8 +6,12 @@
 // the admin approves (and optionally edits) them in admin.html. The admin gets a push
 // notification when drafts are ready.
 //
-// Runs for today's and tomorrow's questions (US Eastern), so insights are ready before the
-// questions go live. Questions that already have a row (pending, approved or rejected) are
+// Runs for today's and the next two days' questions (US Eastern), so insights are ready before the
+// questions go live AND a lopsided question can be changed before anyone can answer it.
+//
+// HOUSE RULE: a question whose lean is 90%+ or 10% or less (LOPSIDED) is not a real question -- there is
+// nothing left to predict. Those are flagged to the admin by push and in admin.html so the question can be
+// rewritten or its line moved BEFORE it goes live. Questions that already have a row (pending, approved or rejected) are
 // skipped, so it is safe to run as often as you like.
 //
 // SECRETS: ANTHROPIC_API_KEY. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are automatic.
@@ -19,6 +23,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 const CLAUDE_MODEL = 'claude-sonnet-5';
 const MAX_PER_RUN = 6;
 const BULLET_COUNT = 5;
+const LOPSIDED_HIGH = 90;
+const LOPSIDED_LOW = 10;
 const MAX_BULLET_CHARS = 240;
 
 const CORS_HEADERS = {
@@ -222,7 +228,7 @@ Deno.serve(async (req) => {
     } else if (typeof body.test_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.test_date)) {
       query = query.eq('question_date', body.test_date);
     } else {
-      query = query.in('question_date', [dateStringET(0), dateStringET(1)]);
+      query = query.in('question_date', [dateStringET(0), dateStringET(1), dateStringET(2)]);
     }
     const { data: questions, error: qErr } = await query.order('question_date', { ascending: true }).order('slot', { ascending: true });
     if (qErr) throw qErr;
@@ -276,6 +282,30 @@ Deno.serve(async (req) => {
       try {
         const { data: adminUserId } = await admin.rpc('get_admin_user_id');
         if (adminUserId) {
+          // Lopsided questions get their own, louder push: change the question before it goes live.
+          const lopsided: string[] = [];
+          for (let i = 0; i < todo.length; i++) {
+            const r = settled[i];
+            const res = r.status === 'fulfilled' ? r.value : null;
+            const pct = res && typeof res.lean_yes_pct === 'number' ? res.lean_yes_pct : null;
+            if (pct !== null && (pct >= LOPSIDED_HIGH || pct <= LOPSIDED_LOW)) {
+              const t = String(todo[i].question_text || '');
+              lopsided.push(`${todo[i].question_date}: ${t.length > 70 ? t.slice(0, 67) + '...' : t} (${pct >= 50 ? pct + '% YES' : (100 - pct) + '% NO'})`);
+            }
+          }
+          if (lopsided.length) {
+            await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user_id: adminUserId,
+                title: lopsided.length === 1 ? 'A question is lopsided. Change it before it goes live' : `${lopsided.length} questions are lopsided. Change them before they go live`,
+                body: lopsided.join(' | '),
+                url: 'https://playmarqit.com/admin.html',
+                tag: 'lopsided-question'
+              })
+            });
+          }
           await fetch(`${supabaseUrl}/functions/v1/send-push`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' },
