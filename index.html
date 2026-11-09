@@ -48,7 +48,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261108b">
 <link rel="stylesheet" href="refresh.css?v=20261105c">
-<link rel="stylesheet" href="redesign.css?v=20261109a">
+<link rel="stylesheet" href="redesign.css?v=20261109b">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -99,8 +99,9 @@
         <button id="sign-out-btn" style="padding:8px 14px; border:1px solid var(--line); border-radius:8px; background:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer;">Sign out</button>
       </div>
 
-      <button type="button" id="hamburger-btn" aria-label="Menu" title="Menu" style="background:none; border:1px solid var(--line); border-radius:8px; padding:8px; cursor:pointer; display:flex; align-items:center; color:var(--ink);">
+      <button type="button" id="hamburger-btn" aria-label="Menu" title="Menu" style="background:none; border:1px solid var(--line); border-radius:8px; padding:8px; cursor:pointer; display:flex; align-items:center; gap:7px; color:var(--ink);">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        <span class="hamburger-label">Menu</span>
       </button>
     </div>
   </div>
@@ -503,18 +504,6 @@
 </section>
 </div>
 
-<div id="page-trending" class="page" style="display:none;">
-<section class="section hero-lite">
-  <div class="wrap">
-    <h2>Trending</h2>
-    <div class="feed-chips" id="trending-chips"></div>
-    <div class="news-grid" id="trending-grid" aria-live="polite">
-      <div class="news-card news-skel"><i class="sk" style="height:150px;border-radius:0;"></i><div class="news-body"><i class="sk" style="width:40%;"></i><i class="sk" style="width:92%;margin-top:10px;"></i><i class="sk" style="width:70%;margin-top:6px;"></i></div></div>
-      <div class="news-card news-skel"><i class="sk" style="height:150px;border-radius:0;"></i><div class="news-body"><i class="sk" style="width:40%;"></i><i class="sk" style="width:92%;margin-top:10px;"></i><i class="sk" style="width:70%;margin-top:6px;"></i></div></div>
-    </div>
-  </div>
-</section>
-</div>
 
 <div id="page-how" class="page" style="display:none;">
 <section class="section hero-lite">
@@ -882,7 +871,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261109a" defer></script>
+<script src="app.js?v=20261109b" defer></script>
 <script src="plus.js?v=20261106h" defer></script>
 <script src="leagues.js?v=20261105a" defer></script>
 <script src="teams.js?v=20261106h" defer></script>
