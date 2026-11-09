@@ -9,7 +9,7 @@
 // Runs for today's and the next two days' questions (US Eastern), so insights are ready before the
 // questions go live AND a lopsided question can be changed before anyone can answer it.
 //
-// HOUSE RULE: a question whose lean is 90%+ or 10% or less (LOPSIDED) is not a real question -- there is
+// HOUSE RULE: a question whose lean is under 25% or over 75% (LOPSIDED) is not a real question -- there is
 // nothing left to predict. Those are flagged to the admin by push and in admin.html so the question can be
 // rewritten or its line moved BEFORE it goes live. Questions that already have a row (pending, approved or rejected) are
 // skipped, so it is safe to run as often as you like.
@@ -23,8 +23,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 const CLAUDE_MODEL = 'claude-sonnet-5';
 const MAX_PER_RUN = 6;
 const BULLET_COUNT = 5;
-const LOPSIDED_HIGH = 90;
-const LOPSIDED_LOW = 10;
+const LOPSIDED_HIGH = 75; // house rule: allowed lean is 25-75. Under 25 or over 75 = too favored to one side
+const LOPSIDED_LOW = 25;
 const MAX_BULLET_CHARS = 240;
 
 const CORS_HEADERS = {
@@ -288,7 +288,7 @@ Deno.serve(async (req) => {
             const r = settled[i];
             const res = r.status === 'fulfilled' ? r.value : null;
             const pct = res && typeof res.lean_yes_pct === 'number' ? res.lean_yes_pct : null;
-            if (pct !== null && (pct >= LOPSIDED_HIGH || pct <= LOPSIDED_LOW)) {
+            if (pct !== null && (pct > LOPSIDED_HIGH || pct < LOPSIDED_LOW)) {
               const t = String(todo[i].question_text || '');
               lopsided.push(`${todo[i].question_date}: ${t.length > 70 ? t.slice(0, 67) + '...' : t} (${pct >= 50 ? pct + '% YES' : (100 - pct) + '% NO'})`);
             }
