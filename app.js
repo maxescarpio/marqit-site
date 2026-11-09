@@ -3580,6 +3580,67 @@
     }catch(e){ /* never break the page over a prompt */ }
   }
 
+  // ---- Quiet "Add to Home Screen" suggestion ------------------------------
+  // Never at sign-in and never on a first visit. It only appears on a phone, in a
+  // normal browser tab (not already installed, not an in-app browser), right after
+  // someone has made their calls on their 3rd different day -- i.e. once they have
+  // shown they like the game. It never shows alongside the notifications prompt, a
+  // "Not now" hides it for 30 days, and it is asked at most twice, ever.
+  var mqInstallEvt = null;
+  window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); mqInstallEvt = e; });
+  window.addEventListener('appinstalled', function(){ try{ localStorage.setItem('mq_install_done', '1'); }catch(e){} });
+  function mqMaybeSuggestInstall(){
+    try{
+      var ua = navigator.userAgent || '';
+      var standalone = (window.navigator.standalone === true) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+      var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var isPhone = isIOS || /Android/i.test(ua);
+      var inApp = /FBAN|FBAV|Instagram|Snapchat|TikTok|musical_ly|Line\/|Twitter/i.test(ua);
+      if(standalone || !isPhone || inApp) return;
+      if(isIOS && !/Safari/i.test(ua)) return;           // only Safari can add to the Home Screen on iPhone
+      if(!isIOS && !mqInstallEvt) return;                 // Android: only when the browser says it can install
+      if(document.getElementById('mq-push-ask') || document.getElementById('mq-install-ask')) return;
+      var st = {};
+      try{ st = JSON.parse(localStorage.getItem('mq_install_ask') || '{}') || {}; }catch(e){}
+      if(localStorage.getItem('mq_install_done')) return;
+      var today = new Date().toISOString().slice(0, 10);
+      var days = st.days || [];
+      if(days.indexOf(today) === -1) days.push(today);
+      st.days = days;
+      var save = function(){ try{ localStorage.setItem('mq_install_ask', JSON.stringify(st)); }catch(e){} };
+      save();
+      if(days.length < 3) return;                         // only after 3 different days of playing
+      if((st.count || 0) >= 2) return;                    // asked at most twice, ever
+      if(st.snoozeUntil && st.snoozeUntil > Date.now()) return;
+      if(st.day === today) return;
+      st.count = (st.count || 0) + 1; st.day = today; save();
+
+      var el = document.createElement('div');
+      el.id = 'mq-install-ask';
+      el.setAttribute('role', 'dialog');
+      var how = isIOS ? 'Tap the Share button, then “Add to Home Screen.”' : 'One tap, no download.';
+      el.innerHTML = '<div class="mq-push-text"><strong>Keep Marqit one tap away</strong><span>Add it to your home screen so your daily calls are always right there. ' + how + '</span></div>' +
+        (isIOS ? '' : '<button type="button" class="mq-push-yes">Add to Home Screen</button>') +
+        '<button type="button" class="mq-push-no">' + (isIOS ? 'Got it' : 'Not now') + '</button>';
+      document.body.appendChild(el);
+      mqTrack('install_ask_shown', { n: st.count, platform: isIOS ? 'ios' : 'android' });
+      var snooze = function(){ st.snoozeUntil = Date.now() + 30 * 86400000; save(); };
+      el.querySelector('.mq-push-no').addEventListener('click', function(){ snooze(); mqTrack('install_ask_dismissed'); el.remove(); });
+      var yes = el.querySelector('.mq-push-yes');
+      if(yes) yes.addEventListener('click', async function(){
+        try{
+          mqInstallEvt.prompt();
+          var r = await mqInstallEvt.userChoice;
+          mqTrack('install_ask_result', { outcome: r && r.outcome });
+          if(r && r.outcome === 'accepted'){ try{ localStorage.setItem('mq_install_done', '1'); }catch(e){} } else { snooze(); }
+        }catch(e){ snooze(); }
+        mqInstallEvt = null;
+        el.remove();
+      });
+      setTimeout(function(){ if(el.parentNode){ snooze(); el.remove(); } }, 20000);   // never lingers
+    }catch(e){ /* never break the page over a suggestion */ }
+  }
+
   // Google and email-code sign-ins have no Marqit password. Offer one so they can also log in with
   // their username and password. Skipped for accounts that already have one, and
   // snoozed for 3 days if they tap "Not now".
@@ -6742,6 +6803,7 @@
         mqCheckStarterBadges(session.user.id);
 
         setTimeout(function(){ mqMaybeAskPush('after_submit'); }, 2200);
+        setTimeout(mqMaybeSuggestInstall, 9000);
 
         // ---- Celebration: "N of N locked in" banner + a little pop on each just-submitted card ----
         (function(){
