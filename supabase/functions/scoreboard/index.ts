@@ -51,6 +51,55 @@ async function loadLeaders(key: string): Promise<any[] | null> {
   } catch (_) { return null; }
 }
 
+
+// ---- Players who are out for a long time are not "top players" -----------------------------------------------
+// A season-ending injury (or an "Out" status that has been in place for 3+ weeks) takes a player off a team's
+// top-players list. ESPN's season leaders keep listing them, so we look at the team's injury data and skip them.
+const outCache = new Map<string, { at: number; names: Set<string> }>();
+const nameKey = (n: unknown) => String(n || '').toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+(jr|sr|ii|iii|iv)$/, '').trim();
+const SEASON_RX = /season[- ]ending|(out|done|lost|miss(es|ing)?|sidelined)\s+(for\s+)?(the\s+)?(rest\s+of\s+(the\s+)?|remainder\s+of\s+(the\s+)?)?(season|year)|rest of (the )?(season|year)|injured reserve|torn (acl|achilles)|ruptured/i;
+function longTermOut(status: unknown, date: unknown, text: unknown): boolean {
+  const st = String(status || '');
+  if (SEASON_RX.test(st + ' ' + String(text || ''))) return true;
+  if (/\bout\b|reserve/i.test(st) && date) {
+    const t = Date.parse(String(date));
+    if (isFinite(t) && Date.now() - t > 21 * 86400000) return true;
+  }
+  return false;
+}
+async function longTermOutNames(league: string, id: string): Promise<Set<string>> {
+  const key = league + ':' + id;
+  const hit = outCache.get(key);
+  if (hit && Date.now() - hit.at < 1800000) return hit.names;
+  const names = new Set<string>();
+  const base = `https://site.api.espn.com/apis/site/v2/sports/${PATHS[league]}`;
+  const [ros, inj] = await Promise.allSettled([
+    fetch(`${base}/teams/${id}/roster`, { headers: UA, signal: AbortSignal.timeout(8000) }).then((r) => (r.ok ? r.json() : null)),
+    fetch(`${base}/injuries`, { headers: UA, signal: AbortSignal.timeout(8000) }).then((r) => (r.ok ? r.json() : null)),
+  ]);
+  try {
+    const a = ros.status === 'fulfilled' && Array.isArray(ros.value?.athletes) ? ros.value.athletes : [];
+    for (const p of a.flatMap((x: any) => (Array.isArray(x?.items) ? x.items : [x]))) {
+      for (const i of Array.isArray(p?.injuries) ? p.injuries : []) {
+        if (longTermOut(i?.status, i?.date, (i?.details?.type || '') + ' ' + (i?.longComment || i?.shortComment || ''))) names.add(nameKey(p?.fullName || p?.displayName));
+      }
+    }
+  } catch (_) { /* optional */ }
+  try {
+    const teams = inj.status === 'fulfilled' && Array.isArray(inj.value?.injuries) ? inj.value.injuries : [];
+    for (const t of teams) {
+      if (String(t?.id) !== id) continue;
+      for (const i of Array.isArray(t?.injuries) ? t.injuries : []) {
+        if (longTermOut(i?.status, i?.date, (i?.details?.type || i?.type?.description || '') + ' ' + (i?.longComment || i?.shortComment || ''))) names.add(nameKey(i?.athlete?.displayName || i?.athlete?.fullName));
+      }
+    }
+  } catch (_) { /* optional */ }
+  names.delete('');
+  outCache.set(key, { at: Date.now(), names });
+  if (outCache.size > 300) outCache.delete(outCache.keys().next().value as string);
+  return names;
+}
+
 async function team(key: string) {
   const [league, id] = key.split(':');
   if (!PATHS[league] || !/^\d{1,6}$/.test(id || '')) return JSON.stringify({ error: 'bad team' });
@@ -67,6 +116,8 @@ async function team(key: string) {
   // Season leaders: ESPN only lists them on a scoreboard game that has not started yet, so look up the team's next
   // game. ESPN's nextEvent is sometimes stale (an old preseason game), so if that finds nothing, scan the next 8 days.
   let lead: any[] = [];
+  let gone = new Set<string>();
+  try { gone = await longTermOutNames(league, id); } catch (_) { /* optional */ }
   try {
     const ymd = (x: Date) => { const et = new Date(x.getTime() - 5 * 3600000); return et.getUTCFullYear() + String(et.getUTCMonth() + 1).padStart(2, '0') + String(et.getUTCDate()).padStart(2, '0'); };
     const base = `https://site.api.espn.com/apis/site/v2/sports/${PATHS[league]}/scoreboard`;
@@ -82,13 +133,13 @@ async function team(key: string) {
       if (!sb.ok) continue;
       for (const e of (await sb.json())?.events || []) {
         if (lead.length || e?.status?.type?.state !== 'pre') continue; // only not-yet-started games carry season (not single-game) leaders
-        for (const c of e?.competitions?.[0]?.competitors || []) if (String(c?.team?.id) === id) lead = leaders(c);
+        for (const c of e?.competitions?.[0]?.competitors || []) if (String(c?.team?.id) === id) lead = leaders(c, gone);
       }
     }
   } catch (_) { /* leaders are optional */ }
   // Remember leaders whenever ESPN gives them; when it has none, show the last ones we saw for this team.
   if (lead.length) await saveLeaders([{ key, leaders: lead }]);
-  else { const old = await loadLeaders(key); if (old) lead = old; }
+  else { const old = await loadLeaders(key); if (old) lead = old.filter((l: any) => !gone.has(nameKey(l?.full || l?.name))); }
   const body = JSON.stringify({
     color: hex(t.color), alt: hex(t.alternateColor), leaders: lead, logo: String(t.logos?.[0]?.href || '').replace(/^http:/, 'https:'),
     name: String(t.displayName || ''), record: total.summary || null, standing: t.standingSummary || null,
@@ -101,10 +152,11 @@ async function team(key: string) {
 
 // Season leaders for one side (passing/rushing/receiving, points/rebounds/assists, ...). Names and jersey
 // numbers only: facts, not logos or photos.
-function leaders(c: any) {
+function leaders(c: any, skip?: Set<string>) {
   const out: any[] = [];
   for (const g of c?.leaders || []) {
-    const l = g?.leaders?.[0], a = l?.athlete;
+    // The first listed player who is not out long-term (ESPN usually lists one, sometimes more).
+    const l = (g?.leaders || []).find((x: any) => x?.athlete?.displayName && !(skip && skip.has(nameKey(x.athlete.displayName)))), a = l?.athlete;
     if (!a?.displayName) continue;
     out.push({
       key: String(g.name || ''), label: String(g.shortDisplayName || g.displayName || ''),
