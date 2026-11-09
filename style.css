@@ -1783,3 +1783,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area
 .mq-ptr.busy{transform:translate(-50%,0);opacity:1;transition:transform .2s ease,opacity .2s ease;}
 
 /* Marqit+ waitlist card under the daily questions */
+
+/* Quiet Add-to-Home-Screen suggestion: same look as the notifications prompt */
+#mq-install-ask{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:9997;width:calc(100% - 32px);max-width:460px;display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:12px;background:var(--panel);color:var(--ink);border:1.5px solid var(--line);box-shadow:0 8px 28px rgba(0,0,0,.28);font-size:13.5px;line-height:1.4;}
+#mq-install-ask .mq-push-text{display:flex;flex-direction:column;gap:3px;}
+#mq-install-ask .mq-push-text span{color:var(--ink-soft);font-size:12.5px;}
+#mq-install-ask .mq-push-yes{width:100%;padding:12px 14px;border:none;border-radius:10px;background:var(--yes);color:#06210f;font-weight:700;font-size:14.5px;cursor:pointer;}
+#mq-install-ask .mq-push-no{align-self:center;padding:2px 8px;border:none;background:none;color:var(--ink-soft);font-weight:500;font-size:12px;text-decoration:underline;cursor:pointer;opacity:.8;}
