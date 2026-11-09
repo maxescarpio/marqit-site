@@ -135,6 +135,18 @@
   .sug-wait{background:rgba(128,136,150,.12);color:var(--ink-soft);}
   .sug-human{background:rgba(242,193,78,.22);color:var(--ink);}
 
+
+  /* "Needs you" strip: shows only what is waiting right now; each chip jumps to its card. */
+  .needs{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 1px 2px rgba(23,25,29,.04);}
+  .needs-h{font:700 20px/1 'Big Shoulders Display',sans-serif;letter-spacing:.02em;}
+  .needs-chips{display:flex;gap:8px;flex-wrap:wrap;flex:1;min-width:0;}
+  .needs-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:7px 13px 7px 8px;font:600 13.5px 'Barlow',sans-serif;cursor:pointer;}
+  .needs-chip b{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--gold);color:var(--head);font:700 12px/20px 'Barlow',sans-serif;text-align:center;}
+  .needs-chip.red{border-color:#E0A5A5;background:#FFF1F1;}
+  .needs-chip.red b{background:#C23B3B;color:#fff;}
+  .needs-chip:hover{border-color:var(--gold-deep);}
+  .needs-clear{font-size:14px;color:var(--ink-soft);}
+
   /* ---------- Footer ---------- */
   footer{max-width:960px;margin:0 auto;padding:6px 20px calc(30px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px;color:var(--ink-soft);font-size:12.5px;}
   footer img{width:34px;height:34px;border-radius:8px;display:block;}
@@ -162,6 +174,10 @@
 <main>
 <div id="gate" class="msg">Checking access…</div>
 <div id="app" style="display:none;">
+  <section id="needs" class="needs" aria-live="polite">
+    <div class="needs-h">Needs you</div>
+    <div id="needs-chips" class="needs-chips"><span class="needs-clear">Checking&hellip;</span></div>
+  </section>
 
   <!-- ===================== DAILY ===================== -->
   <section class="panel active" id="panel-daily">
@@ -182,47 +198,6 @@
           <span class="note" style="flex:1;margin:0;">Results emails go out automatically when scoring finishes.</span>
         </div>
         <p id="score-msg" class="note"></p>
-      </div>
-    </details>
-
-    <details class="card" data-count="#drafts-list .qrow" data-tab-pip="daily">
-      <summary>AI-drafted questions <span class="pip"></span><span class="sub">approve before they post</span></summary>
-      <div class="body">
-        <p class="hint">Drafted each morning by Claude from real web search. Edit anything; nothing posts until you approve it.</p>
-        <div id="drafts-list"></div>
-      </div>
-    </details>
-
-    <details class="card" data-count="#insights-list .qrow" data-tab-pip="daily">
-      <summary>Marqit+ insights <span class="pip"></span><span class="sub">5 bullets per question &middot; approve before players see them</span></summary>
-      <div class="body">
-        <p class="hint">Drafted by Claude from real web search for the next 3 days of questions. A red LOPSIDED banner (lean under 25% or over 75%) means the question has nothing left to predict: change it before it goes live. Check every stat before approving; edit freely. Only approved insights show on the card, as the Marqit+ dropdown for signed-in players.</p>
-        <p class="hint" id="waitlist-count">Marqit+ waitlist: loading&hellip;</p>
-        <div id="insights-list"></div>
-      </div>
-    </details>
-
-    <details class="card" data-count="#event-insights-list .qrow" data-tab-pip="daily">
-      <summary>Game &amp; event leans <span class="pip"></span><span class="sub">Marqit+ &middot; approve before players see them</span></summary>
-      <div class="body">
-        <p class="hint">History and lean for scheduled games, reports and events that are not daily questions. Historical data only: no betting lines. Shown to signed-in players inside the event panel.</p>
-        <div id="event-insights-list"></div>
-      </div>
-    </details>
-
-    <details class="card" data-count="#report-requests-list .qrow" data-tab-pip="daily">
-      <summary>Report requests <span class="pip"></span><span class="sub">Marqit+ &middot; due within 48 hours</span></summary>
-      <div class="body">
-        <p class="hint">A player asked for a full report on a game or event. Write it from historical data only (no betting lines or odds), paste it below, and it appears on their Marqit+ page. Blank lines start a new paragraph.</p>
-        <div id="report-requests-list"></div>
-      </div>
-    </details>
-
-    <details class="card" data-count="#suggestions-list .qrow" data-tab-pip="daily">
-      <summary>Question suggestions <span class="pip"></span><span class="sub">sent in by players</span></summary>
-      <div class="body">
-        <p class="hint">Submitted by users when today's calls are locked. Only visible to you.</p>
-        <div id="suggestions-list"></div>
       </div>
     </details>
 
@@ -261,6 +236,47 @@
           <button id="bulk-add-btn">Add all 3</button>
           <p id="bulk-msg" class="note"></p>
         </details>
+      </div>
+    </details>
+
+    <details class="card" data-count="#drafts-list .qrow" data-tab-pip="daily">
+      <summary>AI-drafted questions <span class="pip"></span><span class="sub">approve before they post</span></summary>
+      <div class="body">
+        <p class="hint">Drafted each morning by Claude from real web search. Edit anything; nothing posts until you approve it.</p>
+        <div id="drafts-list"></div>
+      </div>
+    </details>
+
+    <details class="card" data-count="#insights-list .qrow" data-tab-pip="daily">
+      <summary>Marqit+ insights <span class="pip"></span><span class="sub">5 bullets per question &middot; approve before players see them</span></summary>
+      <div class="body">
+        <p class="hint">Drafted by Claude from real web search for the next 3 days of questions. A red LOPSIDED banner (lean under 25% or over 75%) means the question has nothing left to predict: change it before it goes live. Check every stat before approving; edit freely. Only approved insights show on the card, as the Marqit+ dropdown for signed-in players.</p>
+        <p class="hint" id="waitlist-count">Marqit+ waitlist: loading&hellip;</p>
+        <div id="insights-list"></div>
+      </div>
+    </details>
+
+    <details class="card" data-count="#suggestions-list .qrow" data-tab-pip="daily">
+      <summary>Question suggestions <span class="pip"></span><span class="sub">sent in by players</span></summary>
+      <div class="body">
+        <p class="hint">Submitted by users when today's calls are locked. Only visible to you.</p>
+        <div id="suggestions-list"></div>
+      </div>
+    </details>
+
+    <details class="card" data-count="#event-insights-list .qrow" data-tab-pip="daily">
+      <summary>Game &amp; event leans <span class="pip"></span><span class="sub">Marqit+ &middot; approve before players see them</span></summary>
+      <div class="body">
+        <p class="hint">History and lean for scheduled games, reports and events that are not daily questions. Historical data only: no betting lines. Shown to signed-in players inside the event panel.</p>
+        <div id="event-insights-list"></div>
+      </div>
+    </details>
+
+    <details class="card" data-count="#report-requests-list .qrow" data-tab-pip="daily">
+      <summary>Report requests <span class="pip"></span><span class="sub">Marqit+ &middot; due within 48 hours</span></summary>
+      <div class="body">
+        <p class="hint">A player asked for a full report on a game or event. Write it from historical data only (no betting lines or odds), paste it below, and it appears on their Marqit+ page. Blank lines start a new paragraph.</p>
+        <div id="report-requests-list"></div>
       </div>
     </details>
   </section>
@@ -494,6 +510,7 @@
   var SUPABASE_ANON_KEY = 'sb_publishable_S1DZQXDDpffETdJh2xJONQ_QSNjnunn';
   var ADMIN_EMAIL = 'maxescarpio3@gmail.com';
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  window.mqAdminSb = sb; // read by the "Needs you" strip (second script block)
 
   var CATEGORY_LABELS = { sports: 'Sports', pop_culture: 'Pop culture', news: 'News & current events' };
 
@@ -1875,6 +1892,70 @@
   // Count badges: a card with data-count shows how many rows are waiting in it, and
   // data-tab-pip adds that number to the tab so you can see what needs you without opening anything.
   var cards = document.querySelectorAll('details[data-count]');
+
+  // ---- "Needs you" strip ----
+  // Chips come from the count badges (cards with data-count) plus two checks against the database:
+  // past questions never resolved, and upcoming questions whose lean is outside 25-75 (change them before they go live).
+  var needsDb = { unresolved: null, lopsided: null };
+  function etDate(offsetDays){
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date(Date.now() + (offsetDays || 0) * 86400000));
+  }
+  function niceDate(iso){ var p = iso.split('-'); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(p[1]) - 1] + ' ' + Number(p[2]); }
+  function openCard(card, tabName){
+    if(tabName) show(tabName);
+    var d = card; while(d){ d.open = true; d = d.parentElement ? d.parentElement.closest('details') : null; }
+    setTimeout(function(){ card.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30);
+  }
+  function cardTitle(c){
+    var sm = c.querySelector(':scope > summary'); if(!sm) return '';
+    var t = ''; sm.childNodes.forEach(function(n){ if(t === '' && n.nodeType === 3 && n.textContent.trim()) t = n.textContent.trim(); });
+    return t;
+  }
+  function renderNeeds(){
+    var box = document.getElementById('needs-chips'); if(!box) return;
+    var chips = [];
+    var resolveCard = document.querySelector('#panel-daily > details.card');
+    var insightsCard = document.querySelector('details[data-count="#insights-list .qrow"]');
+    if(needsDb.unresolved && needsDb.unresolved.length){
+      var u = needsDb.unresolved, oldest = u[0];
+      chips.push({ n: u.length, label: u.length === 1 ? 'past question not resolved (' + niceDate(oldest) + ')' : 'past questions not resolved (since ' + niceDate(oldest) + ')', red: true,
+        go: function(){ openCard(resolveCard, 'daily'); var vd = document.getElementById('view-date'); if(vd){ vd.value = oldest; vd.dispatchEvent(new Event('change')); } } });
+    }
+    if(needsDb.lopsided && needsDb.lopsided.length){
+      var l = needsDb.lopsided;
+      chips.push({ n: l.length, label: (l.length === 1 ? 'upcoming question is lopsided (' : 'upcoming questions are lopsided (') + l.map(function(x){ return niceDate(x); }).join(', ') + '). Change before it goes live', red: true,
+        go: function(){ openCard(insightsCard, 'daily'); } });
+    }
+    cards.forEach(function(c){
+      var n = document.querySelectorAll(c.getAttribute('data-count')).length;
+      if(n > 0) chips.push({ n: n, label: cardTitle(c).replace(/^Marqit\+ insights$/, 'Marqit+ insights to approve'), go: function(){ openCard(c, c.closest('.panel') ? c.closest('.panel').id.replace('panel-', '') : null); } });
+    });
+    box.innerHTML = '';
+    if(!chips.length){ var ok = document.createElement('span'); ok.className = 'needs-clear'; ok.textContent = 'All clear. Nothing is waiting on you.'; box.appendChild(ok); return; }
+    chips.forEach(function(ch){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'needs-chip' + (ch.red ? ' red' : '');
+      var num = document.createElement('b'); num.textContent = ch.n; b.appendChild(num);
+      b.appendChild(document.createTextNode(ch.label));
+      b.addEventListener('click', ch.go); box.appendChild(b);
+    });
+  }
+  async function checkNeedsDb(){
+    var sb = window.mqAdminSb; if(!sb) return;
+    var today = etDate(0);
+    try{
+      var r1 = await sb.from('daily_questions').select('question_date').lt('question_date', today).eq('resolved', false).eq('voided', false).order('question_date', { ascending: true });
+      if(!r1.error){ var seen = {}; needsDb.unresolved = (r1.data || []).map(function(q){ return q.question_date; }).filter(function(d){ return seen[d] ? false : (seen[d] = true); }); }
+    }catch(e){}
+    try{
+      var r2 = await sb.from('question_insights').select('lean_yes_pct, daily_questions!inner(question_date, voided)').gt('daily_questions.question_date', today).eq('daily_questions.voided', false);
+      if(!r2.error){
+        var set = {};
+        (r2.data || []).forEach(function(r){ if(r.lean_yes_pct != null && (r.lean_yes_pct < 25 || r.lean_yes_pct > 75) && r.daily_questions) set[r.daily_questions.question_date] = true; });
+        needsDb.lopsided = Object.keys(set).sort();
+      }
+    }catch(e){}
+    renderNeeds();
+  }
   function recount(){
     var totals = {};
     cards.forEach(function(c){
@@ -1888,11 +1969,15 @@
       var el = document.getElementById('pip-' + name), n = totals[name] || 0;
       if(el){ el.textContent = n; el.classList.toggle('on', n > 0); }
     });
+    renderNeeds();
   }
   var timer = null;
   new MutationObserver(function(){ clearTimeout(timer); timer = setTimeout(recount, 150); })
     .observe(document.getElementById('app'), { childList: true, subtree: true });
   recount();
+  checkNeedsDb();
+  setInterval(checkNeedsDb, 120000);
+  window.addEventListener('focus', checkNeedsDb);
 })();
 </script>
 </body>
