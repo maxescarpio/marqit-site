@@ -1340,6 +1340,15 @@
         (ps || []).forEach(function(p){ people[p.id] = p; });
       }
     }catch(e){ /* the name is a bonus; the suggestion still shows */ }
+    // Admin-only lookup of each sender's email (emails live in auth, so this goes through a locked-down function).
+    const emails = {};
+    try{
+      const ids2 = Array.from(new Set(data.map(function(s){ return s.user_id; }).filter(Boolean)));
+      if(ids2.length){
+        const { data: em } = await sb.rpc('admin_user_emails', { p_ids: ids2 });
+        (em || []).forEach(function(e){ emails[e.id] = e.email; });
+      }
+    }catch(e){ /* optional */ }
     data.forEach(function(s){
       const row = document.createElement('div');
       row.className = 'qrow';
@@ -1348,6 +1357,7 @@
       if(!s.user_id) who = 'Guest (not signed in)' + (s.guest_device_id ? ' \u00b7 device ' + String(s.guest_device_id).slice(0, 6) : '');
       else if(p) who = '@' + (p.username || 'player') + (p.state ? ' \u00b7 ' + p.state : '') + (p.school ? ' \u00b7 ' + p.school : '') + ' \u00b7 joined ' + new Date(p.created_at).toLocaleDateString() + (p.banned ? ' \u00b7 BANNED' : '');
       else who = 'Unknown player (account not found)';
+      if(s.user_id && emails[s.user_id]) who += ' \u00b7 ' + emails[s.user_id];
       row.innerHTML =
         '<div class="qfrom"></div>' +
         '<div class="qtext"></div>' +
