@@ -16,10 +16,14 @@
 //
 // SECRETS: ANTHROPIC_API_KEY. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are automatic.
 // AUTH: call with the SUPABASE_SERVICE_ROLE_KEY as the bearer token.
+// ADMIN CALLS: the admin page calls this right after a question is added or edited ({"question_id": "<uuid>"}, optionally "replace": true)
+// with the admin's own sign-in token, so the lean shows up BEFORE the question is scheduled. Admin calls get the lean back in
+// the response and do not send push notifications (the admin is looking at the page).
 // TESTING: pass {"test_date": "YYYY-MM-DD"} for one date, or {"question_id": "<uuid>"} for one question.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
+const ADMIN_EMAIL = 'maxescarpio3@gmail.com';
 const CLAUDE_MODEL = 'claude-sonnet-5';
 const MAX_PER_RUN = 6;
 const BULLET_COUNT = 5;
@@ -203,19 +207,33 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+  let byAdminUser = false;
   if (token !== serviceRoleKey) {
-    return new Response(JSON.stringify({ error: 'Unauthorized.' }), { status: 401, headers: CORS_HEADERS });
+    // Not the service key: allow the signed-in admin only.
+    let ok = false;
+    if (token) {
+      try {
+        const { data: callerRes } = await admin.auth.getUser(token);
+        ok = callerRes?.user?.email === ADMIN_EMAIL;
+      } catch (_) { ok = false; }
+    }
+    if (!ok) {
+      return new Response(JSON.stringify({ error: 'Unauthorized.' }), { status: 401, headers: CORS_HEADERS });
+    }
+    byAdminUser = true;
   }
   if (!anthropicApiKey) {
     return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY secret is not set.' }), { status: 500, headers: CORS_HEADERS });
   }
-
-  const admin = createClient(supabaseUrl, serviceRoleKey);
   const startedAt = Date.now();
   const deadline = startedAt + 125000;
 
   try {
     const body = await req.json().catch(() => ({}));
+    if (byAdminUser && !(typeof body.question_id === 'string' && /^[0-9a-f-]{36}$/i.test(body.question_id))) {
+      return new Response(JSON.stringify({ error: 'Admin calls must name one question_id.' }), { status: 400, headers: CORS_HEADERS });
+    }
 
     // Which questions to cover.
     let query = admin
@@ -274,11 +292,11 @@ Deno.serve(async (req) => {
         details.push({ question_id: q.id, drafted: false, reason: insErr.message });
       } else {
         drafted++;
-        details.push({ question_id: q.id, drafted: true });
+        details.push({ question_id: q.id, drafted: true, lean_yes_pct: result.lean_yes_pct ?? null, lean_basis: result.lean_basis ?? null, lopsided: typeof result.lean_yes_pct === 'number' && (result.lean_yes_pct > LOPSIDED_HIGH || result.lean_yes_pct < LOPSIDED_LOW) });
       }
     }
 
-    if (drafted > 0) {
+    if (drafted > 0 && !byAdminUser) {
       try {
         const { data: adminUserId } = await admin.rpc('get_admin_user_id');
         if (adminUserId) {
