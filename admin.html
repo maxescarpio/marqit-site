@@ -2012,9 +2012,15 @@
     var resolveCard = document.querySelector('#panel-daily > details.card');
     var insightsCard = document.querySelector('details[data-count="#insights-list .qrow"]');
     if(needsDb.unresolved && needsDb.unresolved.length){
-      var u = needsDb.unresolved, oldest = u[0];
-      chips.push({ n: u.length, label: u.length === 1 ? 'past question not resolved (' + niceDate(oldest) + ')' : 'past questions not resolved (since ' + niceDate(oldest) + ')', red: true,
-        go: function(){ openCard(resolveCard, 'daily'); var vd = document.getElementById('view-date'); if(vd){ vd.value = oldest; vd.dispatchEvent(new Event('change')); } } });
+      var u = needsDb.unresolved, oldest = u[0], dayCount = Object.keys(u.reduce(function(a, d){ a[d] = 1; return a; }, {})).length;
+      chips.push({ n: u.length, red: true,
+        label: (u.length === 1 ? 'past question not resolved' : 'past questions not resolved') + ' (' + (dayCount === 1 ? niceDate(oldest) : 'since ' + niceDate(oldest) + ', ' + dayCount + ' days') + ')',
+        go: function(){
+          openCard(resolveCard, 'daily');
+          var vd = document.getElementById('view-date'); if(vd){ vd.value = oldest; vd.dispatchEvent(new Event('change')); }
+          // The Resolve card is already open at the top, so scroll down to the list for that day.
+          setTimeout(function(){ var t = document.getElementById('day-stamp') || document.getElementById('question-list'); if(t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 600);
+        } });
     }
     if(needsDb.lopsided && needsDb.lopsided.length){
       var l = needsDb.lopsided;
@@ -2039,7 +2045,7 @@
     var today = etDate(0);
     try{
       var r1 = await sb.from('daily_questions').select('question_date').lt('question_date', today).eq('resolved', false).eq('voided', false).order('question_date', { ascending: true });
-      if(!r1.error){ var seen = {}; needsDb.unresolved = (r1.data || []).map(function(q){ return q.question_date; }).filter(function(d){ return seen[d] ? false : (seen[d] = true); }); }
+      if(!r1.error){ needsDb.unresolved = (r1.data || []).map(function(q){ return q.question_date; }); } // one entry per question (dates repeat)
     }catch(e){}
     try{
       var r2 = await sb.from('question_insights').select('lean_yes_pct, daily_questions!inner(question_date, voided)').gt('daily_questions.question_date', today).eq('daily_questions.voided', false);
