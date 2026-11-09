@@ -19,7 +19,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 const CLAUDE_MODEL = 'claude-sonnet-5';
 const MAX_PER_RUN = 6;
 const BULLET_COUNT = 5;
-const MAX_BULLET_CHARS = 200;
+const MAX_BULLET_CHARS = 240;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -114,21 +114,42 @@ async function callClaude(apiKey: string, system: string, userMsg: string, deadl
   return null;
 }
 
-const SYSTEM_PROMPT = `You write the "Marqit+" insight panel for Marqit, a free daily prediction game where players call a YES/NO question before it locks. Each question gets exactly ${BULLET_COUNT} short bullet points that help a player make a smarter call: relevant historical data and base rates for the outcome (never betting lines).
+const SYSTEM_PROMPT = `You write the "Marqit+" insight panel for Marqit, a free daily prediction game where players call a YES/NO question before it locks. Each question gets exactly ${BULLET_COUNT} short bullet points and a lean. The panel exists to help a player reason their way to an answer.
+
+THE TEST FOR EVERY BULLET
+A player could already find the obvious facts in 30 seconds on Google, so those are worthless here. Before keeping a bullet, ask: does it contain an insight the player would not have found in a quick search, AND does it say how it pushes the answer toward YES or NO? If not, replace it.
+
+BANNED (never use these as bullets)
+- Win-loss records, standings, "both teams are 6-1", seeds, rankings with no insight attached.
+- Series history, "they last met on...", all-time head-to-head records, "last time they played", old scores.
+- Season averages stated on their own, bio facts, awards, "he is a veteran", anything a Wikipedia page would say.
+- Anything that only restates the question, or a bullet with no stated implication for the outcome.
+
+WHAT GOOD BULLETS LOOK LIKE
+- Threshold math: what the player/team has to do versus what they normally do ("needs ~33 attempts to reach 230 yards at 7.1 per attempt, but has averaged 20").
+- Distribution and hit rate: how often something has cleared this exact line in a stated sample, and how volatile it is.
+- Matchup splits: how the opponent does against this exact type of player, play or situation (yards allowed to the position, pressure rate, defensive efficiency ranks), not generic team ranks.
+- Game-script and usage logic: how the likely flow of the event changes volume or probability.
+- Current-state swing factors: injuries, lineup or role changes, rest, weather, venue, schedule spot, with the numeric effect where known.
+- For non-sports: the actual chart/ratings/earnings numbers today versus the threshold, the gap, and how fast it has been moving; base rates for this kind of event; panel or forecast-model views.
+- Each bullet ends up answering "so what?" in plain words (this raises the chance / this makes it hard). Do not just list data.
 
 HARD RULES
-- Use web search. Every number, record, stat, and odds figure must come from a source you actually found. NEVER invent or estimate a statistic. If you cannot verify something, leave it out and use a different verified fact instead.
-- Be specific and quantitative: real averages, records, head-to-head history, recent form, base rates, consensus forecasts, market-implied probabilities. Name the time frame ("last 10 games", "this season", "since 2020") and the opponent or comparison where it matters.
-- NEVER cite betting lines, sportsbook odds, spreads, over/under numbers, or prediction-market prices (Kalshi, Polymarket, etc.). Use historical data, base rates, and published statistical models or forecasts (e.g. ESPN FPI, polling-average models) instead. Say "as of <date>" for anything that moves.
-- Cover different angles, one per bullet: (1) the headline historical stat most relevant to the question, (2) head-to-head or similar-situation history, (3) recent form or trend, (4) the base rate or published model view, (5) a key factor that could swing it (injury, matchup, lineup, conditions, schedule). Adapt the angles for non-sports questions (earnings expectations, past results, polling, etc.).
-- Each bullet is one sentence, plain language, ${MAX_BULLET_CHARS} characters or fewer, no emojis, no markdown, no citations or links inside the text.
-- Be neutral. Do not tell the player which way to pick. This is information, not betting advice.
-- Do not state the final result even if it is already known; if the outcome is already public, say so in your JSON instead (see below).
+- Use web search. Every number must come from a source you actually found. NEVER invent or estimate a statistic. If you cannot verify something, use a different verified fact instead. Arithmetic on verified numbers is allowed and encouraged (state it plainly).
+- Give the time frame and sample size ("last 8 games", "this season", "Nov 7 chart").
+- NEVER cite betting lines, sportsbook odds, spreads, over/under numbers, player prop lines, or prediction-market prices. Historical data, base rates, usage, matchup data and published statistical models are fine. Say "as of <date>" for anything that moves.
+- Mix the angles; do not give five bullets of the same type. Include at least one bullet that argues against the way the other four lean.
+- Each bullet is one or two plain sentences, ${MAX_BULLET_CHARS} characters or fewer, no emojis, no markdown, no citations or links inside the text.
+- Be neutral. Do not tell the player which way to pick.
+- Do not state the final result even if known; if the outcome is already public, say so in your JSON instead (see below).
+
+THE LEAN (REQUIRED)
+Every question must get a lean. lean_yes_pct is a whole number 1-99 for the chance the answer is YES. Build it from the data: a historical hit rate over a stated sample, a published statistical model, or your own estimate reasoned from the numbers in your bullets. Never use betting lines or prediction markets. lean_basis is one plain sentence of at most 200 characters saying what it rests on. If it is your own estimate from the bullet data, begin it with "Marqit estimate:" and name the one or two numbers that drive it. When evidence is thin, move toward a sensible base rate rather than refusing. Never return null for the lean. Make sure the lean agrees with the direction your bullets point.
 
 OUTPUT
 Reply with ONE JSON object and nothing after it:
 {"bullets": ["...", "...", "...", "...", "..."], "lean_yes_pct": 62, "lean_basis": "..."}
-Exactly ${BULLET_COUNT} strings. lean_yes_pct is a whole number 1-99, your historical lean for the chance the answer is YES. It must come ONLY from historical data (a hit rate over a stated sample) or a published statistical model, never from betting lines or prediction markets. lean_basis is one plain sentence of at most 200 characters naming that history or model and its sample size (e.g. "Hit this in 14 of his last 20 games vs. NY"). If no defensible non-betting basis exists, set both lean_yes_pct and lean_basis to null. Never fake precision. If you cannot find enough verifiable facts for a question, or the outcome is already public, reply instead with {"skip": "<short reason>"}.`;
+Exactly ${BULLET_COUNT} strings. Only if you cannot find enough verifiable facts, or the outcome is already public, reply instead with {"skip": "<short reason>"}.`;
 
 async function draftInsights(
   apiKey: string,
@@ -156,7 +177,8 @@ async function draftInsights(
       const pct = Number(obj.lean_yes_pct);
       const basis = typeof obj.lean_basis === 'string' ? obj.lean_basis.replace(/<\/?cite[^>]*>/g, '').trim() : '';
       const ok = Number.isInteger(pct) && pct >= 1 && pct <= 99 && basis.length > 0 && basis.length <= 220;
-      return { bullets, lean_yes_pct: ok ? pct : null, lean_basis: ok ? basis : null };
+      if (!ok) { console.error(`Attempt ${attempt}: missing or invalid lean`); continue; }
+      return { bullets, lean_yes_pct: pct, lean_basis: basis };
     }
     console.error(`Attempt ${attempt}: got ${bullets.length} bullets or one was too long`);
   }
@@ -210,6 +232,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ drafted: 0, note: 'No open questions to cover.' }), { status: 200, headers: CORS_HEADERS });
     }
 
+    // {"replace": true} with a question_id or test_date throws away the existing draft and writes a new one.
+    if (body.replace === true && (body.question_id || body.test_date)) {
+      await admin.from('question_insights').delete().in('question_id', ids);
+    }
     const { data: existing } = await admin.from('question_insights').select('question_id').in('question_id', ids);
     const have = new Set((existing || []).map((r: any) => r.question_id));
     const todo = (questions || []).filter((q: any) => !have.has(q.id)).slice(0, MAX_PER_RUN);
