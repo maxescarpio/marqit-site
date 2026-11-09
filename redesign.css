@@ -694,3 +694,7 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 /* Underline tabs (News, Trending, Rankings): the underline says which one is picked, so no grey box around it. */
 #news-chips .feed-chip.on,#trending-chips .feed-chip.on,#rk-page .rk-tabs button.on{
   background:none !important;border-color:transparent !important;box-shadow:none !important}
+
+/* Request a prediction: the little white light bulb next to the title */
+#play-suggest .sg-title{display:flex;align-items:center;gap:8px}
+#play-suggest .sg-title .sg-bulb{flex:none;color:#F2F3F5}

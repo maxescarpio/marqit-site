@@ -5874,7 +5874,7 @@
 
     if(!session) box.classList.add('sg-guest');
     box.innerHTML =
-      '<div class="sg-top"><p class="sg-title">Request a prediction</p>' +
+      '<div class="sg-top"><p class="sg-title"><svg class="sg-bulb" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4M12 2a6 6 0 0 0-4 10.5c.6.5 1 1.3 1 2.1V15h6v-.4c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 2z"/></svg>Request a prediction</p>' +
       '<p class="sg-sub">Got an idea for a future call? Pick a topic and a day.</p></div>' +
       '<div class="sg-row">' +
         '<div class="sg-pills" id="suggestion-pills" role="group" aria-label="Category"><button type="button" class="on" data-cat="sports">Sports</button><button type="button" data-cat="pop_culture">Pop culture</button><button type="button" data-cat="news">News</button></div>' +
