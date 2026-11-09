@@ -147,6 +147,18 @@
   .needs-chip:hover{border-color:var(--gold-deep);}
   .needs-clear{font-size:14px;color:var(--ink-soft);}
 
+  .wlabel{font-size:13px;font-weight:700;margin:16px 0 0;}
+  details.subcard{border:1px solid var(--line);border-radius:12px;margin-top:14px;background:#fff;}
+  details.subcard>summary{cursor:pointer;list-style:none;padding:11px 14px;font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px;}
+  details.subcard>summary::-webkit-details-marker{display:none;}
+  details.subcard>summary::before{content:"+";font-weight:700;color:var(--gold-deep);width:14px;}
+  details.subcard[open]>summary::before{content:"\2212";}
+  details.subcard>.subbody{padding:0 14px 14px;border-top:1px solid var(--line);}
+  details.site-row{padding:0;}
+  details.site-row>summary{cursor:pointer;list-style:none;padding:12px 16px;}
+  details.site-row>summary::-webkit-details-marker{display:none;}
+  details.site-row>.site-body{padding:0 16px 14px;border-top:1px solid var(--line);}
+
   /* ---------- Footer ---------- */
   footer{max-width:960px;margin:0 auto;padding:6px 20px calc(30px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px;color:var(--ink-soft);font-size:12.5px;}
   footer img{width:34px;height:34px;border-radius:8px;display:block;}
@@ -365,31 +377,45 @@
   <!-- ===================== WIDGETS ===================== -->
   <section class="panel" id="panel-widgets">
 
+    <!-- 1. What needs you: questions to approve and comments to review. Open by default. -->
     <details class="card" open data-count="#widget-pending-q .qrow, #widget-comments .qrow" data-tab-pip="widgets">
-      <summary>Publisher widgets <span class="pip"></span><span class="sub">partner sites, questions, comments</span></summary>
+      <summary>Widgets waiting on you <span class="pip"></span><span class="sub">questions to approve &middot; comments to review</span></summary>
       <div class="body">
-        <p class="hint">Partner sites that show the Marqit widget. Add a site, give it a question for each article, and approve comments.</p>
-        <div class="grid2">
-          <div><label>New site name</label><input id="wsite-name" type="text" placeholder="Example Sports Blog"></div>
-          <div><label>Allowed domains (comma separated, blank = any)</label><input id="wsite-domains" type="text" placeholder="examplesports.com, www.examplesports.com"></div>
-        </div>
-        <label>How are questions made?</label>
-        <select id="wsite-mode">
-          <option value="review">Claude drafts each question, I approve it (recommended)</option>
-          <option value="auto">Claude drafts and posts questions automatically</option>
-          <option value="manual">I write every question myself</option>
-        </select>
-        <p class="hint" style="margin-top:6px;">The first two need the site's website address above. The publisher pastes one line of code once and every article gets a question.</p>
-        <label class="check"><input id="wsite-auto" type="checkbox"> Auto-approve comments (otherwise each comment waits for you)</label>
-        <button id="wsite-add-btn">Add site</button>
-        <p id="wsite-msg" class="note"></p>
-
         <div id="widget-pending-q" class="sublist"></div>
-        <div id="widget-overview" class="sublist"></div>
+        <p class="wlabel">Comments waiting or reported</p>
         <div id="widget-comments"></div>
       </div>
     </details>
 
+    <!-- 2. Partner sites: one line each; tap a site for its install link, question mode and code. -->
+    <details class="card">
+      <summary>Partner sites <span class="sub">install links, question mode, turn on or off</span></summary>
+      <div class="body">
+        <div id="widget-overview" class="sublist"></div>
+
+        <details class="subcard">
+          <summary>Add a partner site</summary>
+          <div class="subbody">
+            <div class="grid2">
+              <div><label>New site name</label><input id="wsite-name" type="text" placeholder="Example Sports Blog"></div>
+              <div><label>Allowed domains (comma separated, blank = any)</label><input id="wsite-domains" type="text" placeholder="examplesports.com, www.examplesports.com"></div>
+            </div>
+            <label>How are questions made?</label>
+            <select id="wsite-mode">
+              <option value="review">Claude drafts each question, I approve it (recommended)</option>
+              <option value="auto">Claude drafts and posts questions automatically</option>
+              <option value="manual">I write every question myself</option>
+            </select>
+            <p class="hint" style="margin-top:6px;">The first two need the site's website address above. The publisher pastes one line of code once and every article gets a question.</p>
+            <label class="check"><input id="wsite-auto" type="checkbox"> Auto-approve comments (otherwise each comment waits for you)</label>
+            <button id="wsite-add-btn">Add site</button>
+            <p id="wsite-msg" class="note"></p>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- 3. Write a question by hand for one article. -->
     <details class="card">
       <summary>Add or change a widget question <span class="sub">per article</span></summary>
       <div class="body">
@@ -1443,6 +1469,7 @@
   async function loadWidgets(){
     const { data, error } = await sb.rpc('admin_widget_overview');
     const ov = document.getElementById('widget-overview'); const cm = document.getElementById('widget-comments');
+    var openSites = {}; ov.querySelectorAll('details.site-row[open]').forEach(function(d){ openSites[d.getAttribute('data-site')] = true; }); // keep opened sites open across the 60s refresh
     ov.textContent = ''; cm.textContent = '';
     var modes = {}, pendingQ = [];
     try{ var mr = await sb.rpc('admin_widget_site_modes'); if(mr.data) modes = mr.data; var pr = await sb.rpc('admin_widget_pending_questions'); if(pr.data) pendingQ = pr.data; }catch(e){}
@@ -1452,22 +1479,24 @@
     (data.sites || []).forEach(function(s){ var o = document.createElement('option'); o.value = s.site_key; o.textContent = s.name; sel.appendChild(o); });
     if(keep) sel.value = keep;
     (data.sites || []).forEach(function(s){
-      var row = wEl('div', null); row.className = 'qrow';
-      row.appendChild(wEl('div', s.name + (s.active ? '' : ' (off)'), 'font-weight:600;font-size:14px;'));
-      row.appendChild(wEl('div', s.questions + ' questions \u00b7 ' + (s.viewers || 0) + ' viewers \u00b7 ' + s.votes + ' votes (' + (s.viewers ? Math.round(100 * s.votes / s.viewers) + '% voted' : 'no views yet') + ') \u00b7 ' + (s.comments || 0) + ' comments \u00b7 ' + ((s.domains && s.domains.length) ? s.domains.join(', ') : 'any domain') + (s.auto ? ' \u00b7 auto-approve' : ' \u00b7 comments held'), 'font-size:12px;color:var(--ink-soft);margin-top:2px;'));
+      var row = document.createElement('details'); row.className = 'qrow site-row'; row.setAttribute('data-site', s.site_key); if(openSites[s.site_key]) row.open = true;
+      var rsum = document.createElement('summary'); row.appendChild(rsum);
+      var rbody = wEl('div'); rbody.className = 'site-body'; row.appendChild(rbody);
+      rsum.appendChild(wEl('div', s.name + (s.active ? '' : ' (off)'), 'font-weight:600;font-size:14px;'));
+      rsum.appendChild(wEl('div', s.questions + ' questions \u00b7 ' + (s.viewers || 0) + ' viewers \u00b7 ' + s.votes + ' votes (' + (s.viewers ? Math.round(100 * s.votes / s.viewers) + '% voted' : 'no views yet') + ') \u00b7 ' + (s.comments || 0) + ' comments \u00b7 ' + ((s.domains && s.domains.length) ? s.domains.join(', ') : 'any domain') + (s.auto ? ' \u00b7 auto-approve' : ' \u00b7 comments held'), 'font-size:12px;color:var(--ink-soft);margin-top:2px;'));
       var mode = modes[s.site_key] || 'manual';
       var snip = '<script async src="https://playmarqit.com/embed.js" data-site="' + s.site_key + '"' + (mode !== 'manual' ? ' data-mode="auto"' : '') + '><\/script>';
-      row.appendChild(wEl('div', 'Install link: playmarqit.com/install.html?site=' + s.site_key, 'font-size:12px;color:var(--ink-soft);margin-top:4px;word-break:break-all;'));
+      rbody.appendChild(wEl('div', 'Install link: playmarqit.com/install.html?site=' + s.site_key, 'font-size:12px;color:var(--ink-soft);margin-top:4px;word-break:break-all;'));
       var msel = document.createElement('select'); msel.style.marginTop = '8px';
       [['review', 'Questions: Claude drafts, I approve'], ['auto', 'Questions: Claude drafts and posts'], ['manual', 'Questions: I write them']].forEach(function(o){ var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; msel.appendChild(op); });
       msel.value = mode;
       msel.addEventListener('change', async function(){ var r = await sb.rpc('admin_widget_set_site_mode', { p_site_key: s.site_key, p_mode: msel.value }); if(r.error){ alert(r.error.message); } loadWidgets(); });
-      row.appendChild(msel);
+      rbody.appendChild(msel);
       var ta = wEl('textarea', snip, 'margin-top:8px;font-family:monospace;font-size:12px;'); ta.readOnly = true; ta.rows = 2; ta.addEventListener('focus', function(){ ta.select(); });
-      row.appendChild(ta);
+      rbody.appendChild(ta);
       var act = wEl('div'); act.className = 'actions';
       var tg = wEl('button', s.active ? 'Turn off' : 'Turn on'); tg.addEventListener('click', async function(){ tg.disabled = true; await sb.rpc('admin_widget_set_active', { p_site_key: s.site_key, p_active: !s.active }); loadWidgets(); });
-      act.appendChild(tg); row.appendChild(act); ov.appendChild(row);
+      act.appendChild(tg); rbody.appendChild(act); ov.appendChild(row);
     });
     var liveQs = (data.questions || []).filter(function(q){ return q.active; });
     if(liveQs.length){
@@ -1487,7 +1516,6 @@
         ov.appendChild(r);
       });
     }
-    ov.appendChild(wEl('p', 'Comments waiting or reported', 'font-size:13px;font-weight:600;margin-top:16px;'));
     (function(){
       var n = (data.pending_comments || []).length, b = document.getElementById('widget-alert');
       if(!b){ b = document.createElement('a'); b.id = 'widget-alert'; b.href = '#widget-comments'; b.style.cssText = 'position:sticky;top:0;z-index:50;display:none;padding:10px 14px;background:#BC9C22;color:#fff;font-weight:700;font-size:14px;text-align:center;text-decoration:none;'; document.body.insertBefore(b, document.body.firstChild); }
