@@ -159,6 +159,11 @@
   details.site-row>summary::-webkit-details-marker{display:none;}
   details.site-row>.site-body{padding:0 16px 14px;border-top:1px solid var(--line);}
 
+  .leanbox{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:10px 0;font-size:13.5px;background:var(--panel);}
+  .leanbox .lean-row{margin:4px 0;}
+  .leanbox .lean-bad{color:#B03030;font-weight:700;}
+  .leanbox .lean-ok{color:var(--yes);font-weight:600;}
+
   /* ---------- Footer ---------- */
   footer{max-width:960px;margin:0 auto;padding:6px 20px calc(30px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px;color:var(--ink-soft);font-size:12.5px;}
   footer img{width:34px;height:34px;border-radius:8px;display:block;}
@@ -204,6 +209,7 @@
         <p id="check-results-msg" class="note"></p>
         <div class="daystrip" id="day-strip" aria-label="Recent days"></div>
         <div id="day-stamp"></div>
+        <div id="lean-msg" class="leanbox" style="display:none;"></div>
         <div id="question-list"></div>
         <div class="row" style="margin-top:6px;">
           <button id="score-btn">Run scoring for this date</button>
@@ -241,12 +247,14 @@
         </details>
         <button id="add-btn">Add question</button>
         <p id="add-msg" class="note"></p>
+        <div id="add-lean" class="leanbox" style="display:none;"></div>
 
         <details style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px;">
           <summary style="cursor:pointer;font-weight:700;font-size:13px;color:var(--ink-soft);">Bulk add today's 3 (paste the JSON block from Claude)</summary>
           <textarea id="bulk-json" rows="5" style="margin-top:10px;" placeholder='[{"category":"sports","question_text":"Will...","lock_time":"2026-09-15T20:30:00-04:00","resolution_criteria":"optional — how this will be judged"}, ...]'></textarea>
           <button id="bulk-add-btn">Add all 3</button>
           <p id="bulk-msg" class="note"></p>
+          <div id="bulk-lean" class="leanbox" style="display:none;"></div>
         </details>
       </div>
     </details>
@@ -537,6 +545,42 @@
   var ADMIN_EMAIL = 'maxescarpio3@gmail.com';
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   window.mqAdminSb = sb; // read by the "Needs you" strip (second script block)
+
+  // Draft the lean for one question right now (admin only), so a lopsided one is caught BEFORE it is scheduled.
+  // The allowed lean is 25-75% (under 25 or over 75 = too favored to one side). Never blocks anything: it only warns.
+  async function checkLeanFor(questionId, label, box, replace){
+    box.style.display = 'block';
+    var row = document.createElement('div'); row.className = 'lean-row';
+    row.textContent = label + ': checking the lean (up to a minute)\u2026';
+    box.appendChild(row);
+    try{
+      const { data: sr } = await sb.auth.getSession();
+      const token = sr && sr.session ? sr.session.access_token : null;
+      const { data, error } = await sb.functions.invoke('draft-insights', {
+        body: replace ? { question_id: questionId, replace: true } : { question_id: questionId },
+        headers: token ? { Authorization: 'Bearer ' + token } : {}
+      });
+      if(error) throw new Error(error.message);
+      if(data && data.error) throw new Error(data.error);
+      var d = data && data.details && data.details[0];
+      if(d && d.drafted && typeof d.lean_yes_pct === 'number'){
+        var side = d.lean_yes_pct >= 50 ? d.lean_yes_pct + '% YES' : (100 - d.lean_yes_pct) + '% NO';
+        if(d.lopsided){
+          row.className = 'lean-row lean-bad';
+          row.textContent = label + ': LOPSIDED, lean ' + side + '. Too favored to one side (allowed lean is 25-75%). Change this question (move the line or reword it) before it goes live.';
+        }else{
+          row.className = 'lean-row lean-ok';
+          row.textContent = label + ': lean ' + d.lean_yes_pct + '% YES. In range (25-75%). The bullets are waiting under Marqit+ insights for you to approve.';
+        }
+      }else if(d && !d.drafted){
+        row.textContent = label + ': couldn\u2019t draft the lean now (' + (d.reason || 'no reason given') + '). It will be tried again automatically before the question goes live.';
+      }else{
+        row.textContent = label + ': ' + ((data && data.note) || 'nothing to draft') + '.';
+      }
+    }catch(e){
+      row.textContent = label + ': couldn\u2019t check the lean now (' + e.message + '). It will be drafted automatically before the question goes live.';
+    }
+  }
 
   var CATEGORY_LABELS = { sports: 'Sports', pop_culture: 'Pop culture', news: 'News & current events' };
 
@@ -954,9 +998,9 @@
       var sugDetail = row.querySelector('.sug-detail');
       if(sugDetail && sug) sugDetail.textContent = (sug.detail || '') + (sug.source ? '  (' + sug.source + ')' : '');
       if(!q.resolved){
-        row.querySelector('#edit-text-' + q.id).value = q.question_text;
+        row.querySelector('#edit-text-' + q.id).value = q.question_text; row.querySelector('#edit-text-' + q.id).setAttribute('data-orig', q.question_text || '');
         row.querySelector('#edit-lock-' + q.id).value = toLocalInput(q.lock_time);
-        row.querySelector('#edit-resolution-' + q.id).value = q.resolution_criteria || '';
+        row.querySelector('#edit-resolution-' + q.id).value = q.resolution_criteria || ''; row.querySelector('#edit-resolution-' + q.id).setAttribute('data-orig', q.resolution_criteria || '');
       }
       list.appendChild(row);
     });
@@ -1060,6 +1104,12 @@
           p_subject_name: document.getElementById('edit-subname-' + id).value, p_subject_image_url: document.getElementById('edit-subimg-' + id).value,
           p_vs_name: document.getElementById('edit-vsname-' + id).value, p_vs_image_url: document.getElementById('edit-vsimg-' + id).value });
         if(vr2.error){ alert('Saved, but the photo failed: ' + vr2.error.message); }
+        // If the wording or criteria of an UPCOMING question changed, its old lean no longer applies: redraft it so the new lean shows right away.
+        var changed = text !== document.getElementById('edit-text-' + id).getAttribute('data-orig') || (resolution || '') !== document.getElementById('edit-resolution-' + id).getAttribute('data-orig');
+        if(changed && dateVal > todayStr()){
+          var lm = document.getElementById('lean-msg'); lm.textContent = '';
+          checkLeanFor(id, 'Edited question', lm, true);
+        }
         loadQuestionsForDate();
       });
     });
@@ -1116,6 +1166,7 @@
     }
 
     msg.textContent = 'Added.';
+    if(newQId){ var al = document.getElementById('add-lean'); al.textContent = ''; checkLeanFor(newQId, 'New question', al, false); }
     document.getElementById('add-text').value = '';
     document.getElementById('add-resolution').value = '';
     if(document.getElementById('view-date').value === date){ loadQuestionsForDate(); }
@@ -1193,6 +1244,12 @@
     }
 
     msg.textContent = 'Added ' + parsed.length + ' question(s) for ' + date + '.';
+    (async function(){
+      const { data: rows2 } = await sb.from('daily_questions').select('id, slot, question_text').eq('question_date', date);
+      const bl = document.getElementById('bulk-lean'); bl.textContent = '';
+      (rows2 || []).filter(function(r){ return parsed.some(function(q){ return q.question_text === r.question_text; }); })
+        .forEach(function(r){ checkLeanFor(r.id, 'Slot ' + r.slot, bl, false); });
+    })();
     document.getElementById('bulk-json').value = '';
     document.getElementById('view-date').value = date;
     loadQuestionsForDate();
