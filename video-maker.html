@@ -393,7 +393,7 @@ function drawPics(t){
     if(p.anim==='fade')a=k;else if(p.anim==='pop'){a=k;sc=0.7+0.3*k}else if(p.anim==='slide'){a=k;off=(1-k)*160}
     const w=p.size/100*W,h=w*p.cv.height/p.cv.width;
     const cx=w/2+(W-w)*p.x/100,cy=h/2+Math.max(0,H-h)*p.y/100;
-    ctx.save();ctx.globalAlpha=a;ctx.translate(cx,cy+off);ctx.scale(sc,sc);ctx.drawImage(p.cv,-w/2,-h/2,w,h);ctx.restore();
+    ctx.save();ctx.globalAlpha=a;ctx.translate(cx,cy+off);ctx.scale(sc,sc);ctx.drawImage(p.bmp||p.cv,-w/2,-h/2,w,h);ctx.restore();
   });
 }
 function seekToPic(p){const t=vid.currentTime||0;if(t<p.start||t>p.start+p.len)vid.currentTime=p.start+Math.min(0.8,p.len/2)}
@@ -401,10 +401,11 @@ $('picFile').onchange=e=>{
   [...e.target.files].forEach(f=>{
     const img=new Image();img.onload=()=>{
       // shrink big phone photos once, so every video frame draws a small picture, not a 12-megapixel one
-      const k=Math.min(1,1080/img.naturalWidth),cv2=document.createElement('canvas');
+      const k=Math.min(1,800/img.naturalWidth),cv2=document.createElement('canvas');
       cv2.width=Math.max(1,Math.round(img.naturalWidth*k));cv2.height=Math.max(1,Math.round(img.naturalHeight*k));
       const c2=cv2.getContext('2d');c2.imageSmoothingQuality='high';c2.drawImage(img,0,0,cv2.width,cv2.height);
-      pics.push({img,cv:cv2,start:Math.round((vid.currentTime||0)*10)/10,len:3,size:60,x:50,y:40,anim:'pop'});
+      const pic={img,cv:cv2,bmp:null,start:Math.round((vid.currentTime||0)*10)/10,len:3,size:60,x:50,y:40,anim:'pop'};pics.push(pic);
+      if(window.createImageBitmap)createImageBitmap(cv2).then(b=>{pic.bmp=b}).catch(()=>{});
       renderPics();draw();$('picCard').open=true};
     img.src=URL.createObjectURL(f)});
   e.target.value='';
@@ -417,6 +418,13 @@ function renderPics(){
     const th=document.createElement('img');th.className='th';th.src=p.img.src;
     const rm=document.createElement('button');rm.className='sec';rm.textContent='Remove picture';rm.onclick=()=>{pics.splice(i,1);renderPics();draw()};
     top.append(th,rm);card.append(top);
+    const bgb=document.createElement('button');bgb.className='sec';bgb.style.marginBottom='10px';bgb.textContent=p.cleared?'Put the background back':'Remove the background (checkerboard or plain color)';
+    bgb.onclick=()=>{
+      if(p.cleared){restoreBackground(p);p.cleared=false;renderPics();draw();return}
+      const r=clearBackground(p,30);
+      if(!r||r<0.02){status('Could not find a plain or checkerboard background on this picture.',true);return}
+      p.cleared=true;pic_bmp_reset(p);renderPics();draw();status('Background removed. If it ate part of the person, tap “Put the background back”.')};
+    card.append(bgb);
     const row=(label,min,max,step,key)=>{
       const l=document.createElement('div');l.className='lbl';l.textContent=label;
       const r=document.createElement('div');r.className='sl';
@@ -440,6 +448,35 @@ function renderPics(){
       b.onclick=()=>{p.anim=k;ch.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');seekToPic(p);draw()};ch.append(b)});
     card.append(ch);box.append(card)});
 }
+
+/* ---------- clear a picture's background (checkerboard or plain color) ---------- */
+function clearBackground(pic,tol){
+  const c=pic.cv,w=c.width,h=c.height,x=c.getContext('2d');
+  if(!pic.orig){pic.orig=document.createElement('canvas');pic.orig.width=w;pic.orig.height=h;pic.orig.getContext('2d').drawImage(c,0,0)}
+  x.clearRect(0,0,w,h);x.drawImage(pic.orig,0,0);
+  const im=x.getImageData(0,0,w,h),d=im.data;
+  // which colors run along the edge? (a checkerboard has two)
+  const bins=new Map();let n=0;
+  const add=(i)=>{const k=(d[i]>>4)+','+(d[i+1]>>4)+','+(d[i+2]>>4);bins.set(k,(bins.get(k)||0)+1);n++};
+  for(let i=0;i<w;i++){add(i*4);add(((h-1)*w+i)*4)}
+  for(let j=0;j<h;j++){add(j*w*4);add((j*w+w-1)*4)}
+  const bg=[...bins.entries()].filter(e=>e[1]>=n*0.04).sort((a,b)=>b[1]-a[1]).slice(0,4).map(e=>e[0].split(',').map(v=>v*16+8));
+  if(!bg.length)return 0;
+  const near=i=>{if(d[i+3]===0)return false;for(const b of bg){const dr=d[i]-b[0],dg=d[i+1]-b[1],db=d[i+2]-b[2];if(dr*dr+dg*dg+db*db<=tol*tol*3)return true}return false};
+  const seen=new Uint8Array(w*h),q=[];
+  const push=(px)=>{if(px<0||px>=w*h||seen[px])return;seen[px]=1;if(near(px*4))q.push(px)};
+  for(let i=0;i<w;i++){push(i);push((h-1)*w+i)}for(let j=0;j<h;j++){push(j*w);push(j*w+w-1)}
+  let removed=0;
+  while(q.length){const px=q.pop();d[px*4+3]=0;removed++;const xx=px%w;
+    if(xx>0)push(px-1);if(xx<w-1)push(px+1);push(px-w);push(px+w)}
+  x.putImageData(im,0,0);
+  if(window.createImageBitmap)createImageBitmap(c).then(b=>{pic.bmp=b;draw()}).catch(()=>{pic.bmp=null});else pic.bmp=null;
+  return removed/(w*h);
+}
+function pic_bmp_reset(p){draw()}
+function restoreBackground(pic){
+  if(!pic.orig)return;const c=pic.cv,x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);x.drawImage(pic.orig,0,0);
+  if(window.createImageBitmap)createImageBitmap(c).then(b=>{pic.bmp=b;draw()});else pic.bmp=null}
 
 /* ---------- text on the video ---------- */
 function drawTexts(t){
@@ -539,6 +576,7 @@ $('pauses').onclick=()=>{
 
 /* ---------- export ---------- */
 const FPS=30;
+document.addEventListener('visibilitychange',()=>{if(smoothing&&!document.hidden&&vid.paused)vid.play().catch(()=>{})});
 async function offlineOK(){
   try{
     if(!(vid.requestVideoFrameCallback&&window.VideoEncoder&&window.AudioEncoder&&window.VideoFrame&&window.AudioData&&window.Mp4Muxer))return false;
@@ -575,11 +613,11 @@ function fixAsc(d){
   return d;
 }
 async function exportOffline(fill){
-  let sc=1;
+  let sc=1;try{if(localStorage.getItem('mq_light')==='1')sc=2/3}catch(e){}
   for(;;){
     try{return await exportPass(fill,sc)}
     catch(e){
-      if(e&&e.tooSlow&&sc===1){sc=2/3;xs('This phone is a bit slow, switching to a lighter size so it stays smooth…');continue}
+      if(e&&e.tooSlow&&sc===1){sc=2/3;try{localStorage.setItem('mq_light','1')}catch(_){}xs('This phone is a bit slow, switching to a lighter size so it stays smooth…');continue}
       throw e}
     finally{cv.width=W;cv.height=H;ctx.setTransform(1,0,0,1,0,0);smoothing=false;tOv=null}
   }
@@ -610,7 +648,7 @@ async function exportPass(fill,sc){
   }
   // pictures: play each clip once (muted) and grab every picture as it appears
   const t0=performance.now();let next=0,rate=1,late=0,good=0,base=0;
-  let slow=false,lastChk=0,tDraw=0,tFrame=0,nDraw=0,cbs=0,dupSlots=0;
+  let stuck=false,slow=false,lastChk=0,tDraw=0,tFrame=0,nDraw=0,cbs=0,dupSlots=0;
   const emit=(to,final)=>{ // fill every 1/30s slot up to output time "to"
     let k=0;
     while(next<NT&&next/FPS<=to+0.002){
@@ -619,6 +657,12 @@ async function exportPass(fill,sc){
       venc.encode(f,{keyFrame:next%60===0});f.close();next++;
     }
   };
+  // warm up pictures and text once, so the first time they appear doesn't make the phone stall
+  if(pics.length||txts.length){
+    const w0=performance.now();
+    pics.forEach(p=>{const t=p.start+p.len/2;drawPics(t)});txts.forEach(x=>drawTexts(x.start+x.len/2));
+    await new Promise(r=>setTimeout(r,60));
+  }
   for(const g of segs){
     if(err)throw err;
     await seekTo(g.s);
@@ -644,11 +688,17 @@ async function exportPass(fill,sc){
         }
         vid.requestVideoFrameCallback(cb);
       };
-      const wd=setInterval(()=>{if(vid.currentTime>=g.e-0.02)fin();if(slow)fin()},200);
-      setTimeout(fin,((g.e-g.s)/0.25+10)*1000);
+      let lastP=vid.currentTime,lastAt=performance.now();
+      const wd=setInterval(()=>{
+        if(vid.currentTime>=g.e-0.02)fin();if(slow)fin();
+        if(vid.currentTime!==lastP){lastP=vid.currentTime;lastAt=performance.now()}
+        else if(document.hidden)lastAt=performance.now(); // away from the page: just wait
+        else if(performance.now()-lastAt>9000){stuck=true;fin()} // really stuck
+      },200);
       vid.playbackRate=rate;vid.requestVideoFrameCallback(cb);vid.play().catch(()=>fin());
     });
     vid.pause();
+    if(stuck){try{venc.close();aenc.close()}catch(e){}throw new Error('the video stopped playing. Keep this page open and the screen on, then try again.')}
     if(slow){try{venc.close();aenc.close()}catch(e){}throw {tooSlow:true}}
     base+=g.e-g.s;
     emit(base-0.001);
