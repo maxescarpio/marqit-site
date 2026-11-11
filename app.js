@@ -10415,6 +10415,18 @@
     var el = document.getElementById(p[0]);
     if(el) el.addEventListener('click', function(){ hamburgerMenu.style.display = 'none'; mqOpenHiddenTab(p[1]); });
   });
+  [['hamburger-news-btn', 'news'], ['hamburger-rankings-btn', 'standings']].forEach(function(p){
+    var el = document.getElementById(p[0]);
+    if(el) el.addEventListener('click', function(){ hamburgerMenu.style.display = 'none'; mqOpenHiddenTab(p[1]); });
+  });
+  // News is no longer a top tab, so its "something new" dot (set on the hidden tab) is mirrored onto the Menu button and the News item.
+  (function(){
+    var nt = document.querySelector('.pagenav-tab[data-page="news"]'), mb = document.getElementById('hamburger-btn'), ni = document.getElementById('hamburger-news-btn');
+    if(!nt || !mb) return;
+    function sync(){ var on = nt.classList.contains('has-new'); mb.classList.toggle('has-new', on); if(ni) ni.classList.toggle('has-new', on); }
+    new MutationObserver(sync).observe(nt, { attributes: true, attributeFilter: ['class'] });
+    sync();
+  })();
   (function(){
     var pb = document.getElementById('hamburger-plus-btn');
     if(pb) pb.addEventListener('click', function(){ hamburgerMenu.style.display = 'none'; mqOpenHiddenTab('plus'); });

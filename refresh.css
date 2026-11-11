@@ -2512,3 +2512,11 @@ a.mq-ss-ig{text-decoration:none}
 .mq-wm-h{margin:0}
 .mq-wm-h .mq-wm{font-size:1em}
 .plus-price-kicker .mq-wm{font-size:18px}
+
+/* ===== Tab row: Play, Leaderboard, Schedule, Teams, Marqit+ only. News and Rankings open from the Menu (like How to play).
+   The buttons stay in the page, hidden, so every existing link and the page-switching code keep working. ===== */
+.pagenav-tab[data-page="news"],.pagenav-tab[data-page="standings"]{display:none}
+/* the "something new in News" dot now sits on the Menu button and the News menu item */
+#hamburger-btn.has-new,#hamburger-news-btn.has-new{position:relative}
+#hamburger-btn.has-new::after,#hamburger-news-btn.has-new::after{content:'';position:absolute;width:8px;height:8px;border-radius:50%;background:#F5644F;top:-3px;right:-3px;box-shadow:0 0 0 2px var(--paper,#14161b)}
+#hamburger-news-btn.has-new::after{top:50%;right:12px;transform:translateY(-50%)}
