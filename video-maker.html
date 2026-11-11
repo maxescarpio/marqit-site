@@ -96,6 +96,7 @@ const W=1080,H=1920,COLORS=['#FFE600','#35D6FF'];
 const cv=$('cv');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
 const vid=document.createElement('video');vid.playsInline=true;vid.preload='auto';
 const wm=new Image();wm.src='video-watermark.png';wm.onload=()=>draw();
+const IS_PHONE=/iPhone|iPad|Android/i.test(navigator.userAgent)||navigator.maxTouchPoints>1;
 let capY=0.61,capS=1,showZones=false,msrc=null,wl=null,chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
 
 function status(m,err){const s=$('status');s.textContent=m;s.className=err?'err':''}
@@ -161,7 +162,8 @@ $('file').onchange=e=>{
     vid.play().then(()=>new Promise(r=>setTimeout(r,150))).catch(()=>{})
       .then(()=>{vid.pause();vid.currentTime=0.05;vid.muted=false;draw();
         ['play','auto','manual','exp'].forEach(i=>$(i).disabled=false);
-        status('Video ready ('+fmt(vid.duration)+'). Making captions…');$('auto').click()});
+        if(IS_PHONE)status('Video ready ('+fmt(vid.duration)+'). Tap “Auto captions” to make the captions.');
+        else{status('Video ready ('+fmt(vid.duration)+'). Making captions…');$('auto').click()}});
   };
   vid.onerror=()=>status('This video could not be opened here. Try Chrome, or export it as MP4 first.',true);
 };
@@ -220,14 +222,16 @@ function graph(){
 }
 // Listens to the video once, silently, while it plays. Works where decoding the file fails (iPhone .mov).
 async function captureAudio(onProg){
-  const ac=graph();await ac.resume();
+  const ac=graph();
+  await Promise.race([ac.resume(),new Promise(r=>setTimeout(r,600))]);
+  if(ac.state!=='running')throw new Error('NEEDGESTURE');
   vid.pause();vid.currentTime=0;await new Promise(r=>{vid.addEventListener('seeked',r,{once:true});setTimeout(r,600)});
   const sp=ac.createScriptProcessor(4096,1,1),mute=ac.createGain();mute.gain.value=0;
   const bufs=[];sp.onaudioprocess=e=>{bufs.push(new Float32Array(e.inputBuffer.getChannelData(0)))};
   msrc.connect(sp);sp.connect(mute);mute.connect(ac.destination);
   try{await vid.play()}catch(e){msrc.disconnect(sp);throw new Error('NEEDGESTURE')}
   const tick=setInterval(()=>onProg(vid.currentTime),300);
-  await new Promise(r=>vid.addEventListener('ended',r,{once:true}));
+  await new Promise(r=>{vid.addEventListener('ended',r,{once:true});setTimeout(r,(vid.duration+6)*1000)});
   clearInterval(tick);try{msrc.disconnect(sp);sp.disconnect();mute.disconnect()}catch(e){}
   const n=bufs.reduce((a,b)=>a+b.length,0),all=new Float32Array(n);let o=0;bufs.forEach(b=>{all.set(b,o);o+=b.length});
   const ratio=ac.sampleRate/16000,len=Math.floor(n/ratio),out=new Float32Array(len);
