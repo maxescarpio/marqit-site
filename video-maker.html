@@ -576,6 +576,7 @@ $('pauses').onclick=()=>{
 
 /* ---------- export ---------- */
 const FPS=30;
+document.addEventListener('visibilitychange',()=>{if(smoothing&&!document.hidden&&vid.paused)vid.play().catch(()=>{})});
 async function offlineOK(){
   try{
     if(!(vid.requestVideoFrameCallback&&window.VideoEncoder&&window.AudioEncoder&&window.VideoFrame&&window.AudioData&&window.Mp4Muxer))return false;
@@ -612,11 +613,11 @@ function fixAsc(d){
   return d;
 }
 async function exportOffline(fill){
-  let sc=1;
+  let sc=1;try{if(localStorage.getItem('mq_light')==='1')sc=2/3}catch(e){}
   for(;;){
     try{return await exportPass(fill,sc)}
     catch(e){
-      if(e&&e.tooSlow&&sc===1){sc=2/3;xs('This phone is a bit slow, switching to a lighter size so it stays smooth…');continue}
+      if(e&&e.tooSlow&&sc===1){sc=2/3;try{localStorage.setItem('mq_light','1')}catch(_){}xs('This phone is a bit slow, switching to a lighter size so it stays smooth…');continue}
       throw e}
     finally{cv.width=W;cv.height=H;ctx.setTransform(1,0,0,1,0,0);smoothing=false;tOv=null}
   }
@@ -647,7 +648,7 @@ async function exportPass(fill,sc){
   }
   // pictures: play each clip once (muted) and grab every picture as it appears
   const t0=performance.now();let next=0,rate=1,late=0,good=0,base=0;
-  let slow=false,lastChk=0,tDraw=0,tFrame=0,nDraw=0,cbs=0,dupSlots=0;
+  let stuck=false,slow=false,lastChk=0,tDraw=0,tFrame=0,nDraw=0,cbs=0,dupSlots=0;
   const emit=(to,final)=>{ // fill every 1/30s slot up to output time "to"
     let k=0;
     while(next<NT&&next/FPS<=to+0.002){
@@ -687,11 +688,17 @@ async function exportPass(fill,sc){
         }
         vid.requestVideoFrameCallback(cb);
       };
-      const wd=setInterval(()=>{if(vid.currentTime>=g.e-0.02)fin();if(slow)fin()},200);
-      setTimeout(fin,((g.e-g.s)/0.25+10)*1000);
+      let lastP=vid.currentTime,lastAt=performance.now();
+      const wd=setInterval(()=>{
+        if(vid.currentTime>=g.e-0.02)fin();if(slow)fin();
+        if(vid.currentTime!==lastP){lastP=vid.currentTime;lastAt=performance.now()}
+        else if(document.hidden)lastAt=performance.now(); // away from the page: just wait
+        else if(performance.now()-lastAt>9000){stuck=true;fin()} // really stuck
+      },200);
       vid.playbackRate=rate;vid.requestVideoFrameCallback(cb);vid.play().catch(()=>fin());
     });
     vid.pause();
+    if(stuck){try{venc.close();aenc.close()}catch(e){}throw new Error('the video stopped playing. Keep this page open and the screen on, then try again.')}
     if(slow){try{venc.close();aenc.close()}catch(e){}throw {tooSlow:true}}
     base+=g.e-g.s;
     emit(base-0.001);
