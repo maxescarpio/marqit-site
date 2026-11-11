@@ -38,3 +38,7 @@
 /post
   Cache-Control: no-cache
   X-Robots-Tag: noindex, nofollow
+
+/video
+  Cache-Control: no-cache
+  X-Robots-Tag: noindex, nofollow
