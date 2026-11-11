@@ -471,7 +471,7 @@ async function getPCM(){
   await captureAudio(t=>xs('Reading the sound… '+fmt(t)+' / '+fmt(vid.duration)));
   return pcmNative;
 }
-const seekTo=t=>new Promise(r=>{let d=false;const f=()=>{if(!d){d=true;vid.removeEventListener('seeked',f);r()}};vid.addEventListener('seeked',f);vid.currentTime=t;setTimeout(f,2000)});
+const seekTo=t=>Math.abs(vid.currentTime-t)<0.02?Promise.resolve():new Promise(r=>{let d=false;const f=()=>{if(!d){d=true;vid.removeEventListener('seeked',f);r()}};vid.addEventListener('seeked',f);vid.currentTime=t;setTimeout(f,2000)});
 async function exportOffline(fill){
   const pcm=await getPCM();
   vid.pause();vid.muted=true;smoothing=true;
@@ -489,7 +489,7 @@ async function exportOffline(fill){
     const a0=Math.floor(g.s*pcm.rate),a1=Math.min(pcm.data.length,Math.floor(g.e*pcm.rate));
     for(let o=a0;o<a1;o+=4096){
       const part=pcm.data.slice(o,Math.min(a1,o+4096));
-      const ad=new AudioData({format:'f32-planar',sampleRate:pcm.rate,numberOfFrames:part.length,numberOfChannels:1,timestamp:Math.round(ao/pcm.rate*1e6),data:part});
+      const ad=new AudioData({format:'f32',sampleRate:pcm.rate,numberOfFrames:part.length,numberOfChannels:1,timestamp:Math.round(ao/pcm.rate*1e6),data:part});
       aenc.encode(ad);ad.close();ao+=part.length;
       if(aenc.encodeQueueSize>30)await new Promise(r=>setTimeout(r,0));
     }
@@ -556,6 +556,7 @@ function deliver(blob,ext){
 }
 $('exp').onclick=async()=>{
   if(!loaded||exporting)return;exporting=true;$('exp').disabled=true;
+  const cutsUsed=segs.length&&(segs.length>1||Math.abs(segLen()-vid.duration)>0.1);
   if(await offlineOK()){
     const bar=$('bar');bar.style.display='block';const fill=bar.firstElementChild;
     try{
@@ -566,6 +567,7 @@ $('exp').onclick=async()=>{
       exporting=false;$('exp').disabled=false;vid.currentTime=0.05;return;
     }catch(e){smoothing=false;tOv=null;console.error('offline export failed, using live recording',e);try{vid.muted=false}catch(_){}xs('Switching to the other save method…')}
   }
+  if(cutsUsed){exporting=false;$('exp').disabled=false;xs('Your cuts need “smooth mode”, and this phone or browser cannot do it. Remove the cuts (or trim the video in Photos first) and try again.',true);return}
 
   const bar=$('bar');bar.style.display='block';const fill=bar.firstElementChild;
   try{
