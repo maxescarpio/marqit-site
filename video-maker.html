@@ -418,6 +418,13 @@ function renderPics(){
     const th=document.createElement('img');th.className='th';th.src=p.img.src;
     const rm=document.createElement('button');rm.className='sec';rm.textContent='Remove picture';rm.onclick=()=>{pics.splice(i,1);renderPics();draw()};
     top.append(th,rm);card.append(top);
+    const bgb=document.createElement('button');bgb.className='sec';bgb.style.marginBottom='10px';bgb.textContent=p.cleared?'Put the background back':'Remove the background (checkerboard or plain color)';
+    bgb.onclick=()=>{
+      if(p.cleared){restoreBackground(p);p.cleared=false;renderPics();draw();return}
+      const r=clearBackground(p,30);
+      if(!r||r<0.02){status('Could not find a plain or checkerboard background on this picture.',true);return}
+      p.cleared=true;pic_bmp_reset(p);renderPics();draw();status('Background removed. If it ate part of the person, tap “Put the background back”.')};
+    card.append(bgb);
     const row=(label,min,max,step,key)=>{
       const l=document.createElement('div');l.className='lbl';l.textContent=label;
       const r=document.createElement('div');r.className='sl';
@@ -441,6 +448,35 @@ function renderPics(){
       b.onclick=()=>{p.anim=k;ch.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');seekToPic(p);draw()};ch.append(b)});
     card.append(ch);box.append(card)});
 }
+
+/* ---------- clear a picture's background (checkerboard or plain color) ---------- */
+function clearBackground(pic,tol){
+  const c=pic.cv,w=c.width,h=c.height,x=c.getContext('2d');
+  if(!pic.orig){pic.orig=document.createElement('canvas');pic.orig.width=w;pic.orig.height=h;pic.orig.getContext('2d').drawImage(c,0,0)}
+  x.clearRect(0,0,w,h);x.drawImage(pic.orig,0,0);
+  const im=x.getImageData(0,0,w,h),d=im.data;
+  // which colors run along the edge? (a checkerboard has two)
+  const bins=new Map();let n=0;
+  const add=(i)=>{const k=(d[i]>>4)+','+(d[i+1]>>4)+','+(d[i+2]>>4);bins.set(k,(bins.get(k)||0)+1);n++};
+  for(let i=0;i<w;i++){add(i*4);add(((h-1)*w+i)*4)}
+  for(let j=0;j<h;j++){add(j*w*4);add((j*w+w-1)*4)}
+  const bg=[...bins.entries()].filter(e=>e[1]>=n*0.04).sort((a,b)=>b[1]-a[1]).slice(0,4).map(e=>e[0].split(',').map(v=>v*16+8));
+  if(!bg.length)return 0;
+  const near=i=>{if(d[i+3]===0)return false;for(const b of bg){const dr=d[i]-b[0],dg=d[i+1]-b[1],db=d[i+2]-b[2];if(dr*dr+dg*dg+db*db<=tol*tol*3)return true}return false};
+  const seen=new Uint8Array(w*h),q=[];
+  const push=(px)=>{if(px<0||px>=w*h||seen[px])return;seen[px]=1;if(near(px*4))q.push(px)};
+  for(let i=0;i<w;i++){push(i);push((h-1)*w+i)}for(let j=0;j<h;j++){push(j*w);push(j*w+w-1)}
+  let removed=0;
+  while(q.length){const px=q.pop();d[px*4+3]=0;removed++;const xx=px%w;
+    if(xx>0)push(px-1);if(xx<w-1)push(px+1);push(px-w);push(px+w)}
+  x.putImageData(im,0,0);
+  if(window.createImageBitmap)createImageBitmap(c).then(b=>{pic.bmp=b;draw()}).catch(()=>{pic.bmp=null});else pic.bmp=null;
+  return removed/(w*h);
+}
+function pic_bmp_reset(p){draw()}
+function restoreBackground(pic){
+  if(!pic.orig)return;const c=pic.cv,x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);x.drawImage(pic.orig,0,0);
+  if(window.createImageBitmap)createImageBitmap(c).then(b=>{pic.bmp=b;draw()});else pic.bmp=null}
 
 /* ---------- text on the video ---------- */
 function drawTexts(t){
