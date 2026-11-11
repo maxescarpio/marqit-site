@@ -90,6 +90,12 @@ button.linkbtn{background:none;color:var(--muted);text-decoration:underline;font
 <p class="sub" style="margin:0 0 8px">Tap the number button to switch speaker. Each speaker gets their own color.</p>
 <div id="list"></div></div>
 
+<details class="card" id="cutCard"><summary>Cut the video (remove parts, reorder)</summary>
+<p class="sub" style="margin:0 0 10px">Play to where you want a cut, tap <b>Split here</b>. Then <b>Remove</b> the part you don’t want. Captions follow your cuts.</p>
+<button id="split" class="sec" disabled>Split here</button>
+<div id="segs"></div>
+<div id="segtotal" class="sub" style="margin-top:8px"></div></details>
+
 <details class="card"><summary>Change how the captions look</summary>
 <div class="lbl">Up / down (0 = top, 100 = bottom)</div>
 <div class="sl"><input id="capYr" type="range" min="0" max="100" step="1" style="grid-column:1/3"><input id="capY" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
@@ -132,7 +138,7 @@ const cv=$('cv');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
 const vid=document.createElement('video');vid.playsInline=true;vid.preload='auto';
 const wm=new Image();wm.src='video-watermark.png';let wmBox=null;wm.onload=()=>{try{const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.drawImage(wm,0,0,W,H);const d=x.getImageData(0,0,W,H).data;let x0=W,y0=H,x1=0,y1=0;for(let y=0;y<H;y+=2)for(let i=0;i<W;i+=2){if(d[(y*W+i)*4+3]>0){if(i<x0)x0=i;if(i>x1)x1=i;if(y<y0)y0=y;if(y>y1)y1=y}}if(x1>x0)wmBox=[Math.max(0,x0-4),Math.max(0,y0-4),Math.min(W,x1+6),Math.min(H,y1+6)]}catch(e){}draw()};
 const IS_PHONE=/iPhone|iPad|Android/i.test(navigator.userAgent)||navigator.maxTouchPoints>1;
-let pcmNative=null,capY=0.6,capS=1,msrc=null,wl=null,chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
+let smoothing=false,tOv=null,segs=[],curSeg=null,pcmNative=null,capY=0.6,capS=1,msrc=null,wl=null,chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
 
 function xs(m,err){const e=$('xstatus');e.textContent=m;e.style.color=err?'var(--warn)':'';status(m,err)}
 function status(m,err){const s=$('status');s.textContent=m;s.className=err?'err':''}
@@ -140,7 +146,7 @@ const fmt=t=>Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');
 
 /* ---------- drawing ---------- */
 function draw(){
-  const t=vid.currentTime||0;
+  const t=tOv!=null?tOv:(vid.currentTime||0);
   ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
   if(loaded&&vid.videoWidth){
     const s=Math.max(W/vid.videoWidth,H/vid.videoHeight),w=vid.videoWidth*s,h=vid.videoHeight*s;
@@ -150,7 +156,7 @@ function draw(){
   if(wm.complete&&wm.naturalWidth){if(wmBox){const[a,b,c2,d2]=wmBox;ctx.drawImage(wm,a,b,c2-a,d2-b,a,b,c2-a,d2-b)}else ctx.drawImage(wm,0,0,W,H)}
   const c=chunks.find(c=>t>=c.start&&t<=c.end+0.2);
   if(c)drawCaption(c,t);
-  $('clock').textContent=fmt(t)+' / '+fmt(vid.duration||0);
+  if(tOv==null)$('clock').textContent=fmt(t)+' / '+fmt(vid.duration||0);
 }
 function drawCaption(c,t){
   ctx.textBaseline='middle';ctx.lineJoin='round';
@@ -185,7 +191,15 @@ function paintCaption(c,t,lines,size,sp){
       ctx.textAlign='left';ctx.strokeStyle='rgba(0,0,0,.92)';ctx.lineWidth=size*0.17;ctx.strokeText(w.t,x,y);
       ctx.fillStyle=w.i===active?COLORS[c.spk]:TEXTC;ctx.fillText(w.t,x,y);x+=w.w+sp})});
 }
-function loop(){draw();if(!vid.paused&&!vid.ended)raf=requestAnimationFrame(loop)}
+function loop(){
+  if(smoothing)return;
+  if(!exporting&&segs.length&&!vid.paused){
+    const t=vid.currentTime;let i=segs.findIndex(g=>t>=g.s-0.05&&t<g.e);
+    if(i<0){ // in a removed part: go to the next kept clip
+      const n=segs.find(g=>g.s>t);if(n)vid.currentTime=n.s;else vid.pause()}
+    else{curSeg=i;if(t>=segs[i].e-0.04){const n=segs[i+1];if(n)vid.currentTime=n.s;else vid.pause()}}
+  }
+  draw();if(!vid.paused&&!vid.ended)raf=requestAnimationFrame(loop)}
 vid.addEventListener('seeked',draw);vid.addEventListener('loadeddata',draw);vid.addEventListener('canplay',draw);vid.addEventListener('timeupdate',()=>{if(vid.paused)draw()});
 vid.addEventListener('play',()=>{$('play').textContent='Pause';loop()});
 vid.addEventListener('pause',()=>{$('play').textContent='Play';draw()});
@@ -197,7 +211,7 @@ $('file').onchange=e=>{
   const f=e.target.files[0];if(!f)return;srcFile=f;loaded=false;chunks=[];renderList();
   status('Loading video…');
   vid.src=URL.createObjectURL(f);
-  vid.onloadedmetadata=()=>{loaded=true;lengthCheck(vid.duration);vid.currentTime=0.05;draw();
+  vid.onloadedmetadata=()=>{loaded=true;segs=[{s:0,e:vid.duration}];renderSegs();$('split').disabled=false;vid.currentTime=0.05;draw();
     // iPhone Safari draws no frame until the video has played a moment: do a silent 1-frame play first
     vid.muted=true;
     vid.play().then(()=>new Promise(r=>setTimeout(r,150))).catch(()=>{})
@@ -413,11 +427,35 @@ function renderPics(){
     card.append(ch);box.append(card)});
 }
 
+/* ---------- cut editor ---------- */
+const segLen=()=>segs.reduce((a,g)=>a+(g.e-g.s),0);
+function renderSegs(){
+  const box=$('segs');box.innerHTML='';
+  segs.forEach((g,i)=>{
+    const r=document.createElement('div');r.className='pic';
+    r.innerHTML='<div style="font-weight:700">Clip '+(i+1)+': '+fmt2(g.s)+' → '+fmt2(g.e)+' <span class="sub" style="margin:0">('+(g.e-g.s).toFixed(1)+'s)</span></div>';
+    const b=document.createElement('div');b.className='row';b.style.marginTop='8px';
+    const mk=(txt,fn,dis)=>{const x=document.createElement('button');x.type='button';x.className='sec';x.textContent=txt;x.disabled=!!dis;x.onclick=fn;b.append(x)};
+    mk('Show',()=>{vid.currentTime=g.s+0.05;draw()});
+    mk('Up',()=>{[segs[i-1],segs[i]]=[segs[i],segs[i-1]];renderSegs()},i===0);
+    mk('Down',()=>{[segs[i+1],segs[i]]=[segs[i],segs[i+1]];renderSegs()},i===segs.length-1);
+    mk('Remove',()=>{segs.splice(i,1);renderSegs()},segs.length<2);
+    r.append(b);box.append(r)});
+  $('segtotal').textContent=segs.length?'Your video will be '+segLen().toFixed(1)+' seconds long.':'';
+  if(loaded)lengthCheck(segLen());
+}
+const fmt2=t=>Math.floor(t/60)+':'+(t%60).toFixed(1).padStart(4,'0');
+$('split').onclick=()=>{
+  const t=vid.currentTime,i=segs.findIndex(g=>t>g.s+0.3&&t<g.e-0.3);
+  if(i<0){status('Move the video to a spot inside a clip (not right at its start or end), then tap Split here.',true);return}
+  const g=segs[i];segs.splice(i,1,{s:g.s,e:t},{s:t,e:g.e});renderSegs();status('Split. Now tap Remove on the part you don’t want.')
+};
+
 /* ---------- export ---------- */
 const FPS=30;
 async function offlineOK(){
   try{
-    if(!(window.VideoEncoder&&window.AudioEncoder&&window.VideoFrame&&window.AudioData&&window.Mp4Muxer))return false;
+    if(!(vid.requestVideoFrameCallback&&window.VideoEncoder&&window.AudioEncoder&&window.VideoFrame&&window.AudioData&&window.Mp4Muxer))return false;
     const v=await VideoEncoder.isConfigSupported({codec:'avc1.64002A',width:W,height:H,bitrate:8e6,framerate:FPS});
     const a=await AudioEncoder.isConfigSupported({codec:'mp4a.40.2',sampleRate:48000,numberOfChannels:1,bitrate:128000});
     return !!(v.supported&&a.supported);
@@ -436,43 +474,74 @@ async function getPCM(){
 const seekTo=t=>new Promise(r=>{let d=false;const f=()=>{if(!d){d=true;vid.removeEventListener('seeked',f);r()}};vid.addEventListener('seeked',f);vid.currentTime=t;setTimeout(f,2000)});
 async function exportOffline(fill){
   const pcm=await getPCM();
-  vid.pause();vid.muted=true;
-  const dur=vid.duration,N=Math.floor(dur*FPS);
+  vid.pause();vid.muted=true;smoothing=true;
+  const total=segLen(),NT=Math.floor(total*FPS);
+  const peak=pcm.data.reduce((m,v,i)=>i%50?m:Math.max(m,Math.abs(v)),0);
   const muxer=new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(),video:{codec:'avc',width:W,height:H},audio:{codec:'aac',numberOfChannels:1,sampleRate:pcm.rate},fastStart:'in-memory'});
-  let err=null;
+  let err=null,aChunks=0;
   const venc=new VideoEncoder({output:(c,m)=>muxer.addVideoChunk(c,m),error:e=>err=e});
   venc.configure({codec:'avc1.64002A',width:W,height:H,bitrate:8e6,framerate:FPS});
-  const aenc=new AudioEncoder({output:(c,m)=>muxer.addAudioChunk(c,m),error:e=>err=e});
+  const aenc=new AudioEncoder({output:(c,m)=>{aChunks++;muxer.addAudioChunk(c,m)},error:e=>err=e});
   aenc.configure({codec:'mp4a.40.2',sampleRate:pcm.rate,numberOfChannels:1,bitrate:128000});
-  // sound first (fast)
-  const total=Math.min(pcm.data.length,Math.floor(dur*pcm.rate)),CH=4096;
-  for(let o=0;o<total;o+=CH){
-    const part=pcm.data.slice(o,Math.min(total,o+CH));
-    const ad=new AudioData({format:'f32-planar',sampleRate:pcm.rate,numberOfFrames:part.length,numberOfChannels:1,timestamp:Math.round(o/pcm.rate*1e6),data:part});
-    aenc.encode(ad);ad.close();
-    if(aenc.encodeQueueSize>30)await new Promise(r=>setTimeout(r,0));
+  // sound: the kept clips, one after another
+  let ao=0;
+  for(const g of segs){
+    const a0=Math.floor(g.s*pcm.rate),a1=Math.min(pcm.data.length,Math.floor(g.e*pcm.rate));
+    for(let o=a0;o<a1;o+=4096){
+      const part=pcm.data.slice(o,Math.min(a1,o+4096));
+      const ad=new AudioData({format:'f32-planar',sampleRate:pcm.rate,numberOfFrames:part.length,numberOfChannels:1,timestamp:Math.round(ao/pcm.rate*1e6),data:part});
+      aenc.encode(ad);ad.close();ao+=part.length;
+      if(aenc.encodeQueueSize>30)await new Promise(r=>setTimeout(r,0));
+    }
   }
-  // then every picture, one at a time
-  const t0=performance.now();
-  for(let i=0;i<N;i++){
+  // pictures: play each clip once (muted) and grab every picture as it appears
+  const t0=performance.now();let next=0,rate=1,late=0,good=0,base=0;
+  const emit=(to,final)=>{ // fill every 1/30s slot up to output time "to"
+    while(next<NT&&next/FPS<=to+0.002){
+      if(next/FPS<to-1.5/FPS)late++;else good++;
+      const f=new VideoFrame(cv,{timestamp:Math.round(next*1e6/FPS),duration:Math.round(1e6/FPS)});
+      venc.encode(f,{keyFrame:next%60===0});f.close();next++;
+    }
+  };
+  for(const g of segs){
     if(err)throw err;
-    await seekTo(Math.min(i/FPS,dur-0.001));
-    // iPhone can say 'seeked' before the new picture is ready: wait for the real frame
-    if(vid.requestVideoFrameCallback)await new Promise(r=>{let d=false;const f=()=>{if(!d){d=true;r()}};vid.requestVideoFrameCallback(f);setTimeout(f,120);
-      // nudge so a callback fires even when paused
-      vid.currentTime=Math.min(i/FPS,dur-0.001)});
-    draw();
-    const f=new VideoFrame(cv,{timestamp:Math.round(i*1e6/FPS),duration:Math.round(1e6/FPS)});
-    venc.encode(f,{keyFrame:i%60===0});f.close();
-    while(venc.encodeQueueSize>8)await new Promise(r=>setTimeout(r,5));
-    if(i%5===0){fill.style.width=(i/N*100)+'%';const el=(performance.now()-t0)/1000,left=Math.max(0,Math.round(el/(i+1)*(N-i)));
-      xs('Smooth mode: making your video… '+Math.round(i/N*100)+'%'+(i>15?' (about '+left+'s left)':'')+'. Keep this page open.')}
+    await seekTo(g.s);
+    await new Promise(res=>{
+      let done=false;const fin=()=>{if(!done){done=true;clearInterval(wd);res()}};
+      const cb=(now,meta)=>{
+        if(done)return;
+        const m=meta.mediaTime;
+        if(m>=g.e-0.005||vid.ended){fin();return}
+        const to=base+(m-g.s);
+        if(next/FPS<=to+0.002){
+          tOv=m;draw();emit(to);
+          if(next%10===0){
+            if(late>2){rate=Math.max(0.4,rate*0.7);vid.playbackRate=rate}
+            else if(good>45&&rate<1){rate=Math.min(1,rate*1.15);vid.playbackRate=rate;good=0}
+            late=0;
+            fill.style.width=(next/NT*100)+'%';
+            const el=(performance.now()-t0)/1000,left=Math.max(0,Math.round(el/Math.max(1,next)*(NT-next)));
+            xs('Making your video… '+Math.round(next/NT*100)+'%'+(next>30?' (about '+left+'s left)':'')+'. Keep this page open.');
+          }
+          if(venc.encodeQueueSize>10){rate=Math.max(0.4,rate*0.8);vid.playbackRate=rate}
+        }
+        vid.requestVideoFrameCallback(cb);
+      };
+      const wd=setInterval(()=>{if(vid.currentTime>=g.e-0.02)fin()},200);
+      setTimeout(fin,((g.e-g.s)/0.4+10)*1000);
+      vid.playbackRate=rate;vid.requestVideoFrameCallback(cb);vid.play().catch(()=>fin());
+    });
+    vid.pause();base+=g.e-g.s;
+    emit(base-0.001);
   }
+  tOv=null;smoothing=false;
   xs('Finishing your video…');
   await venc.flush();await aenc.flush();
   if(err)throw err;
   muxer.finalize();
-  vid.muted=false;
+  vid.muted=false;vid.playbackRate=1;
+  const secs=Math.round((performance.now()-t0)/1000);
+  window.__exportInfo='Made '+total.toFixed(1)+'s video in '+secs+'s. Sound: '+(aChunks&&peak>0.001?'yes':'NONE FOUND');
   return new Blob([muxer.target.buffer],{type:'video/mp4'});
 }
 function deliver(blob,ext){
@@ -493,9 +562,9 @@ $('exp').onclick=async()=>{
       try{if(navigator.wakeLock)wl=await navigator.wakeLock.request('screen')}catch(e){}
       const blob=await exportOffline(fill);
       try{wl&&wl.release()}catch(e){}
-      fill.style.width='100%';deliver(blob,'mp4');
+      fill.style.width='100%';deliver(blob,'mp4');if(window.__exportInfo)$('xstatus').textContent+='  ('+window.__exportInfo+')';
       exporting=false;$('exp').disabled=false;vid.currentTime=0.05;return;
-    }catch(e){console.error('offline export failed, using live recording',e);try{vid.muted=false}catch(_){}xs('Switching to the other save method…')}
+    }catch(e){smoothing=false;tOv=null;console.error('offline export failed, using live recording',e);try{vid.muted=false}catch(_){}xs('Switching to the other save method…')}
   }
 
   const bar=$('bar');bar.style.display='block';const fill=bar.firstElementChild;
