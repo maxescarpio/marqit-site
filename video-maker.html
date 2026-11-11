@@ -85,19 +85,28 @@ function draw(){
   $('clock').textContent=fmt(t)+' / '+fmt(vid.duration||0);
 }
 function drawCaption(c,t){
-  ctx.font='700 92px Helvetica,Arial,sans-serif';ctx.textBaseline='middle';ctx.lineJoin='round';
-  const maxW=W-300,sp=ctx.measureText(' ').width;
-  const lines=[];let cur=[],curW=0;
-  c.words.forEach((w,i)=>{const ww=ctx.measureText(w.t).width;
-    if(cur.length&&curW+sp+ww>maxW){lines.push({ws:cur,w:curW});cur=[];curW=0}
-    cur.push({...w,i,ww});curW+=(cur.length>1?sp:0)+ww});
-  if(cur.length)lines.push({ws:cur,w:curW});
+  ctx.textBaseline='middle';ctx.lineJoin='round';
+  const maxW=W-180,n=c.words.length;
+  const font=px=>ctx.font='700 '+px+'px Helvetica,Arial,sans-serif';
+  const width=(ws,sp)=>ws.reduce((a,w)=>a+ctx.measureText(w.t).width,0)+sp*Math.max(0,ws.length-1);
+  const ws=c.words.map((w,i)=>({...w,i}));
+  // 1) try everything on one line, shrinking the text a bit if needed
+  let size=92,lines=null;
+  for(;size>=64;size-=4){font(size);if(width(ws,ctx.measureText(' ').width)<=maxW){lines=[ws];break}}
+  // 2) otherwise split into two balanced lines (never one word alone on top or bottom)
+  if(!lines){
+    const k=Math.ceil(n/2);lines=[ws.slice(0,k),ws.slice(k)].filter(l=>l.length);
+    for(size=92;size>=56;size-=4){font(size);const sp=ctx.measureText(' ').width;
+      if(lines.every(l=>width(l,sp)<=maxW))break}
+  }
+  font(size);const sp=ctx.measureText(' ').width;
   let active=-1;c.words.forEach((w,i)=>{if(t>=w.s)active=i});
-  const lh=112,top=1180-(lines.length*lh)/2+lh/2;
-  lines.forEach((ln,li)=>{let x=(W-ln.w)/2;const y=top+li*lh;
-    ln.ws.forEach(w=>{
-      ctx.textAlign='left';ctx.strokeStyle='rgba(0,0,0,.92)';ctx.lineWidth=16;ctx.strokeText(w.t,x,y);
-      ctx.fillStyle=w.i===active?COLORS[c.spk]:'#fff';ctx.fillText(w.t,x,y);x+=w.ww+sp})});
+  const lh=size*1.22,top=1180-(lines.length*lh)/2+lh/2;
+  lines.forEach((ln,li)=>{
+    const lw=width(ln,sp);let x=(W-lw)/2;const y=top+li*lh;
+    ln.forEach(w=>{
+      ctx.textAlign='left';ctx.strokeStyle='rgba(0,0,0,.92)';ctx.lineWidth=size*0.17;ctx.strokeText(w.t,x,y);
+      ctx.fillStyle=w.i===active?COLORS[c.spk]:'#fff';ctx.fillText(w.t,x,y);x+=ctx.measureText(w.t).width+sp})});
 }
 function loop(){draw();if(!vid.paused&&!vid.ended)raf=requestAnimationFrame(loop)}
 vid.addEventListener('seeked',draw);vid.addEventListener('timeupdate',()=>{if(vid.paused)draw()});
