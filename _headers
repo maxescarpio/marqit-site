@@ -34,3 +34,7 @@
 /widget.html
   Cache-Control: no-cache
   Content-Security-Policy: frame-ancestors *
+
+/post
+  Cache-Control: no-cache
+  X-Robots-Tag: noindex, nofollow
