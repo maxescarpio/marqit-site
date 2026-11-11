@@ -47,6 +47,10 @@ textarea{font-size:16px}
  .row button{flex:1}
  #play{flex:0 0 auto;width:auto}
 }
+.sl{display:grid;grid-template-columns:78px minmax(0,1fr);gap:10px;align-items:center;margin-bottom:10px}
+.sl input{width:100%;height:36px;accent-color:var(--accent)}
+.chk{display:flex;gap:10px;align-items:center;color:var(--muted)}
+.chk input{width:22px;height:22px}
 .bar{height:8px;background:var(--field);border-radius:4px;overflow:hidden;margin-top:8px;display:none}
 .bar i{display:block;height:100%;width:0;background:var(--accent)}
 </style></head><body>
@@ -73,7 +77,13 @@ textarea{font-size:16px}
 <p class="sub" style="margin:0 0 8px">Tap the colored button to switch speaker 1 (yellow) and speaker 2 (blue).</p>
 <div id="list"></div></div>
 
-<div class="card"><h2>4. Save</h2>
+<div class="card"><h2>4. Move the captions</h2>
+<label class="sl"><span>Up / down</span><input id="capY" type="range" min="15" max="85" value="61"></label>
+<label class="sl"><span>Size</span><input id="capS" type="range" min="60" max="140" value="100"></label>
+<label class="chk"><input id="zones" type="checkbox"> Show where Instagram and TikTok cover the screen</label>
+<button id="reset" class="sec" style="margin-top:10px">Reset captions</button></div>
+
+<div class="card"><h2>5. Save</h2>
 <button id="exp" disabled>Export video</button>
 <button id="save" hidden style="margin-top:10px">Save to Photos</button>
 <div class="bar" id="bar"><i></i></div>
@@ -86,7 +96,7 @@ const W=1080,H=1920,COLORS=['#FFE600','#35D6FF'];
 const cv=$('cv');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
 const vid=document.createElement('video');vid.playsInline=true;vid.preload='auto';
 const wm=new Image();wm.src='video-watermark.png';wm.onload=()=>draw();
-let msrc=null,wl=null,chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
+let capY=0.61,capS=1,showZones=false,msrc=null,wl=null,chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
 
 function status(m,err){const s=$('status');s.textContent=m;s.className=err?'err':''}
 const fmt=t=>Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');
@@ -102,6 +112,10 @@ function draw(){
   if(wm.complete&&wm.naturalWidth)ctx.drawImage(wm,0,0,W,H);
   const c=chunks.find(c=>t>=c.start&&t<=c.end+0.2);
   if(c)drawCaption(c,t);
+  if(showZones&&!exporting){ctx.fillStyle='rgba(255,60,60,.28)';
+    ctx.fillRect(0,0,W,170);ctx.fillRect(0,H-420,W,420);ctx.fillRect(W-140,H-900,140,480);
+    ctx.fillStyle='#fff';ctx.font='700 34px Helvetica,Arial,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText('Covered by the app',40,H-210)}
   $('clock').textContent=fmt(t)+' / '+fmt(vid.duration||0);
 }
 function drawCaption(c,t){
@@ -111,17 +125,18 @@ function drawCaption(c,t){
   const width=(ws,sp)=>ws.reduce((a,w)=>a+ctx.measureText(w.t).width,0)+sp*Math.max(0,ws.length-1);
   const ws=c.words.map((w,i)=>({...w,i}));
   // 1) try everything on one line, shrinking the text a bit if needed
-  let size=92,lines=null;
-  for(;size>=64;size-=4){font(size);if(width(ws,ctx.measureText(' ').width)<=maxW){lines=[ws];break}}
+  const base=Math.round(92*capS),minS=Math.round(64*capS);
+  let size=base,lines=null;
+  for(;size>=minS;size-=4){font(size);if(width(ws,ctx.measureText(' ').width)<=maxW){lines=[ws];break}}
   // 2) otherwise split into two balanced lines (never one word alone on top or bottom)
   if(!lines){
     const k=Math.ceil(n/2);lines=[ws.slice(0,k),ws.slice(k)].filter(l=>l.length);
-    for(size=92;size>=56;size-=4){font(size);const sp=ctx.measureText(' ').width;
+    for(size=base;size>=Math.round(56*capS);size-=4){font(size);const sp=ctx.measureText(' ').width;
       if(lines.every(l=>width(l,sp)<=maxW))break}
   }
   font(size);const sp=ctx.measureText(' ').width;
   let active=-1;c.words.forEach((w,i)=>{if(t>=w.s)active=i});
-  const lh=size*1.22,top=1180-(lines.length*lh)/2+lh/2;
+  const lh=size*1.22,top=capY*H-(lines.length*lh)/2+lh/2;
   lines.forEach((ln,li)=>{
     const lw=width(ln,sp);let x=(W-lw)/2;const y=top+li*lh;
     ln.forEach(w=>{
@@ -266,6 +281,23 @@ $('pasteGo').onclick=()=>{
   const v=$('paste').value.trim();if(!v)return;
   chunks=fromText(v);renderList();draw();status('Captions added, spread evenly over the video. Tap a caption’s time to jump there and fix the words.');
 };
+
+/* ---------- caption position & size ---------- */
+try{const sv=JSON.parse(localStorage.getItem('mq_cap')||'null');if(sv){capY=sv.y;capS=sv.s}}catch(e){}
+$('capY').value=Math.round(capY*100);$('capS').value=Math.round(capS*100);
+function seekToCaption(){
+  const t=vid.currentTime||0;
+  if(!chunks.length||chunks.some(c=>t>=c.start&&t<=c.end+0.2))return;
+  const c=chunks.reduce((a,b)=>Math.abs(b.start-t)<Math.abs(a.start-t)?b:a);
+  vid.currentTime=c.start+(c.end-c.start)*0.6;
+}
+function capChange(){
+  capY=$('capY').value/100;capS=$('capS').value/100;showZones=$('zones').checked;
+  try{localStorage.setItem('mq_cap',JSON.stringify({y:capY,s:capS}))}catch(e){}
+  if(vid.paused)seekToCaption();draw();
+}
+['capY','capS','zones'].forEach(i=>$(i).addEventListener('input',capChange));
+$('reset').onclick=()=>{$('capY').value=61;$('capS').value=100;capChange()};
 
 /* ---------- export ---------- */
 $('exp').onclick=async()=>{
