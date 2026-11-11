@@ -839,6 +839,8 @@
   .predict-card.pick-yes{border-color:rgba(51,209,139,.6);}
   .predict-card.pick-no{border-color:rgba(245,100,79,.6);}
   .mq-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .mq-why{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:13px;font-weight:500;line-height:1.35;color:var(--ink-soft);}
+  .mq-why::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:#F5C336;opacity:.85;}
   .lock-chip,.pts-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 11px 4px 9px;border-radius:100px;font-size:12px;font-weight:600;}
   .mq-chips svg{width:13px;height:13px;flex:none;}
   .lock-chip{background:rgba(128,136,150,.18);color:var(--ink-soft);font-variant-numeric:tabular-nums;}
