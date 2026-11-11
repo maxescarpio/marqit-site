@@ -110,6 +110,7 @@ button.linkbtn{background:none;color:var(--muted);text-decoration:underline;font
 <button id="exp" disabled>Export video</button>
 <button id="save" hidden style="margin-top:10px">Save to Photos</button>
 <div class="bar" id="bar"><i></i></div>
+<div id="xstatus" style="margin-top:10px;font-weight:700;overflow-wrap:anywhere"></div>
 <p class="sub" style="margin:8px 0 0">Keep the screen on and this page open until it finishes.</p></div>
 
 <details class="card"><summary>Filming tips</summary>
@@ -132,6 +133,7 @@ const wm=new Image();wm.src='video-watermark.png';wm.onload=()=>draw();
 const IS_PHONE=/iPhone|iPad|Android/i.test(navigator.userAgent)||navigator.maxTouchPoints>1;
 let capY=0.6,capS=1,msrc=null,wl=null,chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
 
+function xs(m,err){const e=$('xstatus');e.textContent=m;e.style.color=err?'var(--warn)':'';status(m,err)}
 function status(m,err){const s=$('status');s.textContent=m;s.className=err?'err':''}
 const fmt=t=>Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');
 
@@ -413,25 +415,35 @@ $('exp').onclick=async()=>{
     const rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:8e6}:{videoBitsPerSecond:8e6});
     const parts=[];rec.ondataavailable=e=>{if(e.data.size)parts.push(e.data)};
     const done=new Promise(r=>rec.onstop=r);
-    status('Exporting… keep the screen on and this page open.');
+    xs('Exporting… keep the screen on and this page open.');
     try{if(navigator.wakeLock)wl=await navigator.wakeLock.request('screen')}catch(e){}
     rec.start(500);await vid.play();
-    const tick=setInterval(()=>{fill.style.width=Math.min(100,vid.currentTime/vid.duration*100)+'%'},250);
-    await new Promise(r=>vid.addEventListener('ended',r,{once:true}));
-    await new Promise(r=>setTimeout(r,400));rec.stop();await done;clearInterval(tick);
+    const tick=setInterval(()=>{fill.style.width=Math.min(100,vid.currentTime/vid.duration*100)+'%';xs('Exporting… '+fmt(vid.currentTime)+' / '+fmt(vid.duration)+'. Keep this page open.')},250);
+    // wait for the end of the video, however this browser reports it (iPhone sometimes never sends 'ended')
+    await new Promise(r=>{let d=false;const fin=()=>{if(!d){d=true;clearInterval(iv);r()}};
+      vid.addEventListener('ended',fin,{once:true});
+      const iv=setInterval(()=>{if(vid.currentTime>=vid.duration-0.08)fin()},200);
+      setTimeout(fin,(vid.duration+8)*1000)});
+    await new Promise(r=>setTimeout(r,500));
+    clearInterval(tick);vid.pause();
+    xs('Finishing your video…');
+    try{rec.requestData()}catch(e){}
+    try{rec.stop()}catch(e){}
+    await Promise.race([done,new Promise(r=>setTimeout(r,6000))]);
+    if(!parts.length)throw new Error('nothing was recorded. Try again, and keep this page open and the screen on.');
     const ext=(rec.mimeType||mime).includes('mp4')?'mp4':'webm';
     const blob=new Blob(parts,{type:rec.mimeType||mime||'video/webm'});
     try{wl&&wl.release()}catch(e){}
     fill.style.width='100%';
     const file=new File([blob],'marqit-video.'+ext,{type:blob.type});
     if(ext==='mp4'&&navigator.canShare&&navigator.canShare({files:[file]})){
-      status('Done! Tap “Save to Photos”.');
+      xs('Done! Tap “Save to Photos” below.');
       const sb=$('save');sb.hidden=false;sb.onclick=async()=>{try{await navigator.share({files:[file]})}catch(e){}};
     }else{
       const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;document.body.appendChild(a);a.click();a.remove();
-      status(ext==='mp4'?'Done. Your MP4 was saved.':'Done, but this browser made a WEBM, not an MP4. Use Chrome on a computer, or Safari on an iPhone, to get an MP4.');
+      xs(ext==='mp4'?'Done. Your MP4 was saved.':'Done, but this browser made a WEBM, not an MP4. Use Chrome on a computer, or Safari on an iPhone, to get an MP4.');
     }
-  }catch(e){console.error(e);status('Export failed: '+(e.message||e),true)}
+  }catch(e){console.error(e);try{vid.pause()}catch(_){}xs('Export failed: '+(e.message||e),true)}
   exporting=false;$('exp').disabled=false;vid.currentTime=0.05;
 };
 draw();
