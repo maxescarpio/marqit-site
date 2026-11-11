@@ -472,16 +472,44 @@ async function getPCM(){
   return pcmNative;
 }
 const seekTo=t=>Math.abs(vid.currentTime-t)<0.02?Promise.resolve():new Promise(r=>{let d=false;const f=()=>{if(!d){d=true;vid.removeEventListener('seeked',f);r()}};vid.addEventListener('seeked',f);vid.currentTime=t;setTimeout(f,2000)});
+// Safari hands back the AAC setup wrapped inside another descriptor; the MP4 needs just the 2-byte core
+function fixAsc(d){
+  try{
+    let b=d instanceof ArrayBuffer?new Uint8Array(d):new Uint8Array(d.buffer,d.byteOffset,d.byteLength);
+    if(b[0]!==3)return d;
+    let o=0;
+    while(o<b.length){
+      const tag=b[o++];let len=0,c;do{c=b[o++];len=(len<<7)|(c&0x7f)}while(c&0x80&&o<b.length);
+      if(tag===5)return b.slice(o,o+len);
+      if(tag===3){o+=3;continue}
+      if(tag===4){o+=13;continue}
+      o+=len;
+    }
+  }catch(e){}
+  return d;
+}
 async function exportOffline(fill){
+  let sc=1;
+  for(;;){
+    try{return await exportPass(fill,sc)}
+    catch(e){
+      if(e&&e.tooSlow&&sc===1){sc=2/3;xs('This phone is a bit slow, switching to a lighter size so it stays smooth…');continue}
+      throw e}
+    finally{cv.width=W;cv.height=H;ctx.setTransform(1,0,0,1,0,0);smoothing=false;tOv=null}
+  }
+}
+async function exportPass(fill,sc){
+  const OW=Math.round(W*sc/2)*2,OH=Math.round(H*sc/2)*2;
+  cv.width=OW;cv.height=OH;ctx.setTransform(OW/W,0,0,OH/H,0,0);
   const pcm=await getPCM();
   vid.pause();vid.muted=true;smoothing=true;
   const total=segLen(),NT=Math.floor(total*FPS);
   const peak=pcm.data.reduce((m,v,i)=>i%50?m:Math.max(m,Math.abs(v)),0);
-  const muxer=new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(),video:{codec:'avc',width:W,height:H},audio:{codec:'aac',numberOfChannels:1,sampleRate:pcm.rate},fastStart:'in-memory'});
+  const muxer=new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(),video:{codec:'avc',width:OW,height:OH},audio:{codec:'aac',numberOfChannels:1,sampleRate:pcm.rate},fastStart:'in-memory'});
   let err=null,aChunks=0;
   const venc=new VideoEncoder({output:(c,m)=>muxer.addVideoChunk(c,m),error:e=>err=e});
-  venc.configure({codec:'avc1.64002A',width:W,height:H,bitrate:8e6,framerate:FPS});
-  const aenc=new AudioEncoder({output:(c,m)=>{aChunks++;muxer.addAudioChunk(c,m)},error:e=>err=e});
+  venc.configure({codec:'avc1.64002A',width:OW,height:OH,bitrate:Math.round(8e6*sc*sc),framerate:FPS});
+  const aenc=new AudioEncoder({output:(c,m)=>{aChunks++;if(m&&m.decoderConfig&&m.decoderConfig.description)m={...m,decoderConfig:{...m.decoderConfig,description:fixAsc(m.decoderConfig.description)}};muxer.addAudioChunk(c,m)},error:e=>err=e});
   aenc.configure({codec:'mp4a.40.2',sampleRate:pcm.rate,numberOfChannels:1,bitrate:128000});
   // sound: the kept clips, one after another
   let ao=0;
@@ -496,9 +524,11 @@ async function exportOffline(fill){
   }
   // pictures: play each clip once (muted) and grab every picture as it appears
   const t0=performance.now();let next=0,rate=1,late=0,good=0,base=0;
+  let slow=false,lastChk=0;
   const emit=(to,final)=>{ // fill every 1/30s slot up to output time "to"
+    let k=0;
     while(next<NT&&next/FPS<=to+0.002){
-      if(next/FPS<to-1.5/FPS)late++;else good++;
+      if(k++>0||next/FPS<to-1.5/FPS)late++;else good++;
       const f=new VideoFrame(cv,{timestamp:Math.round(next*1e6/FPS),duration:Math.round(1e6/FPS)});
       venc.encode(f,{keyFrame:next%60===0});f.close();next++;
     }
@@ -515,9 +545,10 @@ async function exportOffline(fill){
         const to=base+(m-g.s);
         if(next/FPS<=to+0.002){
           tOv=m;draw();emit(to);
-          if(next%10===0){
+          if(next-lastChk>=10){lastChk=next;
             if(late>2){rate=Math.max(0.4,rate*0.7);vid.playbackRate=rate}
             else if(good>45&&rate<1){rate=Math.min(1,rate*1.15);vid.playbackRate=rate;good=0}
+            if(sc===1&&next>=90&&rate<0.65){slow=true;fin();return}
             late=0;
             fill.style.width=(next/NT*100)+'%';
             const el=(performance.now()-t0)/1000,left=Math.max(0,Math.round(el/Math.max(1,next)*(NT-next)));
@@ -527,11 +558,13 @@ async function exportOffline(fill){
         }
         vid.requestVideoFrameCallback(cb);
       };
-      const wd=setInterval(()=>{if(vid.currentTime>=g.e-0.02)fin()},200);
+      const wd=setInterval(()=>{if(vid.currentTime>=g.e-0.02)fin();if(slow)fin()},200);
       setTimeout(fin,((g.e-g.s)/0.4+10)*1000);
       vid.playbackRate=rate;vid.requestVideoFrameCallback(cb);vid.play().catch(()=>fin());
     });
-    vid.pause();base+=g.e-g.s;
+    vid.pause();
+    if(slow){try{venc.close();aenc.close()}catch(e){}throw {tooSlow:true}}
+    base+=g.e-g.s;
     emit(base-0.001);
   }
   tOv=null;smoothing=false;
