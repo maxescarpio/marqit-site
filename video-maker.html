@@ -61,6 +61,7 @@ textarea{font-size:16px}
 
 <div class="card"><h2>1. Choose your video</h2>
 <input id="file" type="file" accept="video/*">
+<div id="len" class="sub" style="margin-top:6px;font-weight:700"></div>
 <div id="status"></div></div>
 
 <div class="card"><h2>2. Make captions</h2>
@@ -139,11 +140,20 @@ $('file').onchange=e=>{
   const f=e.target.files[0];if(!f)return;srcFile=f;loaded=false;chunks=[];renderList();
   status('Loading video…');
   vid.src=URL.createObjectURL(f);
-  vid.onloadedmetadata=()=>{loaded=true;vid.currentTime=0.05;
+  vid.onloadedmetadata=()=>{loaded=true;lengthCheck(vid.duration);vid.currentTime=0.05;
     ['play','auto','manual','exp'].forEach(i=>$(i).disabled=false);
     status('Video ready ('+fmt(vid.duration)+'). Making captions…');$('auto').click()};
   vid.onerror=()=>status('This video could not be opened here. Try Chrome, or export it as MP4 first.',true);
 };
+
+function lengthCheck(d){
+  const el=$('len');let m,ok=true;
+  if(d>90){m='Too long ('+fmt(d)+'). Trim it to under 90 seconds.';ok=false}
+  else if(d>60){m=fmt(d)+': fine for an interview, too long for a recap (40–60 seconds).'}
+  else if(d>=40){m=fmt(d)+': good for a recap (40–60 seconds) or an interview.'}
+  else{m=fmt(d)+': fine for an interview, too short for a recap (40–60 seconds).'}
+  el.textContent=m;el.style.color=ok?'':'var(--warn)';
+}
 
 /* ---------- captions data ---------- */
 function buildChunks(words){
