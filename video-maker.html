@@ -20,7 +20,7 @@ button.sec{background:var(--field);color:var(--fg);border:1px solid var(--line)}
 button:disabled{opacity:.45;cursor:default}
 input[type=file]{width:100%}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-#status{color:var(--muted);margin-top:8px;min-height:20px}
+#status{color:var(--muted);margin-top:8px;min-height:20px;overflow-wrap:anywhere}
 #status.err{color:var(--warn)}
 #list{display:grid;gap:6px;max-height:380px;overflow:auto}
 .cap{display:grid;grid-template-columns:44px minmax(0,1fr) 34px 30px;gap:6px;align-items:center}
@@ -86,7 +86,7 @@ const W=1080,H=1920,COLORS=['#FFE600','#35D6FF'];
 const cv=$('cv');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
 const vid=document.createElement('video');vid.playsInline=true;vid.preload='auto';
 const wm=new Image();wm.src='video-watermark.png';wm.onload=()=>draw();
-let wl=null,chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
+let msrc=null,wl=null,chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
 
 function status(m,err){const s=$('status');s.textContent=m;s.className=err?'err':''}
 const fmt=t=>Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');
@@ -129,7 +129,7 @@ function drawCaption(c,t){
       ctx.fillStyle=w.i===active?COLORS[c.spk]:'#fff';ctx.fillText(w.t,x,y);x+=ctx.measureText(w.t).width+sp})});
 }
 function loop(){draw();if(!vid.paused&&!vid.ended)raf=requestAnimationFrame(loop)}
-vid.addEventListener('seeked',draw);vid.addEventListener('timeupdate',()=>{if(vid.paused)draw()});
+vid.addEventListener('seeked',draw);vid.addEventListener('loadeddata',draw);vid.addEventListener('canplay',draw);vid.addEventListener('timeupdate',()=>{if(vid.paused)draw()});
 vid.addEventListener('play',()=>{$('play').textContent='Pause';loop()});
 vid.addEventListener('pause',()=>{$('play').textContent='Play';draw()});
 $('play').onclick=()=>{vid.paused?vid.play():vid.pause()};
@@ -140,9 +140,14 @@ $('file').onchange=e=>{
   const f=e.target.files[0];if(!f)return;srcFile=f;loaded=false;chunks=[];renderList();
   status('Loading video…');
   vid.src=URL.createObjectURL(f);
-  vid.onloadedmetadata=()=>{loaded=true;lengthCheck(vid.duration);vid.currentTime=0.05;
-    ['play','auto','manual','exp'].forEach(i=>$(i).disabled=false);
-    status('Video ready ('+fmt(vid.duration)+'). Making captions…');$('auto').click()};
+  vid.onloadedmetadata=()=>{loaded=true;lengthCheck(vid.duration);vid.currentTime=0.05;draw();
+    // iPhone Safari draws no frame until the video has played a moment: do a silent 1-frame play first
+    vid.muted=true;
+    vid.play().then(()=>new Promise(r=>setTimeout(r,150))).catch(()=>{})
+      .then(()=>{vid.pause();vid.currentTime=0.05;vid.muted=false;draw();
+        ['play','auto','manual','exp'].forEach(i=>$(i).disabled=false);
+        status('Video ready ('+fmt(vid.duration)+'). Making captions…');$('auto').click()});
+  };
   vid.onerror=()=>status('This video could not be opened here. Try Chrome, or export it as MP4 first.',true);
 };
 
@@ -192,20 +197,53 @@ function renderList(){
     r.append(t,inp,sp,del);L.append(r)});
 }
 
+/* ---------- audio helpers ---------- */
+function graph(){
+  if(!actx){actx=new (window.AudioContext||window.webkitAudioContext)();
+    adest=actx.createMediaStreamDestination();msrc=actx.createMediaElementSource(vid);msrc.connect(adest)}
+  return actx;
+}
+// Listens to the video once, silently, while it plays. Works where decoding the file fails (iPhone .mov).
+async function captureAudio(onProg){
+  const ac=graph();await ac.resume();
+  vid.pause();vid.currentTime=0;await new Promise(r=>{vid.addEventListener('seeked',r,{once:true});setTimeout(r,600)});
+  const sp=ac.createScriptProcessor(4096,1,1),mute=ac.createGain();mute.gain.value=0;
+  const bufs=[];sp.onaudioprocess=e=>{bufs.push(new Float32Array(e.inputBuffer.getChannelData(0)))};
+  msrc.connect(sp);sp.connect(mute);mute.connect(ac.destination);
+  try{await vid.play()}catch(e){msrc.disconnect(sp);throw new Error('NEEDGESTURE')}
+  const tick=setInterval(()=>onProg(vid.currentTime),300);
+  await new Promise(r=>vid.addEventListener('ended',r,{once:true}));
+  clearInterval(tick);try{msrc.disconnect(sp);sp.disconnect();mute.disconnect()}catch(e){}
+  const n=bufs.reduce((a,b)=>a+b.length,0),all=new Float32Array(n);let o=0;bufs.forEach(b=>{all.set(b,o);o+=b.length});
+  const ratio=ac.sampleRate/16000,len=Math.floor(n/ratio),out=new Float32Array(len);
+  for(let i=0;i<len;i++){const x=i*ratio,i0=Math.floor(x),i1=Math.min(n-1,i0+1),f=x-i0;out[i]=all[i0]*(1-f)+all[i1]*f}
+  return out;
+}
+
 /* ---------- auto captions (in the browser, free, no limits) ---------- */
 $('auto').onclick=async()=>{
   if(!srcFile)return;$('auto').disabled=true;
   try{
-    status('Reading the audio…');
-    const buf=await srcFile.arrayBuffer();
-    const ac=new (window.AudioContext||window.webkitAudioContext)();
-    const dec=await ac.decodeAudioData(buf);
-    const off=new OfflineAudioContext(1,Math.ceil(dec.duration*16000),16000);
-    const s=off.createBufferSource();s.buffer=dec;s.connect(off.destination);s.start();
-    const audio=(await off.startRendering()).getChannelData(0);
+    const phone=/iPhone|iPad|Android/i.test(navigator.userAgent)||navigator.maxTouchPoints>1;
+    let audio=null;
+    if(!phone&&!window.__rt){
+      try{
+        status('Reading the audio…');
+        const buf=await srcFile.arrayBuffer();
+        const ac=new (window.AudioContext||window.webkitAudioContext)();
+        const dec=await ac.decodeAudioData(buf);
+        const off=new OfflineAudioContext(1,Math.ceil(dec.duration*16000),16000);
+        const s=off.createBufferSource();s.buffer=dec;s.connect(off.destination);s.start();
+        audio=(await off.startRendering()).getChannelData(0);
+      }catch(e){console.warn('decode failed, listening in real time',e)}
+    }
+    if(!audio){
+      status('Listening to your video once… 0:00 / '+fmt(vid.duration));
+      audio=await captureAudio(t=>status('Listening to your video once… '+fmt(t)+' / '+fmt(vid.duration)));
+      window.__audioLen=audio.length;window.__audioPeak=audio.reduce((m,v)=>Math.max(m,Math.abs(v)),0);
+    }
     status('Loading the captions engine. The first time takes 1–2 minutes…');
     const {pipeline}=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/+esm');
-    const phone=/iPhone|iPad|Android/i.test(navigator.userAgent)||navigator.maxTouchPoints>1;
     const prog={progress_callback:p=>{if(p.status==='progress')status('Downloading engine… '+Math.round(p.progress)+'%')}};
     let asr;
     try{asr=await pipeline('automatic-speech-recognition',phone?'onnx-community/whisper-tiny_timestamped':'onnx-community/whisper-base_timestamped',prog)}
@@ -218,6 +256,7 @@ $('auto').onclick=async()=>{
     status('Captions ready. Check the words below.');
   }catch(e){
     console.error(e);
+    if(e.message==='NEEDGESTURE'){status('Tap “Auto captions” to start. It listens to your video once, so it takes as long as the video.');$('auto').disabled=false;return}
     status('Auto captions did not work here ('+(e.message||e)+'). Use “Type captions instead”.',true);
   }
   $('auto').disabled=false;
@@ -233,9 +272,7 @@ $('exp').onclick=async()=>{
   if(!loaded||exporting)return;exporting=true;$('exp').disabled=true;
   const bar=$('bar');bar.style.display='block';const fill=bar.firstElementChild;
   try{
-    if(!actx){actx=new (window.AudioContext||window.webkitAudioContext)();
-      adest=actx.createMediaStreamDestination();actx.createMediaElementSource(vid).connect(adest)}
-    await actx.resume();
+    graph();await actx.resume();
     vid.pause();vid.currentTime=0;await new Promise(r=>{vid.addEventListener('seeked',r,{once:true});setTimeout(r,500)});
     const stream=new MediaStream([...cv.captureStream(30).getVideoTracks(),...adest.stream.getAudioTracks()]);
     const mime=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1','video/webm;codecs=vp9,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';
