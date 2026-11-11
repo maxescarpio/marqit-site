@@ -5581,11 +5581,8 @@
     var crowdHtml = '<div class="crowd-bar' + ((showPct && total > 0) ? ' on' : '') + '"><i style="width:0"></i></div>';
     var crowdTagHtml = mqCrowdTagsHtml(myVote, yesPct, noPct, total, trend, showPct);
     var chipsHtml = '';
-    if(!isLocked && q.lock_time && !isVoid){
-      chipsHtml = '<div class="mq-chips">' +
-        '<span class="lock-chip" data-lock="' + escapeHtml(q.lock_time) + '">' + mqIcon('clock') + '<span class="lock-chip-text">' + mqLockText(new Date(q.lock_time).getTime() - Date.now()) + '</span></span>' +
-        '<span class="pts-chip' + (q.is_boosted ? ' boost' : '') + '">' + mqIcon('star') + 'Worth ' + (q.is_boosted ? '200' : '100') + ' points</span>' +
-        (q.is_boosted ? '<span class="boost-chip">' + mqIcon('bolt') + '2X today</span>' : '') + '</div>';
+    if(!isLocked && q.lock_time && !isVoid && q.is_boosted){
+      chipsHtml = '<div class="mq-chips"><span class="boost-chip">' + mqIcon('bolt') + '2X today</span></div>';
     }
     var latestHtml = '';
     if(!isLocked && trend && trend.length){
@@ -5700,9 +5697,6 @@
           '<span class="status-pill live" data-hd="status"><span class="live-dot"></span>Live</span></p>' +
         matchup +
         '<div class="mq-qrow"><p class="ticket-q">' + escapeHtml(qtext) + '</p></div>' +
-        '<div class="mq-chips">' +
-          '<span class="lock-chip soon" data-hd="lock">' + mqIcon('clock') + '<span class="lock-chip-text" data-hd="locktext">Locks in 12m 00s</span></span>' +
-          '<span class="pts-chip">' + mqIcon('star') + 'Worth 100 points</span></div>' +
         '<div class="ticket-row">' +
           '<div class="opt yes" data-hd="yes"><div class="opt-label" style="display:none;">YES</div><div class="opt-price" data-hd="yesprice">' + mqIcon('check') + 'Yes</div></div>' +
           '<div class="opt no" data-hd="no"><div class="opt-label" style="display:none;">NO</div><div class="opt-price" data-hd="noprice">' + mqIcon('xmark') + 'No</div></div>' +
@@ -5731,8 +5725,6 @@
       q('extra').innerHTML = '<div class="crowd-tags"><div class="crowd-tag with">' + mqIcon('users') + '<span>You\u2019re with 62% of players</span></div></div>';
     }
     function doLock(){
-      var lock = q('lock'); lock.classList.remove('soon'); lock.classList.add('done');
-      q('locktext').textContent = 'Locked';
       var st = q('status'); st.className = 'status-pill inplay'; st.innerHTML = '<span class="live-dot"></span>In play';
       q('extra').innerHTML = '<div class="result-tag final">' + mqIcon('lock') + '<span>Your call is set</span></div>';
     }
@@ -5764,14 +5756,6 @@
       host.innerHTML = cardHtml();
       host.classList.remove('fade');
       setRule(0); setCap('Pick Yes or No before the call locks.');
-      // little countdown while the pick is open
-      var t0 = Date.now();
-      var lt = setInterval(function(){
-        var el = q('locktext');
-        if(!el || el.textContent === 'Locked'){ clearInterval(lt); return; }
-        el.textContent = mqLockText(12 * 60000 - (Date.now() - t0));
-      }, 1000);
-      timers.push(lt);
       at(1700, doPick);
       at(4300, function(){ setRule(1); setCap('It locks before the event starts. After that, no changes.'); doLock(); });
       at(7000, function(){ setRule(2); setCap('Every correct call is worth 100 points.'); doFinal(true); });
