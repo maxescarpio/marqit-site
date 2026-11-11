@@ -673,6 +673,7 @@
         '<label>Question</label><textarea rows="2" id="draft-text-' + d.id + '"></textarea>' +
         '<label>Lock time</label><input type="datetime-local" id="draft-lock-' + d.id + '">' +
         '<label>Resolution criteria</label><textarea rows="2" id="draft-resolution-' + d.id + '"></textarea>' +
+        '<label>Line under the question (optional, shown on the card)</label><input type="text" maxlength="70" placeholder="e.g. Debuts on Netflix today" id="draft-why-' + d.id + '">' +
         '<div class="actions">' +
           '<button class="btn-yes" data-approve-id="' + d.id + '" data-category="' + d.category + '">Approve &amp; post</button>' +
           '<button class="btn-delete" data-reject-id="' + d.id + '">Reject</button>' +
@@ -686,6 +687,7 @@
       document.getElementById('draft-text-' + d.id).value = d.question_text;
       document.getElementById('draft-lock-' + d.id).value = toLocalInput(d.suggested_lock_time);
       document.getElementById('draft-resolution-' + d.id).value = d.resolution_criteria;
+      document.getElementById('draft-why-' + d.id).value = d.why_today || '';
     });
 
     list.querySelectorAll('button[data-approve-id]').forEach(function(btn){
@@ -695,9 +697,10 @@
         const text = document.getElementById('draft-text-' + id).value.trim();
         const lock = document.getElementById('draft-lock-' + id).value;
         const resolution = document.getElementById('draft-resolution-' + id).value.trim();
+        const why = document.getElementById('draft-why-' + id).value.trim();
         if(!text || !lock || !resolution){ alert('Fill in all fields before approving.'); return; }
         btn.disabled = true;
-        const { error } = await sb.rpc('admin_approve_question_draft', {
+        const { data: newQid, error } = await sb.rpc('admin_approve_question_draft', {
           p_draft_id: id,
           p_question_text: text,
           p_category: category,
@@ -705,6 +708,11 @@
           p_resolution_criteria: resolution
         });
         if(error){ alert('Error: ' + error.message); btn.disabled = false; return; }
+        // Save the (possibly edited) line under the question. The question is already posted, so a failure here is only a warning.
+        if(newQid){
+          const { error: whyErr } = await sb.rpc('admin_set_question_why_today', { p_question_id: newQid, p_text: why });
+          if(whyErr){ alert('The question was posted, but the line under it did not save: ' + whyErr.message); }
+        }
         loadQuestionDrafts();
         if(document.getElementById('view-date').value === todayStr()){ loadQuestionsForDate(); }
       });

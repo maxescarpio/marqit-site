@@ -298,8 +298,8 @@ function buildSystemPrompt(pick: Pick, dateStr: string, nowLabel: string, lockHM
     ? `- IMPORTANT: this is a second attempt. Skipping is NOT allowed now. Pick the best real event available for this category and date even if it is not perfect (for sports, the most evenly matched game available; for news, the most uncertain scheduled event; for pop culture, the most talked-about scheduled result). The outcome must still be unknown at lock time, and never invent anything.`
     : `- If you cannot find a real, suitable question for this story that meets ALL the rules above, respond with {"skip": true} instead of settling for a worse option.`;
   const format = relaxed
-    ? `{"skip": false, "question_text": "...", "resolution_criteria": "..."}`
-    : `{"skip": false, "question_text": "...", "resolution_criteria": "..."}\nor\n{"skip": true}`;
+    ? `{"skip": false, "question_text": "...", "resolution_criteria": "...", "why_today": "..."}`
+    : `{"skip": false, "question_text": "...", "resolution_criteria": "...", "why_today": "..."}\nor\n{"skip": true}`;
   const topicLine = pick.topic
     ? `\nThis question must be about this specific story, which was picked as one of today's top stories: "${pick.topic}".${pick.why ? ' (Why it matters today: ' + pick.why + ')' : ''} Build the best possible YES/NO question around it.`
     : '';
@@ -314,6 +314,7 @@ Rules:
 - NAME THE SUBJECT. The question itself must name the specific team(s), person, contestant, company, show or title it is about, so someone who sees ONLY the question knows exactly what is being asked. Good: "Will the Los Angeles Lakers beat the Boston Celtics tonight?", "Will Dancing with the Stars eliminate Jane Smith tonight?". Bad: "Will the home team win?", "Will he be eliminated?", "Will the game go to overtime?", "Will the report beat expectations?". Never use vague stand-ins like "the game", "the team", "the champ", "he/she/they", "this" or "tonight's event" in place of a name. Include the competition, date or matchup when it helps (e.g. "Will Patrick Mahomes throw for 300+ yards against the Bills on Sunday?").
 - NEVER use the word "or" in question_text. A yes/no question is ONE single proposition. Do not offer a choice between two things ("Will A or B win?", "Will it be over or under 45?"). Ask about one side instead ("Will the Chiefs beat the Bills?"). Also avoid "and" that joins two separate outcomes.
 - resolution_criteria must state exactly how and where to verify the outcome (a specific source or measurable condition), written for a non-technical person to check.
+- why_today is ONE short line (55 characters or fewer) shown under the question, telling a player why this is on today. Plain, concrete and checkable with your search: a debut, a game tonight, a date, a milestone (examples: "Debuts on Netflix today", "Thunder visit Portland tonight", "Season finale airs tonight"). No hype, no emojis, no quotation marks, no ending period. Never state or hint at the outcome, and never mention points, locking or deadlines. If you cannot find a solid, true reason, use an empty string.
 ${CATEGORY_RULES[category] || ''}
 ${skipLine}
 
@@ -321,7 +322,15 @@ Respond with ONLY a single JSON object, no markdown fences, no other text:
 ${format}`;
 }
 
-type Draft = { question_text: string; resolution_criteria: string; attempt: number };
+type Draft = { question_text: string; resolution_criteria: string; why_today: string | null; attempt: number };
+
+// The short "why it's on today" line: keep it only if it is clean and short, otherwise show nothing.
+function cleanWhyToday(v: unknown): string | null {
+  const t = String(v ?? '').replace(/\s+/g, ' ').trim().replace(/^["'\u201c\u201d]+|["'\u201c\u201d]+$/g, '').replace(/[.]+$/, '').trim();
+  if (!t || t.length > 70) return null;
+  if (/\b(points?|locks?|locking|deadline)\b/i.test(t)) return null;
+  return t;
+}
 
 // House rules every question must pass, checked in code as well as asked for in the prompt.
 //   1. No "or": a yes/no question is one proposition, never a choice between two things.
@@ -360,6 +369,7 @@ async function draftOneQuestion(apiKey: string, pick: Pick, dateStr: string, now
         return {
           question_text: String(parsed.question_text),
           resolution_criteria: String(parsed.resolution_criteria),
+          why_today: cleanWhyToday(parsed.why_today),
           attempt: relaxed ? 2 : 1
         };
       }
@@ -481,12 +491,13 @@ Deno.serve(async (req: Request) => {
         status: 'pending',
         source: 'claude',
         slot: freeSlots[i] ?? null,
-        trend_note: pick.topic ? (pick.topic + (pick.why ? ' -- ' + pick.why : '')) : pick.why
+        trend_note: pick.topic ? (pick.topic + (pick.why ? ' -- ' + pick.why : '')) : pick.why,
+        why_today: result.why_today
       };
       let { error: insertErr } = await admin.from('question_drafts').insert(row);
-      if (insertErr && /slot|trend_note/i.test(insertErr.message)) {
-        // Columns not deployed yet: save the draft without the rank/note.
-        delete row.slot; delete row.trend_note;
+      if (insertErr && /slot|trend_note|why_today/i.test(insertErr.message)) {
+        // Columns not deployed yet: save the draft without the rank/notes.
+        delete row.slot; delete row.trend_note; delete row.why_today;
         ({ error: insertErr } = await admin.from('question_drafts').insert(row));
       }
       if (!insertErr) {
