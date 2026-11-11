@@ -595,7 +595,7 @@
     // Top: what the plan is and costs on the left, the one action (or the member's status) on the right.
     var top = h('div', 'plus-price-top');
     var id = h('div', 'plus-price-id');
-    id.appendChild(h('span', 'plus-price-kicker', 'Marqit+'));
+    var kick = h('span', 'plus-price-kicker'); kick.innerHTML = '<span class="mq-wm" role="img" aria-label="Marqit+"><i class="mq-wm-word"></i><i class="mq-wm-plus"></i></span>'; id.appendChild(kick);
     var amt = h('div', 'plus-price-amt');
     amt.appendChild(h('b', null, '$9.99'));
     amt.appendChild(h('span', null, '/ month'));

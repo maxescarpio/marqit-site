@@ -2498,3 +2498,17 @@ a.mq-ss-ig{text-decoration:none}
 .tm-msg.ok{color:var(--yes);}
 #page-teams .hero-lite{padding-top:14px;padding-bottom:20px}
 .tm-card>.tm-row{padding:0 15px 14px;margin:6px 0 0;}
+
+/* ===== Marqit wordmark: anywhere the product name is a label ("Marqit+" tab, page heading, plan card) is drawn
+   with the real logo letterforms, never typed in a font. The logo SVG is used as a mask so it takes the text color
+   (grey tab, white when active, gold kicker). The "+" is built to the same stroke weight as the logo's stems. ===== */
+.mq-wm{display:inline-flex;align-items:center;gap:.14em;line-height:1;vertical-align:middle;text-transform:none;letter-spacing:0}
+.mq-wm-word{display:block;height:.74em;aspect-ratio:793.67/273.37;background:currentColor;
+  -webkit-mask:url(/marqit-logo-white.svg?v=3) center/contain no-repeat;mask:url(/marqit-logo-white.svg?v=3) center/contain no-repeat}
+.mq-wm-plus{display:block;width:.44em;height:.44em;margin-top:-.14em;
+  background:linear-gradient(currentColor,currentColor) center/100% 24% no-repeat,linear-gradient(currentColor,currentColor) center/24% 100% no-repeat}
+.pagenav-tab .mq-wm{font-size:20px}
+#hamburger-plus-btn .mq-wm{font-size:15px}
+.mq-wm-h{margin:0}
+.mq-wm-h .mq-wm{font-size:1em}
+.plus-price-kicker .mq-wm{font-size:18px}
