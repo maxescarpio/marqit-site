@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /post
 
 Sitemap: https://playmarqit.com/sitemap.xml
