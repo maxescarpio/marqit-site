@@ -8441,18 +8441,31 @@
       (side.rank ? '<em class="sstrip-rk">' + side.rank + '</em>' : '') +
       '<b>' + escapeHtml(side.abbr) + '</b><span class="sstrip-rec' + (showScore && side.score != null ? ' score' : '') + '">' + escapeHtml(right) + '</span></div>';
   }
-  function mqLoadScores(){
-    if(mqScore.busy || Date.now() - mqScore.at < 25000) return;
+  // A failed, empty or partial scoreboard answer is retried quickly (1.5s, 4s, 8s, 15s) instead of waiting for the next
+  // 30-second tick, so the sports on the top strip fill in on their own and never wait for a tab switch to appear.
+  var MQ_SCORE_RETRY = [1500, 4000, 8000, 15000];
+  function mqScoreRetry(){
+    var n = mqScore.tries || 0;
+    if(n >= MQ_SCORE_RETRY.length) return;
+    mqScore.tries = n + 1;
+    setTimeout(function(){ mqLoadScores(true); }, MQ_SCORE_RETRY[n]);
+  }
+  function mqLoadScores(force){
+    if(mqScore.busy || (!force && Date.now() - mqScore.at < 25000)) return;
     mqScore.busy = true;
     fetch(SUPABASE_URL + '/functions/v1/scoreboard').then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
       mqScore.busy = false; mqScore.at = Date.now();
-      if(!d || !d.games) return;
-      mqScore.games = d.games;
+      if(!d || !d.games){ mqScoreRetry(); return; }
+      // Never replace a fuller list with a thinner one from a partial answer.
+      if(!d.partial || d.games.length >= (mqScore.games || []).length) mqScore.games = d.games;
+      if(d.partial || !d.games.length) mqScoreRetry(); else mqScore.tries = 0;
       try{ renderSchedToday(); }catch(e){}
       try{ var pg = document.getElementById('page-schedule'); if(pg && pg.offsetParent) mqSchedQueue(); }catch(e){}
-    }).catch(function(){ mqScore.busy = false; mqScore.at = Date.now(); });
+    }).catch(function(){ mqScore.busy = false; mqScore.at = Date.now(); mqScoreRetry(); });
   }
   setInterval(function(){ if(!document.hidden && mqSched.loaded) mqLoadScores(); }, 30000);
+  // Coming back to the tab (or the phone waking) refreshes the strip right away.
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden && mqSched.loaded){ mqScore.tries = 0; mqLoadScores(true); } });
 
   // Every game for each day of the week (Schedule page only): fills the page with all the sports,
   // not just the handful the schedule table marks as marquee, and gives each its team colors.

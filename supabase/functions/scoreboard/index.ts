@@ -15,9 +15,18 @@ const FEEDS: [string, string][] = [
 ];
 const UA = { 'user-agent': 'curl/8.5.0', accept: 'application/json' };
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'content-type': 'application/json' };
-const cache = new Map<string, { at: number; body: string }>();
+const cache = new Map<string, { at: number; body: string; ttl: number }>();
 const teamCache = new Map<string, { at: number; body: string }>();
 const PATHS: Record<string, string> = Object.fromEntries(FEEDS);
+// Last good games per league and day. If ESPN fails or times out for one league, that league's games come from here
+// instead of vanishing from the top strip (a missing league used to be cached as if it were the full answer).
+const lastGood = new Map<string, { at: number; games: any[] }>();
+const LAST_GOOD_MAX_AGE = 6 * 3600000;
+// Today's Eastern date as YYYYMMDD. Passed to ESPN explicitly so "today" never depends on ESPN's own day rollover.
+function etToday(): string {
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  return p.replace(/-/g, '');
+}
 // Season numbers worth showing first, in this order (ESPN stat names). Anything else is skipped.
 const WANT = ['avgPointsFor', 'avgPointsAgainst', 'differential', 'winPercent', 'streak', 'pointsFor', 'pointsAgainst', 'gamesBehind'];
 
@@ -200,11 +209,16 @@ function seriesOf(comp: any, e: any) {
 async function load(date: string | null) {
   const games: any[] = [];
   const errors: string[] = [];
+  const day = date || etToday();
   await Promise.all(FEEDS.map(async ([league, path]) => {
+    const leagueGames: any[] = [];
     try {
-      const q = [date ? 'dates=' + date : '', league === 'NCAAF' ? 'groups=80&limit=300' : ''].filter(Boolean).join('&');
-      const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard${q ? '?' + q : ''}`, { headers: UA, signal: AbortSignal.timeout(8000) });
-      if (!res.ok) { errors.push(league + ' ' + res.status); return; }
+      const q = ['dates=' + day, league === 'NCAAF' ? 'groups=80&limit=300' : ''].filter(Boolean).join('&');
+      const url = `https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard?${q}`;
+      // One retry: ESPN's feed drops a request now and then, and one league missing means a whole sport is gone from the strip.
+      let res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(6000) }).catch(() => null);
+      if (!res || !res.ok) res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(6000) }).catch(() => null);
+      if (!res || !res.ok) throw new Error(res ? String(res.status) : 'no response');
       const d = await res.json();
       for (const e of d?.events || []) {
         const comp = e?.competitions?.[0];
@@ -218,14 +232,21 @@ async function load(date: string | null) {
         // Live football: who has the ball, down and distance, and the last play (ESPN's "situation"). Empty for other sports.
         const sx = t.state === 'in' ? comp?.situation : null;
         const sit = sx ? { poss: String(sx.possession || ''), text: String(sx.downDistanceText || sx.shortDownDistanceText || '').slice(0, 60), last: String(sx.lastPlay?.text || '').slice(0, 140), red: !!sx.isRedZone } : null;
-        games.push({
+        leagueGames.push({
           league, id: String(e.id || ''), start: e.date, state: String(t.state || 'pre'), detail: String(t.shortDetail || t.detail || ''),
           network: net, home: side(home), away: side(away), sit: sit && (sit.text || sit.last) ? sit : null,
           series: seriesOf(comp, e),
         });
       }
-    } catch (e) { errors.push(league + ' ' + String(e).slice(0, 60)); }
+      lastGood.set(day + '|' + league, { at: Date.now(), games: leagueGames });
+    } catch (e) {
+      errors.push(league + ' ' + String(e).slice(0, 60));
+      const keep = lastGood.get(day + '|' + league);
+      if (keep && Date.now() - keep.at < LAST_GOOD_MAX_AGE) leagueGames.splice(0, leagueGames.length, ...keep.games);
+    }
+    games.push(...leagueGames);
   }));
+  if (lastGood.size > 400) lastGood.delete(lastGood.keys().next().value as string);
   if (Date.now() - lastMemSave > 600000) {
     const mem = new Map<string, any[]>();
     for (const g of games) {
@@ -234,7 +255,7 @@ async function load(date: string | null) {
     }
     if (mem.size) { lastMemSave = Date.now(); await saveLeaders([...mem].map(([key, leaders]) => ({ key, leaders }))); }
   }
-  return JSON.stringify({ games, errors, at: new Date().toISOString() });
+  return JSON.stringify({ games, errors, partial: errors.length > 0, at: new Date().toISOString() });
 }
 
 // ?game=NHL:401892535 -> live detail: line score, team stats, player stats, recent plays (ESPN summary feed)
@@ -308,10 +329,17 @@ Deno.serve(async (req: Request) => {
   }
   const dp = new URL(req.url).searchParams.get('dates');
   const date = dp && /^\d{8}$/.test(dp) ? dp : null;
-  const key = date || 'today', ttl = date ? 300000 : 30000;
+  const key = date || 'today', fullTtl = date ? 300000 : 30000;
   const hit = cache.get(key);
   let body: string;
-  if (hit && Date.now() - hit.at < ttl) body = hit.body;
-  else { body = await load(date); cache.set(key, { at: Date.now(), body }); if (cache.size > 20) cache.delete(cache.keys().next().value as string); }
-  return new Response(body, { headers: { ...CORS, 'cache-control': 'public, max-age=' + (ttl / 1000) } });
+  // A result with a failed league is only kept for 5 seconds, so the next visitor retries instead of everyone seeing the gap.
+  if (hit && Date.now() - hit.at < hit.ttl) body = hit.body;
+  else {
+    body = await load(date);
+    const ttl = JSON.parse(body).partial ? 5000 : fullTtl;
+    cache.set(key, { at: Date.now(), body, ttl });
+    if (cache.size > 20) cache.delete(cache.keys().next().value as string);
+    return new Response(body, { headers: { ...CORS, 'cache-control': 'public, max-age=' + (ttl / 1000) } });
+  }
+  return new Response(body, { headers: { ...CORS, 'cache-control': 'public, max-age=' + (hit.ttl / 1000) } });
 });
