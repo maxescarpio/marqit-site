@@ -47,10 +47,13 @@ textarea{font-size:16px}
  .row button{flex:1}
  #play{flex:0 0 auto;width:auto}
 }
-.sl{display:grid;grid-template-columns:78px minmax(0,1fr);gap:10px;align-items:center;margin-bottom:10px}
-.sl input{width:100%;height:36px;accent-color:var(--accent)}
-.chk{display:flex;gap:10px;align-items:center;color:var(--muted)}
-.chk input{width:22px;height:22px}
+.sl{display:grid;grid-template-columns:92px minmax(0,1fr) 78px;gap:10px;align-items:center;margin-bottom:10px}
+.sl input[type=range]{width:100%;height:36px;accent-color:var(--accent)}
+.sl input[type=number]{font:inherit;font-size:16px;width:100%;min-height:44px;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:8px;padding:6px 8px;text-align:center}
+.sl select{grid-column:2/4;font:inherit;font-size:16px;min-height:44px;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:8px;padding:6px 8px}
+.sl input[type=color]{width:100%;height:44px;border:1px solid var(--line);border-radius:8px;padding:2px;background:var(--field)}
+.sl .hex{color:var(--muted);font-size:14px;text-align:center}
+.sl.c{grid-template-columns:92px minmax(0,1fr) 78px}
 .bar{height:8px;background:var(--field);border-radius:4px;overflow:hidden;margin-top:8px;display:none}
 .bar i{display:block;height:100%;width:0;background:var(--accent)}
 </style></head><body>
@@ -74,14 +77,19 @@ textarea{font-size:16px}
 </div>
 
 <div class="card"><h2>3. Fix words and pick the speaker</h2>
-<p class="sub" style="margin:0 0 8px">Tap the colored button to switch speaker 1 (yellow) and speaker 2 (blue).</p>
+<p class="sub" style="margin:0 0 8px">Tap the number button to switch between speaker 1 and speaker 2. Each speaker gets their own highlight color.</p>
 <div id="list"></div></div>
 
-<div class="card"><h2>4. Move the captions</h2>
-<label class="sl"><span>Up / down</span><input id="capY" type="range" min="15" max="85" value="61"></label>
-<label class="sl"><span>Size</span><input id="capS" type="range" min="60" max="140" value="100"></label>
-<label class="chk"><input id="zones" type="checkbox"> Show where Instagram and TikTok cover the screen</label>
-<button id="reset" class="sec" style="margin-top:10px">Reset captions</button></div>
+<div class="card"><h2>4. Look of the captions</h2>
+<p class="sub" style="margin:0 0 10px">Same numbers = same look. Our standard is the default.</p>
+<div class="sl"><span>Up / down</span><input id="capYr" type="range" min="20" max="70" step="1"><input id="capY" type="number" min="20" max="70" step="1" inputmode="numeric"></div>
+<div class="sl"><span>Size</span><input id="capSr" type="range" min="60" max="140" step="1"><input id="capS" type="number" min="60" max="140" step="1" inputmode="numeric"></div>
+<div class="sl"><span>Font</span><select id="font"></select></div>
+<div class="sl c"><span>Text</span><input id="colT" type="color"><span class="hex" id="hexT"></span></div>
+<div class="sl c"><span>Speaker 1</span><input id="col1" type="color"><span class="hex" id="hex1"></span></div>
+<div class="sl c"><span>Speaker 2</span><input id="col2" type="color"><span class="hex" id="hex2"></span></div>
+<p class="sub" style="margin:0 0 4px">Up / down is % from the top. Size is % of our standard.</p>
+<button id="reset" class="sec" style="margin-top:6px">Reset to Marqit standard</button></div>
 
 <div class="card"><h2>5. Save</h2>
 <button id="exp" disabled>Export video</button>
@@ -92,12 +100,15 @@ textarea{font-size:16px}
 
 <script>
 const $=id=>document.getElementById(id);
-const W=1080,H=1920,COLORS=['#FFE600','#35D6FF'];
+const W=1080,H=1920;
+const DEF={y:60,s:100,font:'Helvetica',t:'#FFFFFF',c1:'#FFE600',c2:'#35D6FF'};
+const COLORS=[DEF.c1,DEF.c2];let TEXTC=DEF.t,FONTKEY=DEF.font;
+const FONTS={'Helvetica':'Helvetica, Arial, sans-serif','Impact':'Impact, "Arial Narrow", sans-serif','Futura':'Futura, "Trebuchet MS", sans-serif','Avenir Next':'"Avenir Next", Avenir, sans-serif','Georgia':'Georgia, serif','Courier New':'"Courier New", monospace'};
 const cv=$('cv');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
 const vid=document.createElement('video');vid.playsInline=true;vid.preload='auto';
 const wm=new Image();wm.src='video-watermark.png';wm.onload=()=>draw();
 const IS_PHONE=/iPhone|iPad|Android/i.test(navigator.userAgent)||navigator.maxTouchPoints>1;
-let capY=0.61,capS=1,showZones=false,msrc=null,wl=null,chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
+let capY=0.6,capS=1,msrc=null,wl=null,chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
 
 function status(m,err){const s=$('status');s.textContent=m;s.className=err?'err':''}
 const fmt=t=>Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');
@@ -113,16 +124,12 @@ function draw(){
   if(wm.complete&&wm.naturalWidth)ctx.drawImage(wm,0,0,W,H);
   const c=chunks.find(c=>t>=c.start&&t<=c.end+0.2);
   if(c)drawCaption(c,t);
-  if(showZones&&!exporting){ctx.fillStyle='rgba(255,60,60,.28)';
-    ctx.fillRect(0,0,W,170);ctx.fillRect(0,H-420,W,420);ctx.fillRect(W-140,H-900,140,480);
-    ctx.fillStyle='#fff';ctx.font='700 34px Helvetica,Arial,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
-    ctx.fillText('Covered by the app',40,H-210)}
   $('clock').textContent=fmt(t)+' / '+fmt(vid.duration||0);
 }
 function drawCaption(c,t){
   ctx.textBaseline='middle';ctx.lineJoin='round';
   const maxW=W-180,n=c.words.length;
-  const font=px=>ctx.font='700 '+px+'px Helvetica,Arial,sans-serif';
+  const font=px=>ctx.font='700 '+px+'px '+FONTS[FONTKEY];
   const width=(ws,sp)=>ws.reduce((a,w)=>a+ctx.measureText(w.t).width,0)+sp*Math.max(0,ws.length-1);
   const ws=c.words.map((w,i)=>({...w,i}));
   // 1) try everything on one line, shrinking the text a bit if needed
@@ -142,7 +149,7 @@ function drawCaption(c,t){
     const lw=width(ln,sp);let x=(W-lw)/2;const y=top+li*lh;
     ln.forEach(w=>{
       ctx.textAlign='left';ctx.strokeStyle='rgba(0,0,0,.92)';ctx.lineWidth=size*0.17;ctx.strokeText(w.t,x,y);
-      ctx.fillStyle=w.i===active?COLORS[c.spk]:'#fff';ctx.fillText(w.t,x,y);x+=ctx.measureText(w.t).width+sp})});
+      ctx.fillStyle=w.i===active?COLORS[c.spk]:TEXTC;ctx.fillText(w.t,x,y);x+=ctx.measureText(w.t).width+sp})});
 }
 function loop(){draw();if(!vid.paused&&!vid.ended)raf=requestAnimationFrame(loop)}
 vid.addEventListener('seeked',draw);vid.addEventListener('loadeddata',draw);vid.addEventListener('canplay',draw);vid.addEventListener('timeupdate',()=>{if(vid.paused)draw()});
@@ -286,22 +293,39 @@ $('pasteGo').onclick=()=>{
   chunks=fromText(v);renderList();draw();status('Captions added, spread evenly over the video. Tap a caption’s time to jump there and fix the words.');
 };
 
-/* ---------- caption position & size ---------- */
-try{const sv=JSON.parse(localStorage.getItem('mq_cap')||'null');if(sv){capY=sv.y;capS=sv.s}}catch(e){}
-$('capY').value=Math.round(capY*100);$('capS').value=Math.round(capS*100);
+/* ---------- caption look: numbers, font, colors ---------- */
+Object.keys(FONTS).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k+(k==='Helvetica'?' (standard)':'');$('font').append(o)});
+function applyLook(v){
+  capY=v.y/100;capS=v.s/100;FONTKEY=FONTS[v.font]?v.font:DEF.font;TEXTC=v.t;COLORS[0]=v.c1;COLORS[1]=v.c2;
+  $('capY').value=$('capYr').value=v.y;$('capS').value=$('capSr').value=v.s;$('font').value=FONTKEY;
+  $('colT').value=v.t;$('col1').value=v.c1;$('col2').value=v.c2;
+  $('hexT').textContent=v.t.toUpperCase();$('hex1').textContent=v.c1.toUpperCase();$('hex2').textContent=v.c2.toUpperCase();
+}
+function readLook(){
+  const clamp=(x,a,b)=>Math.min(b,Math.max(a,Math.round(+x)||a));
+  return{y:clamp($('capY').value,20,70),s:clamp($('capS').value,60,140),font:$('font').value,t:$('colT').value,c1:$('col1').value,c2:$('col2').value};
+}
+let look={...DEF};
+try{const sv=JSON.parse(localStorage.getItem('mq_look')||'null');if(sv)look={...DEF,...sv}}catch(e){}
+applyLook(look);
 function seekToCaption(){
   const t=vid.currentTime||0;
   if(!chunks.length||chunks.some(c=>t>=c.start&&t<=c.end+0.2))return;
   const c=chunks.reduce((a,b)=>Math.abs(b.start-t)<Math.abs(a.start-t)?b:a);
   vid.currentTime=c.start+(c.end-c.start)*0.6;
 }
-function capChange(){
-  capY=$('capY').value/100;capS=$('capS').value/100;showZones=$('zones').checked;
-  try{localStorage.setItem('mq_cap',JSON.stringify({y:capY,s:capS}))}catch(e){}
-  if(vid.paused)seekToCaption();draw();
+function lookChange(src){
+  // slider and number box stay in sync
+  if(src==='capYr')$('capY').value=$('capYr').value;
+  if(src==='capSr')$('capS').value=$('capSr').value;
+  look=readLook();applyLook(look);
+  try{localStorage.setItem('mq_look',JSON.stringify(look))}catch(e){}
+  renderList();if(vid.paused)seekToCaption();draw();
 }
-['capY','capS','zones'].forEach(i=>$(i).addEventListener('input',capChange));
-$('reset').onclick=()=>{$('capY').value=61;$('capS').value=100;capChange()};
+['capYr','capSr','font','colT','col1','col2'].forEach(i=>$(i).addEventListener('input',()=>lookChange(i)));
+// typed numbers apply when you finish typing, so half-typed numbers don't jump around
+['capY','capS'].forEach(i=>$(i).addEventListener('change',()=>lookChange(i)));
+$('reset').onclick=()=>{look={...DEF};applyLook(look);try{localStorage.removeItem('mq_look')}catch(e){}renderList();draw()};
 
 /* ---------- export ---------- */
 $('exp').onclick=async()=>{
