@@ -524,11 +524,11 @@ async function exportPass(fill,sc){
   }
   // pictures: play each clip once (muted) and grab every picture as it appears
   const t0=performance.now();let next=0,rate=1,late=0,good=0,base=0;
-  let slow=false,lastChk=0;
+  let slow=false,lastChk=0,tDraw=0,tFrame=0,nDraw=0,cbs=0,dupSlots=0;
   const emit=(to,final)=>{ // fill every 1/30s slot up to output time "to"
     let k=0;
     while(next<NT&&next/FPS<=to+0.002){
-      if(k++>0||next/FPS<to-1.5/FPS)late++;else good++;
+      if(k++>0||next/FPS<to-1.5/FPS){late++;dupSlots++}else good++;
       const f=new VideoFrame(cv,{timestamp:Math.round(next*1e6/FPS),duration:Math.round(1e6/FPS)});
       venc.encode(f,{keyFrame:next%60===0});f.close();next++;
     }
@@ -540,26 +540,26 @@ async function exportPass(fill,sc){
       let done=false;const fin=()=>{if(!done){done=true;clearInterval(wd);res()}};
       const cb=(now,meta)=>{
         if(done)return;
-        const m=meta.mediaTime;
+        const m=meta.mediaTime;cbs++;
         if(m>=g.e-0.005||vid.ended){fin();return}
         const to=base+(m-g.s);
         if(next/FPS<=to+0.002){
-          tOv=m;draw();emit(to);
+          const a0=performance.now();tOv=m;draw();const a1=performance.now();emit(to);tDraw+=a1-a0;tFrame+=performance.now()-a1;nDraw++;
           if(next-lastChk>=10){lastChk=next;
-            if(late>2){rate=Math.max(0.4,rate*0.7);vid.playbackRate=rate}
-            else if(good>45&&rate<1){rate=Math.min(1,rate*1.15);vid.playbackRate=rate;good=0}
-            if(sc===1&&next>=90&&rate<0.65){slow=true;fin();return}
+            if(late>0){rate=Math.max(0.25,rate*0.8);vid.playbackRate=rate;good=0}
+            else if(good>120&&rate<1){rate=Math.min(1,rate*1.1);vid.playbackRate=rate;good=0}
+            if(sc===1&&next>=90&&rate<0.5){slow=true;fin();return}
             late=0;
             fill.style.width=(next/NT*100)+'%';
             const el=(performance.now()-t0)/1000,left=Math.max(0,Math.round(el/Math.max(1,next)*(NT-next)));
             xs('Making your video… '+Math.round(next/NT*100)+'%'+(next>30?' (about '+left+'s left)':'')+'. Keep this page open.');
           }
-          if(venc.encodeQueueSize>10){rate=Math.max(0.4,rate*0.8);vid.playbackRate=rate}
+          if(venc.encodeQueueSize>10){rate=Math.max(0.25,rate*0.8);vid.playbackRate=rate}
         }
         vid.requestVideoFrameCallback(cb);
       };
       const wd=setInterval(()=>{if(vid.currentTime>=g.e-0.02)fin();if(slow)fin()},200);
-      setTimeout(fin,((g.e-g.s)/0.4+10)*1000);
+      setTimeout(fin,((g.e-g.s)/0.25+10)*1000);
       vid.playbackRate=rate;vid.requestVideoFrameCallback(cb);vid.play().catch(()=>fin());
     });
     vid.pause();
@@ -574,7 +574,7 @@ async function exportPass(fill,sc){
   muxer.finalize();
   vid.muted=false;vid.playbackRate=1;
   const secs=Math.round((performance.now()-t0)/1000);
-  window.__exportInfo='Made '+total.toFixed(1)+'s video in '+secs+'s. Sound: '+(aChunks&&peak>0.001?'yes':'NONE FOUND');
+  window.__exportInfo='Made '+total.toFixed(1)+'s video in '+secs+'s. Sound: '+(aChunks&&peak>0.001?'yes':'NONE FOUND')+'. Size '+OW+'x'+OH+', speed '+rate.toFixed(2)+', repeats '+dupSlots+'/'+NT+', draw '+(tDraw/Math.max(1,nDraw)).toFixed(0)+'ms, encode '+(tFrame/Math.max(1,nDraw)).toFixed(0)+'ms';
   return new Blob([muxer.target.buffer],{type:'video/mp4'});
 }
 function deliver(blob,ext){
