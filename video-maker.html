@@ -29,11 +29,29 @@ input[type=file]{width:100%}
 .cap .spk{padding:6px 0;color:#111;font-size:13px}
 .cap .del{padding:6px 0;background:var(--field);color:var(--muted);border:1px solid var(--line)}
 textarea{width:100%;font:inherit;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:8px;padding:9px;min-height:90px}
+button,.file{min-height:48px;font-size:16px}
+.cap input{font-size:16px;min-height:44px}
+.cap{grid-template-columns:44px minmax(0,1fr) 48px 40px}
+.cap .spk,.cap .del{min-height:44px}
+textarea{font-size:16px}
+.pv{position:sticky;top:0;z-index:5;background:var(--bg);padding-bottom:8px}
+@media(max-width:780px){
+ body{padding-top:0;padding-block:0 28px}
+ .pv{padding-top:10px}
+ canvas{height:36vh;width:auto;margin:0 auto}
+ .pv .row{justify-content:center}
+ .card{padding:14px}
+ #list{max-height:none}
+ button{width:100%}
+ .cap button{width:auto}
+ .row button{flex:1}
+ #play{flex:0 0 auto;width:auto}
+}
 .bar{height:8px;background:var(--field);border-radius:4px;overflow:hidden;margin-top:8px;display:none}
 .bar i{display:block;height:100%;width:0;background:var(--accent)}
 </style></head><body>
 <div class="wrap">
-<div>
+<div class="pv">
 <canvas id="cv"></canvas>
 <div class="row" style="margin-top:10px"><button id="play" class="sec" disabled>Play</button><span id="clock" class="sub" style="margin:0">0:00</span></div>
 </div>
@@ -56,8 +74,9 @@ textarea{width:100%;font:inherit;border:1px solid var(--line);background:var(--f
 
 <div class="card"><h2>4. Save</h2>
 <button id="exp" disabled>Export video</button>
+<button id="save" hidden style="margin-top:10px">Save to Photos</button>
 <div class="bar" id="bar"><i></i></div>
-<p class="sub" style="margin:8px 0 0">Export plays the video once in real time. Keep this tab open and in front until it finishes.</p></div>
+<p class="sub" style="margin:8px 0 0">Export plays the video once. Keep the screen on and this page open until it finishes.</p></div>
 </div></div>
 
 <script>
@@ -66,7 +85,7 @@ const W=1080,H=1920,COLORS=['#FFE600','#35D6FF'];
 const cv=$('cv');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
 const vid=document.createElement('video');vid.playsInline=true;vid.preload='auto';
 const wm=new Image();wm.src='video-watermark.png';wm.onload=()=>draw();
-let chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
+let wl=null,chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
 
 function status(m,err){const s=$('status');s.textContent=m;s.className=err?'err':''}
 const fmt=t=>Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');
@@ -122,7 +141,7 @@ $('file').onchange=e=>{
   vid.src=URL.createObjectURL(f);
   vid.onloadedmetadata=()=>{loaded=true;vid.currentTime=0.05;
     ['play','auto','manual','exp'].forEach(i=>$(i).disabled=false);
-    status('Video ready ('+fmt(vid.duration)+'). Now make captions.')};
+    status('Video ready ('+fmt(vid.duration)+'). Making captions…');$('auto').click()};
   vid.onerror=()=>status('This video could not be opened here. Try Chrome, or export it as MP4 first.',true);
 };
 
@@ -134,6 +153,10 @@ function buildChunks(words){
     const endsSentence=cur&&/[.?!]$/.test(cur.words[cur.words.length-1].t);
     if(!cur||cur.words.length>=4||gap>0.7||endsSentence){cur={start:w.start,end:w.end,spk:0,words:[]};out.push(cur)}
     cur.words.push({t:w.text,s:w.start,e:w.end});cur.end=w.end});
+  // never leave a caption with one word: borrow one from the caption before it
+  for(let i=1;i<out.length;i++){const p=out[i-1],c=out[i];
+    if(c.words.length===1&&p.words.length>=3&&c.start-p.end<=0.7&&!/[.?!]$/.test(p.words[p.words.length-1].t)){
+      const w=p.words.pop();c.words.unshift(w);c.start=w.s;p.end=p.words[p.words.length-1].e}}
   return out;
 }
 function fromText(text){
@@ -172,8 +195,11 @@ $('auto').onclick=async()=>{
     const audio=(await off.startRendering()).getChannelData(0);
     status('Loading the captions engine. The first time takes 1–2 minutes…');
     const {pipeline}=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/+esm');
-    const asr=await pipeline('automatic-speech-recognition','onnx-community/whisper-base_timestamped',{
-      progress_callback:p=>{if(p.status==='progress')status('Downloading engine… '+Math.round(p.progress)+'%')}});
+    const phone=/iPhone|iPad|Android/i.test(navigator.userAgent)||navigator.maxTouchPoints>1;
+    const prog={progress_callback:p=>{if(p.status==='progress')status('Downloading engine… '+Math.round(p.progress)+'%')}};
+    let asr;
+    try{asr=await pipeline('automatic-speech-recognition',phone?'onnx-community/whisper-tiny_timestamped':'onnx-community/whisper-base_timestamped',prog)}
+    catch(e){console.warn(e);asr=await pipeline('automatic-speech-recognition','onnx-community/whisper-base_timestamped',prog)}
     status('Listening… this takes about as long as the video.');
     const out=await asr(audio,{return_timestamps:'word',chunk_length_s:30,stride_length_s:5,language:'english',task:'transcribe'});
     const words=(out.chunks||[]).map(c=>({text:c.text.trim(),start:c.timestamp[0],end:c.timestamp[1]??c.timestamp[0]+.3})).filter(w=>w.text);
@@ -202,20 +228,28 @@ $('exp').onclick=async()=>{
     await actx.resume();
     vid.pause();vid.currentTime=0;await new Promise(r=>{vid.addEventListener('seeked',r,{once:true});setTimeout(r,500)});
     const stream=new MediaStream([...cv.captureStream(30).getVideoTracks(),...adest.stream.getAudioTracks()]);
-    const mime=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/webm;codecs=vp9,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';
+    const mime=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1','video/webm;codecs=vp9,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';
     const rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:8e6}:{videoBitsPerSecond:8e6});
     const parts=[];rec.ondataavailable=e=>{if(e.data.size)parts.push(e.data)};
     const done=new Promise(r=>rec.onstop=r);
-    status('Exporting… keep this tab open.');
+    status('Exporting… keep the screen on and this page open.');
+    try{if(navigator.wakeLock)wl=await navigator.wakeLock.request('screen')}catch(e){}
     rec.start(500);await vid.play();
     const tick=setInterval(()=>{fill.style.width=Math.min(100,vid.currentTime/vid.duration*100)+'%'},250);
     await new Promise(r=>vid.addEventListener('ended',r,{once:true}));
     await new Promise(r=>setTimeout(r,400));rec.stop();await done;clearInterval(tick);
     const ext=(rec.mimeType||mime).includes('mp4')?'mp4':'webm';
     const blob=new Blob(parts,{type:rec.mimeType||mime||'video/webm'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='marqit-video.'+ext;document.body.appendChild(a);a.click();a.remove();
+    try{wl&&wl.release()}catch(e){}
     fill.style.width='100%';
-    status(ext==='mp4'?'Done. Your MP4 was saved.':'Done. Saved as WEBM. Open this page in Safari or the newest Chrome to get an MP4 for Instagram.');
+    const file=new File([blob],'marqit-video.'+ext,{type:blob.type});
+    if(ext==='mp4'&&navigator.canShare&&navigator.canShare({files:[file]})){
+      status('Done! Tap “Save to Photos”.');
+      const sb=$('save');sb.hidden=false;sb.onclick=async()=>{try{await navigator.share({files:[file]})}catch(e){}};
+    }else{
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;document.body.appendChild(a);a.click();a.remove();
+      status(ext==='mp4'?'Done. Your MP4 was saved.':'Done, but this browser made a WEBM, not an MP4. Use Chrome on a computer, or Safari on an iPhone, to get an MP4.');
+    }
   }catch(e){console.error(e);status('Export failed: '+(e.message||e),true)}
   exporting=false;$('exp').disabled=false;vid.currentTime=0.05;
 };
