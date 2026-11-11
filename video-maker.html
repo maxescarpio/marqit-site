@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Marqit Video Maker</title>
+<style>
+:root{--bg:#F1F2F5;--panel:#fff;--fg:#16181D;--muted:#646A75;--line:#E1E3E8;--field:#F6F7F9;--accent:#2F55E8;--accent-fg:#fff;--warn:#B4231B;--font:Helvetica,Arial,sans-serif}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1115;--panel:#1A1D23;--fg:#F0F2F5;--muted:#979EAA;--line:#2B3039;--field:#13161B;--accent:#6C8BFF;--accent-fg:#0B0E14;--warn:#FF7B72;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F1115;--panel:#1A1D23;--fg:#F0F2F5;--muted:#979EAA;--line:#2B3039;--field:#13161B;--accent:#6C8BFF;--accent-fg:#0B0E14;--warn:#FF7B72;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;line-height:1.4;margin:0;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:24px;align-items:start}
+@media(max-width:780px){.wrap{grid-template-columns:minmax(0,1fr)}}
+h1{font-size:24px;margin:0 0 4px;letter-spacing:-.02em}
+.sub{color:var(--muted);margin:0 0 16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px;min-width:0}
+h2{font-size:16px;margin:0 0 10px}
+canvas{width:100%;aspect-ratio:9/16;background:#000;border-radius:12px;display:block}
+button,.file{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;background:var(--accent);color:var(--accent-fg)}
+button.sec{background:var(--field);color:var(--fg);border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:default}
+input[type=file]{width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#status{color:var(--muted);margin-top:8px;min-height:20px}
+#status.err{color:var(--warn)}
+#list{display:grid;gap:6px;max-height:380px;overflow:auto}
+.cap{display:grid;grid-template-columns:44px minmax(0,1fr) 34px 30px;gap:6px;align-items:center}
+.cap .t{color:var(--muted);font-size:12px;cursor:pointer}
+.cap input{font:inherit;min-width:0;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:8px;padding:7px 9px}
+.cap .spk{padding:6px 0;color:#111;font-size:13px}
+.cap .del{padding:6px 0;background:var(--field);color:var(--muted);border:1px solid var(--line)}
+textarea{width:100%;font:inherit;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:8px;padding:9px;min-height:90px}
+.bar{height:8px;background:var(--field);border-radius:4px;overflow:hidden;margin-top:8px;display:none}
+.bar i{display:block;height:100%;width:0;background:var(--accent)}
+</style></head><body>
+<div class="wrap">
+<div>
+<canvas id="cv"></canvas>
+<div class="row" style="margin-top:10px"><button id="play" class="sec" disabled>Play</button><span id="clock" class="sub" style="margin:0">0:00</span></div>
+</div>
+<div>
+<h1>Marqit Video Maker</h1>
+<p class="sub">Upload a video. Get word-by-word captions and the MARQIT watermark. Internal.</p>
+
+<div class="card"><h2>1. Choose your video</h2>
+<input id="file" type="file" accept="video/*">
+<div id="status"></div></div>
+
+<div class="card"><h2>2. Make captions</h2>
+<div class="row"><button id="auto" disabled>Auto captions</button><button id="manual" class="sec" disabled>Type captions instead</button></div>
+<div id="pasteBox" hidden style="margin-top:10px"><textarea id="paste" placeholder="Type or paste what is said"></textarea><button id="pasteGo" style="margin-top:8px">Use this text</button></div>
+</div>
+
+<div class="card"><h2>3. Fix words and pick the speaker</h2>
+<p class="sub" style="margin:0 0 8px">Tap the colored button to switch speaker 1 (yellow) and speaker 2 (blue).</p>
+<div id="list"></div></div>
+
+<div class="card"><h2>4. Save</h2>
+<button id="exp" disabled>Export video</button>
+<div class="bar" id="bar"><i></i></div>
+<p class="sub" style="margin:8px 0 0">Export plays the video once in real time. Keep this tab open and in front until it finishes.</p></div>
+</div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const W=1080,H=1920,COLORS=['#FFE600','#35D6FF'];
+const cv=$('cv');cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
+const vid=document.createElement('video');vid.playsInline=true;vid.preload='auto';
+const wm=new Image();wm.src='video-watermark.png';wm.onload=()=>draw();
+let chunks=[],loaded=false,exporting=false,raf=0,actx=null,adest=null;
+
+function status(m,err){const s=$('status');s.textContent=m;s.className=err?'err':''}
+const fmt=t=>Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');
+
+/* ---------- drawing ---------- */
+function draw(){
+  const t=vid.currentTime||0;
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  if(loaded&&vid.videoWidth){
+    const s=Math.max(W/vid.videoWidth,H/vid.videoHeight),w=vid.videoWidth*s,h=vid.videoHeight*s;
+    ctx.drawImage(vid,(W-w)/2,(H-h)/2,w,h);
+  }
+  if(wm.complete&&wm.naturalWidth)ctx.drawImage(wm,0,0,W,H);
+  const c=chunks.find(c=>t>=c.start&&t<=c.end+0.2);
+  if(c)drawCaption(c,t);
+  $('clock').textContent=fmt(t)+' / '+fmt(vid.duration||0);
+}
+function drawCaption(c,t){
+  ctx.font='700 92px Helvetica,Arial,sans-serif';ctx.textBaseline='middle';ctx.lineJoin='round';
+  const maxW=W-300,sp=ctx.measureText(' ').width;
+  const lines=[];let cur=[],curW=0;
+  c.words.forEach((w,i)=>{const ww=ctx.measureText(w.t).width;
+    if(cur.length&&curW+sp+ww>maxW){lines.push({ws:cur,w:curW});cur=[];curW=0}
+    cur.push({...w,i,ww});curW+=(cur.length>1?sp:0)+ww});
+  if(cur.length)lines.push({ws:cur,w:curW});
+  let active=-1;c.words.forEach((w,i)=>{if(t>=w.s)active=i});
+  const lh=112,top=1180-(lines.length*lh)/2+lh/2;
+  lines.forEach((ln,li)=>{let x=(W-ln.w)/2;const y=top+li*lh;
+    ln.ws.forEach(w=>{
+      ctx.textAlign='left';ctx.strokeStyle='rgba(0,0,0,.92)';ctx.lineWidth=16;ctx.strokeText(w.t,x,y);
+      ctx.fillStyle=w.i===active?COLORS[c.spk]:'#fff';ctx.fillText(w.t,x,y);x+=w.ww+sp})});
+}
+function loop(){draw();if(!vid.paused&&!vid.ended)raf=requestAnimationFrame(loop)}
+vid.addEventListener('seeked',draw);vid.addEventListener('timeupdate',()=>{if(vid.paused)draw()});
+vid.addEventListener('play',()=>{$('play').textContent='Pause';loop()});
+vid.addEventListener('pause',()=>{$('play').textContent='Play';draw()});
+$('play').onclick=()=>{vid.paused?vid.play():vid.pause()};
+
+/* ---------- load video ---------- */
+let srcFile=null;
+$('file').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;srcFile=f;loaded=false;chunks=[];renderList();
+  status('Loading video…');
+  vid.src=URL.createObjectURL(f);
+  vid.onloadedmetadata=()=>{loaded=true;vid.currentTime=0.05;
+    ['play','auto','manual','exp'].forEach(i=>$(i).disabled=false);
+    status('Video ready ('+fmt(vid.duration)+'). Now make captions.')};
+  vid.onerror=()=>status('This video could not be opened here. Try Chrome, or export it as MP4 first.',true);
+};
+
+/* ---------- captions data ---------- */
+function buildChunks(words){
+  const out=[];let cur=null;
+  words.forEach(w=>{
+    const gap=cur?w.start-cur.words[cur.words.length-1].e:0;
+    const endsSentence=cur&&/[.?!]$/.test(cur.words[cur.words.length-1].t);
+    if(!cur||cur.words.length>=4||gap>0.7||endsSentence){cur={start:w.start,end:w.end,spk:0,words:[]};out.push(cur)}
+    cur.words.push({t:w.text,s:w.start,e:w.end});cur.end=w.end});
+  return out;
+}
+function fromText(text){
+  const toks=text.split(/\s+/).filter(Boolean),d=vid.duration||toks.length*.4,per=d/toks.length;
+  return buildChunks(toks.map((t,i)=>({text:t,start:i*per,end:(i+1)*per})));
+}
+function renderList(){
+  const L=$('list');L.innerHTML='';
+  chunks.forEach((c,ci)=>{
+    const r=document.createElement('div');r.className='cap';
+    const t=document.createElement('span');t.className='t';t.textContent=fmt(c.start);t.onclick=()=>{vid.currentTime=c.start};
+    const inp=document.createElement('input');inp.value=c.words.map(w=>w.t).join(' ');
+    inp.onchange=()=>{
+      const toks=inp.value.split(/\s+/).filter(Boolean);
+      if(!toks.length){chunks.splice(ci,1);renderList();draw();return}
+      if(toks.length===c.words.length)c.words.forEach((w,i)=>w.t=toks[i]);
+      else{const per=(c.end-c.start)/toks.length;c.words=toks.map((x,i)=>({t:x,s:c.start+i*per,e:c.start+(i+1)*per}))}
+      draw()};
+    inp.onfocus=()=>{vid.currentTime=c.start};
+    const sp=document.createElement('button');sp.className='spk';sp.textContent=c.spk?'2':'1';sp.style.background=COLORS[c.spk];
+    sp.onclick=()=>{c.spk=c.spk?0:1;renderList();draw()};
+    const del=document.createElement('button');del.className='del';del.textContent='×';del.onclick=()=>{chunks.splice(ci,1);renderList();draw()};
+    r.append(t,inp,sp,del);L.append(r)});
+}
+
+/* ---------- auto captions (in the browser, free, no limits) ---------- */
+$('auto').onclick=async()=>{
+  if(!srcFile)return;$('auto').disabled=true;
+  try{
+    status('Reading the audio…');
+    const buf=await srcFile.arrayBuffer();
+    const ac=new (window.AudioContext||window.webkitAudioContext)();
+    const dec=await ac.decodeAudioData(buf);
+    const off=new OfflineAudioContext(1,Math.ceil(dec.duration*16000),16000);
+    const s=off.createBufferSource();s.buffer=dec;s.connect(off.destination);s.start();
+    const audio=(await off.startRendering()).getChannelData(0);
+    status('Loading the captions engine. The first time takes 1–2 minutes…');
+    const {pipeline}=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/+esm');
+    const asr=await pipeline('automatic-speech-recognition','onnx-community/whisper-base_timestamped',{
+      progress_callback:p=>{if(p.status==='progress')status('Downloading engine… '+Math.round(p.progress)+'%')}});
+    status('Listening… this takes about as long as the video.');
+    const out=await asr(audio,{return_timestamps:'word',chunk_length_s:30,stride_length_s:5,language:'english',task:'transcribe'});
+    const words=(out.chunks||[]).map(c=>({text:c.text.trim(),start:c.timestamp[0],end:c.timestamp[1]??c.timestamp[0]+.3})).filter(w=>w.text);
+    if(!words.length)throw new Error('No speech found');
+    chunks=buildChunks(words);renderList();vid.currentTime=0.05;
+    status('Captions ready. Check the words below.');
+  }catch(e){
+    console.error(e);
+    status('Auto captions did not work here ('+(e.message||e)+'). Use “Type captions instead”.',true);
+  }
+  $('auto').disabled=false;
+};
+$('manual').onclick=()=>{$('pasteBox').hidden=!$('pasteBox').hidden};
+$('pasteGo').onclick=()=>{
+  const v=$('paste').value.trim();if(!v)return;
+  chunks=fromText(v);renderList();draw();status('Captions added, spread evenly over the video. Tap a caption’s time to jump there and fix the words.');
+};
+
+/* ---------- export ---------- */
+$('exp').onclick=async()=>{
+  if(!loaded||exporting)return;exporting=true;$('exp').disabled=true;
+  const bar=$('bar');bar.style.display='block';const fill=bar.firstElementChild;
+  try{
+    if(!actx){actx=new (window.AudioContext||window.webkitAudioContext)();
+      adest=actx.createMediaStreamDestination();actx.createMediaElementSource(vid).connect(adest)}
+    await actx.resume();
+    vid.pause();vid.currentTime=0;await new Promise(r=>{vid.addEventListener('seeked',r,{once:true});setTimeout(r,500)});
+    const stream=new MediaStream([...cv.captureStream(30).getVideoTracks(),...adest.stream.getAudioTracks()]);
+    const mime=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/webm;codecs=vp9,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'';
+    const rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:8e6}:{videoBitsPerSecond:8e6});
+    const parts=[];rec.ondataavailable=e=>{if(e.data.size)parts.push(e.data)};
+    const done=new Promise(r=>rec.onstop=r);
+    status('Exporting… keep this tab open.');
+    rec.start(500);await vid.play();
+    const tick=setInterval(()=>{fill.style.width=Math.min(100,vid.currentTime/vid.duration*100)+'%'},250);
+    await new Promise(r=>vid.addEventListener('ended',r,{once:true}));
+    await new Promise(r=>setTimeout(r,400));rec.stop();await done;clearInterval(tick);
+    const ext=(rec.mimeType||mime).includes('mp4')?'mp4':'webm';
+    const blob=new Blob(parts,{type:rec.mimeType||mime||'video/webm'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='marqit-video.'+ext;document.body.appendChild(a);a.click();a.remove();
+    fill.style.width='100%';
+    status(ext==='mp4'?'Done. Your MP4 was saved.':'Done. Saved as WEBM. Open this page in Safari or the newest Chrome to get an MP4 for Instagram.');
+  }catch(e){console.error(e);status('Export failed: '+(e.message||e),true)}
+  exporting=false;$('exp').disabled=false;vid.currentTime=0.05;
+};
+draw();
+</script></body></html>

@@ -42,3 +42,7 @@
 /video
   Cache-Control: no-cache
   X-Robots-Tag: noindex, nofollow
+
+/video-maker
+  Cache-Control: no-cache
+  X-Robots-Tag: noindex, nofollow
