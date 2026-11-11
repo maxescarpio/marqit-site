@@ -457,12 +457,16 @@ async function exportOffline(fill){
   for(let i=0;i<N;i++){
     if(err)throw err;
     await seekTo(Math.min(i/FPS,dur-0.001));
+    // iPhone can say 'seeked' before the new picture is ready: wait for the real frame
+    if(vid.requestVideoFrameCallback)await new Promise(r=>{let d=false;const f=()=>{if(!d){d=true;r()}};vid.requestVideoFrameCallback(f);setTimeout(f,120);
+      // nudge so a callback fires even when paused
+      vid.currentTime=Math.min(i/FPS,dur-0.001)});
     draw();
     const f=new VideoFrame(cv,{timestamp:Math.round(i*1e6/FPS),duration:Math.round(1e6/FPS)});
     venc.encode(f,{keyFrame:i%60===0});f.close();
     while(venc.encodeQueueSize>8)await new Promise(r=>setTimeout(r,5));
     if(i%5===0){fill.style.width=(i/N*100)+'%';const el=(performance.now()-t0)/1000,left=Math.max(0,Math.round(el/(i+1)*(N-i)));
-      xs('Making your video… '+Math.round(i/N*100)+'%'+(i>15?' (about '+left+'s left)':'')+'. Keep this page open.')}
+      xs('Smooth mode: making your video… '+Math.round(i/N*100)+'%'+(i>15?' (about '+left+'s left)':'')+'. Keep this page open.')}
   }
   xs('Finishing your video…');
   await venc.flush();await aenc.flush();
