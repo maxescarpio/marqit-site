@@ -5581,8 +5581,11 @@
     var crowdHtml = '<div class="crowd-bar' + ((showPct && total > 0) ? ' on' : '') + '"><i style="width:0"></i></div>';
     var crowdTagHtml = mqCrowdTagsHtml(myVote, yesPct, noPct, total, trend, showPct);
     var chipsHtml = '';
+    if(q.why_today && !isVoid){
+      chipsHtml += '<p class="mq-why">' + escapeHtml(q.why_today) + '</p>';
+    }
     if(!isLocked && q.lock_time && !isVoid && q.is_boosted){
-      chipsHtml = '<div class="mq-chips"><span class="boost-chip">' + mqIcon('bolt') + '2X today</span></div>';
+      chipsHtml += '<div class="mq-chips"><span class="boost-chip">' + mqIcon('bolt') + '2X today</span></div>';
     }
     var latestHtml = '';
     if(!isLocked && trend && trend.length){
