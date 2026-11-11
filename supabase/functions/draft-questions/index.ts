@@ -314,7 +314,7 @@ Rules:
 - NAME THE SUBJECT. The question itself must name the specific team(s), person, contestant, company, show or title it is about, so someone who sees ONLY the question knows exactly what is being asked. Good: "Will the Los Angeles Lakers beat the Boston Celtics tonight?", "Will Dancing with the Stars eliminate Jane Smith tonight?". Bad: "Will the home team win?", "Will he be eliminated?", "Will the game go to overtime?", "Will the report beat expectations?". Never use vague stand-ins like "the game", "the team", "the champ", "he/she/they", "this" or "tonight's event" in place of a name. Include the competition, date or matchup when it helps (e.g. "Will Patrick Mahomes throw for 300+ yards against the Bills on Sunday?").
 - NEVER use the word "or" in question_text. A yes/no question is ONE single proposition. Do not offer a choice between two things ("Will A or B win?", "Will it be over or under 45?"). Ask about one side instead ("Will the Chiefs beat the Bills?"). Also avoid "and" that joins two separate outcomes.
 - resolution_criteria must state exactly how and where to verify the outcome (a specific source or measurable condition), written for a non-technical person to check.
-- why_today is ONE short line (55 characters or fewer) shown under the question, telling a player why this is on today. Plain, concrete and checkable with your search: a debut, a game tonight, a date, a milestone (examples: "Debuts on Netflix today", "Thunder visit Portland tonight", "Season finale airs tonight"). No hype, no emojis, no quotation marks, no ending period. Never state or hint at the outcome, and never mention points, locking or deadlines. If you cannot find a solid, true reason, use an empty string.
+- why_today is ONE short line (44 characters or fewer) shown under the question: a concrete, verifiable fact that helps a player decide, NOT a restatement of the question. Examples: team records for a game ("Thunder 8-3 · Blazers 7-3"), the latest chart result for a ranking question ("Yesterday's No. 1 free app: ChatGPT"), last week's No. 1 for a chart question ("No. 1 last week: The Day After Tomorrow"), a recent form line for a player prop ("Averaging 27.4 points this season"). Use ONLY a fact you confirmed in a source you found today, and make it exact. If a number changes during the day, say when it was true ("this morning"). No hype, no emojis, no quotation marks, no ending period. Never state or hint at the outcome, and never mention points, locking or deadlines. If you cannot confirm a solid fact, use an empty string.
 ${CATEGORY_RULES[category] || ''}
 ${skipLine}
 
@@ -327,8 +327,8 @@ type Draft = { question_text: string; resolution_criteria: string; why_today: st
 // The short "why it's on today" line: keep it only if it is clean and short, otherwise show nothing.
 function cleanWhyToday(v: unknown): string | null {
   const t = String(v ?? '').replace(/\s+/g, ' ').trim().replace(/^["'\u201c\u201d]+|["'\u201c\u201d]+$/g, '').replace(/[.]+$/, '').trim();
-  if (!t || t.length > 70) return null;
-  if (/\b(points?|locks?|locking|deadline)\b/i.test(t)) return null;
+  if (!t || t.length > 48) return null;
+  if (/\b(locks?|locking|deadline|worth \d+ points?)\b/i.test(t)) return null;
   return t;
 }
 
