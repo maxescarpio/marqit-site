@@ -703,73 +703,6 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 .hamburger-label{font-size:13px;font-weight:600;line-height:1}
 @media (max-width:360px){.hamburger-label{display:none}}
 
-/* ===== Nov 12: Submit bar you cannot miss =====
-   Waiting: dashed outline that says how many picks are left. Ready: solid gold, bigger, pulsing, with an arrow.
-   Same sticky bar and the same green/red slot icons as before; only the button and its state changed. */
-.pick-submit{display:block;width:100%;padding:15px 22px;border-radius:12px;border:1.5px dashed var(--line);background:var(--panel);
-  color:var(--ink-soft);font:inherit;font-weight:700;font-size:15.5px;letter-spacing:.01em;cursor:pointer;
-  transition:background .25s ease,color .25s ease,border-color .25s ease,transform .2s ease,font-size .2s ease}
-.pick-submit.is-waiting:hover{color:var(--ink);border-color:var(--ink-soft)}
-.pick-dock.ready .pick-submit,.pick-submit.is-ready{border-style:solid;border-color:var(--gold);background:var(--gold);color:#17130A;
-  font-size:17px;font-weight:800;box-shadow:0 6px 22px -6px rgba(242,193,78,.65);animation:pickReadyPulse 1.9s ease-out infinite}
-.pick-dock.ready .pick-submit:hover{transform:translateY(-1px)}
-.pick-dock.ready .pick-submit:active{transform:translateY(1px)}
-.pick-submit:disabled{opacity:.75;animation:none;cursor:default}
-.pick-dock.ready > .pick-progress{border-color:var(--gold);background:rgba(242,193,78,.08)}
-.pick-dock.ready .pp-text{color:var(--gold)}
-.pick-dock.ready .pp-bonus{color:var(--ink)}
-.pick-dock.ready-pop > .pick-progress{animation:pickDockPop .55s cubic-bezier(.2,.8,.2,1)}
-@keyframes pickReadyPulse{0%{box-shadow:0 6px 22px -6px rgba(242,193,78,.65),0 0 0 0 rgba(242,193,78,.5)}
-  70%{box-shadow:0 6px 22px -6px rgba(242,193,78,.65),0 0 0 14px rgba(242,193,78,0)}
-  100%{box-shadow:0 6px 22px -6px rgba(242,193,78,.65),0 0 0 0 rgba(242,193,78,0)}}
-@keyframes pickDockPop{0%{transform:scale(.97)}55%{transform:scale(1.025)}100%{transform:scale(1)}}
-.predict-card.nudge-pick{animation:nudgePick .9s ease}
-@keyframes nudgePick{0%,100%{box-shadow:0 0 0 0 rgba(242,193,78,0)}30%{box-shadow:0 0 0 3px rgba(242,193,78,.9)}}
-@media (min-width:900px){.pick-dock{grid-template-columns:minmax(0,1fr) minmax(300px,440px)}}
-@media (prefers-reduced-motion:reduce){.pick-dock.ready .pick-submit,.pick-submit.is-ready,.pick-dock.ready-pop > .pick-progress,.predict-card.nudge-pick{animation:none}}
-
-/* Lean chip on the closed History & lean header */
-.mqp-chip{flex:none;padding:3px 9px;border-radius:6px;font-size:12.5px;font-weight:800;letter-spacing:.02em;font-variant-numeric:tabular-nums;
-  background:rgba(255,255,255,.06);color:var(--ink)}
-.mqp-chip.yes{background:var(--yes-bg);color:var(--yes)}
-.mqp-chip.no{background:var(--no-bg);color:var(--no)}
-@media (max-width:420px){.mqp-title{font-size:13.5px}.mqp-chip{font-size:12px;padding:3px 7px}}
-
-/* ===== Nov 12: player popup: how you know them, did they play, Remind, latest calls ===== */
-.mq-sheet{max-height:92vh;overflow-y:auto}
-.mq-rels{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.mq-rel{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.06);color:var(--ink)}
-.mq-rel svg{width:12px;height:12px}
-.mq-rel.buddy{background:var(--yes-bg);color:var(--yes)}
-.mq-rel.rival{background:var(--no-bg);color:var(--no)}
-.mq-rel.group,.mq-rel.follow{color:var(--ink-soft)}
-.mq-play-status{display:flex;align-items:center;gap:6px;margin:0 0 12px;font-size:13px;font-weight:600}
-.mq-play-status svg{width:14px;height:14px}
-.mq-play-status.done{color:var(--yes)}
-.mq-play-status.todo{color:var(--gold)}
-.mq-sheet-actions{display:flex;gap:10px;flex-wrap:wrap}
-.mq-sheet-actions > button{flex:1 1 140px}
-.mq-remind-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 18px;border-radius:10px;border:1.5px solid var(--gold);
-  background:rgba(242,193,78,.1);color:var(--gold);font:inherit;font-weight:700;font-size:14px;cursor:pointer;transition:background .2s ease}
-.mq-remind-btn:hover:not(:disabled){background:rgba(242,193,78,.2)}
-.mq-remind-btn:disabled{opacity:.65;cursor:default}
-.mq-remind-btn svg{width:16px;height:16px}
-.mq-sheet .form-msg{min-height:18px;margin-top:8px;font-size:13px}
-.mq-latest{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
-.mq-latest-h{font-size:11.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px}
-.mq-latest-empty{margin:0;font-size:13px;color:var(--ink-soft)}
-.mq-latest-row{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-top:1px solid rgba(255,255,255,.05)}
-.mq-latest-row:first-of-type{border-top:0}
-.mq-latest-res{flex:none;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-top:1px;background:rgba(255,255,255,.07);color:var(--ink-soft);font-style:normal}
-.mq-latest-res svg{width:11px;height:11px;stroke-width:3}
-.mq-latest-row.win .mq-latest-res{background:var(--yes-bg);color:var(--yes)}
-.mq-latest-row.loss .mq-latest-res{background:var(--no-bg);color:var(--no)}
-.mq-dash{font-size:11px;line-height:1}
-.mq-latest-pick{flex:none;font-size:11.5px;font-weight:800;padding:2px 7px;border-radius:5px;margin-top:1px}
-.mq-latest-pick.yes{background:var(--yes-bg);color:var(--yes)}
-.mq-latest-pick.no{background:var(--no-bg);color:var(--no)}
-.mq-latest-q{font-size:13px;line-height:1.35;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-
 /* ===== Nov 12: Groups, smaller and readable =====
    Left: the leaderboard. Right: invite, who still has to play today (with Remind), then everything else
    tucked under "Group settings". Built on .gp-side2 so the old .gp-side overrides no longer apply. */
@@ -779,9 +712,10 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 .gp-side2{display:flex;flex-direction:column;gap:12px;min-width:0;padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px}
 .gp2-label{font-size:11.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)}
 .gp2-label span{font-weight:600;letter-spacing:.02em;text-transform:none;color:var(--ink-soft)}
-.gp2-invite{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.gp2-invite{display:flex;flex-direction:column;gap:8px}
+.gp2-invite .gp2-btn{width:100%;height:44px}
 .gp2-invite-l{display:flex;flex-direction:column;gap:4px;min-width:0}
-.gp2-invite code{font:700 18px 'Barlow',sans-serif;letter-spacing:.14em;color:var(--ink)}
+.gp2-invite code{font:700 14px 'Barlow',sans-serif;letter-spacing:.16em;color:var(--ink)}
 .gp2-invite-user{display:flex;gap:8px}
 .gp2-invite-user input{flex:1;min-width:0;height:40px;padding:0 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);font:inherit;font-size:14px}
 .gp2-btn{height:40px;padding:0 16px;border-radius:10px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer;white-space:nowrap}
@@ -793,9 +727,9 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 .gp2-today{display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid var(--line)}
 .gp2-prow{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:14px}
 .gp2-pname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
-.gp2-pcount{font-size:12.5px;font-weight:800;color:var(--no);font-variant-numeric:tabular-nums}
-.gp2-remind{height:30px;padding:0 12px;border-radius:8px;border:1.5px solid var(--gold);background:rgba(242,193,78,.1);color:var(--gold);font:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
-.gp2-remind:hover:not(:disabled){background:rgba(242,193,78,.2)}
+.gp2-pcount{font-size:12.5px;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.gp2-remind{height:30px;padding:0 12px;border-radius:8px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-weight:600;font-size:12.5px;cursor:pointer}
+.gp2-remind:hover:not(:disabled){border-color:var(--ink-soft)}
 .gp2-remind:disabled{opacity:.6;cursor:default}
 .gp2-done{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--yes);font-weight:600;line-height:1.35}
 .gp2-done svg{flex:none;width:14px;height:14px;stroke-width:3}
@@ -842,3 +776,45 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 .plus-feed-pick.yes{background:var(--yes-bg);color:var(--yes)}
 .plus-feed-pick.no{background:var(--no-bg);color:var(--no)}
 .plus-feed-q{margin:4px 0 0;font-size:13.5px;line-height:1.4;color:var(--ink)}
+
+/* ===== Nov 12 (design pass): Submit bar. Same bar as before. Waiting = quiet outline with a counter. Ready = solid, full
+   strength, a little taller. No color, no glow, no animation: the change from dim to solid is the signal. ===== */
+.pick-submit{display:block;width:100%;padding:16px 22px;border-radius:10px;border:1.5px solid var(--line);background:transparent;
+  color:var(--ink-soft);font:inherit;font-weight:600;font-size:15px;cursor:pointer;transition:background .2s ease,color .2s ease,border-color .2s ease}
+.pick-submit.is-waiting:hover{color:var(--ink);border-color:var(--ink-soft)}
+.pick-dock.ready .pick-submit,.pick-submit.is-ready{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700;font-size:16px}
+.pick-dock.ready .pick-submit:hover{opacity:.92}
+.pick-submit:disabled{opacity:.6;cursor:default}
+.predict-card.nudge-pick{animation:nudgePick .9s ease}
+@keyframes nudgePick{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}30%{box-shadow:0 0 0 2px rgba(255,255,255,.55)}}
+@media (min-width:900px){.pick-dock{grid-template-columns:minmax(0,1fr) minmax(300px,440px)}}
+@media (prefers-reduced-motion:reduce){.predict-card.nudge-pick{animation:none}}
+
+/* ===== Nov 12 (design pass): player popup. Plain type and hairlines, same look as the leaderboard rows. ===== */
+.mq-sheet{max-height:92vh;overflow-y:auto}
+.mq-relline{margin-top:12px;font-size:13.5px;color:var(--ink-soft)}
+.mq-sheet-counts{margin:12px 0 0}
+.mq-play-status{margin:12px 0 0;font-size:13.5px;color:var(--ink-soft)}
+.mq-sheet-actions{display:flex;gap:10px;margin-top:16px}
+.mq-sheet-actions > button{flex:1 1 0;min-width:0}
+.mq-remind-btn{min-height:42px;padding:0 16px;border-radius:10px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-weight:700;font-size:14px;cursor:pointer}
+.mq-remind-btn:hover:not(:disabled){border-color:var(--ink-soft)}
+.mq-remind-btn:disabled{opacity:.6;cursor:default}
+.mq-sheet .form-msg{min-height:18px;margin-top:8px;font-size:13px}
+.mq-latest{margin-top:20px}
+.mq-latest-h{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);padding-bottom:8px;border-bottom:1px solid var(--line)}
+.mq-latest-empty{margin:10px 0 0;font-size:13px;color:var(--ink-soft)}
+.mq-latest-row{display:grid;grid-template-columns:16px 34px 1fr;gap:8px;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line)}
+.mq-latest-res{font-size:13px;font-weight:700;color:var(--ink-soft);text-align:center}
+.mq-latest-row.win .mq-latest-res{color:var(--yes)}
+.mq-latest-row.loss .mq-latest-res{color:var(--no)}
+.mq-latest-pick{font-size:12.5px;font-weight:800;letter-spacing:.03em}
+.mq-latest-pick.yes{color:var(--yes)}
+.mq-latest-pick.no{color:var(--no)}
+.mq-latest-q{font-size:13.5px;line-height:1.35;color:var(--ink)}
+
+/* Two small pills under the question (replaces the lock timer / points strip). */
+.q-pills{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 12px}
+.q-pill{display:inline-flex;align-items:center;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);white-space:nowrap}
+.q-pill b{color:var(--ink);font-weight:800;margin-right:3px}
+.q-pill b:last-child{margin-right:0}
