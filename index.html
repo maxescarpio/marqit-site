@@ -46,9 +46,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261111a">
+<link rel="stylesheet" href="style.css?v=20261112a">
 <link rel="stylesheet" href="refresh.css?v=20261105c">
-<link rel="stylesheet" href="redesign.css?v=20261109b">
+<link rel="stylesheet" href="redesign.css?v=20261112d">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -675,43 +675,33 @@
       </div>
 
       </div>
-      <div class="gp-side">
-      <p style="font-size:13px; color:var(--ink-soft); margin-bottom:10px;">
-        Invite link: <code id="group-invite-code" style="background:var(--yes-bg); color:var(--yes); border:1px solid var(--yes); padding:3px 9px; border-radius:10px; font-weight:700;"></code>
-        <button id="copy-invite-btn" style="margin-left:8px; padding:6px 14px; border:none; border-radius:8px; background:var(--ink); color:var(--paper); font-size:13px; font-weight:600; cursor:pointer;">Copy</button>
-        <button id="leave-group-btn" style="margin-left:8px; padding:4px 10px; border:1px solid var(--no); border-radius:10px; background:none; color:var(--no); font-size:12px; cursor:pointer;">Leave group</button>
-      </p>
-      <div style="display:flex; gap:8px; max-width:420px; margin-bottom:16px;">
-        <input type="text" id="group-invite-username-input" placeholder="invite by username" style="flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:8px; font-family:inherit; font-size:14px; background:var(--panel); color:var(--ink);">
-        <button id="group-invite-username-btn" style="padding:10px 16px; border:none; border-radius:8px; background:var(--panel); border:1.5px solid var(--line); color:var(--ink); font-weight:600; font-size:13.5px; cursor:pointer; white-space:nowrap;">Invite</button>
-      </div>
-      <p class="form-msg" id="group-invite-msg" style="font-size:13px; margin-top:-8px; margin-bottom:14px;"></p>
-
-      <div id="group-card-owner-settings" style="display:none; margin-bottom:16px; padding:14px 16px; background:var(--panel); border:1px solid var(--line); border-radius:12px;">
-        <div style="font-size:12.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:10px;">Weekly group card (owner settings)</div>
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:8px; cursor:pointer;">
-          <input type="checkbox" id="group-card-sharing-checkbox" style="width:16px; height:16px;">
-          <span>Let members share the weekly group card</span>
-        </label>
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
-          <input type="checkbox" id="group-card-invite-checkbox" style="width:16px; height:16px;">
-          <span>Include the invite link on the shared card</span>
-        </label>
-        <p style="font-size:11.5px; color:var(--ink-soft); margin-top:8px;">Both off by default. Group invite codes aren't access-controlled &mdash; anyone with the link can join, so only turn this on if that's okay.</p>
-      </div>
-
-      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-soft); margin-bottom:16px; cursor:pointer;">
-        <input type="checkbox" id="group-card-share-as-player-checkbox" style="width:16px; height:16px;">
-        <span>On a shared group card, show me as "Player" instead of my username</span>
-      </label>
-
-      <div style="margin-top:16px; padding:14px 16px; background:var(--panel); border:1px solid var(--line); border-radius:12px;">
-        <div style="font-size:12.5px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:8px;">Today's participation</div>
-        <p style="font-size:11.5px; color:var(--ink-soft); margin:0 0 8px;">Your group's points depend on everyone answering &mdash; chase down whoever hasn't yet.</p>
-        <div id="board-group-participation"><div class="skel-rows"><i class="sk"></i><i class="sk"></i></div></div>
-      </div>
-      <button type="button" id="share-group-card-btn" class="lb-share-btn" style="display:none;">Share this week's group card</button>
-      <div id="champion-card-btn-wrap"></div>
+      <div class="gp-side2">
+        <div class="gp2-invite">
+          <div class="gp2-invite-l"><span class="gp2-label">Invite code</span><code id="group-invite-code"></code></div>
+          <button type="button" id="copy-invite-btn" class="gp2-btn primary">Copy</button>
+        </div>
+        <div class="gp2-invite-user">
+          <input type="text" id="group-invite-username-input" placeholder="Invite by username" autocomplete="off" autocapitalize="off">
+          <button type="button" id="group-invite-username-btn" class="gp2-btn">Invite</button>
+        </div>
+        <p class="form-msg" id="group-invite-msg"></p>
+        <div class="gp2-today">
+          <div class="gp2-label">Today <span id="gp2-today-sum"></span></div>
+          <div id="board-group-participation"><div class="skel-rows"><i class="sk"></i><i class="sk"></i></div></div>
+          <p class="form-msg" id="gp2-today-msg"></p>
+        </div>
+        <button type="button" id="share-group-card-btn" class="lb-share-btn" style="display:none;">Share this week's group card</button>
+        <div id="champion-card-btn-wrap"></div>
+        <details class="gp2-more">
+          <summary>Group settings</summary>
+          <div id="group-card-owner-settings" style="display:none;">
+            <label class="gp2-check"><input type="checkbox" id="group-card-sharing-checkbox"><span>Let members share the weekly group card</span></label>
+            <label class="gp2-check"><input type="checkbox" id="group-card-invite-checkbox"><span>Put the invite link on the shared card</span></label>
+            <p class="gp2-fine">Anyone with the invite link can join, so only turn the second one on if that's okay.</p>
+          </div>
+          <label class="gp2-check"><input type="checkbox" id="group-card-share-as-player-checkbox"><span>Show me as "Player" on shared cards</span></label>
+          <button type="button" id="leave-group-btn" class="gp2-btn danger">Leave group</button>
+        </details>
       </div>
       </div>
     </div>
@@ -873,8 +863,8 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261111b" defer></script>
-<script src="plus.js?v=20261106h" defer></script>
+<script src="app.js?v=20261112a" defer></script>
+<script src="plus.js?v=20261112a" defer></script>
 <script src="leagues.js?v=20261105a" defer></script>
 <script src="teams.js?v=20261106h" defer></script>
 

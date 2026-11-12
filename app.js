@@ -4068,6 +4068,7 @@
     swap: '<path d="M4 8h13M14 5l3 3-3 3M20 16H7M10 13l-3 3 3 3"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
     xmark: '<path d="M6 6l12 12M18 6L6 18"/>',
+    bell: '<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 21h4"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
     star: '<path d="M12 3.5l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17.4l-5.4 2.8 1.1-6.1L3.2 9.9l6.1-.8z"/>',
@@ -5592,6 +5593,19 @@
       var ago = mqAgo(Date.now() - trend[trend.length - 1].time.getTime());
       if(ago) latestHtml = '<span class="foot-latest"><i class="live-dot"></i>Latest call ' + ago + '</span>';
     }
+    // Live strip under the question: lock countdown, points on the line, and how many players are in.
+    var liveStripHtml = '';
+    if(!isVoid && !isFinal){
+      var lsItems = [];
+      if(!isLocked && q.lock_time){
+        lsItems.push('<span class="ls-item ls-time" data-lock="' + escapeHtml(q.lock_time) + '">' + mqIcon('clock') + '<b class="ls-time-t">' + mqLockText(q.lock_time) + '</b></span>');
+      }else if(isLocked){
+        lsItems.push('<span class="ls-item">' + mqIcon('lock') + '<b>Locked</b></span>');
+      }
+      lsItems.push('<span class="ls-item ls-pts' + (q.is_boosted ? ' boost' : '') + '">' + mqIcon(q.is_boosted ? 'bolt' : 'star') + '<b>+' + (q.is_boosted ? 200 : 100) + '</b> pts</span>');
+      if(total > 0) lsItems.push('<span class="ls-item">' + mqIcon('flame') + '<b>' + total + '</b> ' + (total === 1 ? 'call' : 'calls') + ' in</span>');
+      liveStripHtml = '<div class="live-strip">' + lsItems.join('') + '</div>';
+    }
     var mostCalledBadge = (isMostCalled && total > 0) ? '<div class="hot-badge">' + mqIcon('flame') + 'Most called today</div>' : '';
     var moverBadge = (isMover && showPct) ? '<div class="mover-badge">' + mqIcon('bolt') + 'Big swing in the last hour</div>' : '';
     var resolutionHtml = q.resolution_criteria
@@ -5611,8 +5625,16 @@
         '<div class="mqp-lean-bar" role="img" aria-label="' + leanYes + ' percent chance of yes"><i style="width:' + leanYes + '%"></i></div>' +
         '<p class="mqp-lean-basis"></p></div>';
     }
+    // The lean is visible on the closed panel too: every question carries one.
+    var leanChipHtml = '';
+    if(leanYes && plusRow.lean_basis){
+      var chipSide = leanYes > 50 ? 'yes' : (leanYes < 50 ? 'no' : 'even');
+      var chipPct = leanYes >= 50 ? leanYes : 100 - leanYes;
+      leanChipHtml = '<span class="mqp-chip ' + chipSide + '">' + (chipSide === 'even' ? 'Toss-up 50%' : 'Lean ' + (chipSide === 'yes' ? 'YES' : 'NO') + ' ' + chipPct + '%') + '</span>';
+    }
     var plusHtml = (plusBullets && plusBullets.length)
       ? '<details class="mqp-details"><summary><span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">History &amp; lean</span>' +
+        leanChipHtml +
         '<svg class="mqp-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
         leanHtml +
         '<ul class="mqp-list"></ul>' +
@@ -5626,6 +5648,7 @@
       mostCalledBadge +
       moverBadge +
       chipsHtml +
+      liveStripHtml +
       '<div class="ticket-row">' +
         '<div class="opt yes' + yesPickedClass + '"><div class="opt-label"' + optLabelHidden + '>YES</div><div class="opt-price">' + yesPriceHtml + '</div></div>' +
         '<div class="opt no' + noPickedClass + '"><div class="opt-label"' + optLabelHidden + '>NO</div><div class="opt-price">' + noPriceHtml + '</div></div>' +
@@ -5678,6 +5701,65 @@
     return div;
   }
 
+
+  // ---- Lock countdown on every open card (updates once a second, only while the tab is visible) ----
+  function mqLockText(iso){
+    var ms = new Date(iso).getTime() - Date.now();
+    if(isNaN(ms)) return '';
+    if(ms <= 0) return 'Locking now';
+    var sec = Math.floor(ms / 1000), d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60), r = sec % 60;
+    if(d >= 1) return 'Locks in ' + d + 'd ' + h + 'h';
+    if(h >= 1) return 'Locks in ' + h + 'h ' + m + 'm';
+    return 'Locks in ' + m + ':' + (r < 10 ? '0' : '') + r;
+  }
+  (function(){
+    setInterval(function(){
+      if(document.hidden) return;
+      var els = document.querySelectorAll('.ls-time[data-lock]');
+      for(var i = 0; i < els.length; i++){
+        var el = els[i], ms = new Date(el.getAttribute('data-lock')).getTime() - Date.now();
+        el.classList.toggle('soon', ms > 0 && ms < 3600000);
+        el.classList.toggle('urgent', ms > 0 && ms < 900000);
+        var t = el.querySelector('.ls-time-t');
+        if(t) t.textContent = mqLockText(el.getAttribute('data-lock'));
+      }
+    }, 1000);
+  })();
+
+  // ---- Pick bar: one clear state for "not done yet" and "ready, submit now" ----
+  function mqSyncPickDock(btn, nPicked, total, editing){
+    if(!btn) return;
+    var ready = nPicked >= total;
+    var dock = btn.closest ? btn.closest('.pick-dock') : null;
+    btn.classList.toggle('is-ready', ready);
+    btn.classList.toggle('is-waiting', !ready);
+    btn.setAttribute('aria-disabled', ready ? 'false' : 'true');
+    if(dock){
+      var wasReady = dock.classList.contains('ready');
+      dock.classList.toggle('ready', ready);
+      if(ready && !wasReady){
+        dock.classList.remove('ready-pop'); void dock.offsetWidth; dock.classList.add('ready-pop');
+        try{ if(navigator.vibrate) navigator.vibrate(18); }catch(e){}
+      }
+    }
+    var left = total - nPicked;
+    btn.textContent = ready
+      ? (editing ? 'Save changes' : 'Submit your ' + total + ' calls \u2192')
+      : (nPicked === 0 ? 'Pick all ' + total + ' to submit' : 'Pick ' + left + ' more to submit');
+  }
+  // Tapping the bar before everything is picked takes the player to the next unanswered card.
+  function mqJumpToNextUnpicked(container, qs, sel){
+    for(var i = 0; i < qs.length; i++){
+      if(!sel[qs[i].q.id]){
+        var card = container.querySelector('[data-question-id="' + qs[i].q.id + '"]');
+        if(card){
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.classList.remove('nudge-pick'); void card.offsetWidth; card.classList.add('nudge-pick');
+        }
+        return;
+      }
+    }
+  }
 
   // ---- How to play: an animated demo of one call (Pick -> Lock -> Score) ----
   // Built from the same classes as the real question cards so it always looks like the real thing.
@@ -6511,20 +6593,18 @@
       }else{
         gControls.innerHTML =
           '<div class="pick-dock"><div class="pick-progress" id="pick-progress" style="display:flex;"><span class="pp-dots">' + guestQs.map(function(p){ var v = mqDetectVisual(p.q); return '<i class="pp-slot">' + (v.icon || CATEGORY_ICONS[p.q.category] || '') + '</i>'; }).join('') + '</span><span class="pp-text">0 of ' + guestQs.length + ' picked</span><span class="pp-bonus">All right = +100 bonus</span></div>' +
-          '<button type="button" id="guest-submit-btn" disabled style="width:100%; padding:14px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; opacity:0.4;">Pick all three first</button></div>' +
+          '<button type="button" id="guest-submit-btn" class="pick-submit">Pick all three first</button></div>' +
           '<p style="font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:0;">No account needed to play.</p>';
         container.appendChild(gControls);
         const gBtn = document.getElementById('guest-submit-btn');
         function updateGuestState(){
           const allPicked = guestQs.every(function(p){ return !!guestSel[p.q.id]; });
-          gBtn.disabled = !allPicked;
-          gBtn.style.opacity = allPicked ? '1' : '0.4';
-          gBtn.textContent = allPicked ? 'Submit your calls' : 'Pick all three first';
+          const nPicked = guestQs.filter(function(p){ return !!guestSel[p.q.id]; }).length;
+          mqSyncPickDock(gBtn, nPicked, guestQs.length, false);
           const pp = document.getElementById('pick-progress');
           if(pp){
-            const nPicked = guestQs.filter(function(p){ return !!guestSel[p.q.id]; }).length;
             pp.querySelectorAll('.pp-slot').forEach(function(d, i){ const pick = guestSel[guestQs[i].q.id]; d.classList.toggle('yes', pick === 'yes'); d.classList.toggle('no', pick === 'no'); });
-            pp.querySelector('.pp-text').textContent = nPicked + ' of ' + guestQs.length + ' picked';
+            pp.querySelector('.pp-text').textContent = allPicked ? (guestQs.length + ' of ' + guestQs.length + ' picked. Submit to lock them in') : (nPicked + ' of ' + guestQs.length + ' picked');
           }
         }
         guestQs.forEach(function(p){
@@ -6545,7 +6625,7 @@
           });
         });
         gBtn.addEventListener('click', async function(){
-          if(!guestQs.every(function(p){ return !!guestSel[p.q.id]; })) return;
+          if(!guestQs.every(function(p){ return !!guestSel[p.q.id]; })){ mqJumpToNextUnpicked(container, guestQs, guestSel); return; }
           gBtn.disabled = true; gBtn.textContent = 'Saving\u2026';
           mqTrack('guest_submit_picks');
           mqSetGuestPicks(effectiveDate, guestSel);
@@ -6635,7 +6715,7 @@
           editableQuestions.map(function(){ return '<i class="cele-slot">' + mqIcon('check') + '</i>'; }).join('') +
           '</div><div class="cele-msg" id="cele-msg"></div></div>' +
         '<div class="pick-dock"><div class="pick-progress" id="pick-progress" style="display:' + (allAlreadyAnswered ? 'none' : 'flex') + ';"><span class="pp-dots">' + editableQuestions.map(function(p){ var v = mqDetectVisual(p.q); return '<i class="pp-slot">' + (v.icon || CATEGORY_ICONS[p.q.category] || '') + '</i>'; }).join('') + '</span><span class="pp-text">0 of ' + editableQuestions.length + ' picked</span><span class="pp-bonus">All right = +100 bonus</span></div>' +
-        '<button type="button" id="submit-all-btn" disabled style="width:100%; padding:14px 22px; border:none; border-radius:10px; background:var(--ink); color:var(--paper); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; opacity:0.4; display:' + (allAlreadyAnswered ? 'none' : 'block') + ';">Pick all three first</button></div>' +
+        '<button type="button" id="submit-all-btn" class="pick-submit" style="display:' + (allAlreadyAnswered ? 'none' : 'block') + ';">Pick all three first</button></div>' +
         '<button type="button" id="edit-predictions-btn" style="width:100%; padding:14px 22px; border:1.5px solid var(--line); border-radius:10px; background:none; color:var(--ink); font-family:inherit; font-weight:600; font-size:15px; cursor:pointer; display:' + (allAlreadyAnswered && editsRemaining > 0 ? 'block' : 'none') + ';">Edit predictions</button>' +
         '<p id="edit-limit-msg" style="font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:4px; display:' + (allAlreadyAnswered && editsRemaining === 0 ? 'block' : 'none') + ';">' + EDIT_LIMIT_TEXT + '</p>' +
         '<p class="form-msg" id="submit-all-msg" style="margin-top:6px;"></p>' +
@@ -6708,14 +6788,12 @@
 
       function updateSubmitState(){
         const allPicked = editableQuestions.every(function(p){ return !!selections[p.q.id]; });
-        submitBtn.disabled = !allPicked;
-        submitBtn.style.opacity = allPicked ? '1' : '0.4';
-        submitBtn.textContent = allPicked ? (editing ? 'Save changes' : 'Submit your calls') : 'Pick all three first';
+        const nPicked = editableQuestions.filter(function(p){ return !!selections[p.q.id]; }).length;
+        mqSyncPickDock(submitBtn, nPicked, editableQuestions.length, editing);
         const pp = document.getElementById('pick-progress');
         if(pp){
-          const nPicked = editableQuestions.filter(function(p){ return !!selections[p.q.id]; }).length;
           pp.querySelectorAll('.pp-slot').forEach(function(d, i){ const pick = selections[editableQuestions[i].q.id]; d.classList.toggle('yes', pick === 'yes'); d.classList.toggle('no', pick === 'no'); });
-          pp.querySelector('.pp-text').textContent = nPicked + ' of ' + editableQuestions.length + ' picked';
+          pp.querySelector('.pp-text').textContent = allPicked ? (editableQuestions.length + ' of ' + editableQuestions.length + ' picked. Submit to lock them in') : (nPicked + ' of ' + editableQuestions.length + ' picked');
         }
       }
 
@@ -6742,7 +6820,8 @@
 
       submitBtn.addEventListener('click', async function(){
         const allPicked = editableQuestions.every(function(p){ return !!selections[p.q.id]; });
-        if(!allPicked || answering) return;
+        if(!allPicked){ mqJumpToNextUnpicked(container, editableQuestions, selections); return; }
+        if(answering) return;
         answering = true;
         submitBtn.disabled = true;
         submitBtn.textContent = 'Saving…';
@@ -7950,23 +8029,43 @@
   async function loadGroupParticipation(groupId){
     const el = document.getElementById('board-group-participation');
     if(!el) return;
+    const sumEl = document.getElementById('gp2-today-sum');
     const { data, error } = await sb.rpc('get_group_participation_today', { p_group_id: groupId });
     if(error || !data){
-      el.innerHTML = '<p style="font-size:12px; color:var(--ink-soft); margin:0;">Couldn\'t load today\'s participation.</p>';
+      el.innerHTML = '<p class="gp2-fine">Couldn\u2019t load today\u2019s plays. Pull to refresh.</p>';
       return;
     }
     const total = data.length ? Number(data[0].total_today || 0) : 0;
     if(total === 0){
-      el.innerHTML = '<p style="font-size:12px; color:var(--ink-soft); margin:0;">No live questions right now.</p>';
+      if(sumEl) sumEl.textContent = '';
+      el.innerHTML = '<p class="gp2-fine">No live questions right now.</p>';
       return;
     }
-    el.innerHTML = data.map(function(m){
-      const answered = Number(m.answered_count || 0);
-      const done = answered >= total;
-      return '<div class="brow" style="padding:6px 0;"><span style="font-size:13px;">' + escapeHtml(m.username || 'player') + '</span>' +
-        '<span style="font-size:12px; font-weight:700; color:' + (done ? 'var(--yes)' : 'var(--no)') + ';">' + (done ? 'Done' : (answered + '/' + total)) + '</span></div>';
+    let meId = null;
+    try{ const s = await sb.auth.getSession(); meId = s && s.data && s.data.session ? s.data.session.user.id : null; }catch(e){}
+    const done = data.filter(function(m){ return Number(m.answered_count || 0) >= total; });
+    const todo = data.filter(function(m){ return Number(m.answered_count || 0) < total; });
+    if(sumEl) sumEl.textContent = '\u00b7 ' + done.length + ' of ' + data.length + ' played';
+    let html = todo.map(function(m){
+      const n = Number(m.answered_count || 0);
+      const remind = (m.user_id && m.user_id !== meId)
+        ? '<button type="button" class="gp2-remind" data-user-id="' + escapeHtml(m.user_id) + '" data-username="' + escapeHtml(m.username || 'player') + '">Remind</button>'
+        : '';
+      return '<div class="gp2-prow todo"><span class="gp2-pname">' + escapeHtml(m.username || 'player') + '</span><span class="gp2-pcount">' + n + '/' + total + '</span>' + remind + '</div>';
     }).join('');
+    if(done.length){
+      html += '<div class="gp2-done">' + mqIcon('check') + done.map(function(m){ return escapeHtml(m.username || 'player'); }).join(', ') + (todo.length ? ' played' : ' · everyone has played today') + '</div>';
+    }
+    el.innerHTML = html;
   }
+  (function(){
+    const box = document.getElementById('board-group-participation');
+    if(!box) return;
+    box.addEventListener('click', function(e){
+      const b = e.target.closest ? e.target.closest('button.gp2-remind') : null;
+      if(b) mqRemindFriend(b, document.getElementById('gp2-today-msg'));
+    });
+  })();
 
   document.getElementById('create-group-btn').addEventListener('click', async function(){
     const btn = this;
@@ -10605,18 +10704,56 @@
 
     // caller card (tap any name)
     function openCard(name){
-      Promise.all([fetchCards([name]), getSession()]).then(function(res){
-        var c = cache[key(name)], session = res[1]; if(!c) return;
+      Promise.all([fetchCards([name]), getSession(), sb.rpc('player_card_extras', { p_username: name }).then(function(r){ return r && r.data ? r.data : null; }).catch(function(){ return null; })]).then(function(res){
+        var c = cache[key(name)], session = res[1], x = res[2] || {}; if(!c) return;
         closeSheet();
         sheetEl = document.createElement('div'); sheetEl.className = 'mq-sheet-bg';
-        var action = c.is_me ? '<div class="mq-sheet-note">This is you</div>'
+        // How this player is connected to you.
+        var tags = [];
+        if(x.is_buddy) tags.push('<span class="mq-rel buddy">' + mqIcon('link') + 'Your buddy</span>');
+        if(x.is_rival) tags.push('<span class="mq-rel rival">' + mqIcon('swap') + 'Your rival</span>');
+        if(!x.is_buddy && !x.is_rival && x.shared_group) tags.push('<span class="mq-rel group">In ' + escapeHtml(x.shared_group) + ' with you</span>');
+        if(x.i_follow && !x.is_buddy && !x.is_rival) tags.push('<span class="mq-rel follow">You follow them</span>');
+        var relHtml = tags.length ? '<div class="mq-rels">' + tags.join('') + '</div>' : '';
+        var followBtn = c.is_me ? ''
           : session ? '<button type="button" class="mq-follow-btn' + (c.is_following ? ' on' : '') + '" data-follow="' + escapeHtml(c.username) + '">' + (c.is_following ? 'Following' : 'Follow') + '</button>'
           : '<button type="button" class="mq-follow-btn" data-signup="1">Sign up free to follow</button>';
+        // Play status + Remind. Reminders show on the friend's screen when they open Marqit (and as a push if they have it on).
+        var statusHtml = '', remindBtn = '';
+        if(c.is_me){
+          statusHtml = '<div class="mq-sheet-note">This is you</div>';
+        }else if(x.calls_open){
+          if(x.played_today === true){
+            statusHtml = '<div class="mq-play-status done">' + mqIcon('check') + 'Played today (' + x.picked_today + ' of ' + x.total_today + ')</div>';
+          }else if(x.played_today === false){
+            statusHtml = '<div class="mq-play-status todo">Hasn\u2019t finished today\u2019s calls (' + x.picked_today + ' of ' + x.total_today + ')</div>';
+          }
+          if(session && x.played_today !== true){
+            remindBtn = '<button type="button" class="mq-remind-btn" data-remind="1" data-user-id="' + escapeHtml(x.user_id || '') + '" data-username="' + escapeHtml(c.username) + '" data-can="' + (x.can_remind ? '1' : '0') + '">' + mqIcon('bell') + 'Remind to play</button>';
+          }
+        }
+        // Latest calls (only calls that have already locked, so nobody can copy a pick that is still open).
+        var latestHtml = '';
+        if(x.picks_hidden){
+          latestHtml = '<div class="mq-latest"><div class="mq-latest-h">Latest calls</div><p class="mq-latest-empty">This player keeps their calls private.</p></div>';
+        }else if(Array.isArray(x.latest) && x.latest.length){
+          latestHtml = '<div class="mq-latest"><div class="mq-latest-h">Latest calls</div>' + x.latest.map(function(l){
+            var res = !l.resolved || !l.correct_answer ? 'pend' : (l.correct_answer === l.choice ? 'win' : 'loss');
+            var icon = res === 'win' ? mqIcon('check') : (res === 'loss' ? mqIcon('xmark') : '<span class="mq-dash">\u2022</span>');
+            return '<div class="mq-latest-row ' + res + '"><i class="mq-latest-res">' + icon + '</i><span class="mq-latest-pick ' + (l.choice === 'yes' ? 'yes' : 'no') + '">' + (l.choice === 'yes' ? 'YES' : 'NO') + '</span><span class="mq-latest-q">' + escapeHtml(l.text) + '</span></div>';
+          }).join('') + '</div>';
+        }else if(!c.is_me){
+          latestHtml = '<div class="mq-latest"><div class="mq-latest-h">Latest calls</div><p class="mq-latest-empty">No locked calls yet.</p></div>';
+        }
         var rec = c.accuracy != null ? (c.accuracy + '% right on ' + c.calls + ' calls') : (Number(c.calls) > 0 ? (c.calls + ' calls so far') : 'New player');
         sheetEl.innerHTML = '<div class="mq-sheet" role="dialog" aria-label="Player"><button type="button" class="mq-sheet-x" aria-label="Close">&times;</button>' +
           '<div class="mq-sheet-top">' + avatar(c, 60) + '<div><div class="mq-sheet-name">' + escapeHtml(c.username) + '</div><div class="mq-sheet-rec">' + rec + ((c.streak || 0) >= 3 ? ' · ' + mqIcon('flame') + c.streak + ' day streak' : '') + '</div></div></div>' +
+          relHtml +
           '<div class="mq-sheet-counts"><span><b>' + c.followers + '</b> followers</span><span><b>' + c.following + '</b> following</span></div>' +
-          action + '<div class="mq-sheet-msg" aria-live="polite"></div></div>';
+          statusHtml +
+          '<div class="mq-sheet-actions">' + followBtn + remindBtn + '</div>' +
+          '<div class="mq-sheet-msg" aria-live="polite"></div>' +
+          latestHtml + '</div>';
         document.body.appendChild(sheetEl);
       });
     }
@@ -10637,6 +10774,16 @@
       var t = e.target;
       if(t.closest('.mq-sheet-x') || (t.classList && t.classList.contains('mq-sheet-bg'))){ closeSheet(); return; }
       var fb = t.closest('button[data-follow]'); if(fb){ toggleFollow(fb); return; }
+      var rb = t.closest('button[data-remind]');
+      if(rb){
+        var rmsg = rb.closest('.mq-sheet') && rb.closest('.mq-sheet').querySelector('.mq-sheet-msg');
+        if(rb.getAttribute('data-can') !== '1'){
+          if(rmsg){ rmsg.className = 'mq-sheet-msg'; rmsg.textContent = 'Follow ' + rb.getAttribute('data-username') + ' first, then you can remind them to play.'; }
+          return;
+        }
+        mqRemindFriend(rb, rmsg);
+        return;
+      }
       var su = t.closest('button[data-signup]'); if(su){ closeSheet(); openAuthPanel('signup'); return; }
       var nm = t.closest('.mq-caller-name, .lb-name-text');
       if(nm && !nm.closest('.mq-sheet')){ var n = nm.textContent.trim(); if(n) openCard(n); }

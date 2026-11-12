@@ -33,3 +33,12 @@
 - "Lead with" picker removed; the Play tab now leads with the player's best category by accuracy % (3+ settled picks needed), cached in localStorage and mirrored to profiles.favorite_category.
 - Waitlist switch replaced by a button; public count shows once 25+ players are on the list (marqit_plus_waitlist_public_count).
 - New stylesheet redesign.css (rankings tabs, date strip, request box, Marqit+ page, similar past questions).
+
+## Nov 12 changes
+- **History & lean is guaranteed on every question.** The database now creates a `baseline` row (5 bullets + lean built from Marqit's own resolved-question history, lean clamped to 30-70) the moment a question is added. A trigger refuses to store a row without a lean or without 5 bullets, and rejecting a draft in admin.html falls back to the baseline instead of blanking the panel. The `draft-insights` function (now hourly) upgrades baseline rows to researched drafts and publishes them straight away; it also gives older rows that only had a baseline lean a real lean from their own bullets. Check `insights_baseline_watch` (service role) to see what is still on baseline. Needs Anthropic API credit to upgrade.
+- Closed (collapsed) History & lean panel now shows the lean chip ("Lean YES 55%").
+- Play: Submit bar is a bright gold "Submit your 3 calls" when all picks are in, "Pick 2 more to submit" before, and tapping it early jumps to the next unanswered card. Live strip under every open question: lock countdown, points on the line (+200 on 2X days), calls in.
+- Player popup (leaderboard, groups, comments): buddy / rival / group / follow tag, "played today" status, Remind button, and the player's latest 5 locked calls (hidden for players who are off the leaderboard). `player_card_extras` RPC. `send_nudge` now also allows people you follow and group-mates (still 1 per sender per day, 5 per player per day).
+- Groups: compact layout; "Who still needs to play" with Remind buttons; settings and Leave group tucked under "Group settings". Fixed `get_group_participation_today`, which had never worked (ambiguous column names).
+- Marqit+: new **Sharp Feed** (latest locked calls from people you follow, buddies, rivals; `sharp_feed` RPC, gated by `is_marqit_plus()`), rewritten pitch with the hooks first, and a personal "You are X% on N calls" line for non-members.
+- Not built (needs a decision): founding-member price lock and badge, shareable pick receipts, member flair on leaderboards.
