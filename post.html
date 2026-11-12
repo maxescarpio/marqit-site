@@ -144,8 +144,12 @@ button.sd.on{outline:3px solid var(--accent);outline-offset:2px}
         <p class="hint">Feed 4:5 is the standard Marqit post. The guide shows what Instagram cuts off on your profile grid. It is never saved in the picture.</p>
       </div></details>
 
-      <div class="sec"><button class="primary" id="dl" type="button" disabled>Download post (PNG)</button>
-      <p class="hint" id="dlnote">Add a photo to turn on the download.</p>
+      <div class="sec">
+        <div class="lab">File type</div>
+        <div class="seg" id="typeFile"><button type="button" data-t="jpg" aria-pressed="true">JPG (fast, best for Instagram)</button><button type="button" data-t="png" aria-pressed="false">PNG (sharpest)</button></div>
+        <button class="primary" id="savePh" type="button" style="margin-top:12px" disabled>Save to Photos</button>
+        <button class="secondary" id="dl" type="button" style="width:100%;margin-top:8px" disabled>Download file instead</button>
+        <p class="hint" id="dlnote">Add a photo to turn on saving.</p>
       <div class="row" style="margin-top:10px"><button class="secondary" id="cap" type="button">Copy caption</button><button class="secondary" id="reset" type="button">New post</button></div></div>
     </div>
   </div>
@@ -241,11 +245,12 @@ function applyFmt(){
 [].forEach.call($("fmtSeg").children,function(b){b.onclick=function(){st.fmt=b.dataset.f;applyFmt();save();draw()}});
 $("guide").onchange=draw;
 
+function photoReady(img){st.img=img;$("dl").disabled=false;$("savePh").disabled=false;$("dlnote").textContent="Looks right? Tap Save to Photos, then post it.";draw()}
 function loadFile(f){
   if(!f||!/^image\//.test(f.type))return;
-  var u=URL.createObjectURL(f),im=new Image();
-  im.onload=function(){st.img=im;$("dl").disabled=false;$("dlnote").textContent="Looks right? Download it, then post it.";draw()};
-  im.src=u;
+  $("status").textContent="Loading your photo…";
+  function viaImage(){var u=URL.createObjectURL(f),im=new Image();im.onload=function(){photoReady(im);$("status").textContent=FORMATS[st.fmt].label};im.src=u}
+  if(window.createImageBitmap){createImageBitmap(f,{imageOrientation:"from-image"}).then(function(b){photoReady(b);$("status").textContent=FORMATS[st.fmt].label}).catch(viaImage)}else viaImage();
 }
 $("file").onchange=function(e){loadFile(e.target.files[0])};
 var drop=$("drop");
@@ -406,20 +411,55 @@ function draw(withGuide){
   }
 }
 
+var ftype="jpg",ecv=document.createElement("canvas"),cache=null,cacheKey="",ver=0,buildTimer=0;
+[].forEach.call($("typeFile").children,function(b){b.onclick=function(){ftype=b.dataset.t;[].forEach.call($("typeFile").children,function(x){x.setAttribute("aria-pressed",x===b)});cache=null;warm()}});
+function exportBlob(){
+  return new Promise(function(res){
+    var real=ctx;ecv.width=W;ecv.height=H;ctx=ecv.getContext("2d");
+    try{draw(false)}finally{ctx=real}
+    var mime=ftype==="png"?"image/png":"image/jpeg";
+    ecv.toBlob(function(bl){res(bl)},mime,0.95);
+  });
+}
+function fname(){return "marqit-"+st.type+"-"+new Date().toISOString().slice(0,10)+"."+(ftype==="png"?"png":"jpg")}
+function getBlob(){
+  var key=ver+"|"+ftype+"|"+st.fmt;
+  if(cache&&cacheKey===key)return Promise.resolve(cache);
+  return exportBlob().then(function(bl){cache=bl;cacheKey=key;return bl});
+}
+// make the picture ready in the background after you stop editing, so saving is instant
+function warm(){clearTimeout(buildTimer);if(!st.img)return;buildTimer=setTimeout(function(){getBlob()},700)}
+var origDraw=draw;draw=function(g){origDraw(g);if(g!==false){ver++;cache=null;warm()}};
 function plainSave(blob,name){var u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000);$("status").textContent="Saved to your Downloads folder."}
+var canShareFiles=false;
+try{var tf=new File([new Blob(["x"])],"a.jpg",{type:"image/jpeg"});canShareFiles=!!(navigator.canShare&&navigator.canShare({files:[tf]}))}catch(e){}
+if(!canShareFiles){$("savePh").textContent="Save picture";}
+$("savePh").onclick=function(){
+  var btn=this;btn.disabled=true;$("status").textContent="Getting your picture ready…";
+  getBlob().then(function(blob){
+    if(!blob){$("status").textContent="Could not make the picture.";btn.disabled=false;return}
+    var file=new File([blob],fname(),{type:blob.type});
+    if(canShareFiles&&navigator.canShare({files:[file]})){
+      return navigator.share({files:[file]}).then(function(){$("status").textContent="Done. Choose Save Image to put it in Photos."}).catch(function(e){
+        if(e&&e.name==="AbortError"){$("status").textContent="Cancelled.";return}
+        $("status").textContent="Ready. Tap Save to Photos once more.";
+      });
+    }
+    return plainSave(blob,file.name);
+  }).then(function(){btn.disabled=false},function(){btn.disabled=false});
+};
 $("dl").onclick=function(){
-  draw(false);
-  cv.toBlob(function(blob){
-    draw();
+  $("status").textContent="Getting your picture ready…";
+  getBlob().then(function(blob){
     if(!blob){$("status").textContent="Could not make the image.";return}
-    var name="marqit-"+st.type+"-"+new Date().toISOString().slice(0,10)+".png";
+    var name=fname();
     if(window.claude&&window.claude.use){
       window.claude.use("downloads").then(function(d){
         if(!d){$("status").textContent="Downloads are off here. Right-click the picture and choose Save Image.";return}
         d.save({filename:name,data:blob}).then(function(){$("status").textContent="Saved."}).catch(function(e){$("status").textContent=e&&e.code==="declined"?"Not saved.":"Could not save. Right-click the picture and choose Save Image."});
       });
     }else{plainSave(blob,name)}
-  },"image/png");
+  });
 };
 $("cap").onclick=function(){
   var h=$("headline").value.replace(/\s*\n\s*/g," ").trim(),c=$("credit").value.trim();
@@ -431,7 +471,7 @@ $("reset").onclick=function(){
   $("headline").value="";$("credit").value="";st.img=null;$("file").value="";
   txts=[];pics=[];renderTxts();renderPics();
   look.zoom=100;look.px=50;look.py=35;syncAll();
-  $("dl").disabled=true;$("dlnote").textContent="Add a photo to turn on the download.";
+  $("dl").disabled=true;$("savePh").disabled=true;cache=null;$("dlnote").textContent="Add a photo to turn on saving.";
   applyFmt();draw();$("headline").focus();
 };
 applyFmt();markLook();syncAll();
