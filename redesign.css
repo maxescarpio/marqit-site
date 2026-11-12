@@ -813,10 +813,6 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 .mq-latest-pick.no{color:var(--no)}
 .mq-latest-q{font-size:13.5px;line-height:1.35;color:var(--ink)}
 
-/* Locks-in box: one plain button, top right. */
-.lock-card{position:relative}
-.lock-cta{position:absolute;top:14px;right:16px;padding:8px 14px;border-radius:8px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
-.lock-cta:hover{border-color:var(--ink-soft)}
-.lock-cta.is-ready{background:var(--ink);border-color:var(--ink);color:var(--paper)}
-.lock-cta[hidden]{display:none}
-@media (max-width:420px){.lock-cta{padding:7px 11px;font-size:12.5px}}
+/* Pick bar (pinned to the bottom of the screen while picking): clearly a button before it is ready, solid white when it is. */
+.pick-submit.is-waiting{background:#2B2E37;border-color:#555B69;color:#fff;font-weight:700}
+.pick-submit.is-waiting:hover{border-color:#8A90A0}
