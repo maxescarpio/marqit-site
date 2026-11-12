@@ -5593,12 +5593,14 @@
       var ago = mqAgo(Date.now() - trend[trend.length - 1].time.getTime());
       if(ago) latestHtml = '<span class="foot-latest"><i class="live-dot"></i>Latest call ' + ago + '</span>';
     }
-    // Two small pills under the question (placeholder contents until we pick the final two).
+    // Under the question: the lock countdown and what a correct call is worth (the original two chips).
     var liveStripHtml = '';
     if(!isVoid && !isFinal){
-      var p1 = total > 0 ? '<b>' + total + '</b> ' + (total === 1 ? 'call' : 'calls') + ' in' : 'Be the first call';
-      var p2 = (showPct && total > 0) ? 'Crowd <b>' + Math.max(yesPct, noPct) + '%</b> ' + (yesPct >= noPct ? 'YES' : 'NO') : 'Crowd split after you call';
-      liveStripHtml = '<div class="q-pills"><span class="q-pill">' + p1 + '</span><span class="q-pill">' + p2 + '</span></div>';
+      var lockMs = q.lock_time ? new Date(q.lock_time).getTime() - Date.now() : 0;
+      liveStripHtml = '<div class="mq-chips">' +
+        (q.lock_time ? '<span class="lock-chip' + (lockMs > 0 && lockMs < 3600000 ? ' soon' : '') + (lockMs <= 0 ? ' done' : '') + '" data-lock="' + escapeHtml(q.lock_time) + '">' + mqIcon('clock') + '<span class="lock-chip-text">' + mqLockText(lockMs) + '</span></span>' : '') +
+        '<span class="pts-chip' + (q.is_boosted ? ' boost' : '') + '">' + mqIcon('star') + 'Worth ' + (q.is_boosted ? 200 : 100) + ' points</span>' +
+        '</div>';
     }
     var mostCalledBadge = (isMostCalled && total > 0) ? '<div class="hot-badge">' + mqIcon('flame') + 'Most called today</div>' : '';
     var moverBadge = (isMover && showPct) ? '<div class="mover-badge">' + mqIcon('bolt') + 'Big swing in the last hour</div>' : '';
@@ -5687,30 +5689,6 @@
     return div;
   }
 
-
-  // ---- Lock countdown on every open card (updates once a second, only while the tab is visible) ----
-  function mqLockText(iso){
-    var ms = new Date(iso).getTime() - Date.now();
-    if(isNaN(ms)) return '';
-    if(ms <= 0) return 'Locking now';
-    var sec = Math.floor(ms / 1000), d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60), r = sec % 60;
-    if(d >= 1) return 'Locks in ' + d + 'd ' + h + 'h';
-    if(h >= 1) return 'Locks in ' + h + 'h ' + m + 'm';
-    return 'Locks in ' + m + ':' + (r < 10 ? '0' : '') + r;
-  }
-  (function(){
-    setInterval(function(){
-      if(document.hidden) return;
-      var els = document.querySelectorAll('.ls-time[data-lock]');
-      for(var i = 0; i < els.length; i++){
-        var el = els[i], ms = new Date(el.getAttribute('data-lock')).getTime() - Date.now();
-        el.classList.toggle('soon', ms > 0 && ms < 3600000);
-        el.classList.toggle('urgent', ms > 0 && ms < 900000);
-        var t = el.querySelector('.ls-time-t');
-        if(t) t.textContent = mqLockText(el.getAttribute('data-lock'));
-      }
-    }, 1000);
-  })();
 
   // ---- Pick bar: one clear state for "not done yet" and "ready, submit now" ----
   function mqSyncPickDock(btn, nPicked, total, editing){
