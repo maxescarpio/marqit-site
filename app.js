@@ -5700,6 +5700,23 @@
     btn.setAttribute('aria-disabled', ready ? 'false' : 'true');
     if(dock) dock.classList.toggle('ready', ready);
     var left = total - nPicked;
+    // Same state in the Locks-in box up top: one button that either takes them to the next question or submits.
+    var cta = document.getElementById('lock-cta');
+    if(cta){
+      var hideIt = btn.style && btn.style.display === 'none';
+      cta.hidden = hideIt;
+      cta.classList.toggle('is-ready', ready);
+      cta.textContent = ready
+        ? (editing ? 'Save changes' : 'Submit your ' + (total === 3 ? 'three ' : total + ' ') + 'calls')
+        : (nPicked === 0 ? 'Make your ' + (total === 3 ? 'three' : total) + ' calls' : (left === 1 ? 'Make your last call' : 'Make your last ' + left + ' calls'));
+      if(!cta.__wired){
+        cta.__wired = true;
+        cta.addEventListener('click', function(){
+          var b = document.getElementById('submit-all-btn') || document.getElementById('guest-submit-btn');
+          if(b) b.click();
+        });
+      }
+    }
     btn.textContent = ready
       ? (editing ? 'Save changes' : 'Submit your ' + total + ' calls')
       : (nPicked === 0 ? 'Pick all ' + total + ' to submit' : 'Pick ' + left + ' more to submit');
@@ -6425,6 +6442,7 @@
     }else{
       timerEl.innerHTML =
         '<div class="lock-top"><span class="lock-label"><span class="live-dot"></span>Locks in</span><span id="daily-timer-value" class="lock-val">' + formatCountdown(lockTime.getTime() - Date.now()) + '</span></div>' +
+        '<button type="button" id="lock-cta" class="lock-cta" hidden></button>' +
         '<div class="lock-bar"><i></i></div>';
       const paintLockBar = function(){
         const rem = lockTime.getTime() - Date.now();
