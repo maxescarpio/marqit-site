@@ -5625,16 +5625,8 @@
         '<div class="mqp-lean-bar" role="img" aria-label="' + leanYes + ' percent chance of yes"><i style="width:' + leanYes + '%"></i></div>' +
         '<p class="mqp-lean-basis"></p></div>';
     }
-    // The lean is visible on the closed panel too: every question carries one.
-    var leanChipHtml = '';
-    if(leanYes && plusRow.lean_basis){
-      var chipSide = leanYes > 50 ? 'yes' : (leanYes < 50 ? 'no' : 'even');
-      var chipPct = leanYes >= 50 ? leanYes : 100 - leanYes;
-      leanChipHtml = '<span class="mqp-chip ' + chipSide + '">' + (chipSide === 'even' ? 'Toss-up 50%' : 'Lean ' + (chipSide === 'yes' ? 'YES' : 'NO') + ' ' + chipPct + '%') + '</span>';
-    }
     var plusHtml = (plusBullets && plusBullets.length)
       ? '<details class="mqp-details"><summary><span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">History &amp; lean</span>' +
-        leanChipHtml +
         '<svg class="mqp-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
         leanHtml +
         '<ul class="mqp-list"></ul>' +
@@ -5734,17 +5726,10 @@
     btn.classList.toggle('is-ready', ready);
     btn.classList.toggle('is-waiting', !ready);
     btn.setAttribute('aria-disabled', ready ? 'false' : 'true');
-    if(dock){
-      var wasReady = dock.classList.contains('ready');
-      dock.classList.toggle('ready', ready);
-      if(ready && !wasReady){
-        dock.classList.remove('ready-pop'); void dock.offsetWidth; dock.classList.add('ready-pop');
-        try{ if(navigator.vibrate) navigator.vibrate(18); }catch(e){}
-      }
-    }
+    if(dock) dock.classList.toggle('ready', ready);
     var left = total - nPicked;
     btn.textContent = ready
-      ? (editing ? 'Save changes' : 'Submit your ' + total + ' calls \u2192')
+      ? (editing ? 'Save changes' : 'Submit your ' + total + ' calls')
       : (nPicked === 0 ? 'Pick all ' + total + ' to submit' : 'Pick ' + left + ' more to submit');
   }
   // Tapping the bar before everything is picked takes the player to the next unanswered card.
@@ -6604,7 +6589,7 @@
           const pp = document.getElementById('pick-progress');
           if(pp){
             pp.querySelectorAll('.pp-slot').forEach(function(d, i){ const pick = guestSel[guestQs[i].q.id]; d.classList.toggle('yes', pick === 'yes'); d.classList.toggle('no', pick === 'no'); });
-            pp.querySelector('.pp-text').textContent = allPicked ? (guestQs.length + ' of ' + guestQs.length + ' picked. Submit to lock them in') : (nPicked + ' of ' + guestQs.length + ' picked');
+            pp.querySelector('.pp-text').textContent = allPicked ? (guestQs.length + ' of ' + guestQs.length + ' picked') : (nPicked + ' of ' + guestQs.length + ' picked');
           }
         }
         guestQs.forEach(function(p){
@@ -6793,7 +6778,7 @@
         const pp = document.getElementById('pick-progress');
         if(pp){
           pp.querySelectorAll('.pp-slot').forEach(function(d, i){ const pick = selections[editableQuestions[i].q.id]; d.classList.toggle('yes', pick === 'yes'); d.classList.toggle('no', pick === 'no'); });
-          pp.querySelector('.pp-text').textContent = allPicked ? (editableQuestions.length + ' of ' + editableQuestions.length + ' picked. Submit to lock them in') : (nPicked + ' of ' + editableQuestions.length + ' picked');
+          pp.querySelector('.pp-text').textContent = allPicked ? (editableQuestions.length + ' of ' + editableQuestions.length + ' picked') : (nPicked + ' of ' + editableQuestions.length + ' picked');
         }
       }
 
@@ -8123,13 +8108,23 @@
     loadGroupSection();
   });
 
-  document.getElementById('copy-invite-btn').addEventListener('click', function(){
+  document.getElementById('copy-invite-btn').addEventListener('click', async function(){
+    const btn = this;
     const code = document.getElementById('group-invite-code').textContent;
-    navigator.clipboard.writeText(window.location.origin + '/?group=' + code).then(function(){
-      document.getElementById('copy-invite-btn').textContent = 'Copied!';
-      setTimeout(function(){ document.getElementById('copy-invite-btn').textContent = 'Copy'; }, 1500);
-    });
+    const link = 'https://playmarqit.com/?group=' + encodeURIComponent(code);
+    const gname = (document.getElementById('group-name-display') || {}).textContent || 'my group';
+    // On a phone this opens the share sheet (Messages, Snap, Instagram...). Elsewhere it copies the link.
+    if(navigator.share && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){
+      try{ await navigator.share({ title: 'Join ' + gname + ' on Marqit', text: 'Join my group ' + gname + ' on Marqit. Same 3 calls every day.', url: link }); return; }
+      catch(e){ if(e && e.name === 'AbortError') return; }
+    }
+    try{ await navigator.clipboard.writeText(link); }catch(e){}
+    btn.textContent = 'Link copied';
+    setTimeout(function(){ btn.textContent = mqInviteBtnLabel(); }, 1800);
   });
+  function mqInviteBtnLabel(){ return (navigator.share && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) ? 'Share invite link' : 'Copy invite link'; }
+  (function(){ const b = document.getElementById('copy-invite-btn'); if(b) b.textContent = mqInviteBtnLabel(); })();
+  (function(){ const j = document.getElementById('join-group-input'); if(j) j.addEventListener('input', function(){ this.value = this.value.replace(/\s+/g, '').toUpperCase(); }); })();
 
   document.getElementById('leave-group-btn').addEventListener('click', async function(){
     if(!confirm('Leave this group? You can join or create a new one after.')) return;
@@ -10708,13 +10703,13 @@
         var c = cache[key(name)], session = res[1], x = res[2] || {}; if(!c) return;
         closeSheet();
         sheetEl = document.createElement('div'); sheetEl.className = 'mq-sheet-bg';
-        // How this player is connected to you.
-        var tags = [];
-        if(x.is_buddy) tags.push('<span class="mq-rel buddy">' + mqIcon('link') + 'Your buddy</span>');
-        if(x.is_rival) tags.push('<span class="mq-rel rival">' + mqIcon('swap') + 'Your rival</span>');
-        if(!x.is_buddy && !x.is_rival && x.shared_group) tags.push('<span class="mq-rel group">In ' + escapeHtml(x.shared_group) + ' with you</span>');
-        if(x.i_follow && !x.is_buddy && !x.is_rival) tags.push('<span class="mq-rel follow">You follow them</span>');
-        var relHtml = tags.length ? '<div class="mq-rels">' + tags.join('') + '</div>' : '';
+        // How this player is connected to you, as one quiet line of text.
+        var relBits = [];
+        if(x.is_buddy) relBits.push('Your buddy');
+        if(x.is_rival) relBits.push('Your rival');
+        if(!x.is_buddy && !x.is_rival && x.shared_group) relBits.push('In ' + escapeHtml(x.shared_group) + ' with you');
+        if(x.i_follow && !x.is_buddy && !x.is_rival) relBits.push('You follow them');
+        var relHtml = relBits.length ? '<div class="mq-relline">' + relBits.join(' \u00b7 ') + '</div>' : '';
         var followBtn = c.is_me ? ''
           : session ? '<button type="button" class="mq-follow-btn' + (c.is_following ? ' on' : '') + '" data-follow="' + escapeHtml(c.username) + '">' + (c.is_following ? 'Following' : 'Follow') + '</button>'
           : '<button type="button" class="mq-follow-btn" data-signup="1">Sign up free to follow</button>';
@@ -10724,12 +10719,12 @@
           statusHtml = '<div class="mq-sheet-note">This is you</div>';
         }else if(x.calls_open){
           if(x.played_today === true){
-            statusHtml = '<div class="mq-play-status done">' + mqIcon('check') + 'Played today (' + x.picked_today + ' of ' + x.total_today + ')</div>';
+            statusHtml = '<div class="mq-play-status">Played today</div>';
           }else if(x.played_today === false){
-            statusHtml = '<div class="mq-play-status todo">Hasn\u2019t finished today\u2019s calls (' + x.picked_today + ' of ' + x.total_today + ')</div>';
+            statusHtml = '<div class="mq-play-status">Hasn\u2019t played today \u00b7 ' + x.picked_today + ' of ' + x.total_today + ' calls</div>';
           }
           if(session && x.played_today !== true){
-            remindBtn = '<button type="button" class="mq-remind-btn" data-remind="1" data-user-id="' + escapeHtml(x.user_id || '') + '" data-username="' + escapeHtml(c.username) + '" data-can="' + (x.can_remind ? '1' : '0') + '">' + mqIcon('bell') + 'Remind to play</button>';
+            remindBtn = '<button type="button" class="mq-remind-btn" data-remind="1" data-user-id="' + escapeHtml(x.user_id || '') + '" data-username="' + escapeHtml(c.username) + '" data-can="' + (x.can_remind ? '1' : '0') + '">Remind to play</button>';
           }
         }
         // Latest calls (only calls that have already locked, so nobody can copy a pick that is still open).
@@ -10739,8 +10734,8 @@
         }else if(Array.isArray(x.latest) && x.latest.length){
           latestHtml = '<div class="mq-latest"><div class="mq-latest-h">Latest calls</div>' + x.latest.map(function(l){
             var res = !l.resolved || !l.correct_answer ? 'pend' : (l.correct_answer === l.choice ? 'win' : 'loss');
-            var icon = res === 'win' ? mqIcon('check') : (res === 'loss' ? mqIcon('xmark') : '<span class="mq-dash">\u2022</span>');
-            return '<div class="mq-latest-row ' + res + '"><i class="mq-latest-res">' + icon + '</i><span class="mq-latest-pick ' + (l.choice === 'yes' ? 'yes' : 'no') + '">' + (l.choice === 'yes' ? 'YES' : 'NO') + '</span><span class="mq-latest-q">' + escapeHtml(l.text) + '</span></div>';
+            var mark = res === 'win' ? '\u2713' : (res === 'loss' ? '\u2717' : '\u2013');
+            return '<div class="mq-latest-row ' + res + '"><span class="mq-latest-res">' + mark + '</span><span class="mq-latest-pick ' + (l.choice === 'yes' ? 'yes' : 'no') + '">' + (l.choice === 'yes' ? 'YES' : 'NO') + '</span><span class="mq-latest-q">' + escapeHtml(l.text) + '</span></div>';
           }).join('') + '</div>';
         }else if(!c.is_me){
           latestHtml = '<div class="mq-latest"><div class="mq-latest-h">Latest calls</div><p class="mq-latest-empty">No locked calls yet.</p></div>';
