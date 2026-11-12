@@ -1,18 +1,18 @@
 // draft-insights
 // Supabase Edge Function: drafts the 5 "Marqit+" bullet points (historical data + odds) for
-// each posted daily question that doesn't have any yet.
+// each posted daily question that doesn't have a researched draft yet.
 //
-// Drafts are written to question_insights as 'pending' -- NOTHING is shown to players until
-// the admin approves (and optionally edits) them in admin.html. The admin gets a push
-// notification when drafts are ready.
+// EVERY question always has a live History & lean row: the database creates a 'baseline' row (Marqit's own past
+// results) the moment a question exists. This function upgrades baseline rows with a researched draft and
+// publishes it right away, and gives older rows with only a baseline lean a real lean reasoned from their bullets.
+// It runs hourly. Questions whose row is already researched are skipped, so it is safe to run as often as you like.
 //
 // Runs for today's and the next two days' questions (US Eastern), so insights are ready before the
 // questions go live AND a lopsided question can be changed before anyone can answer it.
 //
 // HOUSE RULE: a question whose lean is under 25% or over 75% (LOPSIDED) is not a real question -- there is
 // nothing left to predict. Those are flagged to the admin by push and in admin.html so the question can be
-// rewritten or its line moved BEFORE it goes live. Questions that already have a row (pending, approved or rejected) are
-// skipped, so it is safe to run as often as you like.
+// rewritten or its line moved BEFORE it goes live.
 //
 // SECRETS: ANTHROPIC_API_KEY. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are automatic.
 // AUTH: call with the SUPABASE_SERVICE_ROLE_KEY as the bearer token.
@@ -195,6 +195,41 @@ async function draftInsights(
   return null;
 }
 
+const LEAN_ONLY_PROMPT = `You set the lean for one Marqit question. You are given the question and five already-written bullet points. Return a lean_yes_pct (whole number 1-99, the chance the answer is YES) that agrees with the direction the bullets point, and a lean_basis (one plain sentence, 200 characters or fewer) saying what it rests on. If it is your own estimate from the bullet numbers, start lean_basis with "Marqit estimate:" and name the one or two numbers that drive it. Never use betting lines, odds or prediction-market prices. Never return null. Reply with ONE JSON object and nothing after it: {"lean_yes_pct": 55, "lean_basis": "..."}`;
+
+async function draftLean(
+  apiKey: string,
+  q: { question_text: string; category: string; question_date: string; resolution_criteria: string | null },
+  bullets: unknown,
+  deadline: number
+): Promise<{ lean_yes_pct: number; lean_basis: string } | null> {
+  const list = Array.isArray(bullets) ? (bullets as unknown[]).map((b, i) => `${i + 1}. ${String(b)}`).join('\n') : '';
+  const userMsg = `Question: ${q.question_text}\nDate: ${q.question_date}\n` + (q.resolution_criteria ? `How it resolves: ${q.resolution_criteria}\n` : '') + `Bullets:\n${list}`;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const remaining = deadline - Date.now();
+    if (remaining < 8000) return null;
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 400, system: LEAN_ONLY_PROMPT, messages: [{ role: 'user', content: userMsg }] }),
+        signal: AbortSignal.timeout(remaining)
+      });
+      if (!res.ok) { lastError = 'Anthropic API ' + res.status; continue; }
+      const data = await res.json();
+      const text = (data.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n');
+      const obj = extractJson(text, (o) => o && o.lean_yes_pct !== undefined);
+      if (!obj) continue;
+      const pct = Number(obj.lean_yes_pct);
+      const basis = typeof obj.lean_basis === 'string' ? obj.lean_basis.replace(/<\/?cite[^>]*>/g, '').trim() : '';
+      if (Number.isInteger(pct) && pct >= 1 && pct <= 99 && basis.length > 0 && basis.length <= 220) return { lean_yes_pct: pct, lean_basis: basis };
+    } catch (e) {
+      lastError = 'lean request failed: ' + String(e).slice(0, 200);
+    }
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
@@ -258,13 +293,41 @@ Deno.serve(async (req) => {
 
     // {"replace": true} with a question_id or test_date throws away the existing draft and writes a new one.
     if (body.replace === true && (body.question_id || body.test_date)) {
-      await admin.from('question_insights').delete().in('question_id', ids);
+      // Keep the live row on screen (History & lean must never disappear); mark it baseline so it gets redrafted.
+      await admin.from('question_insights').update({ source: 'baseline' }).in('question_id', ids);
     }
-    const { data: existing } = await admin.from('question_insights').select('question_id').in('question_id', ids);
-    const have = new Set((existing || []).map((r: any) => r.question_id));
+    const { data: existing } = await admin.from('question_insights').select('question_id, source, lean_basis, bullets').in('question_id', ids);
+    const rows = (existing || []) as any[];
+    // A question needs a researched draft when it has no row or only a baseline row (baseline = Marqit's own past results).
+    const have = new Set(rows.filter((r) => r.source !== 'baseline').map((r) => r.question_id));
+    const hadBaseline = new Set(rows.filter((r) => r.source === 'baseline').map((r) => r.question_id));
     const todo = (questions || []).filter((q: any) => !have.has(q.id)).slice(0, MAX_PER_RUN);
-    if (!todo.length) {
+    // Older researched rows that only got a baseline lean (blank lean filled by the database) get a real lean
+    // reasoned from their own bullets.
+    const todoIds = new Set(todo.map((q: any) => q.id));
+    const leanTodo = rows
+      .filter((r) => r.source !== 'baseline' && typeof r.lean_basis === 'string' && r.lean_basis.startsWith('Marqit baseline:') && !todoIds.has(r.question_id))
+      .slice(0, MAX_PER_RUN)
+      .map((r) => ({ row: r, q: (questions || []).find((x: any) => x.id === r.question_id) }))
+      .filter((x) => x.q);
+    if (!todo.length && !leanTodo.length) {
       return new Response(JSON.stringify({ drafted: 0, note: 'Every open question already has insights.' }), { status: 200, headers: CORS_HEADERS });
+    }
+    let leansUpgraded = 0;
+    if (leanTodo.length) {
+      const leanSettled = await Promise.allSettled(leanTodo.map((x) => draftLean(anthropicApiKey, x.q, x.row.bullets, deadline)));
+      for (let i = 0; i < leanTodo.length; i++) {
+        const r = leanSettled[i];
+        const res = r.status === 'fulfilled' ? r.value : null;
+        if (!res) continue;
+        const { error: upErr } = await admin.from('question_insights')
+          .update({ lean_yes_pct: res.lean_yes_pct, lean_basis: res.lean_basis })
+          .eq('question_id', leanTodo[i].row.question_id);
+        if (!upErr) leansUpgraded++;
+      }
+    }
+    if (!todo.length) {
+      return new Response(JSON.stringify({ drafted: 0, leans_upgraded: leansUpgraded }), { status: 200, headers: CORS_HEADERS });
     }
 
     const settled = await Promise.allSettled(todo.map((q: any) => draftInsights(anthropicApiKey, q, deadline)));
@@ -279,14 +342,16 @@ Deno.serve(async (req) => {
         details.push({ question_id: q.id, drafted: false, reason: result && result.skip ? result.skip : ('no usable draft' + (lastError ? ' (' + lastError + ')' : '')) });
         continue;
       }
-      const { error: insErr } = await admin.from('question_insights').insert({
+      // Upgrading a baseline row publishes immediately (a panel is already live for it); a brand-new row waits for review.
+      const { error: insErr } = await admin.from('question_insights').upsert({
         question_id: q.id,
         bullets: result.bullets,
         lean_yes_pct: result.lean_yes_pct ?? null,
         lean_basis: result.lean_basis ?? null,
-        status: 'pending',
-        source: 'claude'
-      });
+        status: hadBaseline.has(q.id) ? 'approved' : 'pending',
+        source: 'claude',
+        reviewed_at: hadBaseline.has(q.id) ? new Date().toISOString() : null
+      }, { onConflict: 'question_id' });
       if (insErr) {
         console.error('Insert error', q.id, insErr.message);
         details.push({ question_id: q.id, drafted: false, reason: insErr.message });
@@ -329,8 +394,8 @@ Deno.serve(async (req) => {
             headers: { Authorization: `Bearer ${serviceRoleKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               user_id: adminUserId,
-              title: `${drafted} Marqit+ insight set${drafted > 1 ? 's' : ''} ready to review`,
-              body: 'Tap to approve, edit, or reject before players see them.',
+              title: `${drafted} researched History & lean set${drafted > 1 ? 's' : ''} drafted`,
+              body: 'Upgrades to a baseline are already live. Tap to review or edit.',
               url: 'https://playmarqit.com/admin.html'
             })
           });
@@ -340,7 +405,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ drafted, seconds: Math.round((Date.now() - startedAt) / 1000), details }), { status: 200, headers: CORS_HEADERS });
+    return new Response(JSON.stringify({ drafted, leans_upgraded: leansUpgraded, seconds: Math.round((Date.now() - startedAt) / 1000), details }), { status: 200, headers: CORS_HEADERS });
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: CORS_HEADERS });
   }

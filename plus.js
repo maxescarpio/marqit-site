@@ -53,6 +53,14 @@
          'Ready within 48 hours, and it shows up right here on this page.',
          'Historical data only: no betting lines or odds.']], 'report']
     ]],
+    ['Follow the sharps', [
+      ['Sharp Feed', 'live', [
+        'One timeline of what the players you follow, your buddies and your rivals actually called, and whether they were right.',
+        ['Calls show up the moment each question locks, so nobody can copy a pick that is still open.',
+         'Last 7 days, newest first, with a green check or red X once each one settles.',
+         'Players who keep their calls private never appear.'],
+        'Information only. It adds no points, entries or prizes.'], 'feed']
+    ]],
     ['Your game', [
       ['Unlimited pick edits', 'live', [
         'Change your mind as often as you like until a question locks. Players without Marqit+ can edit 3 times a day.',
@@ -115,10 +123,10 @@
          'No ad ever stands between you and your calls.']]]
     ]]
   ];
-  var TOOLS = { stats: statsCard, head: headCard, contrarian: contrarianCard, recap: recapCard, follows: followsCard, archive: archiveCard, brief: briefCard, calendar: calendarCard, export: exportCard, report: reportCard };
+  var TOOLS = { feed: feedCard, stats: statsCard, head: headCard, contrarian: contrarianCard, recap: recapCard, follows: followsCard, archive: archiveCard, brief: briefCard, calendar: calendarCard, export: exportCard, report: reportCard };
   // Tools that are for paying members once the paid page is on. (The archive stays open: everyone sees the last 7 days.)
-  var MEMBER_ONLY = { stats: 1, head: 1, contrarian: 1, recap: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
-  var NEEDS_SIGN_IN = { stats: 1, head: 1, contrarian: 1, recap: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
+  var MEMBER_ONLY = { feed: 1, stats: 1, head: 1, contrarian: 1, recap: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
+  var NEEDS_SIGN_IN = { feed: 1, stats: 1, head: 1, contrarian: 1, recap: 1, follows: 1, brief: 1, calendar: 1, export: 1, report: 1 };
   function perkBody(body){
     if(typeof body === 'string'){ body = [body]; }
     var wrap = h('div', 'plus-perk-copy');
@@ -454,6 +462,41 @@
     return c;
   }
 
+  // ---------- Sharp Feed: latest locked calls from the people you follow, buddies and rivals ----------
+  async function feedCard(){
+    var c = section('Sharp Feed', 'What your people called, and whether they were right. Calls appear after each question locks.');
+    var r = await sb.rpc('sharp_feed', { p_limit: 40 });
+    var rows = (r && r.data) || [];
+    if(r && r.error){ c.appendChild(h('p', 'plus-empty', 'Could not load the feed right now. Try again in a minute.')); return c; }
+    if(!rows.length){
+      c.appendChild(h('p', 'plus-empty', 'Nothing here yet. Tap any name on the leaderboard or in the comments and hit Follow, or add a buddy or rival, and their locked calls will show up here.'));
+      return c;
+    }
+    var list = h('div', 'plus-feed');
+    var lastDate = '';
+    rows.forEach(function(x){
+      if(x.question_date !== lastDate){
+        lastDate = x.question_date;
+        var d = new Date(x.question_date + 'T12:00:00');
+        list.appendChild(h('p', 'plus-feed-day', d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })));
+      }
+      var res = (!x.resolved || (x.correct_answer !== 'yes' && x.correct_answer !== 'no')) ? 'pend' : (x.correct_answer === x.choice ? 'win' : 'loss');
+      var row = h('div', 'plus-feed-row ' + res);
+      row.appendChild(h('span', 'plus-feed-res', res === 'win' ? '\u2713' : res === 'loss' ? '\u2717' : '\u2022'));
+      var main = h('div', 'plus-feed-main');
+      var top = h('div', 'plus-feed-top');
+      top.appendChild(h('b', 'plus-feed-name', x.username));
+      if(x.relation === 'buddy' || x.relation === 'rival') top.appendChild(h('span', 'plus-feed-rel ' + x.relation, x.relation));
+      top.appendChild(h('span', 'plus-feed-pick ' + (x.choice === 'yes' ? 'yes' : 'no'), x.choice === 'yes' ? 'YES' : 'NO'));
+      main.appendChild(top);
+      main.appendChild(h('p', 'plus-feed-q', x.question_text));
+      row.appendChild(main);
+      list.appendChild(row);
+    });
+    c.appendChild(list);
+    return c;
+  }
+
   // ---------- Request a full report ----------
   async function reportCard(){
     var c = section('Request a full game or event report', 'Pick any game or event, even one that is not a Marqit question, and we will write you a report of the historical data. Up to 2 per week, delivered within 48 hours. Historical data only: no betting lines or odds.');
@@ -600,7 +643,7 @@
     amt.appendChild(h('b', null, '$9.99'));
     amt.appendChild(h('span', null, '/ month'));
     id.appendChild(amt);
-    id.appendChild(h('p', 'plus-price-tag', 'Know more before you pick. History on every question, your own stats, and a Teams tab built around the squads you follow.'));
+    id.appendChild(h('p', 'plus-price-tag', 'See what the sharpest players called, know exactly where you win and where you slip, and read the history behind every question before it locks.'));
     top.appendChild(id);
     var cta = h('div', 'plus-price-cta');
     top.appendChild(cta);
@@ -609,18 +652,33 @@
     // Middle: everything included, as a clean checklist instead of one long sentence.
     box.appendChild(h('p', 'plus-price-h', 'What is Marqit+?'));
     box.appendChild(h('p', 'plus-price-what', 'Marqit is free to play. Marqit+ adds history and tools around your own picks. It never adds entries, points or prizes, and players never wager money.'));
+    var teaser = h('p', 'plus-price-teaser'); teaser.hidden = true; box.appendChild(teaser);
+    if(session && !member){
+      (async function(){
+        try{
+          var rows = (await myPicks()).filter(function(p){ return p.resolved && !p.voided && (p.answer === 'yes' || p.answer === 'no'); });
+          if(rows.length >= 5){
+            var right = rows.filter(function(p){ return p.choice === p.answer; }).length;
+            teaser.textContent = 'You are ' + Math.round(100 * right / rows.length) + '% on ' + rows.length + ' settled calls. Marqit+ shows which categories you are sharpest in, and which ones are costing you.';
+            teaser.hidden = false;
+          }
+        }catch(e){}
+      })();
+    }
     box.appendChild(h('p', 'plus-price-h plus-price-h2', 'What you get'));
     var list = h('ul', 'plus-price-list');
     [
-      ['Your Teams tab', 'Follow your teams and players: records, top players, schedules, injuries and news in one place. A Marqit+ feature, open to everyone during early access.'],
+      ['Sharp Feed', 'See what the players you follow, your buddies and your rivals called, and whether they were right, the second each question locks.'],
       ['History and lean on every question and game', 'Five bullets of history and a percentage lean under every daily question and every game. Open to everyone for now.'],
+      ['My Stats Pro', 'Your record by category: where you are sharp, where you slip, and your streaks.'],
+      ['Contrarian score', 'How often you go against the crowd, and whether it pays off. Find out if you are a contrarian or a follower.'],
+      ['Your Marqit recap', 'A shareable card of your year: calls, accuracy, best category and how you did against the crowd. Built for bragging.'],
       ['Unlimited pick edits', 'Change your mind as often as you like until a question locks. Free players get 3 edits a day.'],
-      ['My Stats Pro', 'Your accuracy by category, best and toughest categories, and your streaks.'],
-      ['Contrarian score', 'How often you pick against the crowd and how it turns out.'],
-      ['Calendar sync', 'Add games and lock times to your own calendar.'],
+      ['Your Teams tab', 'Follow your teams and players: records, top players, schedules, injuries and news in one place. A Marqit+ feature, open to everyone during early access.'],
+      ['Morning brief', 'A short email each morning with the history behind that day\u2019s questions, so you read it before you pick.'],
       ['Pick history export', 'Download every pick you have made as a spreadsheet.'],
+      ['Calendar sync', 'Add games and lock times to your own calendar.'],
       ['Full question archive', 'Search every question we have ever asked. Free players see the last 7 days.'],
-      ['Morning brief', 'A short email each morning with the history behind that day\u2019s questions.'],
       ['Ad-free', 'Members never see ads.']
     ].forEach(function(f){
       var li = h('li');
