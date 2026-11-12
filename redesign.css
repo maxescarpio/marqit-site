@@ -816,3 +816,6 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 /* Pick bar (pinned to the bottom of the screen while picking): clearly a button before it is ready, solid white when it is. */
 .pick-submit.is-waiting{background:#2B2E37;border-color:#555B69;color:#fff;font-weight:700}
 .pick-submit.is-waiting:hover{border-color:#8A90A0}
+
+/* The wrapper around the pick bar must not box it in, or the bar cannot stay pinned to the bottom of the screen. */
+.pick-wrap{display:contents !important}

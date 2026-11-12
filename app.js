@@ -6521,6 +6521,7 @@
       const guestSel = {};
       guestQs.forEach(function(p){ if(p.myVote) guestSel[p.q.id] = p.myVote; });
       const gControls = document.createElement('div');
+      gControls.className = 'pick-wrap';
       gControls.style.cssText = 'max-width:none; margin-top:8px;';
 
       if(guestDone){
@@ -6666,6 +6667,7 @@
       let answering = false;
 
       const controls = document.createElement('div');
+      controls.className = 'pick-wrap';
       controls.style.cssText = 'max-width:none; margin-top:8px;';
       controls.innerHTML =
         '<div class="submit-cele" id="submit-cele" aria-hidden="true"><div class="cele-slots" id="cele-slots">' +
