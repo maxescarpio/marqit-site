@@ -46,3 +46,17 @@
 /video-maker
   Cache-Control: no-cache
   X-Robots-Tag: noindex, nofollow
+
+/howto
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-cache
+
+/howto.html
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-cache
+
+/howto-post.mp4
+  X-Robots-Tag: noindex
+
+/howto-video.mp4
+  X-Robots-Tag: noindex
