@@ -812,3 +812,9 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 .mq-latest-pick.yes{color:var(--yes)}
 .mq-latest-pick.no{color:var(--no)}
 .mq-latest-q{font-size:13.5px;line-height:1.35;color:var(--ink)}
+
+/* Two small pills under the question (replaces the lock timer / points strip). */
+.q-pills{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 12px}
+.q-pill{display:inline-flex;align-items:center;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);white-space:nowrap}
+.q-pill b{color:var(--ink);font-weight:800;margin-right:3px}
+.q-pill b:last-child{margin-right:0}

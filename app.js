@@ -5593,18 +5593,12 @@
       var ago = mqAgo(Date.now() - trend[trend.length - 1].time.getTime());
       if(ago) latestHtml = '<span class="foot-latest"><i class="live-dot"></i>Latest call ' + ago + '</span>';
     }
-    // Live strip under the question: lock countdown, points on the line, and how many players are in.
+    // Two small pills under the question (placeholder contents until we pick the final two).
     var liveStripHtml = '';
     if(!isVoid && !isFinal){
-      var lsItems = [];
-      if(!isLocked && q.lock_time){
-        lsItems.push('<span class="ls-item ls-time" data-lock="' + escapeHtml(q.lock_time) + '">' + mqIcon('clock') + '<b class="ls-time-t">' + mqLockText(q.lock_time) + '</b></span>');
-      }else if(isLocked){
-        lsItems.push('<span class="ls-item">' + mqIcon('lock') + '<b>Locked</b></span>');
-      }
-      lsItems.push('<span class="ls-item ls-pts' + (q.is_boosted ? ' boost' : '') + '">' + mqIcon(q.is_boosted ? 'bolt' : 'star') + '<b>+' + (q.is_boosted ? 200 : 100) + '</b> pts</span>');
-      if(total > 0) lsItems.push('<span class="ls-item">' + mqIcon('flame') + '<b>' + total + '</b> ' + (total === 1 ? 'call' : 'calls') + ' in</span>');
-      liveStripHtml = '<div class="live-strip">' + lsItems.join('') + '</div>';
+      var p1 = total > 0 ? '<b>' + total + '</b> ' + (total === 1 ? 'call' : 'calls') + ' in' : 'Be the first call';
+      var p2 = (showPct && total > 0) ? 'Crowd <b>' + Math.max(yesPct, noPct) + '%</b> ' + (yesPct >= noPct ? 'YES' : 'NO') : 'Crowd split after you call';
+      liveStripHtml = '<div class="q-pills"><span class="q-pill">' + p1 + '</span><span class="q-pill">' + p2 + '</span></div>';
     }
     var mostCalledBadge = (isMostCalled && total > 0) ? '<div class="hot-badge">' + mqIcon('flame') + 'Most called today</div>' : '';
     var moverBadge = (isMover && showPct) ? '<div class="mover-badge">' + mqIcon('bolt') + 'Big swing in the last hour</div>' : '';
