@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>try{var __m=localStorage.getItem("mq_mode");if(__m==="sports"||__m==="news"||__m==="pop_culture")document.documentElement.setAttribute("data-mode",__m)}catch(e){}</script>
 <meta charset="UTF-8">
 <!-- Copyright (c) 2026 Grand Media Group LLC. All rights reserved. Marqit is a trademark of Grand Media Group LLC. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -48,7 +49,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261112a">
 <link rel="stylesheet" href="refresh.css?v=20261105c">
-<link rel="stylesheet" href="redesign.css?v=20261112j">
+<link rel="stylesheet" href="redesign.css?v=20261112l">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -293,6 +294,14 @@
 </div>
 
 
+<div class="sitemode">
+  <div class="wrap sitemode-row"><div class="sitemode-switch" id="sitemode-switch" role="group" aria-label="Show me">
+    <button type="button" class="sitemode-btn active" data-mode="all">All</button>
+    <button type="button" class="sitemode-btn" data-mode="news">News</button>
+    <button type="button" class="sitemode-btn" data-mode="pop_culture">Pop culture</button>
+    <button type="button" class="sitemode-btn" data-mode="sports">Sports</button>
+  </div></div>
+</div>
 <div class="pagenav">
   <div class="wrap pagenav-row">
     <button class="pagenav-tab active" data-page="home">Play</button>
@@ -863,7 +872,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261112g" defer></script>
+<script src="app.js?v=20261112h" defer></script>
 <script src="plus.js?v=20261112a" defer></script>
 <script src="leagues.js?v=20261105a" defer></script>
 <script src="teams.js?v=20261106h" defer></script>
