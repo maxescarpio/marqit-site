@@ -2,5 +2,6 @@ User-agent: *
 Allow: /
 Disallow: /post
 Disallow: /video
+Disallow: /howto
 
 Sitemap: https://playmarqit.com/sitemap.xml
