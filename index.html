@@ -49,7 +49,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=20261112a">
 <link rel="stylesheet" href="refresh.css?v=20261105c">
-<link rel="stylesheet" href="redesign.css?v=20261112m">
+<link rel="stylesheet" href="redesign.css?v=20261112n">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -308,7 +308,7 @@
     <button class="pagenav-tab" data-page="leaderboard">Leaderboard</button>
     <button class="pagenav-tab" data-page="schedule">Schedule</button>
     <button class="pagenav-tab" data-page="news">News</button>
-    <button class="pagenav-tab" data-page="trending">Trending</button>
+    <button class="pagenav-tab" data-page="extra">Extra</button>
     <button class="pagenav-tab" data-page="how">How to play</button>
     <button class="pagenav-tab" data-page="standings">Rankings</button>
     <button class="pagenav-tab" data-page="teams" id="teams-tab">Teams</button>
@@ -505,12 +505,11 @@
 </section>
 </div>
 
-<div id="page-trending" class="page" style="display:none;">
+<div id="page-extra" class="page" style="display:none;">
 <section class="section hero-lite">
   <div class="wrap">
-    <h2>Trending</h2>
-    <div class="feed-chips" id="trending-chips"></div>
-    <div class="news-grid" id="trending-grid" aria-live="polite"><p class="news-empty">Loading…</p></div>
+    <h2 id="ex-title">Extra</h2>
+    <div id="ex-body"><p class="news-empty">Loading…</p></div>
   </div>
 </section>
 </div>
@@ -883,7 +882,7 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
-<script src="app.js?v=20261112i" defer></script>
+<script src="app.js?v=20261112j" defer></script>
 <script src="plus.js?v=20261112a" defer></script>
 <script src="leagues.js?v=20261105a" defer></script>
 <script src="teams.js?v=20261106h" defer></script>
