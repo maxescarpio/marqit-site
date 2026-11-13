@@ -8556,6 +8556,12 @@
   // A game that has not started in a playoff series somebody already won (the "Game 6 / Game 7, if necessary"
   // nobody will play) is never shown, whether it comes from the stored schedule or from the live feed.
   function mqSeriesDone(g){ return !!(g && g.state === 'pre' && g.series && g.series.completed); }
+  // ---- Site mode: All / News / Pop culture / Sports. Remembered in this browser. ----
+  function mqMode(){
+    try{ var v = localStorage.getItem('mq_mode'); return (v === 'sports' || v === 'news' || v === 'pop_culture') ? v : 'all'; }catch(e){ return 'all'; }
+  }
+  function mqModeLane(){ var m = mqMode(); return m === 'all' ? null : (m === 'pop_culture' ? 'pop' : m); }
+  function mqModeEvents(list){ var m = mqMode(); return m === 'all' ? list : list.filter(function(ev){ return ev.category === m; }); }
   function mqSchedDayEvents(day){
     var list = mqSched.events.filter(function(ev){ return mqSchedEventDay(ev) === day; }).filter(function(ev){
       return ev.category !== 'sports' || !mqSeriesDone(mqGameFor(ev, mqSchedTeams(ev)));
@@ -8581,7 +8587,7 @@
         league: g.league, starts_at: g.start, all_day: false, importance: 1, status: 'scheduled', url: null, question_id: null, synth: true };
       list.push(mqSynth[id]);
     });
-    return list;
+    return mqModeEvents(list);
   }
 
   // Price + daily change for the earnings cells in the ribbon (Supabase function "stock-chart", Yahoo Finance).
@@ -10241,6 +10247,45 @@
     if(!fromQuote){ mqLoadScores(); mqLoadQuotes(list); }
   }
 
+  // ---- The All / News / Pop culture / Sports switch above the tabs ----
+  // One setting changes the tabs, the top strips, the Schedule, the News page and the Leaderboard.
+  // The three daily calls never change.
+  (function(){
+    var root = document.documentElement, bar = document.getElementById('sitemode-switch');
+    if(!bar) return;
+    var NAMES = { all: 'Worldwide', sports: 'Sports', news: 'News', pop_culture: 'Pop culture' };
+    // Tag the three category boards on the Leaderboard so a mode can show just its own.
+    document.querySelectorAll('#page-leaderboard .lb-cats .board').forEach(function(b){
+      var r = b.querySelector('.board-rows'); if(r) b.setAttribute('data-cat', r.id.replace('board-', ''));
+    });
+    var catHead = document.querySelector('#page-leaderboard .lb-cats'); catHead = catHead && catHead.previousElementSibling;
+    if(catHead) catHead.classList.add('lb-cat-h');
+    function apply(m, user){
+      root.setAttribute('data-mode', m === 'all' ? '' : m);
+      if(m === 'all') root.removeAttribute('data-mode');
+      bar.querySelectorAll('.sitemode-btn').forEach(function(b){ var on = b.getAttribute('data-mode') === m; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+      var sub = document.querySelector('#page-leaderboard .hero-lite p');
+      if(sub) sub.textContent = m === 'all' ? 'Worldwide standings.' : NAMES[m] + ' standings, your groups and the big board.';
+      if(catHead) catHead.textContent = m === 'all' ? 'Category' : NAMES[m];
+      if(user){
+        // Leave a page whose tab just disappeared.
+        var act = document.querySelector('.pagenav-tab.active');
+        if(act && act.offsetParent === null){ var home = document.querySelector('.pagenav-tab[data-page="home"]'); if(home) home.click(); }
+        try{ renderSchedToday(); }catch(e){}
+        try{ renderSchedPage(); }catch(e){}
+        if(window.mqReloadTicker) window.mqReloadTicker();
+        if(window.mqSetNewsLane) window.mqSetNewsLane(mqModeLane());
+      }
+    }
+    bar.addEventListener('click', function(ev){
+      var b = ev.target.closest('.sitemode-btn'); if(!b) return;
+      var m = b.getAttribute('data-mode');
+      try{ if(m === 'all') localStorage.removeItem('mq_mode'); else localStorage.setItem('mq_mode', m); }catch(e){}
+      apply(m, true);
+    });
+    apply(mqMode(), false);
+  })();
+
   // Poster / album cover thumbnails on the movie, show and album cells of the top strip. The small image URL
   // comes from the media-details function (the same one the click panel uses) and is remembered in this
   // browser for a day, so the strip's 5-minute refresh and repeat visits make no extra requests. No picture
@@ -10569,9 +10614,16 @@
     var trackEl = document.getElementById('news-ticker-track');
     if(!tickerEl || !trackEl) return;
 
-    sb.from('news_ticker')
-      .select('headline, source_name, article_url')
-      .eq('kind', 'news')
+    var tickSeq = 0;
+    function loadTicker(){
+      var tk = ++tickSeq;
+      tickerEl.classList.remove('has-items'); trackEl.innerHTML = '';
+      var m = mqMode();
+      var q = sb.from('news_ticker').select('headline, source_name, article_url').eq('kind', 'news');
+      if(m === 'sports') q = q.eq('lane', 'sports');
+      else if(m === 'pop_culture') q = q.in('lane', ['pop', 'music']);
+      else if(m === 'news') q = q.or('lane.is.null,lane.eq.news');
+      q
       .order('fetched_at', { ascending: false })
       .then(function(res){
         if(res && res.error){
@@ -10581,6 +10633,7 @@
         return res;
       })
       .then(function(res){
+        if(tk !== tickSeq) return;
         var rows = ((res && res.data) ? res.data : []).filter(function(r){ return mqNewsAllowed(r.headline); });
         // Stay hidden until there's enough real content that the seamless-loop
         // technique (which duplicates the list once) doesn't visibly show the
@@ -10619,6 +10672,9 @@
           trackEl.style.animationDuration = duration + 's';
         });
       }, function(){ /* fetch failed — stay hidden, fail silently */ });
+    }
+    loadTicker();
+    window.mqReloadTicker = loadTicker;
   })();
 
   // ===== News + Trending feeds, and discussion threads =====
@@ -11221,7 +11277,7 @@
       this.cfg = cfg;
       this.grid = document.getElementById(cfg.gridId);
       this.chips = document.getElementById(cfg.chipsId);
-      this.lane = mqFavLane() || 'all';
+      this.lane = mqModeLane() || mqFavLane() || 'all';
       this.sort = 'new';
       this.source = 'all';
       this.topic = 'all';
@@ -11537,7 +11593,14 @@
     });
     document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape' && !view.hidden) closeThread(); });
 
-    new Feed({ page: 'news', gridId: 'news-grid', chipsId: 'news-chips', kind: 'news', defaultSort: 'new' });
+    var mqNewsFeed = new Feed({ page: 'news', gridId: 'news-grid', chipsId: 'news-chips', kind: 'news', defaultSort: 'new' });
+    // The site mode picks the lane for the News page (All leaves it on whatever the reader chose).
+    window.mqSetNewsLane = function(lane){
+      var f = mqNewsFeed; if(!f) return;
+      f.lane = lane || 'all'; f.topic = 'all';
+      if(f.chips) f.chips.querySelectorAll('.feed-chip[data-lane]').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-lane') === f.lane); });
+      if(f.loaded) f.render();
+    };
 
     // ---- Freshness: "Updated X ago" ticks along, and a small dot on the News / Trending tab when there is something new since you last opened it ----
     setInterval(function(){

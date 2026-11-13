@@ -819,3 +819,36 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 
 /* The wrapper around the pick bar must not box it in, or the bar cannot stay pinned to the bottom of the screen. */
 .pick-wrap{display:contents !important}
+
+/* ===== All / News / Pop culture / Sports switch ===== */
+.sitemode{background:#17191D;border-bottom:1px solid #22252B}
+.sitemode-row{padding-top:10px;padding-bottom:10px}
+.sitemode-switch{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.sitemode-switch::-webkit-scrollbar{display:none}
+.sitemode-btn{flex:none;padding:6px 15px;border-radius:999px;border:1px solid #2F333B;background:transparent;color:#9A9CA3;font:inherit;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s,background .15s}
+.sitemode-btn:hover{color:#D8D9DC;border-color:#555B69}
+.sitemode-btn.active{background:#fff;border-color:#fff;color:#14161A}
+
+/* Tabs that do not apply to a mode disappear. */
+html[data-mode="news"] .pagenav-tab[data-page="schedule"],
+html[data-mode="news"] .pagenav-tab[data-page="standings"],
+html[data-mode="news"] .pagenav-tab[data-page="teams"],
+html[data-mode="pop_culture"] .pagenav-tab[data-page="standings"],
+html[data-mode="pop_culture"] .pagenav-tab[data-page="teams"]{display:none !important}
+/* Scores strip is a sports and pop culture thing; News mode has the headlines strip only. */
+html[data-mode="news"] #sched-today{display:none !important}
+/* The News page is locked to the mode's lane. */
+html[data-mode] #news-chips [data-lane]{display:none}
+/* Leaderboard in a mode: that category, your groups and the big board. */
+html[data-mode] #record-card,html[data-mode] #recap-card,html[data-mode] #mycalls-card,html[data-mode] #top-predictor-line{display:none}
+html[data-mode="sports"] .lb-cats .board:not([data-cat="sports"]),
+html[data-mode="pop_culture"] .lb-cats .board:not([data-cat="pop_culture"]),
+html[data-mode="news"] .lb-cats .board:not([data-cat="news"]){display:none}
+html[data-mode] .lb-cats{display:block}
+html[data-mode] .lb-cat-h{display:none}
+html[data-mode] .wrap:has(> .lb-cats){display:flex;flex-direction:column}
+html[data-mode] .wrap:has(> .lb-cats) > .lb-cats{order:-1;margin-bottom:6px}
+
+/* In News, Pop culture and Sports the News page gets its own tab (it normally lives in the Menu); Rankings is sports only. */
+html[data-mode] .pagenav-tab[data-page="news"]{display:block !important}
+html[data-mode="news"] #hamburger-rankings-btn,html[data-mode="pop_culture"] #hamburger-rankings-btn{display:none !important}
