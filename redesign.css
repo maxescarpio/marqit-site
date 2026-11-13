@@ -835,7 +835,7 @@ html[data-mode="pop_culture"] .pagenav-tab[data-page="teams"]{display:none !impo
 /* Scores strip is a sports and pop culture thing; News mode has the headlines strip only. */
 html[data-mode="news"] #sched-today{display:none !important}
 /* The News page is locked to the mode's lane. */
-html[data-mode] #news-chips [data-lane],html[data-mode] #trending-chips [data-lane]{display:none}
+html[data-mode] #news-chips [data-lane]{display:none}
 /* Leaderboard in a mode: that category, your groups and the big board. */
 html[data-mode] #record-card,html[data-mode] #recap-card,html[data-mode] #mycalls-card,html[data-mode] #top-predictor-line{display:none}
 html[data-mode="sports"] .lb-cats .board:not([data-cat="sports"]),
@@ -846,9 +846,9 @@ html[data-mode] .lb-cat-h{display:none}
 html[data-mode] .wrap:has(> .lb-cats){display:flex;flex-direction:column}
 html[data-mode] .wrap:has(> .lb-cats) > .lb-cats{order:-1;margin-bottom:6px}
 
-.pagenav-tab[data-page="trending"]{display:none}
+.pagenav-tab[data-page="extra"]{display:none}
 /* In News, Pop culture and Sports the News, Trending and Rankings pages get their own tabs (it normally lives in the Menu); Rankings is sports only. */
-html[data-mode] .pagenav-tab[data-page="news"],html[data-mode] .pagenav-tab[data-page="trending"],html[data-mode] .pagenav-tab[data-page="standings"]{display:block !important}
+html[data-mode] .pagenav-tab[data-page="news"],html[data-mode] .pagenav-tab[data-page="extra"],html[data-mode] .pagenav-tab[data-page="standings"]{display:block !important}
 html[data-mode="news"] #hamburger-rankings-btn,html[data-mode="pop_culture"] #hamburger-rankings-btn{display:none !important}
 
 /* Market quotes and crypto rows (News mode Markets tab) */
@@ -868,3 +868,36 @@ html[data-mode="news"] #hamburger-rankings-btn,html[data-mode="pop_culture"] #ha
 .q-coin .m{flex:1;min-width:0}
 .q-coin .m b{display:block;font-size:14.5px;color:var(--ink)}
 .q-coin .m em{font-style:normal;font-size:12.5px;color:var(--ink-soft)}
+
+/* Extra tab: Scoreboard (Sports), Right now (Pop culture), Briefing (News) */
+.ex-sum{display:flex;gap:14px;align-items:center;margin:4px 0 16px;font-size:13px;color:var(--ink-soft)}
+.ex-sum .live{color:#E5484D}
+.ex-lg{margin:0 0 22px}
+.ex-gl{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.ex-g{display:grid;grid-template-columns:1fr;gap:4px;padding:12px 14px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.03)}
+.ex-g.in{border-color:rgba(229,72,77,.55)}
+.ex-tm{display:flex;justify-content:space-between;font-size:15px}
+.ex-tm i{font-style:normal;font-variant-numeric:tabular-nums}
+.ex-tm.w b,.ex-tm.w i{color:#fff;font-weight:800}
+.ex-st{margin-top:4px;font-size:12px;color:var(--ink-soft)}
+.ex-g.in .ex-st{color:#E5484D;font-weight:700}
+.ex-st em{margin-left:8px;font-style:normal;opacity:.8}
+.ex-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.ex-card{display:flex;gap:14px;padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.03);cursor:pointer}
+.ex-art{flex:0 0 110px;height:110px;border-radius:10px;overflow:hidden;background:rgba(255,255,255,.06)}
+.ex-art img{width:100%;height:100%;object-fit:cover;display:block}
+.ex-meta{min-width:0;display:flex;flex-direction:column;gap:3px}
+.ex-meta em{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ui-accent,#F5B83D)}
+.ex-meta b{font-size:17px;line-height:1.2}
+.ex-meta span{font-size:13px;color:var(--ink-soft)}
+.ex-meta ol{margin:6px 0 0;padding-left:18px;font-size:12px;color:var(--ink-soft)}
+.ex-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:22px}
+.ex-tile{display:flex;flex-direction:column;gap:2px;padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.03)}
+.ex-tile span{font-size:12px;color:var(--ink-soft)}
+.ex-tile b{font-size:18px}
+.ex-tile em{font-style:normal;font-size:13px;font-weight:700}
+.ex-tile em.up{color:#3DBA7C}.ex-tile em.dn{color:#E5484D}
+.ex-hl{list-style:none;margin:0 0 22px;padding:0}
+.ex-hl li{border-bottom:1px solid rgba(255,255,255,.07)}
+.ex-hl a,.ex-hl span{display:block;padding:12px 2px;color:inherit;text-decoration:none;font-size:15px}
+.ex-hl em{display:block;font-style:normal;font-size:12px;color:var(--ink-soft);margin-top:2px}
