@@ -8561,7 +8561,11 @@
     try{ var v = localStorage.getItem('mq_mode'); return (v === 'sports' || v === 'news' || v === 'pop_culture') ? v : 'all'; }catch(e){ return 'all'; }
   }
   function mqModeLane(){ var m = mqMode(); return m === 'all' ? null : (m === 'pop_culture' ? 'pop' : m); }
-  function mqModeEvents(list){ var m = mqMode(); return m === 'all' ? list : list.filter(function(ev){ return ev.category === m; }); }
+  function mqModeEvents(list){
+    var m = mqMode(); if(m === 'all') return list;
+    var ok = m === 'news' ? ['news', 'finance', 'tech'] : [m];
+    return list.filter(function(ev){ return ok.indexOf(ev.category) >= 0; });
+  }
   function mqSchedDayEvents(day){
     var list = mqSched.events.filter(function(ev){ return mqSchedEventDay(ev) === day; }).filter(function(ev){
       return ev.category !== 'sports' || !mqSeriesDone(mqGameFor(ev, mqSchedTeams(ev)));
@@ -9823,6 +9827,7 @@
     root.querySelectorAll('.rk-tabs button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-k') === k); });
     var body = root.querySelector('#rk-body'); body.innerHTML = '<p class="evp-muted">Loading…</p>';
     root.querySelector('#rk-foot').textContent = 'Source: ' + MQ_RK_SRC[k] + '. Unofficial feed, may lag. Click any row for details.';
+    if(MQ_RK_NEW[k]){ mqRkCur = {}; mqRkNewShow(k, body); return; }
     if(MQ_SPORT_KINDS[k] && MQ_RK.sub === 'leaders'){
       mqRkLeadersFetch(k).then(function(d){
         if(MQ_RK.kind !== k || !body.isConnected) return;
@@ -9858,11 +9863,100 @@
     MQ_RK.sec = s;
     mqRkSetPer(MQ_RK.per || 'd');
   }
+  // ---- Rankings page per site mode: Sports = standings, Pop culture = charts, News = markets ----
+  var MQ_RK_NEW = { movies: 1, tv: 1, podcasts: 1, albums: 1, indices: 1, crypto: 1 };
+  MQ_RK_SRC.movies = 'Apple iTunes charts, posters © their owners';
+  MQ_RK_SRC.tv = 'Apple iTunes charts, art © its owners';
+  MQ_RK_SRC.podcasts = 'Apple Podcasts chart, art © its owners';
+  MQ_RK_SRC.albums = 'Apple iTunes charts, album art © its owners';
+  MQ_RK_SRC.indices = 'Yahoo Finance. Quotes can be delayed and are not advice';
+  MQ_RK_SRC.crypto = 'CoinGecko. Prices move fast and are not advice';
+  function mqRkTabsFor(){
+    var m = mqMode();
+    if(m === 'sports') return MQ_RK_TABS.filter(function(t){ return MQ_SPORT_KINDS[t[0]]; });
+    if(m === 'pop_culture') return [['songs', 'Songs'], ['artists', 'Artists'], ['movies', 'Movies'], ['tv', 'TV shows'], ['podcasts', 'Podcasts'], ['albums', 'Albums']];
+    if(m === 'news') return [['indices', 'Markets'], ['markets', 'Biggest companies'], ['crypto', 'Crypto']];
+    return MQ_RK_TABS;
+  }
+  function mqRkRenderTabs(){
+    var root = document.getElementById('rk-page'); if(!root) return;
+    var tabs = mqRkTabsFor(), all = mqMode() === 'all';
+    root.querySelector('.rk-tabs').innerHTML = tabs.map(function(t){ return (all && t[0] === 'songs' ? '<i class="rk-sep" aria-hidden="true"></i>' : '') + '<button type="button" role="tab" data-k="' + t[0] + '">' + t[1] + '</button>'; }).join('');
+    if(!tabs.some(function(t){ return t[0] === MQ_RK.kind; })) MQ_RK.kind = tabs[0][0];
+    var h = document.getElementById('rk-title'); if(h) h.textContent = { sports: 'Rankings', pop_culture: 'Charts', news: 'Markets' }[mqMode()] || 'Rankings';
+  }
+  // Called when the site mode changes while the Rankings page might be open.
+  function mqRkModeChanged(){
+    mqRkRenderTabs();
+    var pg = document.getElementById('page-standings');
+    if(pg && pg.offsetParent) mqRkShow(MQ_RK.kind);
+  }
+  var MQ_FEED_CACHE = {};
+  function mqFeedFetch(kind){
+    var c = MQ_FEED_CACHE[kind];
+    if(c && Date.now() - c.at < 120000) return Promise.resolve(c.d);
+    return fetch(SUPABASE_URL + '/functions/v1/mode-feeds?kind=' + kind).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; })
+      .then(function(d){ if(d && !d.error){ MQ_FEED_CACHE[kind] = { at: Date.now(), d: d }; return d; } return null; });
+  }
+  function mqFmtPx(v){
+    if(v == null || !isFinite(v)) return '—';
+    var a = Math.abs(v);
+    return v.toLocaleString('en-US', { minimumFractionDigits: a < 1000 ? 2 : 0, maximumFractionDigits: a < 10 ? 3 : 2 });
+  }
+  function mqFmtPct(p){ return (p >= 0 ? '+' : '') + Number(p).toFixed(2) + '%'; }
+  function mqSpark(arr, up){
+    if(!arr || arr.length < 2) return '';
+    var min = Math.min.apply(null, arr), max = Math.max.apply(null, arr), w = 64, h = 22, rng = (max - min) || 1;
+    var pts = arr.map(function(v, i){ return (i / (arr.length - 1) * w).toFixed(1) + ',' + (h - 2 - (v - min) / rng * (h - 4)).toFixed(1); }).join(' ');
+    return '<svg class="q-spark ' + (up ? 'up' : 'dn') + '" viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '" aria-hidden="true"><polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  }
+  function mqRkMedia(items){
+    if(!items || !items.length) return '<p class="evp-muted">This chart isn’t available right now.</p>';
+    return '<ol class="rk-l">' + items.map(function(x, i){
+      var sub = [x.by, x.genre].filter(Boolean).join(' · '), t = x.title || '';
+      return '<li class="rk-go" data-act="link" data-href="' + escapeHtml(x.link || '') + '" tabindex="0"><span class="n">' + (x.rank || i + 1) + '</span>' +
+        '<span class="rk-art">' + (x.image ? '<img src="' + escapeHtml(x.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<i>' + escapeHtml(t.charAt(0)) + '</i></span>' +
+        '<span class="m"><b>' + escapeHtml(t) + '</b>' + (sub ? '<em>' + escapeHtml(sub) + '</em>' : '') + '</span><span class="rk-chev">›</span></li>';
+    }).join('') + '</ol>';
+  }
+  function mqRkQuotes(d){
+    var GROUPS = [['stocks', 'Stocks'], ['rates', 'Rates'], ['crypto', 'Crypto'], ['commodities', 'Commodities']];
+    var qs = (d && d.quotes) || [];
+    if(!qs.length) return '<p class="evp-muted">Quotes aren’t available right now.</p>';
+    return GROUPS.map(function(g){
+      var rows = qs.filter(function(q){ return q.group === g[0]; });
+      if(!rows.length) return '';
+      return '<div class="q-grp"><h3 class="q-h">' + g[1] + '</h3><ul class="q-list">' + rows.map(function(q){
+        var up = (q.pct || 0) >= 0, px = mqFmtPx(q.price) + (q.symbol === '^TNX' ? '%' : '');
+        return '<li class="q-row"><span class="q-name">' + escapeHtml(q.name) + '</span>' + mqSpark(q.spark, up) +
+          '<span class="q-px"><b>' + px + '</b>' + (q.pct != null ? '<em class="' + (up ? 'up' : 'dn') + '">' + mqFmtPct(q.pct) + '</em>' : '') + '</span></li>';
+      }).join('') + '</ul></div>';
+    }).join('');
+  }
+  function mqRkCoins(d){
+    var cs = (d && d.coins) || [];
+    if(!cs.length) return '<p class="evp-muted">This chart isn’t available right now.</p>';
+    return '<ol class="rk-l">' + cs.map(function(c, i){
+      var up = (c.pct || 0) >= 0;
+      return '<li class="q-coin"><span class="n">' + (c.rank || i + 1) + '</span><span class="rk-art round">' + (c.image ? '<img src="' + escapeHtml(c.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<i>' + escapeHtml((c.symbol || '?').charAt(0)) + '</i></span>' +
+        '<span class="m"><b>' + escapeHtml(c.name) + '</b><em>' + escapeHtml(c.symbol) + '</em></span><span class="q-px"><b>$' + mqFmtPx(c.price) + '</b><em class="' + (up ? 'up' : 'dn') + '">' + mqFmtPct(c.pct || 0) + '</em></span></li>';
+    }).join('') + '</ol>';
+  }
+  function mqRkNewShow(k, body){
+    var kind = k === 'indices' ? 'markets' : (k === 'crypto' ? 'crypto' : 'media');
+    mqFeedFetch(kind).then(function(d){
+      if(MQ_RK.kind !== k || !body.isConnected) return;
+      if(!d){ body.innerHTML = '<p class="evp-muted">Couldn’t load this right now. Try again in a minute.</p>'; return; }
+      body.innerHTML = k === 'indices' ? mqRkQuotes(d) : k === 'crypto' ? mqRkCoins(d) : mqRkMedia(d[k]);
+    });
+  }
+
   function mqRkAct(row){
     var cur = mqRkCur;
     if(row && row.getAttribute('data-act') === 'player'){ mqOpenPlayerPanel(row); return; }
     if(!row || !cur) return;
     var a = row.getAttribute('data-act'), k = MQ_RK.kind, i = Number(row.getAttribute('data-i'));
+    if(a === 'link'){ var hr = row.getAttribute('data-href'); if(hr && /^https:\/\//.test(hr)) window.open(hr, '_blank', 'noopener'); return; }
     if(a === 'team') mqOpenTeamPanel(k, cur.groups[Number(row.getAttribute('data-g'))].rows[Number(row.getAttribute('data-r'))]);
     else if(a === 'co'){ var c = mqRkCoList(cur)[i]; mqOpenStockPanel({ league: c.symbol, title: c.name + ' earnings', subtitle: 'Largest companies' }); var p = document.querySelector('#mq-evpanel .evp'); if(p) mqRkBack(p); }
     else if(a === 'song'){ var gl = mqRkGenreList(cur); mqOpenSongPanel(gl.items[i], gl.label + ' songs'); }
@@ -9872,7 +9966,6 @@
     var root = document.getElementById('rk-page'); if(!root) return;
     if(!mqRkReady){
       mqRkReady = true;
-      root.querySelector('.rk-tabs').innerHTML = MQ_RK_TABS.map(function(t){ return (t[0] === 'songs' ? '<i class="rk-sep" aria-hidden="true"></i>' : '') + '<button type="button" role="tab" data-k="' + t[0] + '">' + t[1] + '</button>'; }).join('');
       root.querySelector('.rk-tabs').addEventListener('click', function(e){ var b = e.target.closest('button[data-k]'); if(b) mqRkShow(b.getAttribute('data-k')); });
       root.querySelector('#rk-body').addEventListener('click', function(e){
         var sb = e.target.closest('button[data-sub]');
@@ -9885,6 +9978,7 @@
         var pb = e.target.closest('button[data-per]'); if(pb){ mqRkSetPer(pb.getAttribute('data-per')); return; } mqRkAct(e.target.closest('.rk-go')); });
       root.querySelector('#rk-body').addEventListener('keydown', function(e){ if(e.key === 'Enter') mqRkAct(e.target.closest('.rk-go')); });
     }
+    mqRkRenderTabs();
     if(kind) MQ_RK.kind = kind;
     var tab = document.querySelector('.pagenav-tab[data-page="standings"]');
     if(tab && !document.getElementById('page-standings').offsetParent){ mqRkClicking = true; tab.click(); mqRkClicking = false; }
@@ -10264,6 +10358,11 @@
       root.setAttribute('data-mode', m === 'all' ? '' : m);
       if(m === 'all') root.removeAttribute('data-mode');
       bar.querySelectorAll('.sitemode-btn').forEach(function(b){ var on = b.getAttribute('data-mode') === m; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+      var LB = { sports: ['Rankings', 'Schedule'], pop_culture: ['Charts', 'Coming up'], news: ['Markets', 'Coming up'] }[m] || ['Rankings', 'Schedule'];
+      var tr = document.querySelector('.pagenav-tab[data-page="standings"]'), ts = document.querySelector('.pagenav-tab[data-page="schedule"]'), st = document.getElementById('sched-title');
+      if(tr) tr.textContent = LB[0];
+      if(ts) ts.textContent = LB[1];
+      if(st) st.textContent = LB[1];
       var sub = document.querySelector('#page-leaderboard .hero-lite p');
       if(sub) sub.textContent = m === 'all' ? 'Worldwide standings.' : NAMES[m] + ' standings, your groups and the big board.';
       if(catHead) catHead.textContent = m === 'all' ? 'Category' : NAMES[m];
@@ -10275,6 +10374,7 @@
         try{ renderSchedPage(); }catch(e){}
         if(window.mqReloadTicker) window.mqReloadTicker();
         if(window.mqSetNewsLane) window.mqSetNewsLane(mqModeLane());
+        try{ mqRkModeChanged(); }catch(e){}
       }
     }
     bar.addEventListener('click', function(ev){
@@ -11594,12 +11694,15 @@
     document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape' && !view.hidden) closeThread(); });
 
     var mqNewsFeed = new Feed({ page: 'news', gridId: 'news-grid', chipsId: 'news-chips', kind: 'news', defaultSort: 'new' });
-    // The site mode picks the lane for the News page (All leaves it on whatever the reader chose).
+    var mqTrendFeed = new Feed({ page: 'trending', gridId: 'trending-grid', chipsId: 'trending-chips', kind: 'trending', defaultSort: 'new' });
+    // The site mode picks the lane for the News and Trending pages (All leaves them on whatever the reader chose).
     window.mqSetNewsLane = function(lane){
-      var f = mqNewsFeed; if(!f) return;
-      f.lane = lane || 'all'; f.topic = 'all';
-      if(f.chips) f.chips.querySelectorAll('.feed-chip[data-lane]').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-lane') === f.lane); });
-      if(f.loaded) f.render();
+      [mqNewsFeed, mqTrendFeed].forEach(function(f){
+        if(!f) return;
+        f.lane = lane || 'all'; f.topic = 'all';
+        if(f.chips) f.chips.querySelectorAll('.feed-chip[data-lane]').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-lane') === f.lane); });
+        if(f.loaded) f.render();
+      });
     };
 
     // ---- Freshness: "Updated X ago" ticks along, and a small dot on the News / Trending tab when there is something new since you last opened it ----
