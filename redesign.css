@@ -829,16 +829,13 @@ button.tm-game.tm2-tap:hover .tm2-go{color:#F2F3F5}
 .sitemode-btn:hover{color:#D8D9DC;border-color:#555B69}
 .sitemode-btn.active{background:#fff;border-color:#fff;color:#14161A}
 
-/* Tabs that do not apply to a mode disappear. */
-html[data-mode="news"] .pagenav-tab[data-page="schedule"],
-html[data-mode="news"] .pagenav-tab[data-page="standings"],
+/* Tabs that do not apply to a mode disappear. Teams is sports only. */
 html[data-mode="news"] .pagenav-tab[data-page="teams"],
-html[data-mode="pop_culture"] .pagenav-tab[data-page="standings"],
 html[data-mode="pop_culture"] .pagenav-tab[data-page="teams"]{display:none !important}
 /* Scores strip is a sports and pop culture thing; News mode has the headlines strip only. */
 html[data-mode="news"] #sched-today{display:none !important}
 /* The News page is locked to the mode's lane. */
-html[data-mode] #news-chips [data-lane]{display:none}
+html[data-mode] #news-chips [data-lane],html[data-mode] #trending-chips [data-lane]{display:none}
 /* Leaderboard in a mode: that category, your groups and the big board. */
 html[data-mode] #record-card,html[data-mode] #recap-card,html[data-mode] #mycalls-card,html[data-mode] #top-predictor-line{display:none}
 html[data-mode="sports"] .lb-cats .board:not([data-cat="sports"]),
@@ -849,6 +846,25 @@ html[data-mode] .lb-cat-h{display:none}
 html[data-mode] .wrap:has(> .lb-cats){display:flex;flex-direction:column}
 html[data-mode] .wrap:has(> .lb-cats) > .lb-cats{order:-1;margin-bottom:6px}
 
-/* In News, Pop culture and Sports the News page gets its own tab (it normally lives in the Menu); Rankings is sports only. */
-html[data-mode] .pagenav-tab[data-page="news"]{display:block !important}
+.pagenav-tab[data-page="trending"]{display:none}
+/* In News, Pop culture and Sports the News, Trending and Rankings pages get their own tabs (it normally lives in the Menu); Rankings is sports only. */
+html[data-mode] .pagenav-tab[data-page="news"],html[data-mode] .pagenav-tab[data-page="trending"],html[data-mode] .pagenav-tab[data-page="standings"]{display:block !important}
 html[data-mode="news"] #hamburger-rankings-btn,html[data-mode="pop_culture"] #hamburger-rankings-btn{display:none !important}
+
+/* Market quotes and crypto rows (News mode Markets tab) */
+.q-grp{margin:0 0 22px}
+.q-h{margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)}
+.q-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.q-row,.q-coin{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line)}
+.q-coin{list-style:none}
+.q-name{flex:1;min-width:0;font-weight:600;font-size:14.5px;color:var(--ink)}
+.q-px{display:flex;flex-direction:column;align-items:flex-end;margin-left:auto;font-variant-numeric:tabular-nums}
+.q-px b{font-size:14.5px;color:var(--ink)}
+.q-px em{font-style:normal;font-size:12.5px;font-weight:700}
+.q-px .up,.q-spark.up{color:var(--yes)}
+.q-px .dn,.q-spark.dn{color:var(--no)}
+.q-spark{flex:none}
+.q-coin .n{width:22px;color:var(--ink-soft);font-weight:700;font-size:13px}
+.q-coin .m{flex:1;min-width:0}
+.q-coin .m b{display:block;font-size:14.5px;color:var(--ink)}
+.q-coin .m em{font-style:normal;font-size:12.5px;color:var(--ink-soft)}
