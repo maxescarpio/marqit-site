@@ -8559,7 +8559,7 @@
   function mqSeriesDone(g){ return !!(g && g.state === 'pre' && g.series && g.series.completed); }
   // ---- Site mode: All / News / Pop culture / Sports. Remembered in this browser. ----
   function mqMode(){
-    try{ var v = localStorage.getItem('mq_mode'); return (v === 'sports' || v === 'news' || v === 'pop_culture') ? v : 'all'; }catch(e){ return 'all'; }
+    var v = document.documentElement.getAttribute('data-mode'); return (v === 'sports' || v === 'news' || v === 'pop_culture') ? v : 'all';
   }
   function mqModeLane(){ var m = mqMode(); return m === 'all' ? null : (m === 'pop_culture' ? 'pop' : m); }
   function mqModeEvents(list){
@@ -10367,53 +10367,72 @@
     if(!fromQuote){ mqLoadScores(); mqLoadQuotes(list); }
   }
 
-  // ---- The All / News / Pop culture / Sports switch above the tabs ----
-  // One setting changes the tabs, the top strips, the Schedule, the News page and the Leaderboard.
-  // The three daily calls never change.
+  // ---- Sports, Pop culture and News are tabs. Each one opens its own section with a small row of sub-tabs. ----
+  // Inside a section the site is filtered to that category (schedule, news, rankings, leaderboard, top strip);
+  // every other tab is the original site. The three daily calls never change.
   (function(){
-    var root = document.documentElement, bar = document.getElementById('sitemode-switch');
-    if(!bar) return;
+    var root = document.documentElement, subEl = document.getElementById('cat-sub'), rowEl = document.getElementById('cat-sub-row');
     var NAMES = { all: 'Worldwide', sports: 'Sports', news: 'News', pop_culture: 'Pop culture' };
-    // Tag the three category boards on the Leaderboard so a mode can show just its own.
+    var SUBS = {
+      sports: [['extra', 'Scoreboard'], ['schedule', 'Schedule'], ['standings', 'Rankings'], ['teams', 'Teams'], ['news', 'News'], ['leaderboard', 'Leaderboard']],
+      pop_culture: [['extra', 'Right now'], ['schedule', 'Schedule'], ['standings', 'Charts'], ['news', 'News'], ['leaderboard', 'Leaderboard']],
+      news: [['extra', 'Briefing'], ['schedule', 'Schedule'], ['standings', 'Markets'], ['news', 'News'], ['leaderboard', 'Leaderboard']]
+    };
+    var hubNav = false, curPage = 'extra';
+    // Tag the three category boards on the Leaderboard so a section can show just its own.
     document.querySelectorAll('#page-leaderboard .lb-cats .board').forEach(function(b){
       var r = b.querySelector('.board-rows'); if(r) b.setAttribute('data-cat', r.id.replace('board-', ''));
     });
     var catHead = document.querySelector('#page-leaderboard .lb-cats'); catHead = catHead && catHead.previousElementSibling;
     if(catHead) catHead.classList.add('lb-cat-h');
-    function apply(m, user){
-      root.setAttribute('data-mode', m === 'all' ? '' : m);
-      if(m === 'all') root.removeAttribute('data-mode');
-      bar.querySelectorAll('.sitemode-btn').forEach(function(b){ var on = b.getAttribute('data-mode') === m; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-      var LB = { sports: ['Rankings', 'Schedule'], pop_culture: ['Charts', 'Schedule'], news: ['Markets', 'Schedule'] }[m] || ['Rankings', 'Schedule'];
-      var tr = document.querySelector('.pagenav-tab[data-page="standings"]'), ts = document.querySelector('.pagenav-tab[data-page="schedule"]'), st = document.getElementById('sched-title');
-      if(tr) tr.textContent = LB[0];
-      if(ts) ts.textContent = LB[1];
-      if(st) st.textContent = LB[1];
-      var XL = { sports: 'Scoreboard', pop_culture: 'Right now', news: 'Briefing' }[m] || 'Extra', te = document.querySelector('.pagenav-tab[data-page="extra"]'), xt = document.getElementById('ex-title');
-      if(te) te.textContent = XL;
-      if(xt) xt.textContent = XL;
+    function renderSub(){
+      var m = mqMode();
+      if(!subEl || !rowEl) return;
+      subEl.style.display = m === 'all' ? 'none' : '';
+      rowEl.innerHTML = m === 'all' ? '' : SUBS[m].map(function(s){ return '<button type="button" class="cat-sub-btn' + (s[0] === curPage ? ' on' : '') + '" data-p="' + s[0] + '">' + s[1] + '</button>'; }).join('');
+    }
+    function markCatTab(){
+      var m = mqMode();
+      document.querySelectorAll('.pagenav-tab').forEach(function(t){ t.classList.toggle('active', m !== 'all' && t.getAttribute('data-cat') === m); });
+    }
+    function apply(m){
+      if(m === mqMode()) return;
+      if(m === 'all') root.removeAttribute('data-mode'); else root.setAttribute('data-mode', m);
+      var xt = document.getElementById('ex-title'); if(xt) xt.textContent = m === 'all' ? 'Extra' : SUBS[m][0][1];
       var sub = document.querySelector('#page-leaderboard .hero-lite p');
       if(sub) sub.textContent = m === 'all' ? 'Worldwide standings.' : NAMES[m] + ' standings, your groups and the big board.';
       if(catHead) catHead.textContent = m === 'all' ? 'Category' : NAMES[m];
-      if(user){
-        // Leave a page whose tab just disappeared.
-        var act = document.querySelector('.pagenav-tab.active');
-        if(act && act.offsetParent === null){ var home = document.querySelector('.pagenav-tab[data-page="home"]'); if(home) home.click(); }
-        try{ renderSchedToday(); }catch(e){}
-        try{ renderSchedPage(); }catch(e){}
-        if(window.mqReloadTicker) window.mqReloadTicker();
-        if(window.mqSetNewsLane) window.mqSetNewsLane(mqModeLane());
-        try{ mqRkModeChanged(); }catch(e){}
-        try{ mqExtraRefresh(); }catch(e){}
-      }
+      curPage = 'extra';
+      renderSub();
+      try{ renderSchedToday(); }catch(e){}
+      try{ renderSchedPage(); }catch(e){}
+      if(window.mqReloadTicker) window.mqReloadTicker();
+      if(window.mqSetNewsLane) window.mqSetNewsLane(mqModeLane());
+      try{ mqRkModeChanged(); }catch(e){}
     }
-    bar.addEventListener('click', function(ev){
-      var b = ev.target.closest('.sitemode-btn'); if(!b) return;
-      var m = b.getAttribute('data-mode');
-      try{ if(m === 'all') localStorage.removeItem('mq_mode'); else localStorage.setItem('mq_mode', m); }catch(e){}
-      apply(m, true);
+    // The three section tabs.
+    document.querySelectorAll('.pagenav-tab[data-cat]').forEach(function(t){
+      t.addEventListener('click', function(){
+        apply(t.getAttribute('data-cat'));
+        curPage = 'extra'; renderSub(); markCatTab();
+        try{ mqExtraRender(); }catch(e){}
+        if(mqMode() === 'sports') mqLoadScores(true);
+      });
     });
-    apply(mqMode(), false);
+    // Any other tab (Play, Leaderboard, Schedule, the Menu pages) is the original site again.
+    document.querySelectorAll('.pagenav-tab:not([data-cat])').forEach(function(t){
+      t.addEventListener('click', function(){ if(!hubNav && mqMode() !== 'all') apply('all'); });
+    });
+    if(rowEl) rowEl.addEventListener('click', function(ev){
+      var b = ev.target.closest('.cat-sub-btn'); if(!b) return;
+      var p = b.getAttribute('data-p'), m = mqMode();
+      if(p === 'extra'){ var ct = document.querySelector('.pagenav-tab[data-cat="' + m + '"]'); if(ct) ct.click(); return; }
+      var tab = document.querySelector('.pagenav-tab[data-page="' + p + '"]:not([data-cat])'); if(!tab) return;
+      hubNav = true; try{ tab.click(); }finally{ hubNav = false; }
+      curPage = p; renderSub(); markCatTab();
+    });
+    try{ localStorage.removeItem('mq_mode'); }catch(e){}
+    renderSub();
   })();
 
   // ---- The extra tab: one different page per mode (Sports: Scoreboard, Pop culture: Right now, News: Briefing) ----
@@ -10483,8 +10502,6 @@
   }
   function mqExtraRefresh(){ if(!mqExPage()) return; if(mqMode() === 'sports') mqExScoreboard(document.getElementById('ex-body')); else mqExtraRender(); }
   (function(){
-    var t = document.querySelector('.pagenav-tab[data-page="extra"]');
-    if(t) t.addEventListener('click', function(){ mqExtraRender(); if(mqMode() === 'sports') mqLoadScores(true); });
     var b = document.getElementById('ex-body');
     if(b) b.addEventListener('click', function(e){ var r = e.target.closest('.rk-go[data-act="link"]'); if(r){ var h = r.getAttribute('data-href'); if(h && /^https:\/\//.test(h)) window.open(h, '_blank', 'noopener'); } });
   })();
