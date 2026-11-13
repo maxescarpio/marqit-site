@@ -894,3 +894,73 @@ html[data-mode] .wrap:has(> .lb-cats) > .lb-cats{order:-1;margin-bottom:6px}
 .ex-hl li{border-bottom:1px solid rgba(255,255,255,.07)}
 .ex-hl a,.ex-hl span{display:block;padding:12px 2px;color:inherit;text-decoration:none;font-size:15px}
 .ex-hl em{display:block;font-style:normal;font-size:12px;color:var(--ink-soft);margin-top:2px}
+
+/* ===== Nov 13: the pick bar. One slim bar pinned to the bottom of the screen, lined up with the question cards (app.js sets left and
+   width from the card grid). It never sits inside the grid, so it can never show up as a fourth card. ===== */
+.pick-dock{position:fixed !important;bottom:0;left:0;width:100%;z-index:40;box-sizing:border-box;padding:10px 0 12px;gap:12px;align-items:center;
+  background:linear-gradient(to top,var(--paper) 82%,rgba(20,22,26,0))}
+.pick-dock > .pick-progress{margin:0 !important;padding:8px 12px}
+.pick-dock > button{margin:0 !important;padding:14px 20px}
+#daily-questions-container:has(.pick-dock .pick-submit:not([style*="display:none"]):not([style*="display: none"]))::after{content:"";display:block;grid-column:1/-1;height:92px}
+@media (max-width:899px){.pick-dock{grid-template-columns:minmax(0,1fr) !important}.pick-dock .pp-bonus{display:none}}
+
+/* ===== Nov 13: Markets page and News Briefing, redesigned ===== */
+#daily-questions-container > .pick-wrap > *{grid-column:1/-1}
+#ex-title{margin-bottom:6px !important}
+.mk-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:2px 0 14px}
+.mk-mood{font-size:15px;font-weight:600;color:var(--ink)}
+.mk-state{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+.mk-state i{width:8px;height:8px;border-radius:50%;background:#6B7080}
+.mk-state.open{color:#3DBA7C}.mk-state.open i{background:#3DBA7C}
+.mk-hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:6px}
+.mk-card,.mk-tile,.br-tile{border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.03)}
+.mk-card{padding:16px 16px 0;overflow:hidden;display:flex;flex-direction:column}
+.mk-card-h,.mk-tile-t{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);font-weight:600}
+.mk-big{display:block;margin:8px 0 10px;font-size:28px;line-height:1.1;letter-spacing:-.01em;color:var(--ink)}
+.mk-chart{margin:0 -16px;height:70px;color:#3DBA7C}
+.mk-chart.sm{height:34px;margin:6px -14px 0}
+.mk-area{display:block;width:100%;height:100%}
+.mk-area.up{color:#3DBA7C}.mk-area.dn{color:#E5484D}
+.mk-pill{font-style:normal;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.mk-pill.up{color:#3DBA7C;background:rgba(61,186,124,.14)}
+.mk-pill.dn{color:#E5484D;background:rgba(229,72,77,.14)}
+.mk-h{margin:26px 0 10px}
+.mk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.mk-tile{padding:13px 14px 0;overflow:hidden}
+.mk-tile b{display:block;margin-top:6px;font-size:19px;color:var(--ink)}
+.mk-src{margin:22px 0 0;font-size:12px;color:var(--ink-soft)}
+
+.br-date{margin:0 0 4px;font-size:14px;color:var(--ink-soft)}
+.br-sec{margin-top:26px}
+.br-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.br-h h3{margin:0;font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)}
+.br-more{border:0;background:none;color:var(--ui-accent,#F5B83D);font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:0}
+.br-strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(150px,1fr);gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.br-strip::-webkit-scrollbar{display:none}
+.br-tile{padding:12px 14px 0;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+.br-tile span{font-size:12px;color:var(--ink-soft);font-weight:600}
+.br-tile b{font-size:18px;color:var(--ink)}
+.br-tile .mk-chart{align-self:stretch}
+.br-news{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px}
+.br-hero{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-height:280px;border-radius:16px;overflow:hidden;color:#fff;text-decoration:none;background:#1C1F26}
+.br-img{position:absolute;inset:0;background-size:cover;background-position:center}
+.br-img.none{background:linear-gradient(135deg,#262A33,#1A1C22)}
+.br-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(10,11,14,.92) 8%,rgba(10,11,14,.1) 70%)}
+.br-hero-t{position:relative;z-index:1;padding:18px;display:flex;flex-direction:column;gap:6px}
+.br-hero-t em{font-style:normal;font-size:12px;font-weight:600;opacity:.8}
+.br-hero-t b{font-size:21px;line-height:1.22}
+.br-list{display:flex;flex-direction:column;border:1px solid rgba(255,255,255,.08);border-radius:16px;background:rgba(255,255,255,.03);overflow:hidden}
+.br-item{display:block;padding:14px 16px;color:inherit;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.07)}
+.br-item:last-child{border-bottom:0}
+.br-item:hover,.br-hero:hover .br-hero-t b{text-decoration:underline}
+.br-item b{display:block;font-size:14.5px;line-height:1.32;font-weight:600}
+.br-item em{display:block;margin-top:4px;font-style:normal;font-size:12px;color:var(--ink-soft)}
+.br-deck{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.br-ev{display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.03)}
+.br-date-b{flex:none;width:46px;text-align:center;border-radius:10px;background:rgba(255,255,255,.07);padding:6px 0}
+.br-date-b u{display:block;text-decoration:none;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
+.br-date-b b{display:block;font-size:19px;line-height:1.1;color:var(--ink)}
+.br-ev-t{min-width:0}
+.br-ev-t b{display:block;font-size:14.5px;line-height:1.25}
+.br-ev-t em{display:block;margin-top:2px;font-style:normal;font-size:12.5px;color:var(--ink-soft)}
+@media (max-width:760px){.br-news{grid-template-columns:1fr}.br-hero{min-height:220px}}

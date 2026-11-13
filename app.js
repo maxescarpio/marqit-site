@@ -5690,6 +5690,22 @@
   }
 
 
+
+  // The pick bar is pinned to the bottom of the screen and lines up with the question cards above it.
+  function mqFitDock(){
+    var c = document.getElementById('daily-questions-container'), d = c && c.querySelector('.pick-dock');
+    if(!d) return;
+    var r = c.getBoundingClientRect();
+    d.style.left = Math.round(r.left) + 'px'; d.style.width = Math.round(r.width) + 'px';
+  }
+  window.addEventListener('resize', mqFitDock);
+  (function(){
+    var c = document.getElementById('daily-questions-container');
+    if(!c) return;
+    if(window.ResizeObserver) new ResizeObserver(mqFitDock).observe(c);
+    new MutationObserver(function(){ mqFitDock(); }).observe(c, { childList: true });
+    mqFitDock();
+  })();
   // ---- Pick bar: one clear state for "not done yet" and "ready, submit now" ----
   function mqSyncPickDock(btn, nPicked, total, editing){
     if(!btn) return;
@@ -9945,19 +9961,40 @@
         '<span class="m"><b>' + escapeHtml(t) + '</b>' + (sub ? '<em>' + escapeHtml(sub) + '</em>' : '') + '</span><span class="rk-chev">›</span></li>';
     }).join('') + '</ol>';
   }
+  function mqArea(arr, up, w, h){
+    if(!arr || arr.length < 2) return '';
+    var min = Math.min.apply(null, arr), max = Math.max.apply(null, arr), rng = (max - min) || 1, pad = 3;
+    var pts = arr.map(function(v, i){ return [(i / (arr.length - 1) * w), (h - pad - (v - min) / rng * (h - pad * 2))]; });
+    var line = pts.map(function(p, i){ return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+    var id = 'ag' + Math.random().toString(36).slice(2, 7);
+    return '<svg class="mk-area ' + (up ? 'up' : 'dn') + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".28"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>' +
+      '<path d="' + line + ' L' + w + ' ' + h + ' L0 ' + h + ' Z" fill="url(#' + id + ')"/><path d="' + line + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>';
+  }
+  function mqPill(pct){ if(pct == null) return ''; var up = pct >= 0; return '<em class="mk-pill ' + (up ? 'up' : 'dn') + '">' + (up ? '▲' : '▼') + ' ' + Math.abs(pct).toFixed(2) + '%</em>'; }
   function mqRkQuotes(d){
-    var GROUPS = [['stocks', 'Stocks'], ['rates', 'Rates'], ['crypto', 'Crypto'], ['commodities', 'Commodities']];
     var qs = (d && d.quotes) || [];
     if(!qs.length) return '<p class="evp-muted">Quotes aren’t available right now.</p>';
-    return GROUPS.map(function(g){
-      var rows = qs.filter(function(q){ return q.group === g[0]; });
-      if(!rows.length) return '';
-      return '<div class="q-grp"><h3 class="q-h">' + g[1] + '</h3><ul class="q-list">' + rows.map(function(q){
+    function by(sym){ return qs.filter(function(q){ return q.symbol === sym; })[0]; }
+    var big = ['^GSPC', '^DJI', '^IXIC'].map(by).filter(Boolean);
+    var stocks = qs.filter(function(q){ return q.group === 'stocks' && q.symbol !== '^VIX'; }), upN = stocks.filter(function(q){ return (q.pct || 0) >= 0; }).length;
+    var mood = !stocks.length ? '' : upN === stocks.length ? 'Every major index is up' : upN === 0 ? 'Every major index is down' : upN + ' of ' + stocks.length + ' major indexes are up';
+    var open = qs.some(function(q){ return q.group === 'stocks' && q.state === 'REGULAR'; });
+    var html = '<div class="mk-top"><span class="mk-mood">' + escapeHtml(mood) + '</span><span class="mk-state ' + (open ? 'open' : '') + '"><i></i>' + (open ? 'Markets open' : 'Markets closed') + '</span></div>';
+    html += '<div class="mk-hero">' + big.map(function(q){
+      var up = (q.pct || 0) >= 0;
+      return '<div class="mk-card"><div class="mk-card-h"><span>' + escapeHtml(q.name) + '</span>' + mqPill(q.pct) + '</div><b class="mk-big">' + mqFmtPx(q.price) + '</b>' +
+        '<div class="mk-chart">' + mqArea(q.spark, up, 220, 70) + '</div></div>';
+    }).join('') + '</div>';
+    var GROUPS = [['stocks', 'More stocks', ['^GSPC', '^DJI', '^IXIC']], ['rates', 'Rates and dollar'], ['crypto', 'Crypto'], ['commodities', 'Commodities']];
+    GROUPS.forEach(function(g){
+      var rows = qs.filter(function(q){ return q.group === g[0] && !(g[2] && g[2].indexOf(q.symbol) >= 0); });
+      if(!rows.length) return;
+      html += '<h3 class="q-h mk-h">' + g[1] + '</h3><div class="mk-grid">' + rows.map(function(q){
         var up = (q.pct || 0) >= 0, px = mqFmtPx(q.price) + (q.symbol === '^TNX' ? '%' : '');
-        return '<li class="q-row"><span class="q-name">' + escapeHtml(q.name) + '</span>' + mqSpark(q.spark, up) +
-          '<span class="q-px"><b>' + px + '</b>' + (q.pct != null ? '<em class="' + (up ? 'up' : 'dn') + '">' + mqFmtPct(q.pct) + '</em>' : '') + '</span></li>';
-      }).join('') + '</ul></div>';
-    }).join('');
+        return '<div class="mk-tile"><div class="mk-tile-t"><span>' + escapeHtml(q.name) + '</span>' + mqPill(q.pct) + '</div><b>' + px + '</b><div class="mk-chart sm">' + mqArea(q.spark, up, 160, 34) + '</div></div>';
+      }).join('') + '</div>';
+    });
+    return html;
   }
   function mqRkCoins(d){
     var cs = (d && d.coins) || [];
@@ -10374,9 +10411,9 @@
     var root = document.documentElement, subEl = document.getElementById('cat-sub'), rowEl = document.getElementById('cat-sub-row');
     var NAMES = { all: 'Worldwide', sports: 'Sports', news: 'News', pop_culture: 'Pop culture' };
     var SUBS = {
-      sports: [['extra', 'Scoreboard'], ['schedule', 'Schedule'], ['standings', 'Rankings'], ['teams', 'Teams'], ['news', 'News'], ['leaderboard', 'Leaderboard']],
-      pop_culture: [['extra', 'Right now'], ['schedule', 'Schedule'], ['standings', 'Charts'], ['news', 'News'], ['leaderboard', 'Leaderboard']],
-      news: [['extra', 'Briefing'], ['schedule', 'Schedule'], ['standings', 'Markets'], ['news', 'News'], ['leaderboard', 'Leaderboard']]
+      sports: [['extra', 'Scoreboard'], ['schedule', 'Schedule'], ['standings', 'Rankings'], ['teams', 'Teams'], ['news', 'News']],
+      pop_culture: [['extra', 'Right now'], ['schedule', 'Schedule'], ['standings', 'Charts'], ['news', 'News']],
+      news: [['extra', 'Briefing'], ['schedule', 'Schedule'], ['standings', 'Markets'], ['news', 'News']]
     };
     var hubNav = false, curPage = 'extra';
     // Tag the three category boards on the Leaderboard so a section can show just its own.
@@ -10470,31 +10507,41 @@
       }).join('') + '</div>';
     });
   }
+  function mqAgo(iso){
+    var t = Date.parse(iso); if(!t) return '';
+    var m = Math.max(1, Math.round((Date.now() - t) / 60000));
+    return m < 60 ? m + 'm ago' : m < 1440 ? Math.round(m / 60) + 'h ago' : Math.round(m / 1440) + 'd ago';
+  }
   function mqExBriefing(box){
-    box.innerHTML = '<div id="ex-b-mk"></div><div id="ex-b-hl"></div><div id="ex-b-nx"></div>';
+    var today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+    box.innerHTML = '<div class="br-date">' + escapeHtml(today) + '</div>' +
+      '<section class="br-sec" id="ex-b-mk"></section><section class="br-sec" id="ex-b-hl"></section><section class="br-sec" id="ex-b-nx"></section>';
     var PICK = ['^GSPC', '^DJI', '^IXIC', 'BTC-USD', 'GC=F', 'CL=F'];
     mqFeedFetch('markets').then(function(d){
       var el = document.getElementById('ex-b-mk'); if(!el || mqMode() !== 'news') return;
       var qs = ((d && d.quotes) || []).filter(function(q){ return PICK.indexOf(q.symbol) >= 0; });
-      el.innerHTML = qs.length ? '<h3 class="q-h">Markets</h3><div class="ex-tiles">' + qs.map(function(q){
+      if(!qs.length) return;
+      el.innerHTML = '<div class="br-h"><h3>Markets</h3><button type="button" class="br-more" data-p="standings">All markets ›</button></div><div class="br-strip">' + qs.map(function(q){
         var up = (q.pct || 0) >= 0;
-        return '<div class="ex-tile"><span>' + escapeHtml(q.name) + '</span><b>' + mqFmtPx(q.price) + '</b><em class="' + (up ? 'up' : 'dn') + '">' + (q.pct != null ? mqFmtPct(q.pct) : '') + '</em>' + mqSpark(q.spark, up) + '</div>';
-      }).join('') + '</div>' : '';
+        return '<div class="br-tile"><span>' + escapeHtml(q.name) + '</span><b>' + mqFmtPx(q.price) + '</b>' + mqPill(q.pct) + '<div class="mk-chart sm">' + mqArea(q.spark, up, 120, 30) + '</div></div>';
+      }).join('') + '</div>';
     });
-    sb.from('news_ticker').select('headline, source_name, article_url').eq('kind', 'news').or('lane.is.null,lane.eq.news').order('fetched_at', { ascending: false }).limit(6).then(function(res){
+    sb.from('news_ticker').select('headline, source_name, article_url, image_url, fetched_at').eq('kind', 'news').or('lane.is.null,lane.eq.news').order('fetched_at', { ascending: false }).limit(7).then(function(res){
       var el = document.getElementById('ex-b-hl'); if(!el || !res || !res.data || !res.data.length) return;
-      el.innerHTML = '<h3 class="q-h">Top headlines</h3><ul class="ex-hl">' + res.data.map(function(r){
-        var u = /^https:\/\//.test(r.article_url || '') ? r.article_url : '';
-        return '<li>' + (u ? '<a href="' + escapeHtml(u) + '" target="_blank" rel="noopener">' : '<span>') + escapeHtml(r.headline) + '<em>' + escapeHtml(r.source_name || '') + '</em>' + (u ? '</a>' : '</span>') + '</li>';
-      }).join('') + '</ul>';
+      var rows = res.data, hero = rows[0], rest = rows.slice(1);
+      function link(r, cls, inner){ var u = /^https:\/\//.test(r.article_url || '') ? r.article_url : ''; return u ? '<a class="' + cls + '" href="' + escapeHtml(u) + '" target="_blank" rel="noopener">' + inner + '</a>' : '<div class="' + cls + '">' + inner + '</div>'; }
+      var img = /^https:\/\//.test(hero.image_url || '') ? '<span class="br-img" style="background-image:url(\'' + escapeHtml(hero.image_url) + '\')"></span>' : '<span class="br-img none"></span>';
+      el.innerHTML = '<div class="br-h"><h3>Top stories</h3></div><div class="br-news">' +
+        link(hero, 'br-hero', img + '<span class="br-hero-t"><em>' + escapeHtml(hero.source_name || '') + ' · ' + mqAgo(hero.fetched_at) + '</em><b>' + escapeHtml(hero.headline) + '</b></span>') +
+        '<div class="br-list">' + rest.map(function(r){ return link(r, 'br-item', '<b>' + escapeHtml(r.headline) + '</b><em>' + escapeHtml(r.source_name || '') + ' · ' + mqAgo(r.fetched_at) + '</em>'); }).join('') + '</div></div>';
     }, function(){});
-    var today = getETDateInfo().dateStr;
-    var next = mqModeEvents(mqSched.events.filter(function(ev){ return mqSchedEventDay(ev) >= today; })).sort(function(x, y){ return new Date(x.starts_at) - new Date(y.starts_at); }).slice(0, 4);
+    var tdy = getETDateInfo().dateStr;
+    var next = mqModeEvents(mqSched.events.filter(function(ev){ return mqSchedEventDay(ev) >= tdy; })).sort(function(x, y){ return new Date(x.starts_at) - new Date(y.starts_at); }).slice(0, 6);
     var nx = document.getElementById('ex-b-nx');
-    if(nx && next.length) nx.innerHTML = '<h3 class="q-h">On deck</h3><ul class="ex-hl">' + next.map(function(ev){
-      var dt = new Date(Date.parse(mqSchedEventDay(ev) + 'T12:00:00Z')).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
-      return '<li><span>' + escapeHtml(ev.title) + '<em>' + escapeHtml(dt + (ev.subtitle ? ' · ' + ev.subtitle : '')) + '</em></span></li>';
-    }).join('') + '</ul>';
+    if(nx && next.length) nx.innerHTML = '<div class="br-h"><h3>On deck</h3><button type="button" class="br-more" data-p="schedule">Full schedule ›</button></div><div class="br-deck">' + next.map(function(ev){
+      var dt = new Date(Date.parse(mqSchedEventDay(ev) + 'T12:00:00Z'));
+      return '<div class="br-ev"><span class="br-date-b"><u>' + dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) + '</u><b>' + dt.getUTCDate() + '</b></span><span class="br-ev-t"><b>' + escapeHtml(ev.title) + '</b><em>' + escapeHtml(ev.subtitle || dt.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })) + '</em></span></div>';
+    }).join('') + '</div>';
   }
   function mqExtraRender(){
     var box = document.getElementById('ex-body'), m = mqMode(); if(!box) return;
@@ -10503,7 +10550,8 @@
   function mqExtraRefresh(){ if(!mqExPage()) return; if(mqMode() === 'sports') mqExScoreboard(document.getElementById('ex-body')); else mqExtraRender(); }
   (function(){
     var b = document.getElementById('ex-body');
-    if(b) b.addEventListener('click', function(e){ var r = e.target.closest('.rk-go[data-act="link"]'); if(r){ var h = r.getAttribute('data-href'); if(h && /^https:\/\//.test(h)) window.open(h, '_blank', 'noopener'); } });
+    if(b) b.addEventListener('click', function(e){ var mo = e.target.closest('.br-more'); if(mo){ var sbt = document.querySelector('.cat-sub-btn[data-p="' + mo.getAttribute('data-p') + '"]'); if(sbt) sbt.click(); return; }
+      var r = e.target.closest('.rk-go[data-act="link"]'); if(r){ var h = r.getAttribute('data-href'); if(h && /^https:\/\//.test(h)) window.open(h, '_blank', 'noopener'); } });
   })();
 
   // Poster / album cover thumbnails on the movie, show and album cells of the top strip. The small image URL
