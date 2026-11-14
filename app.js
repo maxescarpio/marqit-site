@@ -1537,8 +1537,6 @@
     selectedAvatarEmoji = mqAvatarPhoto(profileRow.avatar_emoji) ? profileRow.avatar_emoji : (mqAvatarKey(profileRow.avatar_emoji) || 'target');
     selectedAvatarColor = profileRow.avatar_color || '#2B2E34';
 
-    const profileStateInput = document.getElementById('profile-state-input');
-    if(profileStateInput) profileStateInput.value = profileRow.state || '';
     // Verified record link. Players who hide themselves from the leaderboard get no public record page.
     const recordLinkInput = document.getElementById('profile-record-link');
     const recordMsg = document.getElementById('profile-record-msg');
@@ -1549,6 +1547,8 @@
         recordMsg.textContent = profileRow.hide_from_leaderboard ? 'Your record page is private while you are hidden from the leaderboard.' : '';
       }
     }
+    const profileStateInput = document.getElementById('profile-state-input');
+    if(profileStateInput) profileStateInput.value = profileRow.state || '';
     document.getElementById('profile-state-msg').textContent = '';
 
     const hideLeaderboardCheckbox = document.getElementById('profile-hide-leaderboard-checkbox');
@@ -1829,6 +1829,23 @@
     btn.dataset.on = on ? '1' : '0';
   }
 
+  // Copy the verified-record link.
+  const copyRecordBtn = document.getElementById('copy-record-link-btn');
+  if(copyRecordBtn){
+    copyRecordBtn.addEventListener('click', async function(){
+      const input = document.getElementById('profile-record-link');
+      const msg = document.getElementById('profile-record-msg');
+      if(!input || !input.value) return;
+      try{
+        await navigator.clipboard.writeText(input.value);
+      }catch(e){
+        input.select();
+        try{ document.execCommand('copy'); }catch(e2){}
+      }
+      if(msg){ msg.className = 'form-msg ok'; msg.textContent = 'Link copied!'; }
+    });
+  }
+
   const saveProfileStateBtn = document.getElementById('save-profile-state-btn');
   if(saveProfileStateBtn){
     saveProfileStateBtn.addEventListener('click', async function(){
@@ -1854,23 +1871,6 @@
       }
       msg.className = 'form-msg ok';
       msg.textContent = 'Saved!';
-    });
-  }
-
-  // Copy the verified-record link.
-  const copyRecordBtn = document.getElementById('copy-record-link-btn');
-  if(copyRecordBtn){
-    copyRecordBtn.addEventListener('click', async function(){
-      const input = document.getElementById('profile-record-link');
-      const msg = document.getElementById('profile-record-msg');
-      if(!input || !input.value) return;
-      try{
-        await navigator.clipboard.writeText(input.value);
-      }catch(e){
-        input.select();
-        try{ document.execCommand('copy'); }catch(e2){}
-      }
-      if(msg){ msg.className = 'form-msg ok'; msg.textContent = 'Link copied!'; }
     });
   }
 
