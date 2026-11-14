@@ -5516,6 +5516,89 @@
   // Marqit+ insights for today's cards, keyed by question id (filled in loadDailyQuestionsInner).
   var __mqInsights = {};
   // Marqit+ waitlist: a signed-in player can ask to be told when the paid plan opens (demand test only).
+  // ---- History & lean panel -------------------------------------------------------------------
+  // __mqPeek: when the owner switches the "insight_peek_gate" flag on, free players get ONE History & lean
+  // per day (a "peek") and Marqit+ members get all of them. While the flag is off (the default) every
+  // player sees every panel and none of the peek code below shows anything.
+  var __mqPeek = { gated: false, left: 0, signedIn: false };
+
+  function mqPlusPanelHtml(q, row){
+    var bullets = row && row.bullets;
+    if(!(bullets && bullets.length)) return '';
+    // Historical lean: a percentage chance of YES, always shown with the history it comes from.
+    var leanYes = row.lean_yes_pct;
+    var leanHtml = '';
+    if(leanYes && row.lean_basis){
+      var leanSide = leanYes > 50 ? 'yes' : (leanYes < 50 ? 'no' : 'even');
+      var leanShown = leanYes >= 50 ? leanYes : 100 - leanYes;
+      leanHtml = '<div class="mqp-lean"><p class="mqp-lean-line">Lean <b class="mqp-lean-pick ' + leanSide + '">' +
+        (leanSide === 'even' ? 'toss-up, 50%' : (leanSide === 'yes' ? 'YES' : 'NO') + ' ' + leanShown + '%') + '</b></p>' +
+        '<div class="mqp-lean-bar" role="img" aria-label="' + leanYes + ' percent chance of yes"><i style="width:' + leanYes + '%"></i></div>' +
+        '<p class="mqp-lean-basis"></p></div>';
+    }
+    return '<details class="mqp-details"><summary><span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">History &amp; lean</span>' +
+      '<svg class="mqp-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
+      leanHtml +
+      '<ul class="mqp-list"></ul>' +
+      ((q.resolved && row.result_explanation) ? '<div class="mqp-why"><b>Why it went this way</b><p></p></div>' : '') +
+      '<p class="mqp-note">Based on historical data, not betting lines. For information only, not betting or financial advice. Marqit+ is always ad-free.</p></details>';
+  }
+
+  // Fills in the parts of a panel that hold text from the database (set as text, never as HTML).
+  function mqFillPlusPanel(root, row){
+    var list = root.querySelector('.mqp-list');
+    if(list) (row.bullets || []).forEach(function(b){ var li = document.createElement('li'); li.textContent = b; list.appendChild(li); });
+    var basis = root.querySelector('.mqp-lean-basis');
+    if(basis) basis.textContent = row.lean_basis;
+    var why = root.querySelector('.mqp-why p');
+    if(why) why.textContent = row.result_explanation;
+  }
+
+  function mqPeekButtonState(btn){
+    var small = btn.querySelector('small');
+    if(!__mqPeek.signedIn){ btn.setAttribute('data-act', 'signup'); small.textContent = 'Sign up free to peek once a day'; }
+    else if(__mqPeek.left > 0){ btn.setAttribute('data-act', 'peek'); small.textContent = '1 free peek today. Tap to use it.'; }
+    else { btn.setAttribute('data-act', 'plus'); small.textContent = "Today's free peek is used. Marqit+ unlocks every question."; }
+  }
+
+  function mqPeekTeaserHtml(){
+    if(!__mqPeek.gated) return '';
+    return '<div class="mqp-peek"><button type="button" class="mqp-peek-btn"><span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">History &amp; lean</span><small></small></button></div>';
+  }
+
+  function mqRefreshPeekButtons(){
+    document.querySelectorAll('.mqp-peek-btn').forEach(mqPeekButtonState);
+  }
+
+  async function mqHandlePeek(btn, q){
+    var act = btn.getAttribute('data-act');
+    if(act === 'signup'){ openAuthPanel('signup'); return; }
+    if(act === 'plus'){ mqOpenHiddenTab('plus'); return; }
+    btn.disabled = true;
+    var res = await sb.rpc('peek_question_insight', { p_question_id: q.id });
+    var d = res && res.data;
+    var small = btn.querySelector('small');
+    btn.disabled = false;
+    if(res.error || !d){ small.textContent = 'Could not load this. Try again.'; return; }
+    if(d.status === 'signin'){ openAuthPanel('signup'); return; }
+    if(d.status === 'limit'){ __mqPeek.left = 0; mqRefreshPeekButtons(); return; }
+    if(d.status === 'none'){ small.textContent = 'No history for this one yet.'; btn.disabled = true; return; }
+    if(d.status === 'ok' && d.row){
+      __mqInsights[q.id] = d.row;
+      if(typeof d.peeks_left === 'number') __mqPeek.left = d.peeks_left;
+      var holder = btn.closest('.mqp-peek');
+      var tmp = document.createElement('div');
+      tmp.innerHTML = mqPlusPanelHtml(q, d.row);
+      var panel = tmp.firstElementChild;
+      if(panel && holder){
+        mqFillPlusPanel(panel, d.row);
+        holder.replaceWith(panel);
+        panel.open = true;
+      }
+      mqRefreshPeekButtons();
+    }
+  }
+
   function buildQuestionCard(q, index, myVote, voteCounts, isLocked, trend, isMostCalled, buddyList, isMover){
     var yesCount = voteCounts.yes || 0;
     var noCount = voteCounts.no || 0;
@@ -5609,26 +5692,8 @@
       : '';
 
     var plusRow = __mqInsights[q.id];
-    var plusBullets = plusRow && plusRow.bullets;
-    // Historical lean: a percentage chance of YES, always shown with the history it comes from.
-    var leanYes = plusRow && plusRow.lean_yes_pct;
-    var leanHtml = '';
-    if(leanYes && plusRow.lean_basis){
-      var leanSide = leanYes > 50 ? 'yes' : (leanYes < 50 ? 'no' : 'even');
-      var leanShown = leanYes >= 50 ? leanYes : 100 - leanYes;
-      leanHtml = '<div class="mqp-lean"><p class="mqp-lean-line">Lean <b class="mqp-lean-pick ' + leanSide + '">' +
-        (leanSide === 'even' ? 'toss-up, 50%' : (leanSide === 'yes' ? 'YES' : 'NO') + ' ' + leanShown + '%') + '</b></p>' +
-        '<div class="mqp-lean-bar" role="img" aria-label="' + leanYes + ' percent chance of yes"><i style="width:' + leanYes + '%"></i></div>' +
-        '<p class="mqp-lean-basis"></p></div>';
-    }
-    var plusHtml = (plusBullets && plusBullets.length)
-      ? '<details class="mqp-details"><summary><span class="mqp-badge">' + mqIcon('star') + 'Marqit+</span><span class="mqp-title">History &amp; lean</span>' +
-        '<svg class="mqp-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>' +
-        leanHtml +
-        '<ul class="mqp-list"></ul>' +
-        ((q.resolved && plusRow.result_explanation) ? '<div class="mqp-why"><b>Why it went this way</b><p></p></div>' : '') +
-        '<p class="mqp-note">Based on historical data, not betting lines. For information only, not betting or financial advice. Marqit+ is always ad-free.</p></details>'
-      : '';
+    // A panel when the player can see this insight, otherwise (gate on, free player) a "peek" button.
+    var plusHtml = plusRow ? mqPlusPanelHtml(q, plusRow) : mqPeekTeaserHtml();
 
     div.innerHTML =
       '<p class="ticket-meta card-head">' + (index + 1) + ' of 3 ·<span class="cat-chip"><span class="cat-tile">' + iconHtml + '</span><span class="cat-label-text"></span>' + leagueHtml + '</span>' + statusHtml + '</p>' +
@@ -5660,14 +5725,9 @@
       '<p class="form-msg" style="margin-top:8px;"></p>';
     div.querySelector('.ticket-q').textContent = q.question_text;
     if(q.resolution_criteria) div.querySelector('.resolution-text').textContent = q.resolution_criteria;
-    if(plusHtml){
-      var mqpList = div.querySelector('.mqp-list');
-      plusBullets.forEach(function(b){ var li = document.createElement('li'); li.textContent = b; mqpList.appendChild(li); });
-      var mqpBasis = div.querySelector('.mqp-lean-basis');
-      if(mqpBasis) mqpBasis.textContent = plusRow.lean_basis;
-      var mqpWhy = div.querySelector('.mqp-why p');
-      if(mqpWhy) mqpWhy.textContent = plusRow.result_explanation;
-    }
+    if(plusRow && plusHtml) mqFillPlusPanel(div, plusRow);
+    var mqPeekBtn = div.querySelector('.mqp-peek-btn');
+    if(mqPeekBtn) mqPeekBtn.addEventListener('click', function(){ mqHandlePeek(mqPeekBtn, q); });
     div.querySelector('.cat-label-text').textContent = CATEGORY_LABELS[q.category] || q.category;
     if(isFinal){
       var okOpt = div.querySelector('.opt.' + q.correct_answer);
@@ -6507,9 +6567,30 @@
     // only when it has insights; guests and unreviewed questions get nothing extra.
     // History & lean is open to everyone for now (signed in or not, subscribed or not) until the owner says otherwise.
     __mqInsights = {};
+    __mqPeek = { gated: false, left: 0, signedIn: !!session };
     try{
-      const insRes = await sb.from('question_insights').select('question_id, bullets, lean_yes_pct, lean_basis, result_explanation').in('question_id', prepared.map(function(p){ return p.q.id; }));
-      (insRes.data || []).forEach(function(r){ if(Array.isArray(r.bullets) && r.bullets.length) __mqInsights[r.question_id] = r; });
+      const qIds = prepared.map(function(p){ return p.q.id; });
+      // Is the free-daily-peek gate on? (Off by default; if the functions don't exist yet this just stays off.)
+      let peekedToday = [];
+      if(session){
+        const acc = await sb.rpc('insight_access');
+        const a = acc && acc.data;
+        if(a && a.gate_on && !a.member){ __mqPeek.gated = true; __mqPeek.left = a.peeks_left || 0; peekedToday = a.peeked_ids || []; }
+      } else {
+        const g = await sb.rpc('insight_gate_on');
+        if(g && g.data === true) __mqPeek.gated = true;
+      }
+      if(!__mqPeek.gated){
+        const insRes = await sb.from('question_insights').select('question_id, bullets, lean_yes_pct, lean_basis, result_explanation').in('question_id', qIds);
+        (insRes.data || []).forEach(function(r){ if(Array.isArray(r.bullets) && r.bullets.length) __mqInsights[r.question_id] = r; });
+      } else {
+        // Gate on, free player: questions already peeked today open normally; the rest get a Peek button.
+        await Promise.all(peekedToday.filter(function(id){ return qIds.indexOf(id) !== -1; }).map(async function(id){
+          const pr = await sb.rpc('peek_question_insight', { p_question_id: id });
+          const row = pr && pr.data && pr.data.status === 'ok' ? pr.data.row : null;
+          if(row && Array.isArray(row.bullets) && row.bullets.length) __mqInsights[id] = row;
+        }));
+      }
     }catch(e){}
 
     let allLocked = true;
@@ -6527,6 +6608,7 @@
     if(__mqShareBtn) container.appendChild(__mqShareBtn);
     mqApplyVisuals(container);
     mqShowCallCount(container);
+    mqRefreshPeekButtons();
 
     // Signed-out visitors can play with no account: pick Yes/No on all three,
     // submit, and see where the crowd stands right away. An account is only
