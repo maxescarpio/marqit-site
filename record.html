@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verified record — Marqit</title>
+<meta name="description" content="A player's verified Marqit record. Every call is locked before the event starts and can't be edited.">
+<meta name="robots" content="noindex, nofollow">
+<meta property="og:title" content="Verified record on Marqit">
+<meta property="og:description" content="Receipts, not claims. Every call locked before the event.">
+<meta property="og:image" content="https://playmarqit.com/og-image.png">
+<link rel="icon" href="/favicon.ico">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#17191D; --ink-soft:#4B4E55; --paper:#FFFFFF; --panel:#F4F4F1; --line:#E4E3DD; --yes:#1C7A4D; --no:#B23A2E; --gold:#F6C430; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;line-height:1.5;min-height:100vh;padding:24px 16px 48px;}
+  .wrap{max-width:520px;margin:0 auto;}
+  .logo{display:block;height:28px;width:auto;margin:0 auto 22px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 20px;}
+  .who{display:flex;align-items:center;gap:12px;}
+  .av{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;background:#fff;border:1px solid var(--line);}
+  .name{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:28px;line-height:1.1;}
+  .sub{font-size:12.5px;color:var(--ink-soft);}
+  .big{margin-top:18px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .pct{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:64px;line-height:1;}
+  .pct-l{font-size:14px;color:var(--ink-soft);}
+  .badge{display:inline-block;margin-top:8px;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--ink-soft);}
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px;}
+  .tile{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center;}
+  .tile b{display:block;font-family:'Big Shoulders Display',sans-serif;font-size:24px;font-weight:800;}
+  .tile span{font-size:11.5px;color:var(--ink-soft);}
+  h2{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:16px;letter-spacing:.3px;margin:22px 0 8px;text-transform:uppercase;color:var(--ink-soft);}
+  .cat{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13.5px;}
+  .cat .cn{width:96px;flex:none;font-weight:600;}
+  .bar{flex:1;height:9px;background:#fff;border:1px solid var(--line);border-radius:99px;overflow:hidden;}
+  .bar i{display:block;height:100%;background:var(--yes);}
+  .cat .cv{width:74px;flex:none;text-align:right;color:var(--ink-soft);font-size:12.5px;}
+  .row{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line);font-size:13.5px;}
+  .row:first-child{border-top:none;}
+  .mark{flex:none;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;margin-top:1px;}
+  .mark.y{background:var(--yes);} .mark.n{background:var(--no);}
+  .row .t{flex:1;} .row .c{color:var(--ink-soft);font-size:12px;margin-top:1px;}
+  .proof{margin-top:20px;font-size:12.5px;color:var(--ink-soft);}
+  .cta{display:block;margin-top:20px;text-align:center;background:var(--ink);color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 18px;border-radius:12px;}
+  .empty{text-align:center;padding:12px 4px;}
+  .empty h1{font-family:'Big Shoulders Display',sans-serif;font-size:26px;font-weight:800;}
+  .empty p{margin-top:8px;font-size:14px;color:var(--ink-soft);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="/"><img class="logo" src="/marqit-logo-black.svg?v=3" alt="Marqit"></a>
+  <div class="card" id="card"><div class="empty"><p>Loading record...</p></div></div>
+  <p class="proof">Every call on Marqit locks before its event starts and can't be changed after. Only calls made before lock are counted here, and calls on open questions are never shown.</p>
+  <a class="cta" href="/">Play free and build your own record</a>
+</div>
+<script>
+(function(){
+  var sb = window.supabase.createClient('https://ivapcztkasjfetntkzxy.supabase.co', 'sb_publishable_S1DZQXDDpffETdJh2xJONQ_QSNjnunn');
+  var card = document.getElementById('card');
+  var CAT = { sports: 'Sports', pop_culture: 'Pop culture', news: 'News' };
+
+  function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
+
+  // /u/<username> (rewritten to this page), or record.html?u=<username> as a fallback.
+  function usernameFromUrl(){
+    var m = location.pathname.match(/^\/u\/([^\/?#]+)/);
+    if(m) return decodeURIComponent(m[1]);
+    return new URLSearchParams(location.search).get('u') || '';
+  }
+
+  function notFound(){
+    card.textContent = '';
+    var box = el('div', 'empty');
+    box.appendChild(el('h1', null, 'No public record here'));
+    box.appendChild(el('p', null, "This player doesn't exist, or keeps their record private."));
+    card.appendChild(box);
+  }
+
+  function render(r){
+    document.title = '@' + r.username + ' on Marqit: ' + (r.accuracy_pct != null ? r.accuracy_pct + '% over ' + r.calls + ' calls' : 'verified record');
+    card.textContent = '';
+
+    var who = el('div', 'who');
+    var av = el('div', 'av', r.avatar_emoji || '\u{1F3AF}');
+    if(r.avatar_color) av.style.background = r.avatar_color;
+    who.appendChild(av);
+    var wt = el('div');
+    wt.appendChild(el('div', 'name', '@' + r.username));
+    wt.appendChild(el('div', 'sub', 'Playing since ' + new Date(r.member_since).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })));
+    who.appendChild(wt);
+    card.appendChild(who);
+
+    if(r.calls > 0){
+      var big = el('div', 'big');
+      big.appendChild(el('div', 'pct', Math.round(r.accuracy_pct) + '%'));
+      big.appendChild(el('div', 'pct-l', r.correct + ' right out of ' + r.calls + ' locked calls'));
+      card.appendChild(big);
+      if(r.calls < 20) card.appendChild(el('div', 'badge', 'Early record: ' + r.calls + (r.calls === 1 ? ' call' : ' calls') + ' so far'));
+    } else {
+      card.appendChild(el('div', 'badge', 'No settled calls yet'));
+    }
+
+    var tiles = el('div', 'tiles');
+    [[r.current_streak + '', 'Current streak'], [r.longest_streak + '', 'Best streak'], ['#' + r.rank, 'of ' + r.ranked_players]].forEach(function(t){
+      var d = el('div', 'tile'); d.appendChild(el('b', null, t[0])); d.appendChild(el('span', null, t[1])); tiles.appendChild(d);
+    });
+    card.appendChild(tiles);
+
+    if(r.by_category && r.by_category.length){
+      card.appendChild(el('h2', null, 'By category'));
+      r.by_category.forEach(function(c){
+        var row = el('div', 'cat');
+        row.appendChild(el('div', 'cn', CAT[c.category] || c.category));
+        var bar = el('div', 'bar'); var fill = el('i'); fill.style.width = Math.round(100 * c.correct / c.calls) + '%'; bar.appendChild(fill);
+        row.appendChild(bar);
+        row.appendChild(el('div', 'cv', c.correct + '/' + c.calls));
+        card.appendChild(row);
+      });
+    }
+
+    if(r.recent && r.recent.length){
+      card.appendChild(el('h2', null, 'Last ' + r.recent.length + ' calls'));
+      r.recent.forEach(function(c){
+        var row = el('div', 'row');
+        row.appendChild(el('div', 'mark ' + (c.right ? 'y' : 'n'), c.right ? '✓' : '✕'));
+        var t = el('div', 't');
+        t.appendChild(el('div', null, c.text));
+        t.appendChild(el('div', 'c', 'Called ' + String(c.choice).toUpperCase() + ' · ' + new Date(c.date + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })));
+        row.appendChild(t);
+        card.appendChild(row);
+      });
+    }
+  }
+
+  var uname = usernameFromUrl();
+  if(!uname){ notFound(); return; }
+  sb.rpc('public_player_record', { p_username: uname }).then(function(res){
+    if(res.error || !res.data){ notFound(); return; }
+    render(res.data);
+  }).catch(notFound);
+})();
+</script>
+</body>
+</html>

@@ -1,2 +1,5 @@
 # Straight to the video maker, no flash page in between
 /video /video-maker 302
+
+# Verified record links: playmarqit.com/u/<username> shows that player's public record
+/u/* /record.html 200
