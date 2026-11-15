@@ -1530,7 +1530,7 @@
     const session = sessionRes && sessionRes.session;
     if(!session) return;
 
-    const { data: profileRow } = await sb.from('profiles').select('username, created_at, avatar_emoji, avatar_color, notify_push, state, hide_from_leaderboard').eq('id', session.user.id).maybeSingle();
+    const { data: profileRow } = await sb.from('profiles').select('username, created_at, avatar_emoji, avatar_color, notify_push, state, school, hide_from_leaderboard').eq('id', session.user.id).maybeSingle();
     const { data: streakRow } = await sb.from('streaks').select('*').eq('user_id', session.user.id).maybeSingle();
     if(!profileRow) return;
 
@@ -1539,6 +1539,10 @@
 
     const profileStateInput = document.getElementById('profile-state-input');
     if(profileStateInput) profileStateInput.value = profileRow.state || '';
+    const profileSchoolInput = document.getElementById('profile-school-input');
+    if(profileSchoolInput) profileSchoolInput.value = profileRow.school || '';
+    const profileSchoolMsg = document.getElementById('profile-school-msg');
+    if(profileSchoolMsg) profileSchoolMsg.textContent = '';
     document.getElementById('profile-state-msg').textContent = '';
 
     const hideLeaderboardCheckbox = document.getElementById('profile-hide-leaderboard-checkbox');
@@ -1844,6 +1848,32 @@
       }
       msg.className = 'form-msg ok';
       msg.textContent = 'Saved!';
+    });
+  }
+
+  // Campus: optional. Saving a blank clears it, which removes the player from campus boards.
+  const saveProfileSchoolBtn = document.getElementById('save-profile-school-btn');
+  if(saveProfileSchoolBtn){
+    saveProfileSchoolBtn.addEventListener('click', async function(){
+      const { data: sessionRes } = await sb.auth.getSession();
+      const session = sessionRes && sessionRes.session;
+      const msg = document.getElementById('profile-school-msg');
+      const input = document.getElementById('profile-school-input');
+      if(!session) return;
+      const cleaned = input.value.replace(/\s+/g, ' ').trim();
+      const btn = this;
+      btn.disabled = true;
+      const { error } = await sb.from('profiles').update({ school: cleaned || null }).eq('id', session.user.id);
+      btn.disabled = false;
+      if(error){
+        msg.className = 'form-msg err';
+        msg.textContent = 'Could not save \u2014 try again.';
+        return;
+      }
+      msg.className = 'form-msg ok';
+      msg.textContent = cleaned ? 'Saved!' : 'Campus cleared.';
+      loadSchoolBoard();
+      loadTopSchools();
     });
   }
 
@@ -7190,9 +7220,15 @@
       tabs.querySelectorAll('.scope-tab').forEach(function(b){ b.classList.toggle('active', b === btn); });
       var scope = btn.getAttribute('data-scope');
       // Worldwide, Friends and Longest streak share one list; State has its own, filled by loadStateBoard.
-      var stateEl = document.getElementById('board-state');
-      if(stateEl) stateEl.style.display = (scope === 'state') ? '' : 'none';
-      if(boardEl) boardEl.style.display = (scope === 'state') ? 'none' : '';
+      // State, Campus and Campus-vs-campus each have their own list; the rest share the main one.
+      var ownPanel = { state: 'board-state', campus: 'board-campus', campuses: 'board-campuses' };
+      Object.keys(ownPanel).forEach(function(k){
+        var el = document.getElementById(ownPanel[k]);
+        if(el) el.style.display = (scope === k) ? '' : 'none';
+      });
+      if(boardEl) boardEl.style.display = ownPanel[scope] ? 'none' : '';
+      if(scope === 'campus') loadSchoolBoard();
+      else if(scope === 'campuses') loadTopSchools();
       if(scope === 'friends') loadFriendsBoard();
       else if(scope === 'worldwide') loadBigBoard();
       else if(scope === 'streak') loadStreakBoard();
@@ -7635,6 +7671,56 @@
   }
 
   loadStateBoard();
+
+  // Campus board: same shape as the state board, matched on the campus the player typed in their profile.
+  async function loadSchoolBoard(){
+    const { data: sessionRes } = await sb.auth.getSession();
+    const session = sessionRes && sessionRes.session;
+    const rowsEl = document.getElementById('board-campus');
+    const titleEl = document.getElementById('campus-board-title');
+    if(!session || !rowsEl) return;
+
+    const { data: myProfile } = await sb.from('profiles').select('school').eq('id', session.user.id).maybeSingle();
+    const mySchool = myProfile && myProfile.school;
+    if(!mySchool){
+      if(titleEl) titleEl.textContent = 'Your campus';
+      rowsEl.innerHTML = '<div class="brow"><span>Add your campus in your profile to see this.</span></div>';
+      return;
+    }
+    if(titleEl) titleEl.textContent = mySchool;
+
+    const { data: topPlayers, error: schoolErr } = await sb.rpc('school_top_players', { p_school: mySchool, p_limit: 5 });
+    if(schoolErr){
+      rowsEl.innerHTML = '<div class="brow"><span>Leaderboard unavailable right now.</span></div>';
+      return;
+    }
+    if(!topPlayers || topPlayers.length === 0){
+      rowsEl.innerHTML = '<div class="brow"><span>No one else from ' + escapeHtml(mySchool) + ' yet. Tell your friends.</span></div>';
+      return;
+    }
+    rowsEl.innerHTML = await mqBoardRows(topPlayers.map(function(r){
+      return { user_id: r.user_id, username: r.username, avatar_emoji: r.avatar_emoji, avatar_color: r.avatar_color, points: Number(r.total_points), streak: r.current_streak };
+    }), session.user.id);
+  }
+
+  // Campus vs campus: visible to everyone, including signed-out visitors.
+  async function loadTopSchools(){
+    const el = document.getElementById('board-campuses');
+    if(!el) return;
+    const { data, error } = await sb.rpc('top_schools', { p_limit: 10, p_min_players: 3 });
+    if(error){
+      el.innerHTML = '<div class="brow"><span>Campus rankings unavailable right now.</span></div>';
+      return;
+    }
+    if(!data || data.length === 0){
+      el.innerHTML = '<div class="brow"><span>No campus has 3 players yet. Add your campus in your profile and get your friends to do the same.</span></div>';
+      return;
+    }
+    el.innerHTML = data.map(function(r, i){
+      const n = Number(r.players);
+      return '<div class="brow"><span><b>' + (i + 1) + '.</b> ' + escapeHtml(r.school) + ' <span style="color:var(--ink-soft); font-size:12px;">' + n + ' players</span></span><b>' + Number(r.total_points).toLocaleString() + ' pts</b></div>';
+    }).join('');
+  }
 
   // --- Change 6: weekly group card ----------------------------------------
   // Computed on demand (when a member taps Share), not on a scheduled job --
