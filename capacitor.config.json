@@ -3,5 +3,9 @@
   "appName": "Marqit",
   "webDir": "www",
   "backgroundColor": "#17191D",
-  "server": { "allowNavigation": ["playmarqit.com", "*.supabase.co"] }
+  "server": {
+    "url": "https://playmarqit.com",
+    "allowNavigation": ["playmarqit.com", "*.playmarqit.com", "*.supabase.co", "accounts.google.com"]
+  },
+  "ios": { "contentInset": "always" }
 }
