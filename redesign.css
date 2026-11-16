@@ -1021,3 +1021,52 @@ html[data-mode] .wrap:has(> .lb-cats) > .lb-cats{order:-1;margin-bottom:6px}
 @media (min-width:900px){.bf-cal{column-count:2;column-gap:40px}}
 @media (max-width:760px){.bf-news{grid-template-columns:1fr}.bf-hero{min-height:240px}}
 @media (prefers-reduced-motion:reduce){.bf-img{transition:none}.bf-hero:hover .bf-img{transform:none}}
+
+/* ===== Nov 16: Handshake bets (Menu > Handshake bets). A private dialog; see handshake.js ===== */
+#hamburger-handshake-btn:hover{background:var(--panel)}
+html.hs-lock{overflow:hidden}
+.hs-back{display:none;position:fixed;inset:0;z-index:300;background:rgba(8,9,12,.72);align-items:flex-start;justify-content:center;padding:4vh 14px;overflow-y:auto}
+.hs-back.on{display:flex}
+.hs-panel{width:100%;max-width:560px;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:20px 20px 26px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.hs-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.hs-head h3{margin:0;font-family:'Big Shoulders Display',sans-serif;font-size:30px;font-weight:700;letter-spacing:.01em;color:var(--ink)}
+.hs-x{border:1px solid var(--line);background:none;color:var(--ink-soft);font:600 13.5px 'Barlow',sans-serif;padding:7px 14px;border-radius:999px;cursor:pointer}
+.hs-x:hover{color:var(--ink);border-color:var(--ink)}
+.hs-note{margin:8px 0 18px;font-size:14px;line-height:1.45;color:var(--ink-soft)}
+.hs-body{font-size:15px;color:var(--ink-soft)}
+.hs-new{border:1px solid var(--line);border-radius:14px;background:var(--panel);margin-bottom:22px}
+.hs-new > summary{list-style:none;cursor:pointer;padding:14px 16px;font-size:15px;font-weight:700;color:var(--ink)}
+.hs-new > summary::-webkit-details-marker{display:none}
+.hs-new > summary::after{content:"+";float:right;color:var(--ui-accent,#F6C430);font-size:20px;line-height:1}
+.hs-new[open] > summary::after{content:"\2212"}
+.hs-form{display:grid;gap:14px;padding:2px 16px 18px}
+.hs-f{display:grid;gap:6px}
+.hs-f span{font-size:13.5px;font-weight:600;color:var(--ink)}
+.hs-f small{font-size:12.5px;color:var(--ink-soft)}
+.hs-f input,.hs-f textarea{width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:15px 'Barlow',sans-serif}
+.hs-f textarea{resize:vertical}
+.hs-f input:focus,.hs-f textarea:focus{outline:none;border-color:var(--ui-accent,#F6C430)}
+.hs-btn{border:0;border-radius:10px;padding:11px 18px;background:var(--ink);color:var(--paper);font:700 14.5px 'Barlow',sans-serif;cursor:pointer}
+.hs-btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+.hs-btn.ghost:hover{border-color:var(--ink)}
+.hs-btn:disabled{opacity:.55;cursor:default}
+.hs-btn:focus-visible,.hs-x:focus-visible,.hs-new > summary:focus-visible{outline:2px solid var(--ui-accent,#F6C430);outline-offset:2px}
+.hs-err{margin:0;font-size:13px;color:#E5484D}
+.hs-err:empty{display:none}
+.hs-grp{margin-top:24px}
+.hs-gh{margin:0 0 10px;font-family:'Big Shoulders Display',sans-serif;font-size:22px;font-weight:700;letter-spacing:.02em;color:var(--ink)}
+.hs-card{padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);margin-bottom:12px}
+.hs-card h4{margin:0;font-size:17px;line-height:1.3;color:var(--ink)}
+.hs-stakes{margin:6px 0 0;font-size:15px;color:var(--ink)}
+.hs-with{margin:8px 0 0;font-size:13.5px;color:var(--ink-soft)}
+.hs-with b{color:var(--ink)}
+.hs-when,.hs-state{margin:10px 0 0;font-size:13.5px;color:var(--ink-soft)}
+.hs-cd{display:flex;gap:10px;margin-top:14px}
+.hs-cd.up{display:block;font-weight:700;color:var(--ui-accent,#F6C430)}
+.hs-u{display:grid;min-width:58px;padding:10px 6px;text-align:center;border-radius:10px;background:var(--paper);border:1px solid var(--line)}
+.hs-u b{font-family:'Big Shoulders Display',sans-serif;font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
+.hs-u em{margin-top:4px;font-style:normal;font-size:12px;color:var(--ink-soft)}
+.hs-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.hs-card.settled,.hs-card.declined{opacity:.75}
+.hs-empty{margin:6px 0 0;color:var(--ink-soft)}
+@media (max-width:420px){.hs-u{min-width:0;flex:1}.hs-panel{padding:16px 14px 22px}}
