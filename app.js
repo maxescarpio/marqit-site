@@ -10180,14 +10180,14 @@
       return '<div class="mk-card"><div class="mk-card-h"><span>' + escapeHtml(q.name) + '</span>' + mqPill(q.pct) + '</div><b class="mk-big">' + mqFmtPx(q.price) + '</b>' +
         '<div class="mk-chart">' + mqArea(q.spark, up, 220, 70) + '</div></div>';
     }).join('') + '</div>';
-    var GROUPS = [['stocks', 'More stocks', ['^GSPC', '^DJI', '^IXIC']], ['rates', 'Rates and dollar'], ['crypto', 'Crypto'], ['commodities', 'Commodities']];
+    var GROUPS = [['stocks', 'Other indexes', ['^GSPC', '^DJI', '^IXIC']], ['rates', 'Rates and the dollar'], ['crypto', 'Crypto'], ['commodities', 'Commodities']];
     GROUPS.forEach(function(g){
       var rows = qs.filter(function(q){ return q.group === g[0] && !(g[2] && g[2].indexOf(q.symbol) >= 0); });
       if(!rows.length) return;
-      html += '<h3 class="q-h mk-h">' + g[1] + '</h3><div class="mk-grid">' + rows.map(function(q){
+      html += '<section class="mk-grp"><h3 class="mk-gh">' + g[1] + '</h3><ul class="mk-rows">' + rows.map(function(q){
         var up = (q.pct || 0) >= 0, px = mqFmtPx(q.price) + (q.symbol === '^TNX' ? '%' : '');
-        return '<div class="mk-tile"><div class="mk-tile-t"><span>' + escapeHtml(q.name) + '</span>' + mqPill(q.pct) + '</div><b>' + px + '</b><div class="mk-chart sm">' + mqArea(q.spark, up, 160, 34) + '</div></div>';
-      }).join('') + '</div>';
+        return '<li class="mk-row"><span class="mk-rn">' + escapeHtml(q.name) + '</span><span class="mk-rs">' + mqArea(q.spark, up, 96, 28) + '</span><b class="mk-rp">' + px + '</b>' + mqPill(q.pct) + '</li>';
+      }).join('') + '</ul></section>';
     });
     return html;
   }
@@ -10607,7 +10607,7 @@
     var NAMES = { all: 'Worldwide', sports: 'Sports', news: 'News', pop_culture: 'Pop culture' };
     var SUBS = {
       sports: [['extra', 'Scoreboard'], ['schedule', 'Schedule'], ['standings', 'Rankings'], ['teams', 'Teams'], ['news', 'News']],
-      pop_culture: [['extra', 'Right now'], ['schedule', 'Schedule'], ['standings', 'Charts'], ['news', 'News']],
+      pop_culture: [['extra', 'Number ones'],['schedule', 'Schedule'], ['standings', 'Charts'], ['news', 'News']],
       news: [['extra', 'Briefing'], ['schedule', 'Schedule'], ['standings', 'Markets'], ['news', 'News']]
     };
     var hubNav = false, curPage = 'extra';
@@ -10667,38 +10667,68 @@
     renderSub();
   })();
 
-  // ---- The extra tab: one different page per mode (Sports: Scoreboard, Pop culture: Right now, News: Briefing) ----
+  // ---- The extra tab: one different page per mode (Sports: Scoreboard, Pop culture: Number ones, News: Briefing) ----
   function mqExPage(){ var p = document.getElementById('page-extra'); return p && p.offsetParent ? p : null; }
   function mqExScoreboard(box){
     var gs = (mqScore.games || []).filter(function(g){ return g && g.away && g.home; });
     if(!gs.length){ box.innerHTML = '<p class="evp-muted">No games on the board right now. The Schedule tab shows what is next.</p>'; mqLoadScores(true); return; }
     var rank = { in: 0, pre: 1, post: 2 }, by = {}, order = [], n = { in: 0, pre: 0, post: 0 };
-    gs.forEach(function(g){ if(!by[g.league]){ by[g.league] = []; order.push(g.league); } by[g.league].push(g); n[g.state] = (n[g.state] || 0) + 1; });
+    gs.forEach(function(g){ n[g.state] = (n[g.state] || 0) + 1; });
+    // The filter chips only count what exists; if the chosen filter has no games any more (a slate rolled over), fall back to All.
+    if(mqSbFilter !== 'all' && !n[mqSbFilter]) mqSbFilter = 'all';
+    var shown = gs.filter(function(g){ return mqSbFilter === 'all' || g.state === mqSbFilter; });
+    shown.forEach(function(g){ if(!by[g.league]){ by[g.league] = []; order.push(g.league); } by[g.league].push(g); });
     order.sort(function(x, y){ var lx = by[x].some(function(g){ return g.state === 'in'; }), ly = by[y].some(function(g){ return g.state === 'in'; }); return lx === ly ? by[y].length - by[x].length : (lx ? -1 : 1); });
-    var html = '<p class="ex-sum"><b class="live">' + n.in + ' live</b><span>' + n.pre + ' coming up</span><span>' + n.post + ' final</span></p>';
+    var today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+    var CHIPS = [['all', 'All games', gs.length], ['in', 'Live', n.in], ['pre', 'Upcoming', n.pre], ['post', 'Final', n.post]];
+    var html = '<header class="pg-head"><h3 class="pg-date">' + escapeHtml(today) + '</h3>' +
+      '<div class="pg-chips" role="group" aria-label="Filter games">' + CHIPS.map(function(c){
+        return '<button type="button" class="pg-chip' + (mqSbFilter === c[0] ? ' on' : '') + (c[0] === 'in' && c[2] ? ' hot' : '') + '" data-sbf="' + c[0] + '" aria-pressed="' + (mqSbFilter === c[0]) + '"' + (c[0] !== 'all' && !c[2] ? ' disabled' : '') + '>' + c[1] + '<i>' + c[2] + '</i></button>';
+      }).join('') + '</div></header>';
+    // A team's own color is the card's edge; colors that vanish on a dark page fall back to the alternate, then to none.
+    function tone(t){
+      function lum(h){ var v = parseInt(h.slice(1), 16); return (0.2126 * (v >> 16 & 255) + 0.7152 * (v >> 8 & 255) + 0.0722 * (v & 255)) / 255; }
+      var c = t && t.color, a = t && t.alt;
+      return c && lum(c) > 0.16 ? c : (a && lum(a) > 0.16 ? a : '#3A3F48');
+    }
+    function side(t, state, win, lose){
+      var shownScore = state !== 'pre' && t.score != null && t.score !== '';
+      return '<div class="sbd-tm' + (win ? ' win' : '') + (lose ? ' lose' : '') + '"><span class="sbd-logo">' + (t.logo ? '<img src="' + escapeHtml(t.logo) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</span>' +
+        '<span class="sbd-nm"><b>' + escapeHtml(t.name || t.abbr || '') + '</b>' + (t.record ? '<em>' + escapeHtml(t.record) + '</em>' : '') + '</span>' +
+        '<span class="sbd-sc">' + (shownScore ? escapeHtml(String(t.score)) : '') + '</span></div>';
+    }
     order.forEach(function(lg){
       by[lg].sort(function(x, y){ return (rank[x.state] - rank[y.state]) || (new Date(x.start) - new Date(y.start)); });
-      html += '<div class="ex-lg"><h3 class="q-h">' + escapeHtml(mqLgName(lg)) + '</h3><ul class="ex-gl">' + by[lg].map(function(g){
-        var st = g.state === 'in' ? (g.detail || 'Live') : g.state === 'post' ? (g.detail || 'Final') : new Date(g.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET';
-        var hs = parseInt(g.home.score, 10), as = parseInt(g.away.score, 10), show = g.state !== 'pre';
-        return '<li class="ex-g ' + g.state + '"><span class="ex-tm' + (g.state === 'post' && as > hs ? ' w' : '') + '"><b>' + escapeHtml(g.away.abbr || g.away.name) + '</b><i>' + (show ? escapeHtml(String(g.away.score)) : escapeHtml(g.away.record || '')) + '</i></span>' +
-          '<span class="ex-tm' + (g.state === 'post' && hs > as ? ' w' : '') + '"><b>' + escapeHtml(g.home.abbr || g.home.name) + '</b><i>' + (show ? escapeHtml(String(g.home.score)) : escapeHtml(g.home.record || '')) + '</i></span>' +
-          '<span class="ex-st">' + escapeHtml(st) + (g.network && g.state === 'pre' ? '<em>' + escapeHtml(g.network) + '</em>' : '') + '</span></li>';
-      }).join('') + '</ul></div>';
+      html += '<section class="sbd-lg"><div class="sbd-lg-h"><h3>' + escapeHtml(mqLgName(lg)) + '</h3><span>' + by[lg].length + (by[lg].length === 1 ? ' game' : ' games') + '</span></div><ul class="sbd-gl">' + by[lg].map(function(g){
+        var hs = parseInt(g.home.score, 10), as = parseInt(g.away.score, 10), fin = g.state === 'post';
+        var when = new Date(g.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET';
+        var foot = g.state === 'in' ? '<span class="sbd-live"><i aria-hidden="true"></i>' + escapeHtml(g.detail || 'Live') + '</span>'
+          : fin ? '<span class="sbd-fin">' + escapeHtml(g.detail || 'Final') + '</span>'
+          : '<span class="sbd-when">' + escapeHtml(when) + '</span>';
+        var net = g.network && g.state !== 'post' ? '<span class="sbd-net">' + escapeHtml(g.network) + '</span>' : '';
+        var sit = g.state === 'in' && g.sit && (g.sit.text || g.sit.last) ? '<span class="sbd-sit">' + escapeHtml(String(g.sit.text || g.sit.last)) + '</span>' : '';
+        return '<li class="sbd-g ' + g.state + '" style="--away:' + tone(g.away) + ';--home:' + tone(g.home) + '">' +
+          side(g.away, g.state, fin && as > hs, fin && as < hs) + side(g.home, g.state, fin && hs > as, fin && hs < as) +
+          '<div class="sbd-foot">' + foot + net + '</div>' + sit + '</li>';
+      }).join('') + '</ul></section>';
     });
+    if(!shown.length) html += '<p class="evp-muted">No games match this filter right now.</p>';
     box.innerHTML = html;
   }
+  var mqSbFilter = 'all';
   function mqExRightNow(box){
     mqFeedFetch('media').then(function(d){
       if(!box.isConnected || mqMode() !== 'pop_culture') return;
       if(!d){ box.innerHTML = '<p class="evp-muted">Couldn’t load this right now. Try again in a minute.</p>'; return; }
-      var CARDS = [['movies', 'Movie'], ['tv', 'TV show'], ['albums', 'Album'], ['podcasts', 'Podcast']];
-      box.innerHTML = '<p class="ex-sum"><span>The number one of everything, right now</span></p><div class="ex-cards">' + CARDS.map(function(c){
+      var CARDS = [['movies', 'Movie', 'Top movie'], ['tv', 'TV show', 'Top show'], ['albums', 'Album', 'Top album'], ['podcasts', 'Podcast', 'Top podcast']];
+      var today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+      box.innerHTML = '<header class="pg-head"><h3 class="pg-date">' + escapeHtml(today) + '</h3><p class="pg-note">The movie, show, album and podcast at No. 1 today.</p></header><div class="nr-grid">' + CARDS.map(function(c){
         var l = d[c[0]] || []; if(!l.length) return '';
-        var t = l[0];
-        return '<div class="ex-card rk-go" data-act="link" data-href="' + escapeHtml(t.link || '') + '" tabindex="0"><div class="ex-art">' + (t.image ? '<img src="' + escapeHtml(t.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</div>' +
-          '<div class="ex-meta"><em>#1 ' + c[1] + '</em><b>' + escapeHtml(t.title) + '</b><span>' + escapeHtml([t.by, t.genre].filter(Boolean).join(' · ')) + '</span>' +
-          '<ol start="2">' + l.slice(1, 4).map(function(x){ return '<li>' + escapeHtml(x.title) + '</li>'; }).join('') + '</ol></div></div>';
+        var t = l[0], sq = c[0] === 'albums' || c[0] === 'podcasts';
+        return '<article class="nr-card rk-go" data-act="link" data-href="' + escapeHtml(t.link || '') + '" tabindex="0" role="link" aria-label="' + escapeHtml(c[2] + ': ' + t.title) + '">' +
+          '<div class="nr-art' + (sq ? ' sq' : '') + '"><i aria-hidden="true">' + escapeHtml((t.title || '').charAt(0)) + '</i>' + (t.image ? '<img src="' + escapeHtml(t.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</div>' +
+          '<div class="nr-body"><span class="nr-kind">' + c[2] + '</span><h4>' + escapeHtml(t.title) + '</h4>' + ([t.by, t.genre].filter(Boolean).length ? '<p>' + escapeHtml([t.by, t.genre].filter(Boolean).join(', ')) + '</p>' : '') +
+          (l.length > 1 ? '<ol class="nr-next" start="2">' + l.slice(1, 4).map(function(x){ return '<li>' + escapeHtml(x.title) + '</li>'; }).join('') + '</ol>' : '') + '</div></article>';
       }).join('') + '</div>';
     });
   }
@@ -10709,34 +10739,41 @@
   }
   function mqExBriefing(box){
     var today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
-    box.innerHTML = '<div class="br-date">' + escapeHtml(today) + '</div>' +
-      '<section class="br-sec" id="ex-b-mk"></section><section class="br-sec" id="ex-b-hl"></section><section class="br-sec" id="ex-b-nx"></section>';
+    box.innerHTML = '<header class="pg-head"><h3 class="pg-date">' + escapeHtml(today) + '</h3><span class="mk-state" id="ex-b-state"></span></header>' +
+      '<section class="bf-sec" id="ex-b-mk"></section><section class="bf-sec" id="ex-b-hl"></section><section class="bf-sec" id="ex-b-nx"></section>';
     var PICK = ['^GSPC', '^DJI', '^IXIC', 'BTC-USD', 'GC=F', 'CL=F'];
     mqFeedFetch('markets').then(function(d){
       var el = document.getElementById('ex-b-mk'); if(!el || mqMode() !== 'news') return;
-      var qs = ((d && d.quotes) || []).filter(function(q){ return PICK.indexOf(q.symbol) >= 0; });
+      var all = (d && d.quotes) || [];
+      var qs = PICK.map(function(s){ return all.filter(function(q){ return q.symbol === s; })[0]; }).filter(Boolean);
+      var st = document.getElementById('ex-b-state');
+      if(st){ var open = all.some(function(q){ return q.group === 'stocks' && q.state === 'REGULAR'; }); st.className = 'mk-state' + (open ? ' open' : ''); st.innerHTML = '<i></i>' + (open ? 'Stock market open' : 'Stock market closed'); }
       if(!qs.length) return;
-      el.innerHTML = '<div class="br-h"><h3>Markets</h3><button type="button" class="br-more" data-p="standings">All markets ›</button></div><div class="br-strip">' + qs.map(function(q){
+      el.innerHTML = '<div class="bf-h"><h3>Markets today</h3><button type="button" class="bf-more" data-p="standings">All markets</button></div><div class="bf-strip">' + qs.map(function(q){
         var up = (q.pct || 0) >= 0;
-        return '<div class="br-tile"><span>' + escapeHtml(q.name) + '</span><b>' + mqFmtPx(q.price) + '</b>' + mqPill(q.pct) + '<div class="mk-chart sm">' + mqArea(q.spark, up, 120, 30) + '</div></div>';
+        return '<div class="bf-tile"><span class="bf-nm">' + escapeHtml(q.name) + '</span><b>' + mqFmtPx(q.price) + '</b>' + mqPill(q.pct) + '<div class="mk-chart sm">' + mqArea(q.spark, up, 120, 30) + '</div></div>';
       }).join('') + '</div>';
     });
     sb.from('news_ticker').select('headline, source_name, article_url, image_url, fetched_at').eq('kind', 'news').or('lane.is.null,lane.eq.news').order('fetched_at', { ascending: false }).limit(7).then(function(res){
       var el = document.getElementById('ex-b-hl'); if(!el || !res || !res.data || !res.data.length) return;
       var rows = res.data, hero = rows[0], rest = rows.slice(1);
       function link(r, cls, inner){ var u = /^https:\/\//.test(r.article_url || '') ? r.article_url : ''; return u ? '<a class="' + cls + '" href="' + escapeHtml(u) + '" target="_blank" rel="noopener">' + inner + '</a>' : '<div class="' + cls + '">' + inner + '</div>'; }
-      var img = /^https:\/\//.test(hero.image_url || '') ? '<span class="br-img" style="background-image:url(\'' + escapeHtml(hero.image_url) + '\')"></span>' : '<span class="br-img none"></span>';
-      el.innerHTML = '<div class="br-h"><h3>Top stories</h3></div><div class="br-news">' +
-        link(hero, 'br-hero', img + '<span class="br-hero-t"><em>' + escapeHtml(hero.source_name || '') + ' · ' + mqAgo(hero.fetched_at) + '</em><b>' + escapeHtml(hero.headline) + '</b></span>') +
-        '<div class="br-list">' + rest.map(function(r){ return link(r, 'br-item', '<b>' + escapeHtml(r.headline) + '</b><em>' + escapeHtml(r.source_name || '') + ' · ' + mqAgo(r.fetched_at) + '</em>'); }).join('') + '</div></div>';
+      function meta(r){ return '<span class="bf-src">' + escapeHtml(r.source_name || '') + '</span>' + (r.fetched_at ? '<span class="bf-ago">' + escapeHtml(mqAgo(r.fetched_at)) + '</span>' : ''); }
+      var img = /^https:\/\//.test(hero.image_url || '') ? '<span class="bf-img" style="background-image:url(\'' + escapeHtml(hero.image_url) + '\')"></span>' : '<span class="bf-img none"></span>';
+      el.innerHTML = '<div class="bf-h"><h3>Headlines</h3></div><div class="bf-news">' +
+        link(hero, 'bf-hero', img + '<span class="bf-hero-t"><span class="bf-meta">' + meta(hero) + '</span><b>' + escapeHtml(hero.headline) + '</b></span>') +
+        '<div class="bf-list">' + rest.map(function(r){
+          var th = /^https:\/\//.test(r.image_url || '') ? '<span class="bf-th" style="background-image:url(\'' + escapeHtml(r.image_url) + '\')"></span>' : '';
+          return link(r, 'bf-item' + (th ? ' has-th' : ''), '<span class="bf-it"><b>' + escapeHtml(r.headline) + '</b><span class="bf-meta">' + meta(r) + '</span></span>' + th);
+        }).join('') + '</div></div>';
     }, function(){});
     var tdy = getETDateInfo().dateStr;
     var next = mqModeEvents(mqSched.events.filter(function(ev){ return mqSchedEventDay(ev) >= tdy; })).sort(function(x, y){ return new Date(x.starts_at) - new Date(y.starts_at); }).slice(0, 6);
     var nx = document.getElementById('ex-b-nx');
-    if(nx && next.length) nx.innerHTML = '<div class="br-h"><h3>On deck</h3><button type="button" class="br-more" data-p="schedule">Full schedule ›</button></div><div class="br-deck">' + next.map(function(ev){
+    if(nx && next.length) nx.innerHTML = '<div class="bf-h"><h3>Coming up</h3><button type="button" class="bf-more" data-p="schedule">Full schedule</button></div><ul class="bf-cal">' + next.map(function(ev){
       var dt = new Date(Date.parse(mqSchedEventDay(ev) + 'T12:00:00Z'));
-      return '<div class="br-ev"><span class="br-date-b"><u>' + dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) + '</u><b>' + dt.getUTCDate() + '</b></span><span class="br-ev-t"><b>' + escapeHtml(ev.title) + '</b><em>' + escapeHtml(ev.subtitle || dt.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })) + '</em></span></div>';
-    }).join('') + '</div>';
+      return '<li class="bf-ev"><span class="bf-day"><u>' + dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) + '</u><b>' + dt.getUTCDate() + '</b></span><span class="bf-ev-t"><b>' + escapeHtml(ev.title) + '</b><em>' + escapeHtml(ev.subtitle || dt.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })) + '</em></span></li>';
+    }).join('') + '</ul>';
   }
   function mqExtraRender(){
     var box = document.getElementById('ex-body'), m = mqMode(); if(!box) return;
@@ -10745,7 +10782,10 @@
   function mqExtraRefresh(){ if(!mqExPage()) return; if(mqMode() === 'sports') mqExScoreboard(document.getElementById('ex-body')); else mqExtraRender(); }
   (function(){
     var b = document.getElementById('ex-body');
-    if(b) b.addEventListener('click', function(e){ var mo = e.target.closest('.br-more'); if(mo){ var sbt = document.querySelector('.cat-sub-btn[data-p="' + mo.getAttribute('data-p') + '"]'); if(sbt) sbt.click(); return; }
+    if(b) b.addEventListener('click', function(e){
+      var fc = e.target.closest('.pg-chip[data-sbf]');
+      if(fc){ if(!fc.disabled){ mqSbFilter = fc.getAttribute('data-sbf'); mqExScoreboard(b); } return; }
+      var mo = e.target.closest('.bf-more'); if(mo){ var sbt = document.querySelector('.cat-sub-btn[data-p="' + mo.getAttribute('data-p') + '"]'); if(sbt) sbt.click(); return; }
       var r = e.target.closest('.rk-go[data-act="link"]'); if(r){ var h = r.getAttribute('data-href'); if(h && /^https:\/\//.test(h)) window.open(h, '_blank', 'noopener'); } });
   })();
 
