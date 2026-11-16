@@ -9,6 +9,17 @@
   st.textContent = '#google-auth-btn, #hamburger-plus-btn, .pagenav-tab[data-page="plus"], #page-plus, #hamburger-handshake-btn { display:none !important; }';
   document.head.appendChild(st);
 
+  // The "peek" teaser under each question is a Marqit+ upsell. Hide the whole teaser block (the card's direct child holding the peek button).
+  function hideUpsells(){
+    document.querySelectorAll('.mqp-peek-btn').forEach(function(b){
+      var el = b;
+      while(el.parentElement && !(el.parentElement.classList && el.parentElement.classList.contains('predict-card'))) el = el.parentElement;
+      if(el !== b || el.parentElement) el.style.display = 'none';
+    });
+  }
+  try{ new MutationObserver(hideUpsells).observe(document.documentElement, { childList: true, subtree: true }); }catch(e){}
+  hideUpsells();
+
   // Delete account (required by Apple 5.1.1(v)). Shown in the menu only when signed in.
   function addDeleteButton(){
     var menu = document.getElementById('hamburger-menu');
