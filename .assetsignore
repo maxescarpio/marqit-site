@@ -7,3 +7,10 @@ package-lock.json
 .assetsignore
 README.md
 launch-hold/
+
+ios/
+android/
+www/
+scripts/
+capacitor.config.json
+APP-STORE.md

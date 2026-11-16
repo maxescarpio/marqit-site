@@ -3,9 +3,20 @@
 	"private": true,
 	"scripts": {
 		"dev": "wrangler dev",
-		"deploy": "wrangler deploy"
+		"deploy": "wrangler deploy",
+		"app:sync": "sh scripts/build-www.sh && cap sync",
+		"app:ios": "npm run app:sync && cap open ios",
+		"app:android": "npm run app:sync && cap open android"
 	},
 	"devDependencies": {
+		"@capacitor/cli": "^8.6.2",
 		"wrangler": "^4.0.0"
+	},
+	"dependencies": {
+		"@capacitor/android": "^8.6.2",
+		"@capacitor/core": "^8.6.2",
+		"@capacitor/ios": "^8.6.2",
+		"@capacitor/push-notifications": "^8.1.3",
+		"@capacitor/share": "^8.0.3"
 	}
 }

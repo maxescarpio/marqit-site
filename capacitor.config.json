@@ -1,0 +1,7 @@
+{
+  "appId": "com.playmarqit.app",
+  "appName": "Marqit",
+  "webDir": "www",
+  "backgroundColor": "#17191D",
+  "server": { "allowNavigation": ["playmarqit.com", "*.supabase.co"] }
+}
