@@ -26,7 +26,7 @@ What to return:
 - A TV show: type "show", search = the series title. (Its biggest lead actor is looked up for you.)
 - A movie: type "movie", search = the film title. (Its biggest lead actor is looked up for you.)
 - A game, team or league: type "team", search = the full official name of the first-named team. (Its head coach is looked up for you.)
-- A company, product, launch or event run by a company with no person named: use that company's best-known current leader or founder as a person (SpaceX -> "Elon Musk", Nvidia -> "Jensen Huang", Meta -> "Mark Zuckerberg", Apple -> "Tim Cook", and so on).
+- A company, product, launch or event run by a company with no person named: use that company's best-known current leader or founder as a person (SpaceX -> "Elon Musk", Nvidia -> "Colette Kress", Meta -> "Mark Zuckerberg", Apple -> "Tim Cook", and so on).
 - Any other news topic: ONLY a person who is named in the topic's title or description. If nobody is named, return null. Never guess a famous person who is merely related to the topic (a golf tournament, a chart or an event with no named person gets null).
 - Songs, albums and music charts: the artist, as type "person".
 
