@@ -9430,8 +9430,11 @@
     var f = r[2] ? r[2].split('|') : [];
     return { co: r[0], ceo: r[1], label: r[3] || 'CEO', founders: f };
   }
+  // Photos we hold ourselves (supplied by Marqit), used instead of the Wikimedia lookup.
+  var MQ_PHOTO_OWN = { 'Colette Kress': '/leader-photos/colette-kress.jpg' };
   function mqPersonPhoto(name, co){
     var k = name + '|' + co;
+    if(MQ_PHOTO_OWN[name]) return MQ_PP[k] = MQ_PP[k] || Promise.resolve({ found: true, local: true, photo: MQ_PHOTO_OWN[name] });
     return MQ_PP[k] = MQ_PP[k] || fetch(SUPABASE_URL + '/functions/v1/player-photo?kind=person&name=' + encodeURIComponent(name) + '&team=' + encodeURIComponent(co))
       .then(function(r){ return r.json(); }).catch(function(){ return null; })
       .then(function(d){ return d && d.found && /^https:\/\/commons\.wikimedia\.org\//.test(d.photo || '') ? d : null; });
@@ -9469,6 +9472,7 @@
           // The photographer is credited in the site's Credits section (About page), not under each face.
           // Hovering the face still shows it.
           ph.title = 'Photo: ' + (d.author || 'Wikimedia Commons') + (d.license ? ' · ' + d.license : '');
+          if(d.local){ ph.title = who; return; }
           mqCreditNote(who, d, href);
           var box = document.getElementById('co-cr');
           if(box && ph.closest('.co-t')){
@@ -10174,19 +10178,23 @@
     var stocks = qs.filter(function(q){ return q.group === 'stocks' && q.symbol !== '^VIX'; }), upN = stocks.filter(function(q){ return (q.pct || 0) >= 0; }).length;
     var mood = !stocks.length ? '' : upN === stocks.length ? 'Every major index is up' : upN === 0 ? 'Every major index is down' : upN + ' of ' + stocks.length + ' major indexes are up';
     var open = qs.some(function(q){ return q.group === 'stocks' && q.state === 'REGULAR'; });
-    var html = '<div class="mk-top"><span class="mk-mood">' + escapeHtml(mood) + '</span><span class="mk-state ' + (open ? 'open' : '') + '"><i></i>' + (open ? 'Markets open' : 'Markets closed') + '</span></div>';
-    html += '<div class="mk-hero">' + big.map(function(q){
+    // Markets page, redesigned: a mood banner with every index as a chip, three big index tiles led by the move (not the price),
+    // then each group as a grid of small tiles.
+    var tone = !stocks.length ? '' : upN === stocks.length ? ' up' : upN === 0 ? ' dn' : ' mx';
+    var html = '<div class="mkx-head' + tone + '"><div class="mkx-head-t"><span class="mk-state ' + (open ? 'open' : '') + '"><i></i>' + (open ? 'Markets open' : 'Markets closed') + '</span><h3 class="mkx-mood">' + escapeHtml(mood) + '</h3></div>' +
+      '<ul class="mkx-pips">' + stocks.map(function(q){ var up = (q.pct || 0) >= 0; return '<li class="mkx-pip ' + (up ? 'up' : 'dn') + '"><span>' + escapeHtml(q.name) + '</span><b>' + (up ? '▲' : '▼') + ' ' + Math.abs(q.pct || 0).toFixed(2) + '%</b></li>'; }).join('') + '</ul></div>';
+    html += '<div class="mkx-idx">' + big.map(function(q){
       var up = (q.pct || 0) >= 0;
-      return '<div class="mk-card"><div class="mk-card-h"><span>' + escapeHtml(q.name) + '</span>' + mqPill(q.pct) + '</div><b class="mk-big">' + mqFmtPx(q.price) + '</b>' +
-        '<div class="mk-chart">' + mqArea(q.spark, up, 220, 70) + '</div></div>';
+      return '<div class="mkx-ix ' + (up ? 'up' : 'dn') + '"><span class="mkx-ixn">' + escapeHtml(q.name) + '</span><b class="mkx-ixc">' + (up ? '+' : '−') + Math.abs(q.pct || 0).toFixed(2) + '%</b><span class="mkx-ixp">' + mqFmtPx(q.price) + '</span>' +
+        '<div class="mkx-ixa">' + mqArea(q.spark, up, 220, 90) + '</div></div>';
     }).join('') + '</div>';
     var GROUPS = [['stocks', 'Other indexes', ['^GSPC', '^DJI', '^IXIC']], ['rates', 'Rates and the dollar'], ['crypto', 'Crypto'], ['commodities', 'Commodities']];
     GROUPS.forEach(function(g){
       var rows = qs.filter(function(q){ return q.group === g[0] && !(g[2] && g[2].indexOf(q.symbol) >= 0); });
       if(!rows.length) return;
-      html += '<section class="mk-grp"><h3 class="mk-gh">' + g[1] + '</h3><ul class="mk-rows">' + rows.map(function(q){
+      html += '<section class="mkx-grp"><h3 class="mkx-gh"><span>' + g[1] + '</span><i>' + rows.length + '</i></h3><ul class="mkx-g">' + rows.map(function(q){
         var up = (q.pct || 0) >= 0, px = mqFmtPx(q.price) + (q.symbol === '^TNX' ? '%' : '');
-        return '<li class="mk-row"><span class="mk-rn">' + escapeHtml(q.name) + '</span><span class="mk-rs">' + mqArea(q.spark, up, 96, 28) + '</span><b class="mk-rp">' + px + '</b>' + mqPill(q.pct) + '</li>';
+        return '<li class="mkx-t ' + (up ? 'up' : 'dn') + '"><span class="mkx-tn">' + escapeHtml(q.name) + '</span><b class="mkx-tp">' + px + '</b>' + mqPill(q.pct) + '<span class="mkx-ts">' + mqArea(q.spark, up, 96, 34) + '</span></li>';
       }).join('') + '</ul></section>';
     });
     return html;
@@ -10681,7 +10689,7 @@
     order.sort(function(x, y){ var lx = by[x].some(function(g){ return g.state === 'in'; }), ly = by[y].some(function(g){ return g.state === 'in'; }); return lx === ly ? by[y].length - by[x].length : (lx ? -1 : 1); });
     var today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
     var CHIPS = [['all', 'All games', gs.length], ['in', 'Live', n.in], ['pre', 'Upcoming', n.pre], ['post', 'Final', n.post]];
-    var html = '<header class="pg-head"><h3 class="pg-date">' + escapeHtml(today) + '</h3>' +
+    var html = '<header class="pg-head">' +
       '<div class="pg-chips" role="group" aria-label="Filter games">' + CHIPS.map(function(c){
         return '<button type="button" class="pg-chip' + (mqSbFilter === c[0] ? ' on' : '') + (c[0] === 'in' && c[2] ? ' hot' : '') + '" data-sbf="' + c[0] + '" aria-pressed="' + (mqSbFilter === c[0]) + '"' + (c[0] !== 'all' && !c[2] ? ' disabled' : '') + '>' + c[1] + '<i>' + c[2] + '</i></button>';
       }).join('') + '</div></header>';
@@ -10706,7 +10714,9 @@
     }).join('') + '</nav>';
     order.forEach(function(lg){
       by[lg].sort(function(x, y){ return (rank[x.state] - rank[y.state]) || (new Date(x.start) - new Date(y.start)); });
-      html += '<section class="sbd-lg" data-lg="' + escapeHtml(lg) + '"><div class="sbd-lg-h"><h3>' + escapeHtml(mqLgName(lg)) + '</h3><span>' + by[lg].length + (by[lg].length === 1 ? ' game' : ' games') + '</span></div><ul class="sbd-gl">' + by[lg].map(function(g){
+      var liveN = by[lg].filter(function(g){ return g.state === 'in'; }).length, lgCol = '';
+      try{ lgCol = mqLgColor(lg) || ''; }catch(e){}
+      html += '<section class="sbd-lg" data-lg="' + escapeHtml(lg) + '"><header class="sbd-lg-h"' + (/^#[0-9a-fA-F]{3,8}$/.test(lgCol) ? ' style="--lg:' + lgCol + '"' : '') + '><h3>' + escapeHtml(mqLgName(lg)) + '</h3><span class="sbd-lg-n">' + by[lg].length + (by[lg].length === 1 ? ' game' : ' games') + '</span>' + (liveN ? '<span class="sbd-lg-live"><i aria-hidden="true"></i>' + liveN + ' live</span>' : '') + '</header><ul class="sbd-gl">' + by[lg].map(function(g){
         var hs = parseInt(g.home.score, 10), as = parseInt(g.away.score, 10), fin = g.state === 'post';
         var when = new Date(g.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
         var net = g.network && g.state !== 'post' ? '<span class="sbd-net">' + escapeHtml(g.network) + '</span>' : '';
@@ -10736,7 +10746,7 @@
       if(!d){ box.innerHTML = '<p class="evp-muted">Couldn’t load this right now. Try again in a minute.</p>'; return; }
       var CARDS = [['movies', 'Movie', 'Top movie'], ['tv', 'TV show', 'Top show'], ['albums', 'Album', 'Top album'], ['podcasts', 'Podcast', 'Top podcast']];
       var today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
-      box.innerHTML = '<header class="pg-head"><h3 class="pg-date">' + escapeHtml(today) + '</h3><p class="pg-note">The movie, show, album and podcast at No. 1 today.</p></header><div class="nr-grid">' + CARDS.map(function(c){
+      box.innerHTML = '<header class="pg-head"><p class="pg-note">The movie, show, album and podcast at No. 1 today.</p></header><div class="nr-grid">' + CARDS.map(function(c){
         var l = d[c[0]] || []; if(!l.length) return '';
         var t = l[0], sq = c[0] === 'albums' || c[0] === 'podcasts';
         return '<article class="nr-card rk-go" data-act="link" data-href="' + escapeHtml(t.link || '') + '" tabindex="0" role="link" aria-label="' + escapeHtml(c[2] + ': ' + t.title) + '">' +
@@ -10753,38 +10763,43 @@
   }
   function mqExBriefing(box){
     var today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
-    box.innerHTML = '<header class="pg-head"><h3 class="pg-date">' + escapeHtml(today) + '</h3><span class="mk-state" id="ex-b-state"></span></header>' +
-      '<section class="bf-sec" id="ex-b-mk"></section><section class="bf-sec" id="ex-b-hl"></section><section class="bf-sec" id="ex-b-nx"></section>';
+    box.innerHTML = '<section class="nb-sec" id="ex-b-mk"></section><section class="nb-sec" id="ex-b-hl"></section><section class="nb-sec" id="ex-b-nx"></section>';
     var PICK = ['^GSPC', '^DJI', '^IXIC', 'BTC-USD', 'GC=F', 'CL=F'];
     mqFeedFetch('markets').then(function(d){
       var el = document.getElementById('ex-b-mk'); if(!el || mqMode() !== 'news') return;
       var all = (d && d.quotes) || [];
       var qs = PICK.map(function(s){ return all.filter(function(q){ return q.symbol === s; })[0]; }).filter(Boolean);
-      var st = document.getElementById('ex-b-state');
-      if(st){ var open = all.some(function(q){ return q.group === 'stocks' && q.state === 'REGULAR'; }); st.className = 'mk-state' + (open ? ' open' : ''); st.innerHTML = '<i></i>' + (open ? 'Stock market open' : 'Stock market closed'); }
       if(!qs.length) return;
-      el.innerHTML = '<div class="bf-h"><h3>Markets today</h3><button type="button" class="bf-more" data-p="standings">All markets</button></div><div class="bf-strip">' + qs.map(function(q){
-        var up = (q.pct || 0) >= 0;
-        return '<div class="bf-tile"><span class="bf-nm">' + escapeHtml(q.name) + '</span><b>' + mqFmtPx(q.price) + '</b>' + mqPill(q.pct) + '<div class="mk-chart sm">' + mqArea(q.spark, up, 120, 30) + '</div></div>';
-      }).join('') + '</div>';
+      var open = all.some(function(q){ return q.group === 'stocks' && q.state === 'REGULAR'; });
+      var stocks = all.filter(function(q){ return q.group === 'stocks' && q.symbol !== '^VIX'; }), upN = stocks.filter(function(q){ return (q.pct || 0) >= 0; }).length;
+      var mood = !stocks.length ? 'Markets' : upN === stocks.length ? 'Markets are up' : upN === 0 ? 'Markets are down' : 'Markets are mixed';
+      var moodCls = !stocks.length ? '' : upN === stocks.length ? ' up' : upN === 0 ? ' dn' : ' mx';
+      // One board: the mood on the left, six prices on the right. Each row is a name, a small chart, the price and the move.
+      el.innerHTML = '<div class="nb-board"><div class="nb-mood' + moodCls + '"><span class="nb-mood-k"><i></i>' + (open ? 'Market open' : 'Market closed') + '</span><b>' + escapeHtml(mood) + '</b>' +
+        '<span class="nb-mood-s">' + (stocks.length ? upN + ' of ' + stocks.length + ' major indexes up' : '') + '</span><button type="button" class="bf-more nb-all" data-p="standings">All markets</button></div>' +
+        '<ul class="nb-qs">' + qs.map(function(q){
+          var up = (q.pct || 0) >= 0;
+          return '<li class="nb-q ' + (up ? 'up' : 'dn') + '"><span class="nb-qn">' + escapeHtml(q.name) + '</span><span class="nb-qc">' + mqArea(q.spark, up, 90, 26) + '</span><b class="nb-qp">' + mqFmtPx(q.price) + '</b>' + mqPill(q.pct) + '</li>';
+        }).join('') + '</ul></div>';
     });
     sb.from('news_ticker').select('headline, source_name, article_url, image_url, fetched_at').eq('kind', 'news').or('lane.is.null,lane.eq.news').order('fetched_at', { ascending: false }).limit(7).then(function(res){
       var el = document.getElementById('ex-b-hl'); if(!el || !res || !res.data || !res.data.length) return;
       var rows = res.data, hero = rows[0], rest = rows.slice(1);
       function link(r, cls, inner){ var u = /^https:\/\//.test(r.article_url || '') ? r.article_url : ''; return u ? '<a class="' + cls + '" href="' + escapeHtml(u) + '" target="_blank" rel="noopener">' + inner + '</a>' : '<div class="' + cls + '">' + inner + '</div>'; }
       function meta(r){ return '<span class="bf-src">' + escapeHtml(r.source_name || '') + '</span>' + (r.fetched_at ? '<span class="bf-ago">' + escapeHtml(mqAgo(r.fetched_at)) + '</span>' : ''); }
-      var img = /^https:\/\//.test(hero.image_url || '') ? '<span class="bf-img" style="background-image:url(\'' + escapeHtml(hero.image_url) + '\')"></span>' : '<span class="bf-img none"></span>';
-      el.innerHTML = '<div class="bf-h"><h3>Headlines</h3></div><div class="bf-news">' +
-        link(hero, 'bf-hero', img + '<span class="bf-hero-t"><span class="bf-meta">' + meta(hero) + '</span><b>' + escapeHtml(hero.headline) + '</b></span>') +
-        '<div class="bf-list">' + rest.map(function(r){
-          var th = /^https:\/\//.test(r.image_url || '') ? '<span class="bf-th" style="background-image:url(\'' + escapeHtml(r.image_url) + '\')"></span>' : '';
-          return link(r, 'bf-item' + (th ? ' has-th' : ''), '<span class="bf-it"><b>' + escapeHtml(r.headline) + '</b><span class="bf-meta">' + meta(r) + '</span></span>' + th);
-        }).join('') + '</div></div>';
+      var img = /^https:\/\//.test(hero.image_url || '') ? '<span class="nb-img" style="background-image:url(\'' + escapeHtml(hero.image_url) + '\')"></span>' : '<span class="nb-img none"></span>';
+      // Top story as a wide picture card with the headline over it; the rest as a numbered list in two columns.
+      el.innerHTML = '<div class="nb-h"><h3>Top stories</h3></div><div class="nb-news">' +
+        link(hero, 'nb-hero', img + '<span class="nb-hero-t"><span class="bf-meta">' + meta(hero) + '</span><b>' + escapeHtml(hero.headline) + '</b></span>') +
+        '<ol class="nb-list">' + rest.map(function(r, i){
+          var th = /^https:\/\//.test(r.image_url || '') ? '<span class="nb-th" style="background-image:url(\'' + escapeHtml(r.image_url) + '\')"></span>' : '';
+          return '<li>' + link(r, 'nb-item' + (th ? ' has-th' : ''), '<span class="nb-n">' + (i + 2) + '</span><span class="nb-it"><b>' + escapeHtml(r.headline) + '</b><span class="bf-meta">' + meta(r) + '</span></span>' + th) + '</li>';
+        }).join('') + '</ol></div>';
     }, function(){});
     var tdy = getETDateInfo().dateStr;
     var next = mqModeEvents(mqSched.events.filter(function(ev){ return mqSchedEventDay(ev) >= tdy; })).sort(function(x, y){ return new Date(x.starts_at) - new Date(y.starts_at); }).slice(0, 6);
     var nx = document.getElementById('ex-b-nx');
-    if(nx && next.length) nx.innerHTML = '<div class="bf-h"><h3>Coming up</h3><button type="button" class="bf-more" data-p="schedule">Full schedule</button></div><ul class="bf-cal">' + next.map(function(ev){
+    if(nx && next.length) nx.innerHTML = '<div class="nb-h"><h3>Coming up</h3><button type="button" class="bf-more" data-p="schedule">Full schedule</button></div><ul class="bf-cal">' + next.map(function(ev){
       var dt = new Date(Date.parse(mqSchedEventDay(ev) + 'T12:00:00Z'));
       return '<li class="bf-ev"><span class="bf-day"><u>' + dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) + '</u><b>' + dt.getUTCDate() + '</b></span><span class="bf-ev-t"><b>' + escapeHtml(ev.title) + '</b><em>' + escapeHtml(ev.subtitle || dt.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })) + '</em></span></li>';
     }).join('') + '</ul>';
