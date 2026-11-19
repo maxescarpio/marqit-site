@@ -22,4 +22,7 @@ jobs:
           if git diff --cached --quiet; then echo "No changes"; else
             git commit -m "Update daily results pages"
             git push
+            # Tell Bing / DuckDuckGo about the new day (IndexNow)
+            D=$(TZ=America/New_York date -d yesterday +%F)
+            curl -s -o /dev/null "https://api.indexnow.org/indexnow?url=https://playmarqit.com/daily/$D&key=a13d9d20b1491bdaf94f57ac8767fe40&keyLocation=https://playmarqit.com/a13d9d20b1491bdaf94f57ac8767fe40.txt" || true
           fi
