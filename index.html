@@ -52,6 +52,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>html:not(.mq-ready) .cta-band,html:not(.mq-ready) .site-foot{visibility:hidden}</style>
+<noscript><style>.cta-band,.site-foot{visibility:visible!important}</style></noscript>
 <link rel="stylesheet" href="style.css?v=20261112a">
 <link rel="stylesheet" href="refresh.css?v=20261117a">
 <link rel="stylesheet" href="redesign.css?v=20261117a">
@@ -131,7 +133,7 @@
 
 <nav style="position:relative;">
   <div class="wrap" style="display:flex; align-items:center; justify-content:space-between;">
-    <span class="word" id="nav-home-link" style="cursor:pointer;"><img class="logo" src="/marqit-logo-white.svg?v=3" alt="Marqit"></span>
+    <span class="word" id="nav-home-link" style="cursor:pointer;"><img class="logo" src="/marqit-logo-white.svg?v=3" width="87" height="30" alt="Marqit"></span>
 
     <div style="display:flex; align-items:center; gap:12px;">
       <div id="nav-signed-out" style="display:flex; align-items:center; gap:10px;">
@@ -920,7 +922,7 @@
 <footer class="site-foot">
   <div class="wrap site-foot-grid">
     <div class="sf-brand">
-      <span class="word"><img class="logo" src="/marqit-logo-white.svg?v=3" alt="Marqit"></span>
+      <span class="word"><img class="logo" src="/marqit-logo-white.svg?v=3" width="87" height="30" alt="Marqit"></span>
       <p>A free daily prediction game. Three calls a day, the same three for everyone. No wagering, no cash prizes.</p>
       <p style="margin-top:8px;">Marqit (also written playmarqit) lets you call the biggest stories in sports, pop culture and news. See <a href="/how-to-play">how scoring works</a> or browse <a href="/daily/">every past day&rsquo;s calls and answers</a>.</p>
     </div>
@@ -963,8 +965,11 @@
     <button type="button" id="results-go" class="welcome-go">Got it</button>
   </div>
 </div>
+<script>(function(){var d=document.documentElement,done=false;function go(){if(done)return;done=true;d.classList.add('mq-ready')}
+try{var mo=new MutationObserver(function(){if(document.querySelector('.mq-qrow')){go();mo.disconnect()}});mo.observe(document,{childList:true,subtree:true})}catch(e){go()}
+setTimeout(go,7000)})();</script>
 <script src="native.js?v=20261116c" defer></script>
-<script src="app.js?v=20261117a" defer></script>
+<script src="app.js?v=20261119a" defer></script>
 <script src="plus.js?v=20261112a" defer></script>
 <script src="handshake.js?v=20261116a" defer></script>
 <script src="leagues.js?v=20261105a" defer></script>

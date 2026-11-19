@@ -60,3 +60,26 @@
 
 /howto-video.mp4
   X-Robots-Tag: noindex
+
+# Images change rarely: let browsers and Cloudflare keep them (faster repeat visits,
+# better Core Web Vitals).
+/event-art/*
+  Cache-Control: public, max-age=604800
+/artists/*
+  Cache-Control: public, max-age=604800
+/leader-photos/*
+  Cache-Control: public, max-age=86400
+/question-photos/*
+  Cache-Control: public, max-age=86400
+/assets/*
+  Cache-Control: public, max-age=86400
+/marqit-logo-white.svg
+  Cache-Control: public, max-age=604800
+/marqit-logo-black.svg
+  Cache-Control: public, max-age=604800
+/og-image.png
+  Cache-Control: public, max-age=86400
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

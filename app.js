@@ -8704,10 +8704,16 @@
     return l ? String(l.num).slice(0, 2) : '';
   }
   // Team logo (ESPN's own artwork, from the same feed as the scores). Drawn over the letters, which stay as the fallback.
+  // ESPN serves 500px logos; the strip shows them at ~17px. Ask ESPN's image
+  // resizer for a 64px copy instead (about 2 MB less on the homepage).
+  function mqSmallLogo(u){
+    var m = /^https:\/\/a\.espncdn\.com(\/i\/teamlogos\/[a-z0-9\/_\-.]+\.png)$/i.exec(u || '');
+    return m ? 'https://a.espncdn.com/combiner/i?img=' + m[1] + '&w=64&h=64' : u;
+  }
   function mqLogoImg(side){
     var u = String((side && side.logo) || '');
     if(!/^https:\/\/a\.espncdn\.com\/i\/teamlogos\/[a-z0-9\/_\-.]+\.png$/i.test(u)) return '';
-    return '<img class="mq-tlg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + escapeHtml(u) + '" onload="this.parentNode&&this.parentNode.classList.add(\'has-logo\')" onerror="this.remove()">';
+    return '<img class="mq-tlg" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + escapeHtml(mqSmallLogo(u)) + '" onload="this.parentNode&&this.parentNode.classList.add(\'has-logo\')" onerror="this.remove()">';
   }
   function mqBadgeStyle(side){
     var c = mqTeamColor(side);
@@ -11180,7 +11186,7 @@
           var domain = '';
           try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch(e){}
           var logoImg = domain
-            ? '<img class="nt-logo" src="https://www.google.com/s2/favicons?sz=64&domain=' + escapeHtml(domain) + '" alt="' + escapeHtml(source) + '" onerror="this.style.display=\'none\'">'
+            ? '<img class="nt-logo" loading="lazy" decoding="async" width="16" height="16" src="https://www.google.com/s2/favicons?sz=64&domain=' + escapeHtml(domain) + '" alt="' + escapeHtml(source) + '" onerror="this.style.display=\'none\'">'
             : '';
           return '<a class="news-ticker-item" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' +
             logoImg +
@@ -11629,7 +11635,7 @@
       }else if(r.kind === 'post'){
         who = '<span class="plat-badge">' + escapeHtml(platformOf(url)) + '</span>' + (r.source_name ? '<span class="post-by">' + escapeHtml(r.source_name) + '</span>' : '');
       }else{
-        var logo = domain ? '<img class="nt-logo" src="https://www.google.com/s2/favicons?sz=64&domain=' + escapeHtml(domain) + '" alt="" onerror="this.style.display=\'none\'">' : '';
+        var logo = domain ? '<img class="nt-logo" loading="lazy" decoding="async" width="16" height="16" src="https://www.google.com/s2/favicons?sz=64&domain=' + escapeHtml(domain) + '" alt="" onerror="this.style.display=\'none\'">' : '';
         who = logo + '<span>' + escapeHtml(r.source_name || '') + '</span>';
       }
       return '<div class="news-meta">' + who + (when ? '<span>·</span><span>' + when + '</span>' : '') + '<span class="lane-tag">' + escapeHtml(LANE_NAME[laneOf(r)] || '') + '</span></div>';
