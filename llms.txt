@@ -1,0 +1,9 @@
+# Marqit
+
+> Marqit (playmarqit.com) is a free daily prediction game. Every day players make three Yes/No calls on trending sports, pop culture and news. Everyone gets the same three calls. Players earn points for right calls, build streaks, play with buddies and rivals, and climb five tiers from Rookie to Legend. Players must be 18 or older. Marqit is made by Grand Media Group LLC.
+
+## Key pages
+- [How to play: rules, scoring and tiers](https://playmarqit.com/how-to-play): how calls, points, streaks, buddies and rivals work
+- [Daily results](https://playmarqit.com/daily/): every finished day's three calls, the right answers and how the crowd voted
+- [Play today's calls](https://playmarqit.com/): the game itself
+- [Privacy](https://playmarqit.com/privacy) and [Terms](https://playmarqit.com/terms)

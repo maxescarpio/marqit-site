@@ -104,6 +104,7 @@ function shell({ title, desc, path, ld, body }) {
 <meta name="theme-color" content="#0F1114">
 <link rel="icon" href="/favicon.ico?v=5" sizes="any">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=4">
+<link rel="alternate" type="application/rss+xml" title="Marqit daily results" href="/feed.xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Big+Shoulders+Display:wght@700;800&display=swap" rel="stylesheet">
@@ -265,6 +266,31 @@ async function main() {
     writeFileSync(join(dir, `${d.date}.html`), dayPage(d, d.qs, prev, next));
   });
   writeFileSync(join(dir, 'index.html'), indexPage(days));
+
+  const rfc = (iso) => new Date(`${iso}T12:00:00-05:00`).toUTCString();
+  const feedItems = days.slice(0, 30).map((d) => {
+    const live = d.qs.filter((q) => !q.voided);
+    const desc = live.map((q) => `${q.question_text} Answer: ${(q.correct_answer || '').toLowerCase().startsWith('y') ? 'Yes' : 'No'}.`).join(' ');
+    return `    <item>
+      <title>${esc(`Marqit calls for ${shortDate(d.date)}`)}</title>
+      <link>${SITE}/daily/${d.date}</link>
+      <guid isPermaLink="true">${SITE}/daily/${d.date}</guid>
+      <pubDate>${rfc(d.date)}</pubDate>
+      <description>${esc(desc)}</description>
+    </item>`;
+  }).join('\n');
+  writeFileSync(join(ROOT, 'feed.xml'), `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Marqit daily results</title>
+    <link>${SITE}/daily/</link>
+    <atom:link href="${SITE}/feed.xml" rel="self" type="application/rss+xml"/>
+    <description>The three daily Marqit calls, the right answers and how the crowd voted.</description>
+    <language>en-us</language>
+${feedItems}
+  </channel>
+</rss>
+`);
 
   const sm = join(ROOT, 'sitemap.xml');
   let xml = readFileSync(sm, 'utf8').replace(/\s*<!-- daily:start -->[\s\S]*?<!-- daily:end -->/, '');

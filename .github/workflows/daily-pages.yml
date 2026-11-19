@@ -18,7 +18,7 @@ jobs:
         run: |
           git config user.name "marqit-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add daily sitemap.xml
+          git add daily sitemap.xml feed.xml
           if git diff --cached --quiet; then echo "No changes"; else
             git commit -m "Update daily results pages"
             git push
