@@ -97,6 +97,7 @@ function shell({ title, desc, path, ld, body }) {
 <meta property="og:url" content="${url}">
 <meta property="og:image" content="${SITE}/og-image.png?v=3">
 <meta property="og:site_name" content="Marqit">
+<meta name="twitter:site" content="@playmarqit">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(title)}">
 <meta name="twitter:description" content="${esc(desc)}">
