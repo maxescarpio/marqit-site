@@ -3269,7 +3269,7 @@
     }).join('');
     var when = ''; try{ when = new Date(data.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }catch(e){}
     const shareText = 'Marqit' + (when ? ' \u00B7 ' + when : '') + '\n' + grid + ' ' + correctCount + '/' + live.length +
-      (!data.guest && data.standing.streakDays > 1 ? '\n\uD83D\uDD25 ' + data.standing.streakDays + '-day streak' : '') + '\nCan you beat me?\n' + shareUrl;
+      (!data.guest && data.standing.streakDays > 1 ? '\n\uD83D\uDD25 ' + data.standing.streakDays + '-day streak' : '') + '\nCan you beat me? #playmarqit\n' + shareUrl;
 
     await mqEnsureCardFonts();
     const canvas = mqDrawResultsCard(1080, 1920, data); // story ratio is the default share
