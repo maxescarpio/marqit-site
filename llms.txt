@@ -6,4 +6,5 @@
 - [How to play: rules, scoring and tiers](https://playmarqit.com/how-to-play): how calls, points, streaks, buddies and rivals work
 - [Daily results](https://playmarqit.com/daily/): every finished day's three calls, the right answers and how the crowd voted
 - [Play today's calls](https://playmarqit.com/): the game itself
+- [About Marqit (playmarqit)](https://playmarqit.com/about): who makes the game and where to find it
 - [Privacy](https://playmarqit.com/privacy) and [Terms](https://playmarqit.com/terms)

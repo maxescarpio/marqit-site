@@ -13,6 +13,12 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://playmarqit.com/about</loc>
+    <lastmod>2026-11-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://playmarqit.com/ambassador</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
@@ -30,15 +36,9 @@
   <!-- daily:start -->
   <url>
     <loc>https://playmarqit.com/daily/</loc>
-    <lastmod>2026-11-18</lastmod>
+    <lastmod>2026-11-17</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://playmarqit.com/daily/2026-11-18</loc>
-    <lastmod>2026-11-18</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://playmarqit.com/daily/2026-11-17</loc>
