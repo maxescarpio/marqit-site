@@ -12,6 +12,7 @@
 
 ## Site basics
 - Static site on Cloudflare (`wrangler.jsonc`), `app.js` renders the game in the browser.
+- `index.html` loads `app.min.js`, a minified copy of `app.js`. After ANY edit to `app.js`, rebuild it with `scripts/minify.sh` and bump the `?v=` on its script tag, or the change won't reach players.
 - Use clean URLs without `.html` (`/how-to-play`, `/privacy`, `/terms`, `/ambassador`) in canonicals, sitemap and links.
 - Internal tool pages stay noindex (`/post`, `/video`, `/howto`, `admin`, `widget`, etc.).
 - `launch-hold/` holds sweepstakes pages that are not live yet. Do not publish them without the owner's say-so.
