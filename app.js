@@ -11659,6 +11659,8 @@
       return { setup: parts.slice(0, qi).join(' '), question: parts[qi] };
     }
     function takeHtml(r){
+      // Yes/No "takes" on news cards were removed (they never counted for points).
+      return '';
       if(!r.take_question) return '';
       var sq = splitQ(mqDecodeEntities(r.take_question));
       return '<div class="news-take" data-take-id="' + escapeHtml(r.id) + '">' +
@@ -11674,7 +11676,7 @@
       var last = (c && s.last_body) ? '<div class="feed-last"><b>' + escapeHtml(s.last_user || 'player') + '</b> ' + escapeHtml(s.last_body) + '</div>' : '';
       return '<div class="feed-foot" data-foot-id="' + escapeHtml(r.id) + '">' + last +
         '<div class="feed-stats"><span class="feed-cmt">' + '<svg class="mq-ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>' + (c ? plural(c, 'comment') : 'Start the discussion') + '</span>' +
-        (Number(s.votes) ? '<span>' + plural(Number(s.votes), 'vote') + '</span>' : '') + '</div></div>';
+        '</div></div>';
     }
     function isYt(r){ return r.kind === 'trend' && /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(r.article_url || ''); }
     function embedHtml(r){
@@ -11972,7 +11974,7 @@
       var rows = await loadRows();
       if(!rows){ this.loaded = false; this.grid.innerHTML = '<p class="news-empty">This is not loading right now. Try again in a minute.</p>'; return; }
       var ids = rows.map(function(r){ return r.id; });
-      var withTake = rows.filter(function(r){ return r.take_question; }).map(function(r){ return r.id; });
+      var withTake = [];
       var trendIds = rows.filter(function(r){ return r.kind === 'trend' && r.trend_rank; }).map(function(r){ return r.id; });
       await Promise.all([loadStats(ids), loadResults(withTake), loadMoves(trendIds)]);
       feeds.forEach(function(f){ if(f.loaded) f.render(); });
