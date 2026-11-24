@@ -1302,7 +1302,7 @@ button[style*="text-align:left"]:not(.hw-step):not(.sf-links button){text-align:
 /* Handshake bets is built in JS, so the browser rewrites its inline style with a space ("text-align: left") and the rule above misses it. Match the other menu items. */
 #hamburger-handshake-btn{text-align:center !important}
 /* Nov 17: News, Rankings and MARQIT+ are out of the menu (News and MARQIT+ are top tabs). Hidden, not removed, so the scripts that look for these buttons keep working. */
-#hamburger-news-btn,#hamburger-rankings-btn,#hamburger-plus-btn{display:none !important}
+#hamburger-news-btn,#hamburger-rankings-btn{display:none !important}
 #nav-badge{justify-content:center}
 
 /* Biggest companies: brand-colored ticker tiles, market-cap bars, change chips */
@@ -2524,3 +2524,5 @@ a.mq-ss-ig{text-decoration:none}
 #hamburger-btn.has-new,#hamburger-news-btn.has-new{position:relative}
 #hamburger-btn.has-new::after,#hamburger-news-btn.has-new::after{content:'';position:absolute;width:8px;height:8px;border-radius:50%;background:#F5644F;top:-3px;right:-3px;box-shadow:0 0 0 2px var(--paper,#14161b)}
 #hamburger-news-btn.has-new::after{top:50%;right:12px;transform:translateY(-50%)}
+/* Marqit+ lives in the Menu, not the tab row. */
+.pagenav-tab[data-page="plus"]{display:none !important}
