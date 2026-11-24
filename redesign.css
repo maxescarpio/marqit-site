@@ -1187,3 +1187,23 @@ html.hs-lock{overflow:hidden}
 /* Pick bar: once all calls are picked, the submit button turns white so it stands out. */
 .pick-dock.ready .pick-submit,.pick-dock.ready #submit-all-btn,.pick-dock.ready #guest-submit-btn,#submit-all-btn.is-ready,#guest-submit-btn.is-ready{background:#fff !important;border-color:#fff !important;color:#111318 !important;font-weight:700 !important;box-shadow:0 0 0 3px rgba(255,255,255,.22)}
 .pick-dock.ready .pick-submit:hover,#submit-all-btn.is-ready:hover,#guest-submit-btn.is-ready:hover{background:#fff !important;filter:none !important;opacity:.92}
+
+/* ===== Leaderboard / Groups page: one aligned column, same card style everywhere ===== */
+#page-leaderboard .section > .wrap{max-width:760px;margin-left:auto;margin-right:auto;padding-left:20px;padding-right:20px}
+#page-leaderboard .hero-lite .wrap{max-width:760px;margin-left:auto;margin-right:auto;padding-left:20px;padding-right:20px}
+#page-leaderboard .ex-title{margin:0 0 4px !important;font-size:22px;letter-spacing:.01em}
+#page-leaderboard .ex-sub{margin:0 0 14px !important}
+#page-leaderboard .section{padding-top:22px;padding-bottom:6px}
+#page-leaderboard #record-card,#page-leaderboard .empty-state,#page-leaderboard .empty-state.empty-inline,#page-leaderboard #group-signed-out,#page-leaderboard #leagues-root .empty-state,#page-leaderboard #big-board-card,#page-leaderboard #top-groups-card{width:100%;max-width:none !important;box-sizing:border-box;margin-left:0;margin-right:0;border-radius:14px;padding:20px}
+#page-leaderboard .empty-state,#page-leaderboard #group-signed-out{display:flex !important;flex-direction:column;align-items:center;text-align:center;gap:6px}
+#page-leaderboard #group-no-group{max-width:none !important;width:100%}
+#page-leaderboard #group-no-group input{width:100%;box-sizing:border-box}
+#page-leaderboard #leagues-root{width:100%;max-width:none !important}
+#page-leaderboard .h2h-sel{width:calc(50% - 22px) !important;min-width:0}
+#page-leaderboard #h2h-select-a,#page-leaderboard #h2h-select-b{box-sizing:border-box}
+#page-leaderboard .board-rows{width:100% !important}
+@media(max-width:640px){#page-leaderboard .h2h-sel{width:100% !important}}
+#page-leaderboard #groups-section,#page-leaderboard #groups-section>*{width:100%;max-width:none !important;box-sizing:border-box}
+#page-leaderboard .board{width:100%;max-width:none !important;box-sizing:border-box;margin-left:0;margin-right:0}
+#page-leaderboard .lb-cat-h{margin-top:22px !important}
+#page-leaderboard .boards,#page-leaderboard .boards.one{grid-template-columns:minmax(0,1fr) !important;width:100%}
