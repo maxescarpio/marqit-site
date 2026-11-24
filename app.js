@@ -8810,7 +8810,7 @@
       list.push(mqSynth[id]);
     });
     var res = mqModeEvents(list);
-    return res.length ? res : mqFillerEvents(day);
+    return res;
   }
 
   // A day is never blank: when nothing is on the books, the day shows what always happens on that weekday.
@@ -10945,7 +10945,7 @@
       var showMonth = i === 0 || dt.getUTCDate() === 1;
       var monthTxt = showMonth ? dt.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }) : '';
       return '<button type="button" class="sched-day' + (n ? ' has' : '') + (d === today ? ' today' : '') + (d < today ? ' past' : '') + (d === sel ? ' sel' : '') + (dt.getUTCDay() === 1 && i > 0 ? ' wk' : '') + '" data-day="' + d + '" aria-pressed="' + (d === sel) + '">' +
-        '<u class="sd-mo">' + monthTxt + '</u><b>' + (d === today ? 'Today' : dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })) + '</b><span>' + dt.getUTCDate() + '</span><em>' + (n ? n + ' ' + (mqMode() === 'sports' || (mqMode() === 'all' && !dayLists[d].every(function(e){ return e.filler; })) ? 'game' : 'event') + (n === 1 ? '' : 's') : 'Off') + '</em></button>';
+        '<u class="sd-mo">' + monthTxt + '</u><b>' + (d === today ? 'Today' : dt.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })) + '</b><span>' + dt.getUTCDate() + '</span><em>' + (n ? n + ' ' + (mqMode() === 'sports' || (dayLists[d].length > 0 && dayLists[d].every(function(e){ return e.category === 'sports'; })) ? 'game' : 'event') + (n === 1 ? '' : 's') : 'Off') + '</em></button>';
     }).join('');
     if(mqSchedLast.days !== daysHtml){ daysEl.innerHTML = daysHtml; mqSchedLast.days = daysHtml; }
     daysEl.scrollLeft = keepDays;
