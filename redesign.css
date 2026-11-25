@@ -1188,22 +1188,39 @@ html.hs-lock{overflow:hidden}
 .pick-dock.ready .pick-submit,.pick-dock.ready #submit-all-btn,.pick-dock.ready #guest-submit-btn,#submit-all-btn.is-ready,#guest-submit-btn.is-ready{background:#fff !important;border-color:#fff !important;color:#111318 !important;font-weight:700 !important;box-shadow:0 0 0 3px rgba(255,255,255,.22)}
 .pick-dock.ready .pick-submit:hover,#submit-all-btn.is-ready:hover,#guest-submit-btn.is-ready:hover{background:#fff !important;filter:none !important;opacity:.92}
 
-/* ===== Leaderboard / Groups page: one aligned column, same card style everywhere ===== */
-#page-leaderboard .section > .wrap{max-width:760px;margin-left:auto;margin-right:auto;padding-left:20px;padding-right:20px}
-#page-leaderboard .hero-lite .wrap{max-width:760px;margin-left:auto;margin-right:auto;padding-left:20px;padding-right:20px}
-#page-leaderboard .ex-title{margin:0 0 4px !important;font-size:22px;letter-spacing:.01em}
-#page-leaderboard .ex-sub{margin:0 0 14px !important}
-#page-leaderboard .section{padding-top:22px;padding-bottom:6px}
-#page-leaderboard #record-card,#page-leaderboard .empty-state,#page-leaderboard .empty-state.empty-inline,#page-leaderboard #group-signed-out,#page-leaderboard #leagues-root .empty-state,#page-leaderboard #big-board-card,#page-leaderboard #top-groups-card{width:100%;max-width:none !important;box-sizing:border-box;margin-left:0;margin-right:0;border-radius:14px;padding:20px}
-#page-leaderboard .empty-state,#page-leaderboard #group-signed-out{display:flex !important;flex-direction:column;align-items:center;text-align:center;gap:6px}
+/* ===== Leaderboard tab: side-by-side grid, minimal scrolling ===== */
+#page-leaderboard .hero-lite{padding-top:26px;padding-bottom:14px}
+#page-leaderboard .section{padding-top:14px;padding-bottom:6px}
+#page-leaderboard .section > .wrap,#page-leaderboard .hero-lite .wrap{max-width:1240px;margin-left:auto;margin-right:auto;padding-left:20px;padding-right:20px}
+#page-leaderboard .ex-title{margin:0 0 4px !important;font-size:20px;letter-spacing:.01em}
+#page-leaderboard .ex-sub{margin:0 0 12px !important}
+#page-leaderboard .recap-card,#page-leaderboard #record-card,#page-leaderboard .board,#page-leaderboard .empty-state,#page-leaderboard #group-signed-out,#page-leaderboard #h2h-result{width:100%;max-width:none !important;box-sizing:border-box;margin:0 !important;border-radius:14px}
+#page-leaderboard .empty-state,#page-leaderboard #group-signed-out{display:flex !important;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:18px}
 #page-leaderboard #group-no-group{max-width:none !important;width:100%}
 #page-leaderboard #group-no-group input{width:100%;box-sizing:border-box}
-#page-leaderboard #leagues-root{width:100%;max-width:none !important}
-#page-leaderboard .h2h-sel{width:calc(50% - 22px) !important;min-width:0}
-#page-leaderboard #h2h-select-a,#page-leaderboard #h2h-select-b{box-sizing:border-box}
+#page-leaderboard .gp-grid{max-width:none;grid-template-columns:minmax(0,1fr) !important}
 #page-leaderboard .board-rows{width:100% !important}
+#page-leaderboard #groups-section,#page-leaderboard #groups-section>*{max-width:none !important;box-sizing:border-box}
+#page-leaderboard .h2h-sel{width:calc(50% - 22px) !important;min-width:0;box-sizing:border-box}
+#page-leaderboard .boards,#page-leaderboard .boards.one,#page-leaderboard .boards.lb-big{grid-template-columns:minmax(0,1fr) !important;width:100%;margin:0 !important}
+#page-leaderboard .boards.lb-cats{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
+@media(min-width:1000px){
+  #page-leaderboard section:nth-of-type(2)>.wrap{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px;align-items:start}
+  #page-leaderboard section:nth-of-type(3)>.wrap{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:16px;align-items:start}
+  #page-leaderboard section:nth-of-type(2)>.wrap>.recap-card{grid-row:1}
+  #page-leaderboard #top-predictor-line{grid-column:1/-1;margin:12px 0 0 !important}
+  #page-leaderboard section:nth-of-type(3)>.wrap>h3:first-child,#page-leaderboard section:nth-of-type(3)>.wrap>h3:first-child+p{grid-column:1}
+  #page-leaderboard section:nth-of-type(3)>.wrap>#group-signed-out,#page-leaderboard section:nth-of-type(3)>.wrap>#group-no-group,#page-leaderboard section:nth-of-type(3)>.wrap>#group-in-group{grid-column:1}
+  #page-leaderboard #groups-section{grid-column:2;grid-row:1/span 7}
+  #page-leaderboard .boards.lb-big{grid-column:3;grid-row:1/span 7}
+  #page-leaderboard .lb-lg-h,#page-leaderboard .lb-lg-p,#page-leaderboard #leagues-root{grid-column:1}
+  #page-leaderboard .lb-lg-h{margin-top:18px !important}
+  #page-leaderboard .lb-cat-h,#page-leaderboard .boards.lb-cats{grid-column:1/-1}
+  #page-leaderboard .lb-cat-h{margin-top:18px !important}
+  #page-leaderboard #groups-section>h3:not(:first-child){margin-top:18px !important}
+}
+@media(max-width:999px){
+  #page-leaderboard .boards.lb-cats{grid-template-columns:minmax(0,1fr) !important}
+  #page-leaderboard .recap-card{margin-bottom:12px !important}
+}
 @media(max-width:640px){#page-leaderboard .h2h-sel{width:100% !important}}
-#page-leaderboard #groups-section,#page-leaderboard #groups-section>*{width:100%;max-width:none !important;box-sizing:border-box}
-#page-leaderboard .board{width:100%;max-width:none !important;box-sizing:border-box;margin-left:0;margin-right:0}
-#page-leaderboard .lb-cat-h{margin-top:22px !important}
-#page-leaderboard .boards,#page-leaderboard .boards.one{grid-template-columns:minmax(0,1fr) !important;width:100%}
