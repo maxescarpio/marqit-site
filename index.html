@@ -61,7 +61,7 @@
 <noscript><style>.cta-band,.site-foot{visibility:visible!important}</style></noscript>
 <link rel="stylesheet" href="style.css?v=20261112a">
 <link rel="stylesheet" href="refresh.css?v=20261124a">
-<link rel="stylesheet" href="redesign.css?v=20261125a">
+<link rel="stylesheet" href="redesign.css?v=20261126a">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -699,8 +699,6 @@
   <div class="wrap">
     <div class="recap-card record-card" id="record-card">
       <div class="recap-head">Your record</div>
-      <div class="rec-rings" id="rec-rings"></div>
-      <div class="recap-foot" id="rec-foot"></div>
       <div class="rec-cal-wrap">
         <div class="rec-month"><button type="button" id="rec-prev" aria-label="Previous month">‹</button><span id="rec-month-label"></span><button type="button" id="rec-next" aria-label="Next month">›</button></div>
         <div class="rec-dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
@@ -708,34 +706,62 @@
         <div class="rec-legend"><span><i style="background:linear-gradient(160deg,#F7D466,#D9A21F)"></i>Perfect Day</span><span><i style="background:rgba(51,209,139,.88)"></i>2 right</span><span><i style="background:rgba(51,209,139,.42)"></i>1 right</span><span><i style="background:rgba(245,100,79,.6)"></i>None right</span><span><i style="background:rgba(128,136,150,.35)"></i>Missed</span></div>
         <div class="rec-day" id="rec-day" hidden></div>
       </div>
+      <div class="recap-foot" id="rec-foot"></div>
+      <details class="lb-acc lb-acc-in"><summary><span class="lb-acc-t">Accuracy by category</span></summary><div class="rec-rings" id="rec-rings"></div></details>
     </div>
-    <div class="recap-card" id="recap-card" style="margin-top:14px; border-top:3px solid #128A50;">
-      <div class="recap-head">This week</div>
-      <div class="recap-strip" id="recap-strip" style="display:none;">
-        <div class="rs-streak"><strong id="recap-strip-streak" style="color:#128A50;">0</strong><span>Day streak</span></div>
-        <div class="rs-days" id="recap-strip-days"></div>
+    <details class="recap-card lb-acc" id="recap-card">
+      <summary><span class="lb-acc-t">This week</span>
+        <div class="recap-stats" id="recap-stats">
+          <div><strong id="recap-accuracy" style="color:#128A50;">0%</strong><span>Accuracy</span></div>
+          <div><strong id="recap-predictions" style="color:#128A50;">0</strong><span>Predictions</span></div>
+          <div><strong id="recap-streak" style="color:#128A50;">0</strong><span>Day streak</span></div>
+        </div>
+      </summary>
+      <div class="lb-acc-body">
+        <div class="recap-strip" id="recap-strip" style="display:none;">
+          <div class="rs-streak"><strong id="recap-strip-streak" style="color:#128A50;">0</strong><span>Day streak</span></div>
+          <div class="rs-days" id="recap-strip-days"></div>
+        </div>
+        <div class="recap-foot" id="recap-foot"></div>
       </div>
-      <div class="recap-stats" id="recap-stats">
-        <div><strong id="recap-accuracy" style="color:#128A50;">0%</strong><span>Accuracy</span></div>
-        <div><strong id="recap-predictions" style="color:#128A50;">0</strong><span>Predictions</span></div>
-        <div><strong id="recap-streak" style="color:#128A50;">0</strong><span>Day streak</span></div>
-      </div>
-      <div class="recap-foot" id="recap-foot"></div>
-    </div>
-    <div class="recap-card mycalls-card" id="mycalls-card" style="margin-top:14px;">
-      <div class="recap-head">My calls</div>
-      <div class="mycalls-rate" id="mycalls-rate"></div>
-      <div class="mycalls-list" id="mycalls-list"></div>
-    </div>
-    <p class="ex-sub" style="margin-top:16px;" id="top-predictor-line"><i class="sk" style="width:62%;height:14px;"></i></p>
+    </details>
+    <details class="recap-card mycalls-card lb-acc" id="mycalls-card">
+      <summary><span class="lb-acc-t">My calls</span><div class="mycalls-rate" id="mycalls-rate"></div></summary>
+      <div class="lb-acc-body"><div class="mycalls-list" id="mycalls-list"></div></div>
+    </details>
+    <p class="ex-sub" id="top-predictor-line"><i class="sk" style="width:62%;height:14px;"></i></p>
   </div>
 </section>
 
 <section class="section">
   <div class="wrap">
-    <h3 class="ex-title" style="margin-top:0;">Groups</h3>
-    <p class="ex-sub">Your own leaderboard. Same 3 daily calls.</p>
-
+    <div class="boards lb-big">
+      <div class="board" style="--tint:246,196,48;">
+        <div class="bb-head"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#F5C336" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg><h3 class="ex-title">Marqit Big Board</h3></div>
+        <div class="scope-tab-row" id="lb-scope-tabs">
+          <button type="button" class="scope-tab active" data-scope="worldwide">Worldwide</button>
+          <button type="button" class="scope-tab" data-scope="state"><span id="state-board-title">Your state</span></button>
+          <button type="button" class="scope-tab" data-scope="campus"><span id="campus-board-title">Your campus</span></button>
+          <button type="button" class="scope-tab" data-scope="campuses">Campus vs campus</button>
+          <button type="button" class="scope-tab" data-scope="friends">Friends</button>
+          <button type="button" class="scope-tab" data-scope="streak">Active streaks</button>
+        </div>
+        <div class="board-rows" id="big-board-rows">
+          <div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>
+        </div>
+        <div class="board-rows" id="board-state" style="display:none;">
+          <div class="brow"><span>Set your state to see this.</span></div>
+        </div>
+        <div class="board-rows" id="board-campus" style="display:none;">
+          <div class="brow"><span>Add your campus in your profile to see this.</span></div>
+        </div>
+        <div class="board-rows" id="board-campuses" style="display:none;">
+          <div class="brow"><span>Loading campuses...</span></div>
+        </div>
+      </div>
+    </div>
+    <details class="lb-sec lb-acc lb-sec-groups"><summary><span class="lb-acc-l"><span class="lb-acc-t">Groups</span><small>Your own leaderboard. Same 3 daily calls.</small></span></summary>
+      <div class="lb-sec-body">
     <div id="group-signed-out" class="empty-state empty-inline">
       <span class="es-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3.2"/><circle cx="17" cy="10" r="2.5"/><path d="M3 19c.6-3 3-4.5 6-4.5s5.4 1.5 6 4.5M15.5 14.6c2.6-.3 4.6.9 5.5 3.4"/></svg></span>
       <div class="es-title">Play with your people</div>
@@ -798,9 +824,12 @@
       </div>
       </div>
     </div>
-
+      </div>
+    </details>
+    <details class="lb-sec lb-acc lb-sec-top"><summary><span class="lb-acc-l"><span class="lb-acc-t">Top groups and head-to-head</span><small>Compare groups and see who is winning.</small></span></summary>
+      <div class="lb-sec-body">
     <div id="groups-section">
-      <h3 class="ex-title" style="margin-top:30px;">Top Groups</h3>
+      <h3 class="ex-title" style="margin-top:0;">Top Groups</h3>
       <p class="ex-sub">Ranked by combined points. The more people you bring in, the higher your group climbs.</p>
       <div class="boards one">
         <div class="board" style="--tint:219,102,83;">
@@ -818,52 +847,33 @@
       </div>
       <div id="h2h-result" style="display:none; max-width:560px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 20px;"></div>
     </div>
-
-    <div class="boards lb-big" style="margin-top:30px;">
-      <div class="board" style="--tint:246,196,48;">
-        <div class="bb-head"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#F5C336" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg><h3 class="ex-title">Marqit Big Board</h3></div>
-        <div class="scope-tab-row" id="lb-scope-tabs">
-          <button type="button" class="scope-tab active" data-scope="worldwide">Worldwide</button>
-          <button type="button" class="scope-tab" data-scope="state"><span id="state-board-title">Your state</span></button>
-          <button type="button" class="scope-tab" data-scope="campus"><span id="campus-board-title">Your campus</span></button>
-          <button type="button" class="scope-tab" data-scope="campuses">Campus vs campus</button>
-          <button type="button" class="scope-tab" data-scope="friends">Friends</button>
-          <button type="button" class="scope-tab" data-scope="streak">Active streaks</button>
-        </div>
-        <div class="board-rows" id="big-board-rows">
-          <div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div>
-        </div>
-        <div class="board-rows" id="board-state" style="display:none;">
-          <div class="brow"><span>Set your state to see this.</span></div>
-        </div>
-        <div class="board-rows" id="board-campus" style="display:none;">
-          <div class="brow"><span>Add your campus in your profile to see this.</span></div>
-        </div>
-        <div class="board-rows" id="board-campuses" style="display:none;">
-          <div class="brow"><span>Loading campuses...</span></div>
-        </div>
       </div>
-    </div>
-
+    </details>
     <h3 class="ex-title lb-cat-h" style="margin-top:30px;">Category</h3>
     <div class="boards lb-cats">
       <div class="board">
-        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#C77D2E" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.5 5.5c3 3 3 10 0 13M18.5 5.5c-3 3-3 10 0 13"/></svg>Sports</div>
+        <details class="lb-acc lb-acc-in"><summary><div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#C77D2E" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.5 5.5c3 3 3 10 0 13M18.5 5.5c-3 3-3 10 0 13"/></svg>Sports</div></summary>
         <div class="board-rows" id="board-sports"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
+        </details>
       </div>
       <div class="board">
-        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#8A4FBF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l1.5-4h4L7 8M9 8l1.5-4h4L13 8M15 8l1.5-4h3.5L19 8"/><rect x="3" y="8" width="18" height="12" rx="1.5"/></svg>Pop culture</div>
+        <details class="lb-acc lb-acc-in"><summary><div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#8A4FBF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l1.5-4h4L7 8M9 8l1.5-4h4L13 8M15 8l1.5-4h3.5L19 8"/><rect x="3" y="8" width="18" height="12" rx="1.5"/></svg>Pop culture</div></summary>
         <div class="board-rows" id="board-pop_culture"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
+        </details>
       </div>
       <div class="board">
-        <div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#2D5FA6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h13a2 2 0 0 1 2 2v13a1 1 0 0 1-1.7.7L4 19V4z"/><path d="M8 8h7M8 12h7M8 16h4"/></svg>News</div>
+        <details class="lb-acc lb-acc-in"><summary><div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#2D5FA6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h13a2 2 0 0 1 2 2v13a1 1 0 0 1-1.7.7L4 19V4z"/><path d="M8 8h7M8 12h7M8 16h4"/></svg>News</div></summary>
         <div class="board-rows" id="board-news"><div class="skel-rows"><i class="sk"></i><i class="sk"></i><i class="sk"></i></div></div>
+        </details>
       </div>
     </div>
-
-    <h3 class="ex-title lb-lg-h" style="margin-top:0;">Leagues</h3>
-    <p class="ex-sub lb-lg-p">Private leagues for friends, coworkers or family. Same 3 daily calls, your own standings. Free to join.</p>
-    <div id="leagues-root"></div>
+    <details class="lb-sec lb-acc lb-sec-leagues"><summary><span class="lb-acc-l"><span class="lb-acc-t">Leagues</span><small>Private leagues for friends, coworkers or family.</small></span></summary>
+      <div class="lb-sec-body">
+        <p class="ex-sub">Same 3 daily calls, your own standings. Free to join.</p>
+        <div id="leagues-root"></div>
+      </div>
+    </details>
+    <script>(function(){var h=document.documentElement;function s(){var o=!!h.getAttribute("data-mode");document.querySelectorAll("#page-leaderboard .lb-cats details").forEach(function(d){d.open=o})}s();new MutationObserver(s).observe(h,{attributes:true,attributeFilter:["data-mode"]})})();</script>
   </div>
 </section>
 </div>

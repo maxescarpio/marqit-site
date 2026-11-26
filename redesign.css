@@ -1224,3 +1224,59 @@ html.hs-lock{overflow:hidden}
   #page-leaderboard .recap-card{margin-bottom:12px !important}
 }
 @media(max-width:640px){#page-leaderboard .h2h-sel{width:100% !important}}
+
+/* ===== Leaderboard layout (2026-11-26): calendar first, everything else in dropdowns ===== */
+#page-leaderboard .section > .wrap{max-width:760px !important}
+#page-leaderboard section:nth-of-type(2) > .wrap{display:block !important}
+#page-leaderboard section:nth-of-type(3) > .wrap{display:flex !important;flex-direction:column;gap:10px}
+/* Your record: the calendar is the first thing you see */
+#page-leaderboard #record-card{display:block !important;padding:18px 18px 6px !important}
+#page-leaderboard #record-card .rec-cal-wrap{max-width:440px !important;margin:8px auto 0 !important;padding:0 !important;border:0 !important}
+#page-leaderboard #record-card .rec-cal-wrap>*{max-width:none !important}
+#page-leaderboard #record-card .rec-dow,#page-leaderboard #record-card .rec-cal{gap:8px !important}
+#page-leaderboard #record-card .rec-dow span{font-size:12px}
+#page-leaderboard #record-card .rec-legend{font-size:11.5px;gap:8px 16px;margin-top:14px}
+#page-leaderboard #record-card .recap-foot{text-align:center;border:0 !important;margin:12px 0 4px !important;padding:0 !important}
+#page-leaderboard #record-card .rec-rings{border:0 !important;margin:0 !important;padding:4px 0 16px !important}
+#page-leaderboard #record-card .rec-ring svg{width:64px !important;height:64px !important}
+#page-leaderboard #record-card .lb-acc-in{border-top:1px solid var(--line);margin-top:10px}
+#page-leaderboard #record-card .lb-acc-in>summary{padding:14px 0}
+/* Dropdown rows */
+.lb-acc>summary{list-style:none;display:flex;align-items:center;gap:12px;min-height:52px;padding:12px 16px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.lb-acc>summary::-webkit-details-marker{display:none}
+.lb-acc>summary::after{content:"";flex:none;width:8px;height:8px;margin:-3px 2px 0 4px;border-right:2px solid var(--ink-soft);border-bottom:2px solid var(--ink-soft);transform:rotate(45deg);transition:transform .2s}
+.lb-acc[open]>summary::after{margin-top:3px;transform:rotate(-135deg)}
+.lb-acc>summary:focus-visible{outline:2px solid rgba(70,140,255,.7);outline-offset:2px;border-radius:10px}
+.lb-acc-t{font-size:15px;font-weight:700;color:var(--ink)}
+.lb-acc-l{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.lb-acc-l small{font-size:12.5px;color:var(--ink-soft);font-weight:500}
+.lb-acc-body{padding:2px 16px 16px}
+#page-leaderboard details.recap-card{padding:0 !important}
+#page-leaderboard details.recap-card>summary .recap-stats{display:flex;gap:14px;margin:0 0 0 auto;padding:0;border:0}
+#page-leaderboard details.recap-card>summary .recap-stats>div{display:flex;align-items:baseline;gap:4px;text-align:left}
+#page-leaderboard details.recap-card>summary .recap-stats strong{font-size:16px}
+#page-leaderboard details.recap-card>summary .recap-stats span{font-size:11px;color:var(--ink-soft)}
+#page-leaderboard details.recap-card>summary .mycalls-rate{margin:0 0 0 auto}
+#page-leaderboard details.recap-card>summary .mycalls-rate b{font-size:20px}
+#page-leaderboard details.recap-card>summary .mycalls-rate span{font-size:11px}
+#page-leaderboard #recap-card,#page-leaderboard #mycalls-card{margin-top:10px !important}
+#page-leaderboard #top-predictor-line{margin:10px 2px 0 !important;font-size:13px}
+/* Standings sections */
+details.lb-sec{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.lb-sec-body{padding:2px 16px 16px}
+.lb-sec-body .boards,.lb-sec-body .board{margin:0 !important}
+.lb-sec-body #groups-section>h3.ex-title:first-child{margin-top:0 !important}
+.lb-sec-body #groups-section>h3.ex-title:not(:first-child){margin-top:20px !important}
+#page-leaderboard .lb-cat-h{margin:8px 2px 0 !important}
+html:not([data-mode]) #page-leaderboard .boards.lb-cats{display:flex !important;flex-direction:column;gap:10px}
+#page-leaderboard .lb-cats .board>details>summary{padding:12px 16px}
+#page-leaderboard .lb-cats .board>details>summary .board-title{margin:0;flex:1}
+#page-leaderboard .lb-cats .board>details>.board-rows{padding:0 16px 14px}
+#page-leaderboard section:nth-of-type(3) > .wrap{align-items:stretch !important}
+#page-leaderboard details.lb-sec{width:100%;box-sizing:border-box}
+.lb-acc>summary>.lb-acc-t:only-child{flex:1}
+#page-leaderboard details.recap-card>summary .recap-stats span{white-space:nowrap}
+#page-leaderboard .lb-cats .board{padding:0 !important}
+#page-leaderboard .lb-cats .board>details>summary{min-height:48px;padding:10px 16px}
+#page-leaderboard .lb-cats .board>details>summary .board-title{margin:0 !important;padding:0 !important}
+@media(max-width:520px){#page-leaderboard details.recap-card>summary .recap-stats>div:nth-child(2),#page-leaderboard details.recap-card>summary .recap-stats>div:nth-child(3){display:none}}
