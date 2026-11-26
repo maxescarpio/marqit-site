@@ -1430,3 +1430,24 @@ html[data-mode] #page-leaderboard .lb-col:has(#rings-card){display:none}
 #page-leaderboard .boards.lb-big .board{background-image:none}
 .lb-sec-body .board,#page-leaderboard .lb-cats .board{border-color:var(--line) !important}
 .bb-head + .lb-help{margin:8px 0 14px !important}
+
+/* leaderboard: tell the boxes apart. Big cards = heavy outline; dropdown rows = icon chip + tag, lighter */
+#page-leaderboard #record-card,#page-leaderboard .boards.lb-big>.board{border:2px solid var(--ink) !important;border-radius:16px;background:var(--panel) !important;box-shadow:none !important}
+#page-leaderboard #record-card .recap-head,#page-leaderboard .bb-head{font-size:20px;font-weight:800;letter-spacing:.01em;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+#page-leaderboard details.lb-acc:not(.lb-acc-in){background:transparent !important;border:1px dashed rgba(128,136,150,.55) !important;border-radius:12px}
+#page-leaderboard details.lb-acc:not(.lb-acc-in)[open]{border-style:solid !important}
+.lb-acc:not(.lb-acc-in)>summary::before{display:block !important;content:"";width:34px !important;height:34px !important;border-radius:9px !important;border:1.5px solid var(--ink);background:var(--ink) !important;-webkit-mask:var(--ic) center/20px 20px no-repeat;mask:var(--ic) center/20px 20px no-repeat;border:0}
+#recap-card{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E")}
+#rings-card{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Ccircle cx='12' cy='12' r='5'/%3E%3Ccircle cx='12' cy='12' r='1'/%3E%3C/svg%3E")}
+#mycalls-card{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6h12M9 12h12M9 18h12M3.5 6l1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2'/%3E%3C/svg%3E")}
+.lb-sec-leagues{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z'/%3E%3C/svg%3E")}
+.lb-sec-groups{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='8' r='3.2'/%3E%3Cpath d='M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6'/%3E%3Cpath d='M16 5a3 3 0 0 1 0 6M18 14c2 .7 3 2.600 3 5'/%3E%3C/svg%3E")}
+.lb-sec-top{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 21V11M12 21V4M19 21v-7'/%3E%3C/svg%3E")}
+.lb-acc:not(.lb-acc-in)>summary .lb-acc-t::after{margin-left:8px;padding:2px 7px;border:1px solid var(--line);border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--ink-soft);vertical-align:2px}
+#recap-card>summary .lb-acc-t::after{content:"YOU"}
+#rings-card>summary .lb-acc-t::after{content:"YOU"}
+#mycalls-card>summary .lb-acc-t::after{content:"YOU"}
+.lb-sec-leagues>summary .lb-acc-t::after{content:"WITH OTHERS"}
+.lb-sec-groups>summary .lb-acc-t::after{content:"WITH OTHERS"}
+.lb-sec-top>summary .lb-acc-t::after{content:"WITH OTHERS"}
+#page-leaderboard .lb-cat-h{font-size:20px;font-weight:800;padding-top:14px;border-top:2px solid var(--ink)}
