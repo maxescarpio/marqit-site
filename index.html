@@ -61,7 +61,7 @@
 <noscript><style>.cta-band,.site-foot{visibility:visible!important}</style></noscript>
 <link rel="stylesheet" href="style.css?v=20261112a">
 <link rel="stylesheet" href="refresh.css?v=20261124a">
-<link rel="stylesheet" href="redesign.css?v=20261126e">
+<link rel="stylesheet" href="redesign.css?v=20261126h">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -707,34 +707,37 @@
         <div class="rec-day" id="rec-day" hidden></div>
       </div>
       <div class="recap-foot" id="rec-foot"></div>
-      <details class="lb-acc lb-acc-in"><summary><span class="lb-acc-t">Accuracy by category</span></summary><div class="rec-rings" id="rec-rings"></div></details>
     </div>
-    <details class="recap-card lb-acc" id="recap-card">
-      <summary><span class="lb-acc-t">This week</span>
-        <div class="recap-stats" id="recap-stats">
-          <div><strong id="recap-accuracy" style="color:#128A50;">0%</strong><span>Accuracy</span></div>
-          <div><strong id="recap-predictions" style="color:#128A50;">0</strong><span>Predictions</span></div>
-          <div><strong id="recap-streak" style="color:#128A50;">0</strong><span>Day streak</span></div>
+    <div class="lb-col">
+      <details class="recap-card lb-acc" id="recap-card">
+        <summary><span class="lb-acc-t">This week</span>
+          <div class="recap-stats" id="recap-stats">
+            <div><strong id="recap-accuracy" style="color:#128A50;">0%</strong><span>Accuracy</span></div>
+            <div><strong id="recap-predictions" style="color:#128A50;">0</strong><span>Predictions</span></div>
+            <div><strong id="recap-streak" style="color:#128A50;">0</strong><span>Day streak</span></div>
+          </div>
+        </summary>
+        <div class="lb-acc-body">
+          <div class="recap-strip" id="recap-strip" style="display:none;">
+            <div class="rs-streak"><strong id="recap-strip-streak" style="color:#128A50;">0</strong><span>Day streak</span></div>
+            <div class="rs-days" id="recap-strip-days"></div>
+          </div>
+          <div class="recap-foot" id="recap-foot"></div>
         </div>
-      </summary>
-      <div class="lb-acc-body">
-        <div class="recap-strip" id="recap-strip" style="display:none;">
-          <div class="rs-streak"><strong id="recap-strip-streak" style="color:#128A50;">0</strong><span>Day streak</span></div>
-          <div class="rs-days" id="recap-strip-days"></div>
-        </div>
-        <div class="recap-foot" id="recap-foot"></div>
-      </div>
-    </details>
-    <details class="recap-card mycalls-card lb-acc" id="mycalls-card">
-      <summary><span class="lb-acc-t">My calls</span><div class="mycalls-rate" id="mycalls-rate"></div></summary>
-      <div class="lb-acc-body"><div class="mycalls-list" id="mycalls-list"></div></div>
-    </details>
-    <p class="ex-sub" id="top-predictor-line"><i class="sk" style="width:62%;height:14px;"></i></p>
+      </details>
+        <details class="recap-card lb-acc" id="rings-card"><summary><span class="lb-acc-t">Accuracy by category</span></summary><div class="lb-acc-body"><div class="rec-rings" id="rec-rings"></div></div></details>
+      <details class="recap-card mycalls-card lb-acc" id="mycalls-card">
+        <summary><span class="lb-acc-t">My calls</span><div class="mycalls-rate" id="mycalls-rate"></div></summary>
+        <div class="lb-acc-body"><div class="mycalls-list" id="mycalls-list"></div></div>
+      </details>
+      <p class="ex-sub" id="top-predictor-line"><i class="sk" style="width:62%;height:14px;"></i></p>
+    </div>
   </div>
 </section>
 
 <section class="section">
   <div class="wrap">
+    <div class="lb-col lb-col-a">
     <div class="boards lb-big">
       <div class="board" style="--tint:246,196,48;">
         <div class="bb-head"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#F5C336" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg><h3 class="ex-title">Marqit Big Board</h3></div>
@@ -760,6 +763,14 @@
         </div>
       </div>
     </div>
+    <details class="lb-sec lb-acc lb-sec-leagues"><summary><span class="lb-acc-l"><span class="lb-acc-t">Leagues</span><small>Private leagues for friends, coworkers or family.</small></span></summary>
+      <div class="lb-sec-body">
+        <p class="ex-sub">Same 3 daily calls, your own standings. Free to join.</p>
+        <div id="leagues-root"></div>
+      </div>
+    </details>
+    </div>
+    <div class="lb-col lb-col-b">
     <details class="lb-sec lb-acc lb-sec-groups"><summary><span class="lb-acc-l"><span class="lb-acc-t">Groups</span><small>Your own leaderboard. Same 3 daily calls.</small></span></summary>
       <div class="lb-sec-body">
     <div id="group-signed-out" class="empty-state empty-inline">
@@ -849,6 +860,7 @@
     </div>
       </div>
     </details>
+    </div>
     <h3 class="ex-title lb-cat-h" style="margin-top:30px;">Category</h3>
     <div class="boards lb-cats">
       <div class="board">
@@ -867,13 +879,8 @@
         </details>
       </div>
     </div>
-    <details class="lb-sec lb-acc lb-sec-leagues"><summary><span class="lb-acc-l"><span class="lb-acc-t">Leagues</span><small>Private leagues for friends, coworkers or family.</small></span></summary>
-      <div class="lb-sec-body">
-        <p class="ex-sub">Same 3 daily calls, your own standings. Free to join.</p>
-        <div id="leagues-root"></div>
-      </div>
-    </details>
     <script>(function(){var h=document.documentElement;function s(){var o=!!h.getAttribute("data-mode");document.querySelectorAll("#page-leaderboard .lb-cats details").forEach(function(d){d.open=o})}s();new MutationObserver(s).observe(h,{attributes:true,attributeFilter:["data-mode"]})})();</script>
+    <script>(function(){if(!window.matchMedia||!matchMedia("(min-width:900px)").matches)return;["recap-card","rings-card","mycalls-card"].forEach(function(i){var e=document.getElementById(i);if(e)e.open=true});document.querySelectorAll("#page-leaderboard .lb-sec").forEach(function(e){e.open=true})})();</script>
   </div>
 </section>
 </div>

@@ -1356,3 +1356,41 @@ details.lb-acc.lb-sec-leagues{--acc:170,112,255}
   #page-leaderboard section:nth-of-type(2) > .wrap{grid-template-rows:auto auto 1fr}
   html:not([data-mode]) #page-leaderboard section:nth-of-type(3) > .wrap{grid-template-rows:auto auto 1fr auto auto}
 }
+
+/* ===== Leaderboard: no empty gaps (2026-11-26g) ===== */
+.lb-col{display:flex;flex-direction:column;gap:10px;min-width:0}
+#page-leaderboard section:nth-of-type(2) > .wrap > .lb-col{margin-top:10px}
+html[data-mode] #page-leaderboard .lb-col:has(#rings-card){display:none}
+.lb-col:has(#recap-card[style*="none"]) #rings-card{display:none}
+.lb-col>details[open]{flex:1 1 auto}
+#page-leaderboard .boards.lb-big .board{height:100%;box-sizing:border-box}
+@media(min-width:900px){
+  #page-leaderboard section:nth-of-type(2) > .wrap{grid-template-rows:auto;align-items:stretch}
+  #page-leaderboard .section:nth-of-type(2) > .wrap > #record-card{grid-column:1;grid-row:1}
+  #page-leaderboard section:nth-of-type(2) > .wrap > .lb-col{grid-column:2;grid-row:1;margin-top:0}
+  #page-leaderboard section:nth-of-type(2) > .wrap:has(#recap-card[style*="none"]){grid-template-columns:minmax(0,1fr)}
+  #page-leaderboard section:nth-of-type(2) > .wrap:has(#recap-card[style*="none"]) > .lb-col{grid-column:1;grid-row:2;margin-top:0}
+  #page-leaderboard #record-card{display:flex !important;flex-direction:column}
+  #page-leaderboard #record-card .rec-cal-wrap{margin:auto !important;width:100%}
+  html:not([data-mode]) #page-leaderboard section:nth-of-type(3) > .wrap{grid-template-rows:auto auto auto;align-items:stretch !important}
+  html:not([data-mode]) #page-leaderboard .boards.lb-big{grid-column:1;grid-row:1}
+  html:not([data-mode]) #page-leaderboard section:nth-of-type(3) > .wrap > .lb-col{grid-column:2;grid-row:1}
+  html:not([data-mode]) #page-leaderboard .lb-cat-h{grid-column:1 / -1;grid-row:2}
+  html:not([data-mode]) #page-leaderboard .boards.lb-cats{grid-column:1 / -1;grid-row:3;align-items:start}
+}
+.lb-col>.boards.lb-big{flex:1 1 auto}
+@media(max-width:899px){
+  #page-leaderboard section:nth-of-type(3) > .wrap > .lb-col{display:contents}
+  html:not([data-mode]) #page-leaderboard .boards.lb-big{order:1}
+  html:not([data-mode]) #page-leaderboard details.lb-sec-groups{order:2}
+  html:not([data-mode]) #page-leaderboard details.lb-sec-top{order:3}
+  html:not([data-mode]) #page-leaderboard details.lb-sec-leagues{order:4}
+  html:not([data-mode]) #page-leaderboard .lb-cat-h{order:5}
+  html:not([data-mode]) #page-leaderboard .boards.lb-cats{order:6}
+}
+@media(min-width:900px){
+  html:not([data-mode]) #page-leaderboard section:nth-of-type(3) > .wrap > .lb-col.lb-col-a{grid-column:1;grid-row:1}
+  html:not([data-mode]) #page-leaderboard section:nth-of-type(3) > .wrap > .lb-col.lb-col-b{grid-column:2;grid-row:1}
+}
+.lb-col-a>details[open]{flex:0 0 auto}
+#page-leaderboard .lb-col>.recap-card{margin:0 !important}
