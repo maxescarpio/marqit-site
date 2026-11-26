@@ -1335,3 +1335,24 @@ details.lb-acc.lb-sec-leagues{--acc:170,112,255}
 #page-leaderboard .lb-cats .board:hover{border-color:rgba(var(--acc),.4)}
 /* Big Board gets the same gold lift */
 #page-leaderboard .boards.lb-big .board{background-image:radial-gradient(110% 60% at 50% -15%,rgba(245,195,54,.10),transparent 60%)}
+
+/* ===== Leaderboard: side by side on wide screens (2026-11-26c) ===== */
+@media(min-width:900px){
+  #page-leaderboard .section > .wrap{max-width:1180px !important}
+  #page-leaderboard section:nth-of-type(2) > .wrap{display:grid !important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+  #page-leaderboard .section:nth-of-type(2) > .wrap > #record-card{grid-column:1;grid-row:1 / span 3}
+  #page-leaderboard #recap-card{grid-column:2;grid-row:1;margin:0 !important}
+  #page-leaderboard #mycalls-card{grid-column:2;grid-row:2;margin:0 !important}
+  #page-leaderboard .section:nth-of-type(2) > .wrap > #top-predictor-line,#page-leaderboard #top-predictor-line{grid-column:2;grid-row:3;margin:0 2px !important}
+  html:not([data-mode]) #page-leaderboard section:nth-of-type(3) > .wrap{display:grid !important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start !important}
+  html:not([data-mode]) #page-leaderboard .boards.lb-big{grid-column:1;grid-row:1 / span 3}
+  html:not([data-mode]) #page-leaderboard details.lb-sec-groups{grid-column:2;grid-row:1}
+  html:not([data-mode]) #page-leaderboard details.lb-sec-top{grid-column:2;grid-row:2}
+  html:not([data-mode]) #page-leaderboard details.lb-sec-leagues{grid-column:2;grid-row:3}
+  html:not([data-mode]) #page-leaderboard .lb-cat-h{grid-column:1 / -1;grid-row:4}
+  html:not([data-mode]) #page-leaderboard .boards.lb-cats{grid-column:1 / -1;grid-row:5;display:grid !important;grid-template-columns:repeat(3,minmax(0,1fr)) !important;gap:14px;align-items:start}
+}
+@media(min-width:900px){
+  #page-leaderboard section:nth-of-type(2) > .wrap{grid-template-rows:auto auto 1fr}
+  html:not([data-mode]) #page-leaderboard section:nth-of-type(3) > .wrap{grid-template-rows:auto auto 1fr auto auto}
+}
