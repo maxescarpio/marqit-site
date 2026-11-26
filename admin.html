@@ -1401,7 +1401,7 @@
     try{
       const ids = Array.from(new Set(data.map(function(s){ return s.user_id; }).filter(Boolean)));
       if(ids.length){
-        const { data: ps } = await sb.from('profiles').select('id, username, state, school, created_at, banned').in('id', ids);
+        const { data: ps } = await sb.from('profiles').select('id, username, state, created_at, banned').in('id', ids);
         (ps || []).forEach(function(p){ people[p.id] = p; });
       }
     }catch(e){ /* the name is a bonus; the suggestion still shows */ }
@@ -1420,7 +1420,7 @@
       const p = s.user_id ? people[s.user_id] : null;
       var who;
       if(!s.user_id) who = 'Guest (not signed in)' + (s.guest_device_id ? ' \u00b7 device ' + String(s.guest_device_id).slice(0, 6) : '');
-      else if(p) who = '@' + (p.username || 'player') + (p.state ? ' \u00b7 ' + p.state : '') + (p.school ? ' \u00b7 ' + p.school : '') + ' \u00b7 joined ' + new Date(p.created_at).toLocaleDateString() + (p.banned ? ' \u00b7 BANNED' : '');
+      else if(p) who = '@' + (p.username || 'player') + (p.state ? ' \u00b7 ' + p.state : '') + ' \u00b7 joined ' + new Date(p.created_at).toLocaleDateString() + (p.banned ? ' \u00b7 BANNED' : '');
       else who = 'Unknown player (account not found)';
       if(s.user_id && emails[s.user_id]) who += ' \u00b7 ' + emails[s.user_id];
       row.innerHTML =
@@ -1812,7 +1812,7 @@
       ambRows.map(function(r){
         var blocker = ambBlocker(r);
         return '<tr data-id="' + ambEsc(r.id) + '">' +
-          '<td style="padding:6px 8px;"><b>' + ambEsc(r.name) + '</b><br><span style="color:var(--ink-soft);">' + ambEsc(r.code) + ' &middot; ' + ambEsc(r.kind) + (r.school ? ' &middot; ' + ambEsc(r.school) : '') + '</span></td>' +
+          '<td style="padding:6px 8px;"><b>' + ambEsc(r.name) + '</b><br><span style="color:var(--ink-soft);">' + ambEsc(r.code) + ' &middot; ' + ambEsc(r.kind) + '</span></td>' +
           '<td style="padding:6px 8px;">' + ambEsc(r.status) + '</td>' +
           '<td style="padding:6px 8px;">' + r.signups_month + ' / ' + r.signups_total + '</td>' +
           '<td style="padding:6px 8px;">' + r.subscribers_month + ' / ' + r.subscribers_total + '</td>' +
@@ -1841,7 +1841,7 @@
   document.getElementById('amb-refresh').addEventListener('click', loadAmbassadors);
   document.getElementById('amb-month').addEventListener('change', loadAmbassadors);
   document.getElementById('amb-csv').addEventListener('click', function(){
-    var cols = ['code','name','email','kind','status','school','signups_month','signups_total','subscribers_month','subscribers_total','pending_cents','owed_cents','paid_cents','paid_month_cents','void_count','agreement_signed','w9_received','payout_method','payout_handle'];
+    var cols = ['code','name','email','kind','status','signups_month','signups_total','subscribers_month','subscribers_total','pending_cents','owed_cents','paid_cents','paid_month_cents','void_count','agreement_signed','w9_received','payout_method','payout_handle'];
     var lines = [cols.join(',')].concat(ambRows.map(function(r){ return cols.map(function(c){ return ambCsvCell(r[c]); }).join(','); }));
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
