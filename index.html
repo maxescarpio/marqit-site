@@ -61,7 +61,7 @@
 <noscript><style>.cta-band,.site-foot{visibility:visible!important}</style></noscript>
 <link rel="stylesheet" href="style.css?v=20261112a">
 <link rel="stylesheet" href="refresh.css?v=20261124a">
-<link rel="stylesheet" href="redesign.css?v=20261126h">
+<link rel="stylesheet" href="redesign.css?v=20261126j">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -699,18 +699,19 @@
   <div class="wrap">
     <div class="recap-card record-card" id="record-card">
       <div class="recap-head">Your record</div>
+      <p class="lb-help">Each square is one day. Tap a day to see your calls.</p>
       <div class="rec-cal-wrap">
         <div class="rec-month"><button type="button" id="rec-prev" aria-label="Previous month">‹</button><span id="rec-month-label"></span><button type="button" id="rec-next" aria-label="Next month">›</button></div>
         <div class="rec-dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
         <div class="rec-cal" id="rec-cal"></div>
-        <div class="rec-legend"><span><i class="lg-perfect"></i>Perfect Day</span><span><i class="lg-l2"></i>2 right</span><span><i class="lg-l1"></i>1 right</span><span><i class="lg-l0"></i>None right</span><span><i class="lg-none"></i>Missed</span></div>
+        <div class="rec-legend"><span><i class="lg-perfect"></i>Perfect Day (3 of 3)</span><span><i class="lg-l2"></i>2 right</span><span><i class="lg-l1"></i>1 right</span><span><i class="lg-l0"></i>0 right</span><span><i class="lg-none"></i>Didn't play</span></div>
         <div class="rec-day" id="rec-day" hidden></div>
       </div>
       <div class="recap-foot" id="rec-foot"></div>
     </div>
     <div class="lb-col">
       <details class="recap-card lb-acc" id="recap-card">
-        <summary><span class="lb-acc-t">This week</span>
+        <summary><span class="lb-acc-l"><span class="lb-acc-t">This week</span><small>Since Monday</small></span>
           <div class="recap-stats" id="recap-stats">
             <div><strong id="recap-accuracy" style="color:#128A50;">0%</strong><span>Accuracy</span></div>
             <div><strong id="recap-predictions" style="color:#128A50;">0</strong><span>Predictions</span></div>
@@ -725,9 +726,9 @@
           <div class="recap-foot" id="recap-foot"></div>
         </div>
       </details>
-        <details class="recap-card lb-acc" id="rings-card"><summary><span class="lb-acc-t">Accuracy by category</span></summary><div class="lb-acc-body"><div class="rec-rings" id="rec-rings"></div></div></details>
+        <details class="recap-card lb-acc" id="rings-card"><summary><span class="lb-acc-l"><span class="lb-acc-t">Accuracy by category</span><small>How often you are right in each one</small></span></summary><div class="lb-acc-body"><div class="rec-rings" id="rec-rings"></div></div></details>
       <details class="recap-card mycalls-card lb-acc" id="mycalls-card">
-        <summary><span class="lb-acc-t">My calls</span><div class="mycalls-rate" id="mycalls-rate"></div></summary>
+        <summary><span class="lb-acc-l"><span class="lb-acc-t">My calls</span><small>Each call you made this week</small></span><div class="mycalls-rate" id="mycalls-rate"></div></summary>
         <div class="lb-acc-body"><div class="mycalls-list" id="mycalls-list"></div></div>
       </details>
       <p class="ex-sub" id="top-predictor-line"><i class="sk" style="width:62%;height:14px;"></i></p>
@@ -741,6 +742,7 @@
     <div class="boards lb-big">
       <div class="board" style="--tint:246,196,48;">
         <div class="bb-head"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#F5C336" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M6 5H3v2a3 3 0 0 0 3 3M18 5h3v2a3 3 0 0 1-3 3"/></svg><h3 class="ex-title">Marqit Big Board</h3></div>
+        <p class="lb-help" style="margin:-4px 0 12px;">Top players. Use the tabs to switch between worldwide, your state, friends and more.</p>
         <div class="scope-tab-row" id="lb-scope-tabs">
           <button type="button" class="scope-tab active" data-scope="worldwide">Worldwide</button>
           <button type="button" class="scope-tab" data-scope="state"><span id="state-board-title">Your state</span></button>
@@ -861,7 +863,7 @@
       </div>
     </details>
     </div>
-    <h3 class="ex-title lb-cat-h" style="margin-top:30px;">Category</h3>
+    <h3 class="ex-title lb-cat-h" style="margin-top:30px;">Leaders by category</h3>
     <div class="boards lb-cats">
       <div class="board">
         <details class="lb-acc lb-acc-in"><summary><div class="board-title" style="display:flex; align-items:center; gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#C77D2E" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.5 5.5c3 3 3 10 0 13M18.5 5.5c-3 3-3 10 0 13"/></svg>Sports</div></summary>
@@ -985,7 +987,7 @@
 try{var mo=new MutationObserver(function(){if(document.querySelector('.mq-qrow')){go();mo.disconnect()}});mo.observe(document,{childList:true,subtree:true})}catch(e){go()}
 setTimeout(go,7000)})();</script>
 <script src="native.js?v=20261116c" defer></script>
-<script src="app.min.js?v=20261126a" defer></script>
+<script src="app.min.js?v=20261126b" defer></script>
 <script src="plus.js?v=20261112a" defer></script>
 <script src="handshake.js?v=20261116a" defer></script>
 <script src="leagues.js?v=20261105a" defer></script>

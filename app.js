@@ -7612,7 +7612,7 @@
     if(!rows.length){ rateEl.innerHTML = ''; listEl.innerHTML = '<p class="recap-foot" style="border:none;padding:0;">Your calls this week show up here once they\u2019re scored.</p>'; return; }
 
     var right = rows.filter(function(r){ return r.choice === r.daily_questions.correct_answer; }).length;
-    rateEl.innerHTML = '<b>' + Math.round(right / rows.length * 100) + '%</b><span>hit rate \u00b7 this week</span>';
+    rateEl.innerHTML = '<b>' + Math.round(right / rows.length * 100) + '%</b><span>right this week</span>';
 
     function callRow(r){
       var dq = r.daily_questions, won = r.choice === dq.correct_answer;
