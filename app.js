@@ -7445,7 +7445,7 @@
     var lab = document.getElementById('rec-month-label'); if(lab) lab.textContent = MQ_MONTHS[m - 1] + ' ' + y;
     var pv = document.getElementById('rec-prev'), nx = document.getElementById('rec-next');
     if(pv) pv.disabled = ym <= minYm; if(nx) nx.disabled = ym >= curYm;
-    var cells = '', played = 0, byDay = MQ_REC.byDay, session = MQ_REC.session;
+    var cells = '', played = 0, perfectN = 0, byDay = MQ_REC.byDay, session = MQ_REC.session;
     for(var b = 0; b < lead; b++) cells += '<i class="rc blank" aria-hidden="true"></i>';
     for(var i = 1; i <= dim; i++){
       var d = ym + '-' + String(i).padStart(2, '0'), v = byDay[d], cls = 'rc', tip = mqRecDayLabel(d);
@@ -7462,11 +7462,17 @@
       }
       if(d === today) cls += ' today';
       if(d === MQ_REC.sel) cls += ' sel';
-      cells += '<button type="button" class="' + cls + '" style="--i:' + (lead + i) + ';" data-d="' + d + '" title="' + escapeHtml(tip) + '"' + (d > today ? ' disabled' : '') + ' aria-label="' + escapeHtml(tip) + '"></button>';
+      if(cls.indexOf(' perfect') > -1) perfectN++;
+      cells += '<button type="button" class="' + cls + '" style="--i:' + (lead + i) + ';" data-d="' + d + '" title="' + escapeHtml(tip) + '"' + (d > today ? ' disabled' : '') + ' aria-label="' + escapeHtml(tip) + '">' + i + '</button>';
     }
     cal.innerHTML = cells;
     if(foot && session){
-      foot.textContent = played ? played + (played === 1 ? ' day' : ' days') + ' played in ' + MQ_MONTHS[m - 1] + '.' : (ym === curYm ? 'Your record fills in as your calls get scored.' : 'No calls in ' + MQ_MONTHS[m - 1] + '.');
+      if(played){
+        foot.innerHTML = '<span class="rf-chip">' + played + (played === 1 ? ' day' : ' days') + ' played</span>' +
+          (perfectN ? '<span class="rf-chip gold">' + perfectN + ' Perfect ' + (perfectN === 1 ? 'Day' : 'Days') + '</span>' : '');
+      }else{
+        foot.textContent = ym === curYm ? 'Your record fills in as your calls get scored.' : 'No calls in ' + MQ_MONTHS[m - 1] + '.';
+      }
     }
   }
   function mqRecHide(){

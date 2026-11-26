@@ -1280,3 +1280,58 @@ html:not([data-mode]) #page-leaderboard .boards.lb-cats{display:flex !important;
 #page-leaderboard .lb-cats .board>details>summary{min-height:48px;padding:10px 16px}
 #page-leaderboard .lb-cats .board>details>summary .board-title{margin:0 !important;padding:0 !important}
 @media(max-width:520px){#page-leaderboard details.recap-card>summary .recap-stats>div:nth-child(2),#page-leaderboard details.recap-card>summary .recap-stats>div:nth-child(3){display:none}}
+
+/* ===== Leaderboard polish (2026-11-26b): livelier dropdowns, calmer calendar ===== */
+/* Calendar: one green scale, gold only for a Perfect Day, day numbers inside */
+#page-leaderboard #record-card{background-image:radial-gradient(120% 70% at 50% -12%,rgba(51,209,139,.12),transparent 62%)}
+#page-leaderboard #record-card .recap-head{color:var(--ink);font-size:13px;letter-spacing:.14em}
+#page-leaderboard #record-card .rec-month span{font-family:'Big Shoulders Display',Barlow,sans-serif;font-size:22px;letter-spacing:.06em}
+#page-leaderboard #record-card .rec-month button{width:34px;height:34px;border-radius:50%;transition:background .15s,transform .15s}
+#page-leaderboard #record-card .rec-month button:not(:disabled):hover{background:rgba(51,209,139,.18);transform:scale(1.08)}
+#page-leaderboard #record-card .rc{position:relative;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:12px;cursor:pointer;font:600 12.5px/1 Barlow,system-ui,sans-serif;color:var(--ink-soft);transition:transform .15s,box-shadow .15s}
+#page-leaderboard #record-card .rc.blank{background:none;box-shadow:none;cursor:default;animation:none}
+#page-leaderboard #record-card .rc.none{background:rgba(128,136,150,.09);box-shadow:inset 0 0 0 1px rgba(128,136,150,.16);color:rgba(150,158,172,.7)}
+#page-leaderboard #record-card .rc.future{background:transparent;box-shadow:none;opacity:.32;cursor:default}
+#page-leaderboard #record-card .rc.pend{background:rgba(120,140,200,.10);box-shadow:none;border:1.5px dashed rgba(130,150,210,.55);color:var(--ink-soft)}
+#page-leaderboard #record-card .rc.l0{background:rgba(245,100,79,.13);box-shadow:inset 0 0 0 1px rgba(245,100,79,.5);color:#f4a193}
+#page-leaderboard #record-card .rc.l1{background:rgba(51,209,139,.2);box-shadow:inset 0 0 0 1px rgba(51,209,139,.4);color:#8ae8c0}
+#page-leaderboard #record-card .rc.l2{background:linear-gradient(160deg,#3bdc98,#1fa56d);box-shadow:0 3px 12px rgba(51,209,139,.28);color:#04261a}
+#page-leaderboard #record-card .rc.perfect{background:linear-gradient(160deg,#fbe07f,#e2a82a);box-shadow:0 4px 16px rgba(245,195,54,.4);color:#3b2a00;font-weight:800}
+#page-leaderboard #record-card .rc.perfect::after{content:"";position:absolute;top:6px;right:6px;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.9)}
+#page-leaderboard #record-card .rc:not(.blank):not(.future):hover{transform:translateY(-2px) scale(1.05)}
+#page-leaderboard #record-card .rc.sel{box-shadow:0 0 0 2px var(--ink)}
+#page-leaderboard #record-card .rc.today{outline:0;color:var(--ink)}
+#page-leaderboard #record-card .rc.today::before{content:"";position:absolute;inset:-3px;border-radius:15px;border:2px solid rgba(255,255,255,.75);animation:mqTodayPulse 2.4s ease-out infinite;pointer-events:none}
+@keyframes mqTodayPulse{0%{transform:scale(1);opacity:.85}100%{transform:scale(1.22);opacity:0}}
+@media(prefers-reduced-motion:reduce){#page-leaderboard #record-card .rc.today::before{animation:none;opacity:.8}}
+#page-leaderboard #record-card .rec-legend i{width:11px;height:11px;border-radius:4px}
+.rec-legend .lg-perfect{background:linear-gradient(160deg,#fbe07f,#e2a82a)}
+.rec-legend .lg-l2{background:linear-gradient(160deg,#3bdc98,#1fa56d)}
+.rec-legend .lg-l1{background:rgba(51,209,139,.3);box-shadow:inset 0 0 0 1px rgba(51,209,139,.5)}
+.rec-legend .lg-l0{background:rgba(245,100,79,.18);box-shadow:inset 0 0 0 1px rgba(245,100,79,.55)}
+.rec-legend .lg-none{background:rgba(128,136,150,.15);box-shadow:inset 0 0 0 1px rgba(128,136,150,.3)}
+/* Summary chips under the month */
+#page-leaderboard #record-card .recap-foot{display:flex;justify-content:center;flex-wrap:wrap;gap:8px}
+.rf-chip{display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;background:rgba(51,209,139,.14);border:1px solid rgba(51,209,139,.32);color:var(--ink);font-size:12.5px;font-weight:600}
+.rf-chip.gold{background:rgba(245,195,54,.14);border-color:rgba(245,195,54,.45)}
+/* Dropdown rows: a tinted accent, a lift on hover, a glow when open */
+details.lb-acc{--acc:51,209,139;transition:border-color .2s,box-shadow .2s,background-color .2s}
+details.lb-acc#mycalls-card{--acc:70,140,255}
+details.lb-acc.lb-sec-groups{--acc:255,148,38}
+details.lb-acc.lb-sec-top{--acc:245,100,79}
+details.lb-acc.lb-sec-leagues{--acc:170,112,255}
+.lb-cats .board:nth-child(1)>details.lb-acc{--acc:255,148,38}
+.lb-cats .board:nth-child(2)>details.lb-acc{--acc:170,112,255}
+.lb-cats .board:nth-child(3)>details.lb-acc{--acc:70,140,255}
+.lb-acc>summary{position:relative;transition:background .15s}
+.lb-acc>summary::before{content:"";flex:none;width:4px;height:20px;align-self:center;border-radius:3px;background:rgb(var(--acc))}
+.lb-acc>summary:hover{background:rgba(var(--acc),.07)}
+#page-leaderboard details.recap-card:hover,details.lb-sec:hover{border-color:rgba(var(--acc),.45)}
+#page-leaderboard details.lb-acc[open]:not(.lb-acc-in){border-color:rgba(var(--acc),.55);background-image:linear-gradient(180deg,rgba(var(--acc),.09),transparent 110px);box-shadow:0 6px 24px rgba(var(--acc),.10)}
+.lb-acc[open]>summary::after{border-color:rgb(var(--acc))}
+.lb-acc-t{letter-spacing:.01em}
+#page-leaderboard #recap-card summary .recap-stats strong{color:rgb(var(--acc)) !important}
+#page-leaderboard .lb-cats .board{border-radius:14px;overflow:hidden}
+#page-leaderboard .lb-cats .board:hover{border-color:rgba(var(--acc),.4)}
+/* Big Board gets the same gold lift */
+#page-leaderboard .boards.lb-big .board{background-image:radial-gradient(110% 60% at 50% -15%,rgba(245,195,54,.10),transparent 60%)}
