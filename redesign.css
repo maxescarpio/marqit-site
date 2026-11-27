@@ -1497,3 +1497,9 @@ html:not([data-mode]) #page-leaderboard .lb-zc .boards.lb-cats{order:7}
 .lb-zone{display:block}
 .lb-zone h3{font-size:26px}
 #lb-z1 p{display:block !important;margin:4px 0 0 !important;font-size:14px !important;color:var(--ink-soft) !important}
+/* refined section dividers: thin hairline with a short dark tab, smaller type */
+.lb-zone{position:relative;border-top:1px solid var(--line) !important;margin:34px 0 14px;padding-top:20px}
+.lb-zone::before{content:"";position:absolute;left:0;top:-1px;width:44px;height:3px;background:var(--ink)}
+.lb-zone h3{font-size:22px !important;letter-spacing:.01em}
+.lb-zone p{font-size:13.5px}
+#lb-z1{margin-top:20px}
