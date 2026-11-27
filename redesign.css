@@ -1490,3 +1490,9 @@ html:not([data-mode]) #page-leaderboard #lb-rank-wrap .boards.lb-cats{display:fl
 html:not([data-mode]) #page-leaderboard .lb-zc .lb-cat-h{order:5}
 html:not([data-mode]) #page-leaderboard .lb-zc .lb-cat-help{order:6}
 html:not([data-mode]) #page-leaderboard .lb-zc .boards.lb-cats{order:7}
+/* plain headings, no number badges */
+.lb-jump{gap:6px 22px;margin:12px 0 4px}
+.lb-jump a{padding:2px 0;border:0;border-bottom:2px solid var(--ink);border-radius:0;font-size:15px}
+.lb-jump a:hover{background:transparent;color:var(--ink-soft)}
+.lb-zone{display:block}
+.lb-zone h3{font-size:26px}
