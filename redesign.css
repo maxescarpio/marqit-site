@@ -1451,3 +1451,42 @@ html[data-mode] #page-leaderboard .lb-col:has(#rings-card){display:none}
 .lb-sec-groups>summary .lb-acc-t::after{content:"WITH OTHERS"}
 .lb-sec-top>summary .lb-acc-t::after{content:"WITH OTHERS"}
 #page-leaderboard .lb-cat-h{font-size:20px;font-weight:800;padding-top:14px;border-top:2px solid var(--ink)}
+
+/* ===== Leaderboard: 3 labeled zones (2026-11-27) ===== */
+.lb-acc:not(.lb-acc-in)>summary .lb-acc-t::after{content:none !important;display:none !important}
+.lb-jump{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}
+.lb-jump a{display:inline-flex;align-items:center;gap:8px;padding:8px 14px 8px 8px;border:1.5px solid var(--ink);border-radius:999px;color:var(--ink);font-weight:700;font-size:14px;text-decoration:none}
+.lb-jump a:hover{background:var(--ink);color:var(--bg,#111)}
+.lb-jump b,.lb-zn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg,#111);font-size:15px;font-weight:800}
+.lb-zone{display:flex;align-items:center;gap:14px;margin:26px 0 12px;padding-top:18px;border-top:3px solid var(--ink);scroll-margin-top:70px}
+.lb-zone .lb-zn{width:40px;height:40px;font-size:22px}
+.lb-zone h3{margin:0;font-size:26px;font-weight:800;line-height:1.1;color:var(--ink)}
+.lb-zone p{margin:4px 0 0;font-size:14px;color:var(--ink-soft);line-height:1.4}
+#lb-z1{margin-top:22px}
+.lb-zc{display:flex;flex-direction:column;gap:10px;min-width:0}
+.lb-zc>details[open]{flex:1 1 auto}
+.lb-zc .boards.lb-big{flex:0 0 auto}
+.lb-zc .lb-cat-h{margin:12px 2px 0 !important;font-size:17px !important;padding-top:0 !important;border-top:0 !important}
+.lb-zc .lb-cat-help{margin:-4px 2px 4px}
+#lb-rank-wrap .boards.lb-cats{display:flex !important;flex-direction:column;grid-template-columns:none !important;gap:10px}
+@media(min-width:900px){
+  #page-leaderboard section>#lb-rank-wrap{display:grid !important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:14px;row-gap:10px;align-items:stretch !important;grid-template-rows:none !important}
+  #lb-rank-wrap>.lb-zone{grid-column:1 / -1}
+  #lb-rank-wrap>.lb-zc-a,#lb-rank-wrap>.lb-zc-c{grid-column:1}
+  #lb-rank-wrap>.lb-zc-b,#lb-rank-wrap>.lb-zc-d{grid-column:2}
+  #lb-rank-wrap>#lb-z2{grid-row:1}
+  #lb-rank-wrap>.lb-zc-a,#lb-rank-wrap>.lb-zc-b{grid-row:2}
+  #lb-rank-wrap>#lb-z3{grid-row:3}
+  #lb-rank-wrap>.lb-zc-c,#lb-rank-wrap>.lb-zc-d{grid-row:4}
+}
+@media(max-width:899px){
+  #page-leaderboard section>#lb-rank-wrap{display:flex !important;flex-direction:column;gap:10px}
+  .lb-zone h3{font-size:22px}
+}
+/* sports / pop culture / news mode: only the topic boards */
+html[data-mode] #lb-rank-wrap>.lb-zone,html[data-mode] #lb-rank-wrap>.lb-zc-b,html[data-mode] #lb-rank-wrap>.lb-zc-c,html[data-mode] #lb-rank-wrap>.lb-zc-d,html[data-mode] #lb-rank-wrap .boards.lb-big,html[data-mode] .lb-jump,html[data-mode] #lb-z1,html[data-mode] .lb-cat-help{display:none !important}
+html[data-mode] #lb-rank-wrap>.lb-zc-a{grid-column:1 / -1}
+html:not([data-mode]) #page-leaderboard #lb-rank-wrap .boards.lb-cats{display:flex !important;flex-direction:column;grid-template-columns:none !important;grid-column:auto;grid-row:auto;gap:10px}
+html:not([data-mode]) #page-leaderboard .lb-zc .lb-cat-h{order:5}
+html:not([data-mode]) #page-leaderboard .lb-zc .lb-cat-help{order:6}
+html:not([data-mode]) #page-leaderboard .lb-zc .boards.lb-cats{order:7}
