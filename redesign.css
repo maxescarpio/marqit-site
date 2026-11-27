@@ -1496,3 +1496,4 @@ html:not([data-mode]) #page-leaderboard .lb-zc .boards.lb-cats{order:7}
 .lb-jump a:hover{background:transparent;color:var(--ink-soft)}
 .lb-zone{display:block}
 .lb-zone h3{font-size:26px}
+#lb-z1 p{display:block !important;margin:4px 0 0 !important;font-size:14px !important;color:var(--ink-soft) !important}
