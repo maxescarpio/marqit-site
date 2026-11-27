@@ -1503,3 +1503,10 @@ html:not([data-mode]) #page-leaderboard .lb-zc .boards.lb-cats{order:7}
 .lb-zone h3{font-size:22px !important;letter-spacing:.01em}
 .lb-zone p{font-size:13.5px}
 #lb-z1{margin-top:20px}
+/* section split: heading with a faint line running out to the right; no bar, no white */
+.lb-zone{border-top:0 !important;padding-top:0 !important;margin:38px 0 14px}
+.lb-zone::before{display:none !important}
+.lb-zone>div{width:100%}
+.lb-zone h3{display:flex;align-items:center;gap:16px}
+.lb-zone h3::after{content:"";flex:1;height:1px;background:var(--line)}
+#lb-z1{margin-top:22px}
